@@ -1,0 +1,30 @@
+*.VC.db
+*.dll
+*.exe
+*.ipch
+*.pch
+*.sdf
+*.ncb
+*.tlog
+*.obj
+*.iobj
+*.pdb
+*.ipdb
+*.exp
+*.log
+*.recipe
+*.lib
+
+*.vcxproj.user
+*.vc.db
+*.ncb
+*.xlsx
+*.pdf
+*.docx
+
+# 不要忽略的文件夹
+!data/
+
+# 忽略的文件夹
+Release/
+x64/
