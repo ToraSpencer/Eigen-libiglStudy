@@ -81,8 +81,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);..\ligIgl\libigl-main\external\eigen;..\ligIgl\libigl-main\external\glad\include;..\ligIgl\libigl-main\external\glfw\include;..\ligIgl\libigl-main\tutorial;..\ligIgl\libigl-main\cmake\..\include;..\ligIgl\libigl-main\cmake\..\external\eigen;$(IncludePath)</IncludePath>
-    <LibraryPath>..\ligIgl\libigl-main\build\glad;..\ligIgl\libigl-main\build\glfw\src;..\ligIgl\libigl-main\build;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);..\libigl-main\external\eigen;..\libigl-main\external\glad\include;..\libigl-main\external\glfw\include;..\libigl-main\tutorial;..\libigl-main\cmake\..\include;..\libigl-main\cmake\..\external\eigen;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)..\libigl-main\tutorialBuild\glad;$(ProjectDir)..\libigl-main\tutorialBuild\glfw\src;$(ProjectDir)..\libigl-main\tutorialBuild;$(ProjectDir)..\libigl-main\tutorialBuild\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -90,7 +90,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(ProjectDir)..\libigl-main\external\eigen;$(ProjectDir)..\libigl-main\external\glad\include;$(ProjectDir)..\libigl-main\external\glfw\include;$(ProjectDir)..\libigl-main\tutorial;$(ProjectDir)..\libigl-main\cmake\..\include;$(ProjectDir)..\libigl-main\cmake\..\external\eigen;$(IncludePath)</IncludePath>
-    <LibraryPath>$(ProjectDir)..\libigl-main\build\glad;$(ProjectDir)..\libigl-main\build\glfw\src;$(ProjectDir)..\libigl-main\build;$(ProjectDir)..\libigl-main\external\eigen;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(ProjectDir)..\libigl-main\tutorialBuild\glad;$(ProjectDir)..\libigl-main\tutorialBuild\glfw\src;$(ProjectDir)..\libigl-main\tutorialBuild;$(ProjectDir)..\libigl-main\tutorialBuild\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

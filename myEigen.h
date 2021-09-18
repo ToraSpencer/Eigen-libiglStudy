@@ -482,6 +482,39 @@ bool matInsertRows(Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, 1, N>& rowV
 
 
 // 返回一个类似于matlab索引向量的int列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；若程序出错则retVec所有元素为-1
+template<typename T, size_t N>
+VectorXi vecInMat(const Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, 1, N>& vec)
+{
+	int rows = mat.rows();
+	int cols = mat.cols();
+
+	VectorXi retVec(rows);
+	if (vec.cols() != cols)
+	{
+		retVec = -VectorXi::Ones(rows);
+		return retVec;
+	}
+
+	// 逐列比较：
+	MatrixXi tempMat(rows, cols);
+	for (int i = 0; i < cols; ++i)
+	{
+		tempMat.col(i) = (mat.col(i).array() == vec(i)).select(VectorXi::Ones(rows), VectorXi::Zero(rows));
+	}
+
+	retVec = tempMat.col(0);
+
+	if (cols > 1)
+	{
+		for (int i = 1; i < cols; ++i)
+		{
+			retVec = retVec.array() * tempMat.col(i).array();			// 逐列相乘：
+		}
+	}
+
+	return retVec;
+}
+
 template<typename T>
 VectorXi vecInMat(const Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, 1, Dynamic>& vec)
 {
@@ -502,20 +535,19 @@ VectorXi vecInMat(const Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, 1, Dyn
 		tempMat.col(i) = (mat.col(i).array() == vec(i)).select(VectorXi::Ones(rows), VectorXi::Zero(rows));
 	}
 
-	if (cols == 1)
+	retVec = tempMat.col(0);
+
+	if (cols > 1)
 	{
-		retVec = tempMat.col(0);
-	}
-	else
-	{
-		for (int i = 0; i < cols - 1; ++i)
+		for (int i = 1; i < cols; ++i)
 		{
-			retVec = tempMat.col(i).array() * tempMat.col(i + 1).array();
+			retVec = retVec.array() * tempMat.col(i).array();			// 逐列相乘：
 		}
 	}
 
 	return retVec;
 }
+
 
 
 // 打印矩阵信息：
@@ -561,9 +593,8 @@ void dispMatBlock(const Matrix<T, Dynamic, Dynamic>& mat, const int rowStart, co
 	std::cout << std::endl;
 }
 
-
-template<typename T>
-void dispVec(const Matrix<T, Dynamic, 1>& vec)
+template<typename T, size_t N>
+void dispVec(const Matrix<T, N, 1>& vec)
 {
 	std::cout << ": rows == " << vec.rows() << std::endl;
 	for (int i = 0; i < vec.rows(); ++i)
@@ -573,8 +604,8 @@ void dispVec(const Matrix<T, Dynamic, 1>& vec)
 	std::cout << std::endl;
 }
 
-template<typename T>
-void dispVec(const Matrix<T, 1, Dynamic>& vec)
+template<typename T, size_t N>
+void dispVec(const Matrix<T, 1, N>& vec)
 {
 	std::cout << ": cols == " << vec.cols() << std::endl;
 	for (int i = 0; i < vec.cols(); ++i)
@@ -585,8 +616,8 @@ void dispVec(const Matrix<T, 1, Dynamic>& vec)
 }
 
 
-template<typename T>
-void dispVecSeg(const Matrix<T, Dynamic, 1>& vec, const int start, const int end)
+template<typename T, size_t N>
+void dispVecSeg(const Matrix<T, N, 1>& vec, const int start, const int end)
 {
 	if (start < 0 || end > vec.rows() - 1 || start >= end)
 	{
@@ -602,9 +633,8 @@ void dispVecSeg(const Matrix<T, Dynamic, 1>& vec, const int start, const int end
 	std::cout << std::endl;
 }
 
-
-template<typename T>
-void dispVecSeg(const Matrix<T, 1, Dynamic>& vec, const int start, const int end)
+template<typename T, size_t N>
+void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
 {
 	if (start < 0 || end > vec.cols() - 1 || start >= end)
 	{
@@ -619,6 +649,7 @@ void dispVecSeg(const Matrix<T, 1, Dynamic>& vec, const int start, const int end
 	}
 	std::cout << std::endl;
 }
+
 
 auto objReadMeshMat = [](MatrixXf& vers, MatrixXi& tris, const char* fileName)
 {
@@ -860,6 +891,29 @@ bool solveLinearEquations(Matrix<T, Dynamic, Dynamic>& X, const Matrix<T, Dynami
 
 	return true;
 }
+
+
+// 霍纳方法（秦九昭算法）求多项式的值
+template<typename T, size_t N>
+float hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
+{
+	// coeffs是{a0, a1, a2, ..., an}组成的(n+1)列向量，多项式为p == a0 + a1*x + a2*x^2 + ... + an* x^n; 
+	int n = coeffs.rows() - 1;
+	if (n < 0)
+	{
+		return NAN;
+	}
+
+	float result = coeffs(n);
+	for (int i = n; i - 1 >= 0; i--)
+	{
+		result *= x;
+		result += coeffs(i - 1);
+	}
+
+	return result;
+}
+
 
  
 // 自定义计时器，使用WINDOWS计时API

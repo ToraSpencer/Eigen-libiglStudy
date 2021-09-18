@@ -228,9 +228,10 @@ namespace DENSEMAT
 		MatrixXd m1(3, 4);
 		VectorXd v1(5);
 
-		// 输出流运算符赋值
+		// 输出流运算符赋值——行优先顺序
 		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12;
 		v1 << 1, 2;
+		cout << "m1 = \n" << m1 << endl << endl;
 		cout << "v1 = \n" << v1 << endl << endl;
 
 		v1 << 3, 4, 5;			// 不会接着上面的赋值，而是从第一个元素开始赋值
@@ -589,7 +590,14 @@ namespace DENSEMAT
 		result = m1.array().pow(2);
 		std::cout << "按元素平方： \n" << result << std::endl << std::endl;
 
-		MatrixXf m2 = 5 * MatrixXf::Ones(5, 6);
+		m1.col(0).array() = -1;
+		m1.col(1).array() = 0;
+		m1.col(2).array() = 1;
+		m1.rightCols(3).array() = 2;
+		std::cout << ".array() = 常数来给矩阵元素赋值：\n" << m1 << std::endl << std::endl;
+
+
+		MatrixXf m2 = MatrixXf::Ones(5, 6);
 		auto result2 = (m1.array() < m2.array());
 		std::cout << "类似于MATLAB中的逻辑矩阵： \n" << result2 << std::endl << std::endl;
 		std::cout << typeid(result2).name() << std::endl;
@@ -1131,6 +1139,18 @@ namespace SCIENTIFICCALC
 	}
 
 
+	// 测试霍纳方法（秦九昭算法）计算多项式：
+	void test2() 
+	{
+		Eigen::Vector4f coeff(9, -1, 3, 1);
+		Eigen::RowVector4f coeffTrans = coeff.transpose();
+		float x = 3.0;
+		Eigen::Vector4f X(1, x, std::powf(x, 2), std::powf(x, 3));
+
+		std::cout << "result == " << hornersPoly(coeff, x) << std::endl;
+		std::cout << "real result == " << coeffTrans * X << std::endl;
+	}
+
 }
  
 
@@ -1214,11 +1234,11 @@ namespace DISPLAY
 
 int main()
 {
-	DENSEMAT::test12();
+	//DENSEMAT::test1();
  
 	//SPARSEMAT::test1();
 
-	//IGLSTUDY::test1();
+	IGLSTUDY::test1();
 
 	//SCIENTIFICCALC::test1();
 
