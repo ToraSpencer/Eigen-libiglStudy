@@ -19,10 +19,19 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="dense_mat.cpp" />
+    <ClCompile Include="igl_study.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="myEigen.cpp" />
+    <ClCompile Include="scientific_calc.cpp" />
+    <ClCompile Include="sparse_mat.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="dense_mat.h" />
+    <ClInclude Include="igl_study.h" />
     <ClInclude Include="myEigen.h" />
+    <ClInclude Include="scientific_calc.h" />
+    <ClInclude Include="sparse_mat.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

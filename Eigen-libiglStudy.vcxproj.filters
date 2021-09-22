@@ -18,9 +18,36 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="dense_mat.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="myEigen.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="igl_study.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="scientific_calc.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="sparse_mat.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="myEigen.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="dense_mat.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="igl_study.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="scientific_calc.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="sparse_mat.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
