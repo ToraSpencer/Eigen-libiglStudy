@@ -52,15 +52,128 @@ auto disp = [](const T& arg)
 };
 
 
- 
+
 template<typename T>
 void dispQuat(const Quaternion<T>& q)
 {
 	std::cout << q.w() << std::endl;
-	std:: cout << q.vec() << std::endl;
+	std::cout << q.vec() << std::endl;
 }
 
-  
+
+// 将std::vector中的数据写入到文件中，二进制形式，vector中的元素不能是pointer-like类型
+template <typename T>
+void vecWriteToFile(const char* fileName, const std::vector<T>& vec)
+{
+	std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
+	file.write((char*)(&vec[0]), sizeof(T) * vec.size());
+	file.close();
+}
+
+
+// to be optimized——元素数应该不需要传入函数，应该可以由文件流大小推断出来。
+template<typename T>
+void vecReadFromFile(std::vector<T>& vec, const char* fileName, const unsigned elemCount)
+{
+	std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
+	vec.resize(elemCount);
+	file.read((char*)(&vec[0]), sizeof(T) * vec.size());
+	file.close();
+}
+
+
+template<typename T>
+bool matWriteToFile(const char* fileName, const Matrix<T, Dynamic, Dynamic>& mat)
+{
+	std::ofstream file(fileName);
+	file << "row " << mat.rows() << std::endl;
+	file << "col " << mat.cols() << std::endl;
+	const T* ptr = mat.data();
+	unsigned elemCount = mat.rows() * mat.cols();
+	for (unsigned i = 0; i < elemCount; ++i)
+	{
+		file << *ptr++ << std::endl;
+	}
+	file.close();
+
+	return true;
+};
+
+
+template<typename T>
+bool matReadFromFile(Matrix<T, Dynamic, Dynamic>& mat, const char* fileName)
+{
+	std::ifstream file(fileName);
+	const unsigned LINE_LENGTH = 100;
+	char cstr[100];
+	unsigned lineOrder = 0;
+	unsigned row = 0;
+	unsigned col = 0;
+	std::string str1, str2;
+
+	// 读矩阵尺寸信息
+	file.getline(cstr, LINE_LENGTH);
+	str1 = cstr;
+	str2.insert(str2.end(), str1.begin(), str1.begin() + 3);
+	if (std::strcmp(str2.c_str(), "row") == 0)
+	{
+		str2.clear();
+		str2.insert(str2.end(), str1.begin() + 3, str1.end());
+		row = std::stoi(str2);
+	}
+	else
+	{
+		return false;
+	}
+
+	file.getline(cstr, LINE_LENGTH);
+	str1 = cstr;
+	str2.clear();
+	str2.insert(str2.end(), str1.begin(), str1.begin() + 3);
+	if (std::strcmp(str2.c_str(), "col") == 0)
+	{
+		str2.clear();
+		str2.insert(str2.end(), str1.begin() + 3, str1.end());
+		col = std::stoi(str2);
+	}
+	else
+	{
+		return false;
+	}
+
+	// 读矩阵元素
+	mat.resize(row, col);
+	T* ptr = mat.data();
+	while (!file.eof())
+	{
+		file.getline(cstr, LINE_LENGTH);
+		str1 = cstr;
+		if (str1.size() == 0)
+		{
+			break;
+		}
+		std::string::iterator iter = str1.begin();
+		for (unsigned j = 0; j < 3; ++j)
+		{
+			if (iter == str1.end())
+			{
+				break;
+			}
+
+			if (*iter == ' ')						// 负号后面可能有空格，需要去除
+			{
+				iter = str1.erase(iter);
+			}
+			iter++;
+		}
+		*ptr++ = std::stoi(str1);
+	}
+	file.close();
+
+};
+
+
+// 根据索引向量从源矩阵中提取元素生成输出矩阵。
 template <typename T>
 bool subFromIdxVec(Matrix<T, Dynamic, Dynamic>& matOut, const Matrix<T, Dynamic, Dynamic>& matIn, const VectorXi& vec)
 {
@@ -74,20 +187,24 @@ bool subFromIdxVec(Matrix<T, Dynamic, Dynamic>& matOut, const Matrix<T, Dynamic,
 	return true;
 }
 
- 
 
-// 文件中读写矩阵
-bool matIwriteToFile(const char* fileName, const MatrixXi& mat);
+// 根据flag向量从源矩阵中提取元素生成输出矩阵。
+template<typename T>
+bool subFromFlagVec(Matrix<T, Dynamic, Dynamic>& matOut, const Matrix<T, Dynamic, Dynamic>& matIn, const VectorXi& vec)
+{
+	matOut.resize(vec.sum(), matIn.cols());
+	int count = 0;
+	for (unsigned i = 0; i < vec.rows(); ++i)
+	{
+		if (vec(i) > 0)
+		{
+			matOut.row(count++) = matIn.row(i);
+		}
+	}
 
-bool matFwriteToFile(const char* fileName, const MatrixXf& mat);
+	return true;
+}
 
-bool matIreadFromFile(MatrixXi& mat, const char* fileName);
-
-bool matFreadFromFile(MatrixXf& mat, const char* fileName);
-
-bool vecIwriteToFile(const char* fileName, const VectorXi& vec);
-
-bool vecIreadFromFile(VectorXi& vec, const char* fileName);
 
 
 // eigen的向量和std::vector<T>相互转换
@@ -316,6 +433,30 @@ void dispMatBlock(const Matrix<T, Dynamic, Dynamic>& mat, const int rowStart, co
 	std::cout << std::endl;
 }
 
+
+#ifndef _WIN64
+template<typename T>
+void dispSpMat(const SparseMatrix<T>& mat, const int showElems = -1)
+{
+	std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
+	std::cout << "非零元素数：" << mat.nonZeros() << std::endl;
+	int count = 0;
+	for (int k = 0; k < mat.outerSize(); ++k)
+	{
+		SparseMatrix<T, Eigen::ColMajor>::InnerIterator it(mat, k);			// 64位时，貌似T类型在编译器不确定的话，此句会报错
+		for (; ; ++it)
+		{
+			std::cout << "(" << it.row() << ", " << it.col() << ") ---\t" << it.value() << std::endl;
+			count++;
+			if (count >= showElems && showElems >= 0)
+			{
+				return;
+			}
+		}
+	}
+}
+#endif
+
 template<typename T, size_t N>
 void dispVec(const Matrix<T, N, 1>& vec)
 {
@@ -384,6 +525,8 @@ void objWriteVerticesMat(const char* fileName, const MatrixXf& vers);
 
 void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& dir);
 
+void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& xdir, \
+	const RowVector3f& ydir, const RowVector3f& zdir);
 
 // 网格串联——合并两个孤立的网格到一个网格里
 void concatMeshMat(MatrixXf& vers, MatrixXi& tris, const MatrixXf& vers1, const MatrixXi& tris1);
@@ -412,7 +555,7 @@ bool solveLinearEquations(Matrix<T, Dynamic, Dynamic>& X, const Matrix<T, Dynami
 
 	JacobiSVD<Matrix<T, Dynamic, Dynamic>> svd(A, ComputeThinU | ComputeThinV);
 	X.resize(A.cols(), B.cols());
-	for (int i = 0; i < B.cols(); ++i) 
+	for (int i = 0; i < B.cols(); ++i)
 	{
 		Matrix < T, Dynamic, 1> x = svd.solve(B.col(i));
 		X.col(i) = x;
@@ -444,7 +587,35 @@ float hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
 }
 
 
- 
+// 求多项式的一阶微分
+template<typename T, size_t N>
+float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
+{
+	// 多项式p == a0 + a1*x + a2*x^2 + ... + an* x^n 一阶微分为：p' == a1 + 2*a2*x + 3*a3*x^2 ... n*an*x^(n-1)
+	int coeffsCount = coeffs.rows() * coeffs.cols();
+	if (coeffsCount <= 0)
+	{
+		return NAN;
+	}
+
+	if (coeffsCount == 1)
+	{
+		return 1.0f;
+	}
+
+	VectorXf diffCoeffs(coeffsCount - 1);
+	for (int i = 0; i < diffCoeffs.rows(); ++i)
+	{
+		diffCoeffs(i) = (i + 1) * coeffs(i + 1);
+	}
+
+	float result = hornersPoly(diffCoeffs, x);
+
+
+	return result;
+}
+
+
 // 自定义计时器，使用WINDOWS计时API
 class tiktok
 {

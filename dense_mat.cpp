@@ -661,42 +661,38 @@ namespace DENSEMAT
 		objReadMeshMat(vers, tris, "E:/材料/patientTooth11.obj");
 		objReadVerticesMat(gumline, "E:/材料/gumline11.obj");
 		objReadVerticesMat(axis, "E:/材料/axisPatient11.obj");
+		
+		// 以牙齿重心为原点：
+		RowVector3f bary = vers.colwise().mean();
+		vers.rowwise() -= bary;
+		gumline.rowwise() -= bary;
 
-		RowVector3f gumlineCenter = gumline.colwise().mean();		// 希望将该牙网格的牙龈线中心移动到世界坐标系的原点。
+		objWriteMeshMat("E:/tooth_ori.obj", vers, tris);
+		objWriteVerticesMat("E:/gumline_ori.obj", gumline);
 
-		MatrixXf axisTrans = axis.transpose();
-		MatrixXf desAxisTrans = MatrixXf::Identity(3, 3);		// 目标是将这个牙三轴和世界坐标系的xyz轴对齐；
-		MatrixXf desAxis = desAxisTrans.transpose();
-		/*
-			求一个旋转矩阵R，使得 R * axisTrans == desAxisTrans
-			上面是点、向量使用列向量来表示，如果使用行向量来表示的话，则上式改写为：axis * R == desAxis;
-			求旋转矩阵R本质上是求解一系列线性方程组；
-		*/
-		MatrixXf rotation;
-		solveLinearEquations<float>(rotation, axis, desAxis);
+		printCoordinateEigen("E:/coordinate_ori.obj", RowVector3f::Zero(), axis.row(0), axis.row(1), axis.row(2));
 
-		// ！！！注：若点、向量使用行向量表示，则旋转矩阵应该右乘；
-		for (int i = 0; i < vers.rows(); ++i)
-		{
-			vers.row(i) = (vers.row(i) - gumlineCenter) * rotation;
-		}
+		// 原世界坐标系对应着一个线性空间omega1，三轴方向向量组成的矩阵是一个单位矩阵：M1 == I;
+		Matrix3f M1 = Matrix3f::Identity();
 
-		MatrixXf newAxis(3, 3);
-		for (int i = 0; i < axis.rows(); ++i)
-		{
-			newAxis.row(i) = axis.row(i) * rotation;
-		}
+		// 目标坐标系对应的新线性空间omega2，三轴方向向量组成的矩阵为M2 == axis.transpose();
+		Matrix3f M2 = axis.transpose();
 
-		objWriteMeshMat("E:/newPatientTooth.obj", vers, tris);
-		objWriteVerticesMat("E:/newAxisPatient.obj", newAxis);
+		// 旋转变换rotation可以将线性空间omega1变换到omega2：rotation * M1 == M2; → rotation == M2;
+		Matrix3f rotation = M2;
 
-		MatrixXf newGumline(gumline.rows(), gumline.cols());
-		for (int i = 0; i < gumline.rows(); ++i)
-		{
-			newGumline.row(i) = (gumline.row(i) - gumlineCenter) * rotation;
-		}
-		objWriteVerticesMat("E:/newGumline.obj", newGumline);
+		// 线性空间omega2变回到omega1的变换矩阵为rotation的逆矩阵：rotationIev == rotation.inverse();
+		Matrix3f rotationInv = rotation.inverse();
 
+		MatrixXf versNew = rotationInv * vers.transpose();
+		versNew.transposeInPlace();
+		MatrixXf gumlineNew = rotationInv * gumline.transpose();
+		gumlineNew.transposeInPlace();
+		Matrix3f axisNew = rotationInv * axis.transpose();
+		axisNew.transposeInPlace();
+		objWriteMeshMat("E:/tooth_new.obj", versNew, tris);
+		objWriteVerticesMat("E:/gumline_new.obj", gumlineNew);
+		printCoordinateEigen("E:/coordinate_new.obj", RowVector3f::Zero(), axisNew.row(0), axisNew.row(1), axisNew.row(2));
 	}
 
 

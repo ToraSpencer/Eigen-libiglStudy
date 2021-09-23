@@ -34,264 +34,6 @@ unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const un
 };
  
 // 文件中读写矩阵
-bool matIwriteToFile(const char* fileName, const MatrixXi& mat)
-{
-	std::ofstream file(fileName);
-	file << "row " << mat.rows() << std::endl;
-	file << "col " << mat.cols() << std::endl;
-	const int* intPtr = mat.data();
-	unsigned elemCount = mat.rows() * mat.cols();
-	for (unsigned i = 0; i < elemCount; ++i)
-	{
-		file << *intPtr++ << std::endl;
-	}
-	file.close();
-
-	return true;
-};
-
-bool matFwriteToFile(const char* fileName, const MatrixXf& mat)
-{
-	std::ofstream file(fileName);
-	file << "row " << mat.rows() << std::endl;
-	file << "col " << mat.cols() << std::endl;
-	const float* fPtr = mat.data();
-	unsigned elemCount = mat.rows() * mat.cols();
-	for (unsigned i = 0; i < elemCount; ++i)
-	{
-		file << *fPtr++ << std::endl;
-	}
-	file.close();
-
-	return true;
-};
-
-bool matIreadFromFile(MatrixXi& mat, const char* fileName)
-{
-	std::ifstream file(fileName);
-	const unsigned LINE_LENGTH = 100;
-	char cstr[100];
-	unsigned lineOrder = 0;
-	unsigned row = 0;
-	unsigned col = 0;
-	std::string str1, str2;
-
-
-	// 读矩阵尺寸信息
-	file.getline(cstr, LINE_LENGTH);
-	str1 = cstr;
-	str2.insert(str2.end(), str1.begin(), str1.begin() + 3);
-	if (std::strcmp(str2.c_str(), "row") == 0)
-	{
-		str2.clear();
-		str2.insert(str2.end(), str1.begin() + 3, str1.end());
-		row = std::stoi(str2);
-	}
-	else
-	{
-		return false;
-	}
-
-	file.getline(cstr, LINE_LENGTH);
-	str1 = cstr;
-	str2.clear();
-	str2.insert(str2.end(), str1.begin(), str1.begin() + 3);
-	if (std::strcmp(str2.c_str(), "col") == 0)
-	{
-		str2.clear();
-		str2.insert(str2.end(), str1.begin() + 3, str1.end());
-		col = std::stoi(str2);
-	}
-	else
-	{
-		return false;
-	}
-
-
-	// 读矩阵元素
-	mat.resize(row, col);
-	int* intPtr = mat.data();
-	while (!file.eof())
-	{
-		file.getline(cstr, LINE_LENGTH);
-		str1 = cstr;
-		if (str1.size() == 0)
-		{
-			break;
-		}
-		std::string::iterator iter = str1.begin();
-		for (unsigned j = 0; j < 3; ++j)
-		{
-			if (iter == str1.end())
-			{
-				break;
-			}
-
-			if (*iter == ' ')						// 负号后面可能有空格，需要去除
-			{
-				iter = str1.erase(iter);
-			}
-
-			iter++;
-		}
-		*intPtr++ = std::stoi(str1);
-	}
-	file.close();
-
-};
-
-bool matFreadFromFile(MatrixXf& mat, const char* fileName)
-{
-	std::ifstream file(fileName);
-	const unsigned LINE_LENGTH = 100;
-	char cstr[100];
-	unsigned lineOrder = 0;
-	unsigned row = 0;
-	unsigned col = 0;
-	std::string str1, str2;
-
-	// 读矩阵尺寸信息
-	file.getline(cstr, LINE_LENGTH);
-	str1 = cstr;
-	str2.insert(str2.end(), str1.begin(), str1.begin() + 3);
-	if (std::strcmp(str2.c_str(), "row") == 0)
-	{
-		str2.clear();
-		str2.insert(str2.end(), str1.begin() + 3, str1.end());
-		row = std::stoi(str2);
-	}
-	else
-	{
-		return false;
-	}
-
-	file.getline(cstr, LINE_LENGTH);
-	str1 = cstr;
-	str2.clear();
-	str2.insert(str2.end(), str1.begin(), str1.begin() + 3);
-	if (std::strcmp(str2.c_str(), "col") == 0)
-	{
-		str2.clear();
-		str2.insert(str2.end(), str1.begin() + 3, str1.end());
-		col = std::stoi(str2);
-	}
-	else
-	{
-		return false;
-	}
-
-
-	// 读矩阵元素
-	mat.resize(row, col);
-	float* fPtr = mat.data();
-	while (!file.eof())
-	{
-		file.getline(cstr, LINE_LENGTH);
-		str1 = cstr;
-		if (str1.size() == 0)
-		{
-			break;
-		}
-		std::string::iterator iter = str1.begin();
-		for (unsigned j = 0; j < 3; ++j)
-		{
-			if (iter == str1.end())
-			{
-				break;
-			}
-
-			if (*iter == ' ')						// 负号后面可能有空格，需要去除
-			{
-				iter = str1.erase(iter);
-			}
-
-			iter++;
-		}
-		*fPtr++ = std::stof(str1);
-	}
-	file.close();
-
-};
-
-bool vecIwriteToFile(const char* fileName, const VectorXi& vec)
-{
-	std::ofstream file(fileName);
-	file << "row " << vec.rows() << std::endl;
-	const int* intPtr = vec.data();
-	unsigned elemCount = vec.rows();
-	for (unsigned i = 0; i < elemCount; ++i)
-	{
-		file << *intPtr++ << std::endl;
-	}
-	file.close();
-
-	return true;
-};
-
-bool vecIreadFromFile(VectorXi& vec, const char* fileName)
-{
-	std::ifstream file(fileName);
-	const unsigned LINE_LENGTH = 100;
-	char cstr[100];
-	unsigned lineOrder = 0;
-	unsigned row = 0;
-	unsigned col = 0;
-	std::string str1, str2;
-
-	// 读矩阵尺寸信息
-	file.getline(cstr, LINE_LENGTH);
-	str1 = cstr;
-	str2.insert(str2.end(), str1.begin(), str1.begin() + 3);
-	if (std::strcmp(str2.c_str(), "row") == 0)
-	{
-		str2.clear();
-		str2.insert(str2.end(), str1.begin() + 3, str1.end());
-		row = std::stoi(str2);
-	}
-	else
-	{
-		return false;
-	}
-
-	// 读矩阵元素
-	vec.resize(row);
-	int* intPtr = vec.data();
-	while (!file.eof())
-	{
-		file.getline(cstr, LINE_LENGTH);
-		str1 = cstr;
-		str2.clear();
-		str2.insert(str2.end(), str1.begin(), str1.begin() + 3);
-		if (std::strcmp(str2.c_str(), "col") == 0)
-		{
-			continue;
-		}
-
-		if (str1.size() == 0)
-		{
-			break;
-		}
-		std::string::iterator iter = str1.begin();
-		for (unsigned j = 0; j < 3; ++j)
-		{
-			if (iter == str1.end())
-			{
-				break;
-			}
-
-			if (*iter == ' ')						// 负号后面可能有空格，需要去除
-			{
-				iter = str1.erase(iter);
-			}
-
-			iter++;
-		}
-		*intPtr++ = std::stoi(str1);
-	}
-	file.close();
-};
-
-
 void objReadMeshMat(MatrixXf& vers, MatrixXi& tris, const char* fileName)
 {
 	char* pTmp = NULL;
@@ -482,6 +224,33 @@ void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVec
 
 	objWriteVerticesMat(pathName, line);
 };
+
+void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& xdir, \
+	const RowVector3f& ydir, const RowVector3f& zdir)
+{
+	const float SR = 0.5;			// 空间采样率SR——相邻两个采样点的距离（单位mm）
+	const float length = 10;
+	int versCount = std::round(length / SR);
+	MatrixXf line1(versCount, 3), line2(versCount, 3), line3(versCount, 3); 
+	for (int i = 0; i < versCount; i++)
+	{
+		line1.row(i) = origin + SR * xdir * (i + 1);
+	}
+	for (int i = 0; i < versCount; i++)
+	{
+		line2.row(i) = origin + SR * ydir * (i + 1);
+	}
+	for (int i = 0; i < versCount; i++)
+	{
+		line3.row(i) = origin + SR * zdir * (i + 1);
+	}
+
+	MatrixXf line = origin;
+	matInsertRows<float>(line, line1);
+	matInsertRows<float>(line, line2);
+	matInsertRows<float>(line, line3);
+	objWriteVerticesMat(pathName, line);
+}
 
 // 网格串联——合并两个孤立的网格到一个网格里
 void concatMeshMat(MatrixXf& vers, MatrixXi& tris, const MatrixXf& vers1, const MatrixXi& tris1)

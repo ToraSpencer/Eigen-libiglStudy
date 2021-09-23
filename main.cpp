@@ -37,7 +37,7 @@
 	NOMINMAX
 			解决windows.h和<algorithm>中同时定义std::max()，std::min()的冲突。		
 	
-	TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl-main/cmake/../external/../tutorial/data"
+	TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data"
 	
 	CMAKE_INTDIR="Release"
 */
@@ -47,7 +47,7 @@
 
 int main()
 {
-	DENSEMAT::test1();
+	DENSEMAT::test10();
  
 	//SPARSEMAT::test1();
 

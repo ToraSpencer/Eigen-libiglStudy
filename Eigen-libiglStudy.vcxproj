@@ -90,16 +90,16 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);..\libigl-main\external\eigen;..\libigl-main\external\glad\include;..\libigl-main\external\glfw\include;..\libigl-main\tutorial;..\libigl-main\cmake\..\include;..\libigl-main\cmake\..\external\eigen;$(IncludePath)</IncludePath>
-    <LibraryPath>$(ProjectDir)..\libigl-main\tutorialBuild\glad;$(ProjectDir)..\libigl-main\tutorialBuild\glfw\src;$(ProjectDir)..\libigl-main\tutorialBuild;$(ProjectDir)..\libigl-main\tutorialBuild\Release;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);..\libigl_CGAL_openGL\external\eigen;..\libigl_CGAL_openGL\external\glad\include;..\libigl_CGAL_openGL\external\glfw\include;..\libigl_CGAL_openGL\tutorial;..\libigl_CGAL_openGL\cmake\..\include;..\libigl_CGAL_openGL\cmake\..\external\eigen;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glad;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glfw\src;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)..\libigl-main\external\eigen;$(ProjectDir)..\libigl-main\external\glad\include;$(ProjectDir)..\libigl-main\external\glfw\include;$(ProjectDir)..\libigl-main\tutorial;$(ProjectDir)..\libigl-main\cmake\..\include;$(ProjectDir)..\libigl-main\cmake\..\external\eigen;$(IncludePath)</IncludePath>
-    <LibraryPath>$(ProjectDir)..\libigl-main\tutorialBuild\glad;$(ProjectDir)..\libigl-main\tutorialBuild\glfw\src;$(ProjectDir)..\libigl-main\tutorialBuild;$(ProjectDir)..\libigl-main\tutorialBuild\Release;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)..\libigl_CGAL_openGL\external\eigen;$(ProjectDir)..\libigl_CGAL_openGL\external\glad\include;$(ProjectDir)..\libigl_CGAL_openGL\external\glfw\include;$(ProjectDir)..\libigl_CGAL_openGL\tutorial;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\include;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\external\eigen;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glad;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glfw\src;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -119,7 +119,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl-main/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -148,7 +148,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl-main/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
