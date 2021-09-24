@@ -22,7 +22,7 @@ namespace IGLSTUDY
 
 	}
 
-
+#if 0
 	void test2()
 	{
 		using namespace Eigen;
@@ -69,5 +69,52 @@ namespace IGLSTUDY
 		viewer.launch();
 
 	}
+#endif
 
+	// 使用Laplacian平滑网格
+	void test3() 
+	{
+		Eigen::MatrixXd vers, newVers;
+		Eigen::MatrixXi tris;
+		igl::readOBJ( "./data/mesh1.obj", vers, tris);
+		Eigen::SparseMatrix<double> L;
+		igl::cotmatrix(vers, tris, L);
+
+		int loopCount = 1;
+		for (int i = 0; i<loopCount; ++i) 
+		{
+			// 重新计算质量矩阵
+			SparseMatrix<double> mass;
+			igl::massmatrix(newVers, tris, igl::MASSMATRIX_TYPE_BARYCENTRIC, mass);
+
+			// 解线性方程组 (mass - delta*L) * newVers = mass * newVers
+			float delta = 0.001;
+			const auto& S = (mass - delta * L);
+			Eigen::SimplicialLLT<Eigen::SparseMatrix<double > > solver(S);
+			assert(solver.info() == Eigen::Success);
+			newVers = solver.solve(mass * newVers).eval();
+
+			// Compute centroid and subtract (also important for numerics)
+			VectorXd dblA;                                     // 每个三角片面积的两倍；
+			igl::doublearea(newVers, tris, dblA);
+			double areaSum = 0.5 * dblA.sum();
+			MatrixXd centers;
+			igl::barycenter(newVers, tris, centers);
+			RowVector3d centroid(0, 0, 0);
+			for (int i = 0; i < centers.rows(); i++)
+			{
+				centroid += 0.5 * dblA(i) / areaSum * centers.row(i);
+			}
+			newVers.rowwise() -= centroid;
+
+			// 面积归一化
+			newVers.array() /= sqrt(areaSum);
+			vers = newVers;
+		}
+
+
+		igl::writeOBJ("./data/mesh1_平滑后.obj", vers, tris);
+
+		std::cout << "finished." << std::endl;
+	}
 }
