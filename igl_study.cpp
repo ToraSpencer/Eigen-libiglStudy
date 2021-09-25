@@ -77,10 +77,11 @@ namespace IGLSTUDY
 		Eigen::MatrixXd vers, newVers;
 		Eigen::MatrixXi tris;
 		igl::readOBJ( "./data/mesh1.obj", vers, tris);
+		newVers = vers;
 		Eigen::SparseMatrix<double> L;
 		igl::cotmatrix(vers, tris, L);
 
-		int loopCount = 1;
+		int loopCount = 10;
 		for (int i = 0; i<loopCount; ++i) 
 		{
 			// 重新计算质量矩阵
@@ -88,12 +89,13 @@ namespace IGLSTUDY
 			igl::massmatrix(newVers, tris, igl::MASSMATRIX_TYPE_BARYCENTRIC, mass);
 
 			// 解线性方程组 (mass - delta*L) * newVers = mass * newVers
-			float delta = 0.001;
+			float delta = 0.01;
 			const auto& S = (mass - delta * L);
 			Eigen::SimplicialLLT<Eigen::SparseMatrix<double > > solver(S);
 			assert(solver.info() == Eigen::Success);
 			newVers = solver.solve(mass * newVers).eval();
 
+#if 0
 			// Compute centroid and subtract (also important for numerics)
 			VectorXd dblA;                                     // 每个三角片面积的两倍；
 			igl::doublearea(newVers, tris, dblA);
@@ -109,6 +111,7 @@ namespace IGLSTUDY
 
 			// 面积归一化
 			newVers.array() /= sqrt(areaSum);
+#endif
 			vers = newVers;
 		}
 

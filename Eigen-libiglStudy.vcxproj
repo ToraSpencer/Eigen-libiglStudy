@@ -94,9 +94,9 @@
     <LibraryPath>$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glad;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glfw\src;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);G:\gitRepositories\libigl_CGAL_openGL\external\glad\include;G:\gitRepositories\libigl_CGAL_openGL\external\glfw\include;G:\gitRepositories\libigl_CGAL_openGL\tutorial;G:\gitRepositories\libigl_CGAL_openGL\cmake\..\include;G:\gitRepositories\libigl_CGAL_openGL\cmake\..\external\eigen;%(AdditionalIncludeDirectories)</IncludePath>
-    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);G:\gitRepositories\libigl_CGAL_openGL\tutorialBuild</LibraryPath>
+    <LinkIncremental>false</LinkIncremental>
+    <IncludePath>$(ProjectDir)..\libigl_CGAL_openGL\external\eigen;$(ProjectDir)..\libigl_CGAL_openGL\external\glad\include;$(ProjectDir)..\libigl_CGAL_openGL\external\glfw\include;$(ProjectDir)..\libigl_CGAL_openGL\tutorial;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\include;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\external\eigen;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glad;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glfw\src;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -135,22 +135,31 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>
-      </SDLCheck>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_CONSOLE;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <AdditionalOptions>/bigobj</AdditionalOptions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <AdditionalIncludeDirectories>G:\gitRepositories\libigl_CGAL_openGL\external\glad\include;G:\gitRepositories\libigl_CGAL_openGL\external\glfw\include;G:\gitRepositories\libigl_CGAL_openGL\tutorial;G:\gitRepositories\libigl_CGAL_openGL\cmake\..\include;G:\gitRepositories\libigl_CGAL_openGL\cmake\..\external\eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <AdditionalIncludeDirectories>
+      </AdditionalIncludeDirectories>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <SupportJustMyCode>false</SupportJustMyCode>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
-      <AdditionalDependencies>.\Debug\igl.lib;.\Debug\igl_opengl.lib;.\Debug\igl_opengl_glfw.lib;opengl32.lib;.\glad\Debug\glad.lib;.\glfw\src\Debug\glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
+      <AdditionalOptions>
+      </AdditionalOptions>
+      <AdditionalDependencies>opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;\Debug\igl.lib;\Debug\igl_opengl.lib;\Debug\igl_opengl_glfw.lib;\Debug\glad.lib;\Debug\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -161,6 +170,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
