@@ -77,6 +77,7 @@ namespace DENSEMAT
 		std::cout << vec << std::endl;
 	}
 
+
 	template<typename T, unsigned M, unsigned N>
 	void dispMat(const Matrix<T, M, N>& mat)
 	{
