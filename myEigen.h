@@ -208,7 +208,7 @@ bool subFromFlagVec(Matrix<T, Dynamic, Dynamic>& matOut, const Matrix<T, Dynamic
 
 
 // eigen的向量和std::vector<T>相互转换
-template<typename T, size_t N>
+template<typename T, int N>
 std::vector<T>  vec2Vec(const Eigen::Matrix<T, N, 1>& vIn)
 {
 	unsigned elemCount = vIn.rows();
@@ -218,7 +218,7 @@ std::vector<T>  vec2Vec(const Eigen::Matrix<T, N, 1>& vIn)
 	return vOut;
 }
 
-template<typename T, size_t N>
+template<typename T, int N>
 Eigen::Matrix<T, N, 1> vec2Vec(const std::vector<T>& vIn)
 {
 	unsigned elemCount = vIn.size();
@@ -322,7 +322,7 @@ bool matInsertRows(Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, 1, N>& rowV
 
 
 // 返回一个类似于matlab索引向量的int列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；若程序出错则retVec所有元素为-1
-template<typename T, size_t N>
+template<typename T, int N>
 VectorXi vecInMat(const Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, 1, N>& vec)
 {
 	int rows = mat.rows();
@@ -457,7 +457,7 @@ void dispSpMat(const SparseMatrix<T>& mat, const int showElems = -1)
 }
 #endif
 
-template<typename T, size_t N>
+template<typename T, int N>
 void dispVec(const Matrix<T, N, 1>& vec)
 {
 	std::cout << ": rows == " << vec.rows() << std::endl;
@@ -468,7 +468,7 @@ void dispVec(const Matrix<T, N, 1>& vec)
 	std::cout << std::endl;
 }
 
-template<typename T, size_t N>
+template<typename T, int N>
 void dispVec(const Matrix<T, 1, N>& vec)
 {
 	std::cout << ": cols == " << vec.cols() << std::endl;
@@ -480,7 +480,7 @@ void dispVec(const Matrix<T, 1, N>& vec)
 }
 
 
-template<typename T, size_t N>
+template<typename T, int N>
 void dispVecSeg(const Matrix<T, N, 1>& vec, const int start, const int end)
 {
 	if (start < 0 || end > vec.rows() - 1 || start >= end)
@@ -497,7 +497,7 @@ void dispVecSeg(const Matrix<T, N, 1>& vec, const int start, const int end)
 	std::cout << std::endl;
 }
 
-template<typename T, size_t N>
+template<typename T, int N>
 void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
 {
 	if (start < 0 || end > vec.cols() - 1 || start >= end)
@@ -523,6 +523,18 @@ void objReadVerticesMat(MatrixXf& vers, const char* fileName);
 
 void objWriteVerticesMat(const char* fileName, const MatrixXf& vers);
 
+void objReadVerticesHomoMat(MatrixXf& vers, const char* fileName);
+
+void objWriteVerticesHomoMat(const char* fileName, const MatrixXf& vers);
+
+void vers2homoVers(MatrixXf& homoVers, const MatrixXf& vers);
+
+MatrixXf vers2homoVers(const MatrixXf& vers);
+
+void homoVers2vers(MatrixXf& vers, const MatrixXf& homoVers);
+
+MatrixXf homoVers2vers(const MatrixXf& homoVers);
+
 void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& dir);
 
 void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& xdir, \
@@ -533,7 +545,7 @@ void concatMeshMat(MatrixXf& vers, MatrixXi& tris, const MatrixXf& vers1, const 
 
 
 // 解恰定的稠密线性方程组Ax == b;
-template<typename T, size_t N>
+template<typename T, int N>
 bool solveLinearEquation(Matrix<T, N, 1>& x, const Matrix<T, Dynamic, Dynamic>& A, const Matrix<T, N, 1>& b)
 {
 	// 解线性方程组Ax == b;
@@ -566,7 +578,7 @@ bool solveLinearEquations(Matrix<T, Dynamic, Dynamic>& X, const Matrix<T, Dynami
 
 
 // 霍纳方法（秦九昭算法）求多项式的值
-template<typename T, size_t N>
+template<typename T, int N>
 float hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
 {
 	// coeffs是{a0, a1, a2, ..., an}组成的(n+1)列向量，多项式为p == a0 + a1*x + a2*x^2 + ... + an* x^n; 
@@ -588,7 +600,7 @@ float hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
 
 
 // 求多项式的一阶微分
-template<typename T, size_t N>
+template<typename T, int N>
 float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
 {
 	// 多项式p == a0 + a1*x + a2*x^2 + ... + an* x^n 一阶微分为：p' == a1 + 2*a2*x + 3*a3*x^2 ... n*an*x^(n-1)
@@ -614,6 +626,24 @@ float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
 
 	return result;
 }
+
+
+
+// 多项式插值
+void polyInterpolation();
+
+
+// 高斯插值
+void gaussInterpolation();
+
+
+
+// 最小二乘多项式拟合曲线：
+void leastSquarePolyFitting();
+
+
+// 岭回归多项式拟合曲线
+void ridgeRegressionPolyFitting(VectorXf& theta, const MatrixXf& vers);
 
 
 // 自定义计时器，使用WINDOWS计时API

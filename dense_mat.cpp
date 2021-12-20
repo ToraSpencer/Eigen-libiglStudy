@@ -352,7 +352,7 @@ namespace DENSEMAT
 		MatrixXd A(3, 3);
 		A << 1, 2, 3, 4, 5, 6, 7, 8, 9;
 
-		// 求矩阵的特征值、特征向量。
+		// 1. 求矩阵的特征值、特征向量。
 		EigenSolver<Matrix3d> es(A);
 		Matrix3d D = es.pseudoEigenvalueMatrix();			// 对角线元素是特征值
 		Matrix3d V = es.pseudoEigenvectors();				// 每一个列向量都是特征向量。
@@ -363,7 +363,7 @@ namespace DENSEMAT
 		cout << A * V.block<3, 1>(0, 0) << endl << endl;
 		cout << D(0, 0) * V.block<3, 1>(0, 0) << endl << endl;
 
-		// 矩阵的LU分解——Eigen::FullPivLU
+		// 2. 矩阵的LU分解——Eigen::FullPivLU
 		MatrixXf m = MatrixXf::Random(5, 5);
 		cout << "Here is the matrix m:" << endl << m << endl;
 		Eigen::FullPivLU<MatrixXf> lu(m);
@@ -386,7 +386,7 @@ namespace DENSEMAT
 		cout << P_inv * L * U * Q_inv << endl;
 
 
-		// 矩阵的奇异值分解——
+		// 3. 矩阵的奇异值分解——
 		m = MatrixXf::Random(3, 3);
 		cout << "m == \n" << m << endl;
 		JacobiSVD<MatrixXf> svd(m, ComputeThinU | ComputeThinV);
@@ -396,8 +396,10 @@ namespace DENSEMAT
 		Vector3f rhs(1, 0, 0);
 		cout << "使用奇异值分解解线性方程组：" << endl << svd.solve(rhs) << endl << endl;
 
+		// 3+. 求秩：
+		std::cout << "svd.rank == " << svd.rank() << std::endl << std::endl;
 
-		// 测试自己封装的使用QR分解的求解恰定稠密线性方程组的轮子：
+		// 4. 测试自己封装的使用QR分解的求解恰定稠密线性方程组的轮子：
 		A = MatrixXd::Random(3, 3);
 		MatrixXd B = MatrixXd::Random(3, 3);
 		Vector3d b = Vector3d::Random();

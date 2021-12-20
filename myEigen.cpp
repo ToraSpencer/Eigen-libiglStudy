@@ -177,7 +177,7 @@ void objReadVerticesMat(MatrixXf& vers, const char* fileName)
 			if (0 == nRet)
 				break;
 
-			Vector3f ver;
+			Vector3f ver(Vector3f::Zero());
 			ver(0) = (float)atof(tmpBuffer);
 			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
 			if (0 == nRet)
@@ -207,6 +207,115 @@ void objWriteVerticesMat(const char* fileName, const MatrixXf& vers)
 	}
 	dstFile.close();
 };
+
+// 读取点云OBJ文件中的数据，存储到齐次坐标系表示的点云矩阵中；注：顶点在矩阵中是列表示的，第四维的元素始终为1；
+void objReadVerticesHomoMat(MatrixXf& vers, const char* fileName)
+
+{
+	char* pTmp = NULL;
+	std::ifstream ifs(fileName);			// cube bunny Eight
+	if (false == ifs.is_open())
+	{
+		return;
+	}
+
+	std::streampos   pos = ifs.tellg();			//  save   current   position   
+	ifs.seekg(0, std::ios::end);
+	unsigned fileLen = (unsigned)ifs.tellg();
+	if (0 == fileLen)
+	{
+		return;
+	}
+
+	ifs.seekg(pos);				  //   restore   saved   position   
+	char* pFileBuf = new char[fileLen + 1];
+	std::memset(pFileBuf, 0, fileLen + 1);
+	ifs.read(pFileBuf, fileLen);
+	char tmpBuffer[1024];
+	unsigned nMaxSize = 1024;
+	pTmp = pFileBuf;
+	unsigned nReadLen = 0;
+	unsigned nRet = 0;
+
+	vers.resize(0, 0);
+	int rows = vers.cols();
+	while (nReadLen < fileLen)
+	{
+		nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+		if (0 == nRet)
+			break;
+
+		// 顶点信息		
+		if (std::strcmp(tmpBuffer, "v") == 0)
+		{
+			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+			if (0 == nRet)
+				break;
+
+			Vector4f ver(Vector4f::Ones());
+			ver(0) = (float)atof(tmpBuffer);
+			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+			if (0 == nRet)
+				break;
+			ver(1) = (float)atof(tmpBuffer);
+			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+			if (0 == nRet)
+				break;
+			ver(2) = (float)atof(tmpBuffer);
+
+			vers.conservativeResize(++rows, 4);
+			vers.row(rows - 1) = ver;
+		}
+		else
+			break;
+	}
+	vers.transposeInPlace();
+	delete[] pFileBuf;
+};
+
+
+// 齐次坐标系点云数据写入到OBJ文件中；注：顶点在矩阵中是列表示的，第四维的元素始终为1；
+void objWriteVerticesHomoMat(const char* fileName, const MatrixXf& vers)
+{
+	std::ofstream dstFile(fileName);
+	for (int i = 0; i < vers.cols(); i++)
+	{
+		dstFile << "v " << vers(0, i) << " " << vers(1, i) << " " << vers(2, i) << std::endl;
+	}
+	dstFile.close();
+
+}
+
+
+//	普通点云矩阵转换为齐次坐标系下的点云矩阵：
+void vers2homoVers(MatrixXf& homoVers, const MatrixXf& vers)
+{
+	homoVers = MatrixXf::Ones(4, vers.rows());
+	homoVers.topRows(3) = vers.transpose();
+}
+
+MatrixXf vers2homoVers(const MatrixXf& vers)
+{
+	MatrixXf homoVers = MatrixXf::Ones(4, vers.rows());
+	homoVers.topRows(3) = vers.transpose();
+	return homoVers;
+}
+
+
+// 齐次坐标系下的点云矩阵变换为普通点云矩阵
+void homoVers2vers(MatrixXf& vers, const MatrixXf& homoVers)
+{
+	MatrixXf tempMat = homoVers.transpose();
+	vers = tempMat.leftCols(3);
+}
+
+MatrixXf homoVers2vers(const MatrixXf& homoVers)
+{
+	MatrixXf tempMat = homoVers.transpose();
+	MatrixXf vers = tempMat.leftCols(3);
+	return vers;
+}
+
 
 void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& dir)
 {
@@ -268,6 +377,61 @@ void concatMeshMat(MatrixXf& vers, MatrixXi& tris, const MatrixXf& vers1, const 
 	matInsertRows<int>(tris, trisCopy1);
 };
  
- 
+
+// 多项式插值
+void polyInterpolation() 
+{
+
+}
+
+
+// 高斯插值
+void gaussInterpolation() {}
+
+
+
+// 最小二乘多项式拟合曲线：
+void leastSquarePolyFitting()
+{}
+
+
+
+ // 岭回归多项式拟合曲线
+void ridgeRegressionPolyFitting(VectorXf& theta, const MatrixXf& vers)
+{
+	/*
+		void ridgeRegressionPolyFitting(
+					VectorXf & theta,				拟合的多项式函数
+					const MatrixXf & vers			离散样本点
+					)
+	*/
+
+	const float lambda = 0.1;
+	int m = 4;									// 多项式最多项数
+
+	int n = vers.rows();
+	if (n == 0)
+	{
+		return;
+	}
+	if (m >= n)
+	{
+		m = n - 1;
+	}
+
+	Eigen::MatrixXf X(n, m);
+	for (int i = 0; i < n; ++i)
+	{
+		for (int j = 0; j < m; ++j)
+		{
+			X(i, j) = std::powf(vers(i, 0), j);
+		}
+	}
+
+	Eigen::VectorXf Y = vers.col(1);
+	Eigen::MatrixXf I(m, m);
+	I.setIdentity();
+	theta = (X.transpose() * X + I * lambda).inverse() * X.transpose() * Y;
+}
 
 
