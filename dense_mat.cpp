@@ -576,9 +576,7 @@ namespace DENSEMAT
 		std::cout << vecInMat<int>(m3, v) << std::endl << std::endl;;
 
 		m3 << 1, 2, 3, 4, 4;
-		std::cout << vecInMat<int>(m3, v) << std::endl << std::endl;;
-
-
+		std::cout << vecInMat<int>(m3, v) << std::endl << std::endl;
 	}
 
 

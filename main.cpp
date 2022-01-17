@@ -47,12 +47,12 @@
 
 int main()
 {
-	//DENSEMAT::test3();
+	DENSEMAT::test7();
  
 	//SPARSEMAT::test1();
 
 	//IGLSTUDY::test3();
 
-	SCIENTIFICCALC::test1();
+	//SCIENTIFICCALC::test1();
 
 }

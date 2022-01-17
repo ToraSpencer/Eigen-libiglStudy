@@ -14,7 +14,7 @@ namespace IGLSTUDY
 	}
 
 	
-	// libigl中的显示窗口
+	// libigl中的显示窗口类Viewer
 	void test1() 
 	{
 

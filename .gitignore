@@ -6,14 +6,12 @@
 *.sdf
 *.ncb
 *.tlog
-*.obj
 *.iobj
 *.pdb
 *.ipdb
 *.exp
 *.log
 *.recipe
-*.lib
 
 *.vcxproj.user
 *.vc.db
