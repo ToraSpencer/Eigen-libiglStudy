@@ -361,6 +361,55 @@ void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const
 	objWriteVerticesMat(pathName, line);
 }
 
+
+// 布尔向量转化为索引向量；
+VectorXi flagVec2IdxVec(const VectorXi& flag)
+{
+	VectorXi idxVec;
+
+	for (unsigned i = 0; i < flag.rows(); ++i)
+	{
+		if (0 != flag(i) && 1 != flag(i))
+			return idxVec;
+	}
+
+	std::vector<int> tempVec;
+	tempVec.reserve(flag.rows());
+	for (unsigned i = 0; i< flag.rows(); ++i) 
+	{
+		if (flag(i) > 0)
+			tempVec.push_back(i);
+	}
+	idxVec = vec2Vec<int>(tempVec);
+	
+	return idxVec;
+}
+
+
+// 索引向量转化为布尔向量；
+VectorXi IdxVec2FlagVec(const VectorXi& idxVec, const unsigned size)
+{
+	VectorXi flag;
+
+	if (idxVec.rows() > size)
+		return flag;
+
+	for (unsigned i = 0; i < idxVec.rows(); ++i) 
+	{
+		if (idxVec(i) >= size)
+			return flag;
+	}
+
+	flag = VectorXi::Zero(size);
+	for (unsigned i = 0; i < idxVec.rows(); ++i)
+	{
+		flag(idxVec(i)) = 1;
+	}
+
+	return flag;
+}
+
+
 // 网格串联——合并两个孤立的网格到一个网格里
 void concatMeshMat(MatrixXf& vers, MatrixXi& tris, const MatrixXf& vers1, const MatrixXi& tris1)
 {
@@ -434,4 +483,59 @@ void ridgeRegressionPolyFitting(VectorXf& theta, const MatrixXf& vers)
 	theta = (X.transpose() * X + I * lambda).inverse() * X.transpose() * Y;
 }
 
+
+// 输入起点、终点、空间采样率，插值生成一条直线点云；
+bool interpolateToLine(MatrixXf& vers, const RowVector3f& start, const RowVector3f& end, const float SR, const bool SE)
+{
+	if (vers.rows() > 0)
+		return false;
+
+	RowVector3f dir = end - start;
+	float length = dir.norm();
+	dir.normalize();
+
+	if (length <= SR)
+		return true;
+
+	if (SE)
+		matInsertRows<float>(vers, start);
+
+	float lenth0 = 0;
+	for (unsigned i = 1; (length - lenth0) > 0.8 * SR; i++)			// 确保最后一个点距离终点不能太近。
+	{
+		RowVector3f temp = start + SR * i * dir;
+		matInsertRows<float>(vers, temp);
+		lenth0 = SR * (i + 1);		// 下一个temp的长度。
+	}
+
+	if (SE)
+		matInsertRows<float>(vers, end);
+
+	return true;
+};
+
+
+// 得到将originArrow旋转到targetArrow的旋转矩阵
+Matrix3f getRotationMat(const RowVector3f& originArrow, const RowVector3f& targetArrow)
+{
+	Matrix3f rotation = Matrix3f::Zero();
+	if (0 == originArrow.norm() || 0 == targetArrow.norm())
+		return rotation;
+
+	RowVector3f axisArrow = originArrow.cross(targetArrow);		// 旋转轴；
+
+	if (0 == axisArrow.norm())
+		return Matrix3f::Identity();
+
+	axisArrow.normalize();
+	float x0 = axisArrow(0);
+	float y0 = axisArrow(1);
+	float z0 = axisArrow(2);
+	float cosTheta = originArrow.dot(targetArrow) / (originArrow.norm() * targetArrow.norm());
+	float sinTheta = std::sqrt(1 - cosTheta*cosTheta);
+	rotation << cosTheta + (1 - cosTheta) * x0 * x0, (1 - cosTheta)* x0* y0 - sinTheta * z0, (1 - cosTheta)* x0* z0 + sinTheta * y0, \
+		(1 - cosTheta)* y0* x0 + sinTheta * z0, cosTheta + (1 - cosTheta) * y0 * y0, (1 - cosTheta)* y0* z0 - sinTheta * x0, \
+		(1 - cosTheta)* z0* x0 - sinTheta * y0, (1 - cosTheta)* z0* y0 + sinTheta * x0, cosTheta + (1 - cosTheta) * z0 * z0;
+	return rotation;
+}
 

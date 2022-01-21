@@ -7,6 +7,7 @@ namespace DENSEMAT
 	using spMatf = SparseMatrix<float, ColMajor>;
 	using TripF = Eigen::Triplet<float>;
 
+
 	// 写一个接口，将矩阵数据保存到.dat文件中，方便python读取然后画图
 	void writeData2D(const VectorXd& x, const VectorXd& y, const char* filename)
 	{
@@ -161,7 +162,7 @@ namespace DENSEMAT
 		MatrixXd m1(3, 4);
 		VectorXd v1(5);
 
-		// 输出流运算符赋值——行优先顺序
+		// 输出流运算符赋值——行优先顺序填充
 		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12;
 		v1 << 1, 2;
 		cout << "m1 = \n" << m1 << endl << endl;
@@ -627,6 +628,15 @@ namespace DENSEMAT
 		std::cout << "We can now use it to rotate a vector " << std::endl
 			<< vec << " to " << std::endl << rotatedV << std::endl;
 
+		// 转动到目标向量：
+		Matrix3f rotation = getRotationMat(RowVector3f(1, 0, 0), RowVector3f(0, 0, 1));
+		RowVector3f v1 = (rotation * RowVector3f(1, 0, 0).transpose()).transpose();
+		std::cout << "旋转后的v1 == " << v1 << std::endl;
+		rotation = getRotationMat(RowVector3f(1, 1, 1), RowVector3f(3, 4, 5));
+		v1 = (rotation * RowVector3f(1, 1, 1).transpose()).transpose();
+		float scale = 5.0 / v1(2);
+		v1 *= scale;
+		std::cout << "旋转后的v1 == " << v1 << std::endl;
 
 		// eigen中不支持四元数加法，只能自己逐个分量相加：
 		q3.w() = q1.w() + q2.w();

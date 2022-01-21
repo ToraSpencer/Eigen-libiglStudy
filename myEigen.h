@@ -23,8 +23,10 @@ using namespace std;
 using namespace Eigen;
 
 //声明***********************************************************************************************************************************************
-unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize);
 
+
+
+///////////////////////////////// 控制台打印接口
 
 // 传入函数子或函数指针遍历stl容器
 template<typename T, typename F>
@@ -52,7 +54,6 @@ auto disp = [](const T& arg)
 };
 
 
-
 template<typename T>
 void dispQuat(const Quaternion<T>& q)
 {
@@ -60,118 +61,130 @@ void dispQuat(const Quaternion<T>& q)
 	std::cout << q.vec() << std::endl;
 }
 
-
-// 将std::vector中的数据写入到文件中，二进制形式，vector中的元素不能是pointer-like类型
-template <typename T>
-void vecWriteToFile(const char* fileName, const std::vector<T>& vec)
+template<typename T>
+void dispMat(const Matrix<T, Dynamic, Dynamic>& mat)
 {
-	std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
-	file.write((char*)(&vec[0]), sizeof(T) * vec.size());
-	file.close();
+	std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
+	for (int i = 0; i < mat.rows(); ++i)
+	{
+		std::cout << i << " ---\t";
+		for (int j = 0; j < mat.cols(); ++j)
+		{
+			std::cout << mat(i, j) << ", ";
+		}
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+}
+
+template<typename T>
+void dispMatBlock(const Matrix<T, Dynamic, Dynamic>& mat, const int rowStart, const int rowEnd, const int colStart, const int colEnd)
+{
+	if (rowEnd > mat.rows() - 1 || rowStart < 0 || rowStart >= rowEnd)
+	{
+		return;
+	}
+	if (colEnd > mat.cols() - 1 || colStart < 0 || colStart >= colEnd)
+	{
+		return;
+	}
+
+	std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
+	for (int i = rowStart; i <= rowEnd; ++i)
+	{
+		std::cout << i << " ---\t";
+		for (int j = colStart; j <= colEnd; ++j)
+		{
+			std::cout << mat(i, j) << ", ";
+		}
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
 }
 
 
-// to be optimized——元素数应该不需要传入函数，应该可以由文件流大小推断出来。
+#ifndef _WIN64
 template<typename T>
-void vecReadFromFile(std::vector<T>& vec, const char* fileName, const unsigned elemCount)
+void dispSpMat(const SparseMatrix<T>& mat, const int showElems = -1)
 {
-	std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
-	vec.resize(elemCount);
-	file.read((char*)(&vec[0]), sizeof(T) * vec.size());
-	file.close();
+	std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
+	std::cout << "非零元素数：" << mat.nonZeros() << std::endl;
+	int count = 0;
+	for (int k = 0; k < mat.outerSize(); ++k)
+	{
+		SparseMatrix<T, Eigen::ColMajor>::InnerIterator it(mat, k);			// 64位时，貌似T类型在编译器不确定的话，此句会报错
+		for (; ; ++it)
+		{
+			std::cout << "(" << it.row() << ", " << it.col() << ") ---\t" << it.value() << std::endl;
+			count++;
+			if (count >= showElems && showElems >= 0)
+			{
+				return;
+			}
+		}
+	}
+}
+#endif
+
+template<typename T, int N>
+void dispVec(const Matrix<T, N, 1>& vec)
+{
+	std::cout << ": rows == " << vec.rows() << std::endl;
+	for (int i = 0; i < vec.rows(); ++i)
+	{
+		std::cout << i << "---\t" << vec(i) << std::endl;
+	}
+	std::cout << std::endl;
+}
+
+template<typename T, int N>
+void dispVec(const Matrix<T, 1, N>& vec)
+{
+	std::cout << ": cols == " << vec.cols() << std::endl;
+	for (int i = 0; i < vec.cols(); ++i)
+	{
+		std::cout << i << "---\t" << vec(i) << std::endl;
+	}
+	std::cout << std::endl;
+}
+
+template<typename T, int N>
+void dispVecSeg(const Matrix<T, N, 1>& vec, const int start, const int end)
+{
+	if (start < 0 || end > vec.rows() - 1 || start >= end)
+	{
+		std::cout << "input error." << std::endl;
+		return;
+	}
+
+	std::cout << ": rows == " << vec.rows() << std::endl;
+	for (int i = start; i <= end; ++i)
+	{
+		std::cout << i << "---\t" << vec(i) << std::endl;
+	}
+	std::cout << std::endl;
+}
+
+template<typename T, int N>
+void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
+{
+	if (start < 0 || end > vec.cols() - 1 || start >= end)
+	{
+		std::cout << "input error." << std::endl;
+		return;
+	}
+
+	std::cout << ": cols == " << vec.cols() << std::endl;
+	for (int i = start; i <= end; ++i)
+	{
+		std::cout << i << "---\t" << vec(i) << std::endl;
+	}
+	std::cout << std::endl;
 }
 
 
-template<typename T>
-bool matWriteToFile(const char* fileName, const Matrix<T, Dynamic, Dynamic>& mat)
-{
-	std::ofstream file(fileName);
-	file << "row " << mat.rows() << std::endl;
-	file << "col " << mat.cols() << std::endl;
-	const T* ptr = mat.data();
-	unsigned elemCount = mat.rows() * mat.cols();
-	for (unsigned i = 0; i < elemCount; ++i)
-	{
-		file << *ptr++ << std::endl;
-	}
-	file.close();
 
-	return true;
-};
-
-
-template<typename T>
-bool matReadFromFile(Matrix<T, Dynamic, Dynamic>& mat, const char* fileName)
-{
-	std::ifstream file(fileName);
-	const unsigned LINE_LENGTH = 100;
-	char cstr[100];
-	unsigned lineOrder = 0;
-	unsigned row = 0;
-	unsigned col = 0;
-	std::string str1, str2;
-
-	// 读矩阵尺寸信息
-	file.getline(cstr, LINE_LENGTH);
-	str1 = cstr;
-	str2.insert(str2.end(), str1.begin(), str1.begin() + 3);
-	if (std::strcmp(str2.c_str(), "row") == 0)
-	{
-		str2.clear();
-		str2.insert(str2.end(), str1.begin() + 3, str1.end());
-		row = std::stoi(str2);
-	}
-	else
-	{
-		return false;
-	}
-
-	file.getline(cstr, LINE_LENGTH);
-	str1 = cstr;
-	str2.clear();
-	str2.insert(str2.end(), str1.begin(), str1.begin() + 3);
-	if (std::strcmp(str2.c_str(), "col") == 0)
-	{
-		str2.clear();
-		str2.insert(str2.end(), str1.begin() + 3, str1.end());
-		col = std::stoi(str2);
-	}
-	else
-	{
-		return false;
-	}
-
-	// 读矩阵元素
-	mat.resize(row, col);
-	T* ptr = mat.data();
-	while (!file.eof())
-	{
-		file.getline(cstr, LINE_LENGTH);
-		str1 = cstr;
-		if (str1.size() == 0)
-		{
-			break;
-		}
-		std::string::iterator iter = str1.begin();
-		for (unsigned j = 0; j < 3; ++j)
-		{
-			if (iter == str1.end())
-			{
-				break;
-			}
-
-			if (*iter == ' ')						// 负号后面可能有空格，需要去除
-			{
-				iter = str1.erase(iter);
-			}
-			iter++;
-		}
-		*ptr++ = std::stoi(str1);
-	}
-	file.close();
-
-};
-
+/////////////////////////////////// 不同数据类型的变换
 
 // 根据索引向量从源矩阵中提取元素生成输出矩阵。
 template <typename T>
@@ -204,7 +217,6 @@ bool subFromFlagVec(Matrix<T, Dynamic, Dynamic>& matOut, const Matrix<T, Dynamic
 
 	return true;
 }
-
 
 
 // eigen的向量和std::vector<T>相互转换
@@ -250,6 +262,8 @@ Eigen::Matrix<T, Dynamic, 1> vec2Vec(const std::vector<T>& vIn)
 	return vOut;
 }
 
+
+/////////////////////////////////////// 矩阵的增删查改
 
 // 向量插入数据
 template<typename T>
@@ -389,130 +403,124 @@ VectorXi vecInMat(const Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, 1, Dyn
 }
 
 
+// 网格串联——合并两个孤立的网格到一个网格里
+void concatMeshMat(MatrixXf& vers, MatrixXi& tris, const MatrixXf& vers1, const MatrixXi& tris1);
 
-// 打印矩阵信息：
-template<typename T>
-void dispMat(const Matrix<T, Dynamic, Dynamic>& mat)
+
+
+////////////////////////// IO接口
+
+unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize);
+
+
+// 将std::vector中的数据写入到文件中，二进制形式，vector中的元素不能是pointer-like类型
+template <typename T>
+void vecWriteToFile(const char* fileName, const std::vector<T>& vec)
 {
-	std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
-	for (int i = 0; i < mat.rows(); ++i)
-	{
-		std::cout << i << " ---\t";
-		for (int j = 0; j < mat.cols(); ++j)
-		{
-			std::cout << mat(i, j) << ", ";
-		}
-		std::cout << std::endl;
-	}
-	std::cout << std::endl;
+	std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
+	file.write((char*)(&vec[0]), sizeof(T) * vec.size());
+	file.close();
+}
+
+// to be optimized——元素数应该不需要传入函数，应该可以由文件流大小推断出来。
+template<typename T>
+void vecReadFromFile(std::vector<T>& vec, const char* fileName, const unsigned elemCount)
+{
+	std::ifstream file(fileName, std::ios_base::in | std::ios_base::binary);
+	vec.resize(elemCount);
+	file.read((char*)(&vec[0]), sizeof(T) * vec.size());
+	file.close();
 }
 
 
 template<typename T>
-void dispMatBlock(const Matrix<T, Dynamic, Dynamic>& mat, const int rowStart, const int rowEnd, const int colStart, const int colEnd)
+bool matWriteToFile(const char* fileName, const Matrix<T, Dynamic, Dynamic>& mat)
 {
-	if (rowEnd > mat.rows() - 1 || rowStart < 0 || rowStart >= rowEnd)
+	std::ofstream file(fileName);
+	file << "row " << mat.rows() << std::endl;
+	file << "col " << mat.cols() << std::endl;
+	const T* ptr = mat.data();
+	unsigned elemCount = mat.rows() * mat.cols();
+	for (unsigned i = 0; i < elemCount; ++i)
 	{
-		return;
+		file << *ptr++ << std::endl;
 	}
-	if (colEnd > mat.cols() - 1 || colStart < 0 || colStart >= colEnd)
-	{
-		return;
-	}
+	file.close();
 
-	std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
-	for (int i = rowStart; i <= rowEnd; ++i)
-	{
-		std::cout << i << " ---\t";
-		for (int j = colStart; j <= colEnd; ++j)
-		{
-			std::cout << mat(i, j) << ", ";
-		}
-		std::cout << std::endl;
-	}
-	std::cout << std::endl;
-}
+	return true;
+};
 
-
-#ifndef _WIN64
 template<typename T>
-void dispSpMat(const SparseMatrix<T>& mat, const int showElems = -1)
+bool matReadFromFile(Matrix<T, Dynamic, Dynamic>& mat, const char* fileName)
 {
-	std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
-	std::cout << "非零元素数：" << mat.nonZeros() << std::endl;
-	int count = 0;
-	for (int k = 0; k < mat.outerSize(); ++k)
+	std::ifstream file(fileName);
+	const unsigned LINE_LENGTH = 100;
+	char cstr[100];
+	unsigned lineOrder = 0;
+	unsigned row = 0;
+	unsigned col = 0;
+	std::string str1, str2;
+
+	// 读矩阵尺寸信息
+	file.getline(cstr, LINE_LENGTH);
+	str1 = cstr;
+	str2.insert(str2.end(), str1.begin(), str1.begin() + 3);
+	if (std::strcmp(str2.c_str(), "row") == 0)
 	{
-		SparseMatrix<T, Eigen::ColMajor>::InnerIterator it(mat, k);			// 64位时，貌似T类型在编译器不确定的话，此句会报错
-		for (; ; ++it)
+		str2.clear();
+		str2.insert(str2.end(), str1.begin() + 3, str1.end());
+		row = std::stoi(str2);
+	}
+	else
+	{
+		return false;
+	}
+
+	file.getline(cstr, LINE_LENGTH);
+	str1 = cstr;
+	str2.clear();
+	str2.insert(str2.end(), str1.begin(), str1.begin() + 3);
+	if (std::strcmp(str2.c_str(), "col") == 0)
+	{
+		str2.clear();
+		str2.insert(str2.end(), str1.begin() + 3, str1.end());
+		col = std::stoi(str2);
+	}
+	else
+	{
+		return false;
+	}
+
+	// 读矩阵元素
+	mat.resize(row, col);
+	T* ptr = mat.data();
+	while (!file.eof())
+	{
+		file.getline(cstr, LINE_LENGTH);
+		str1 = cstr;
+		if (str1.size() == 0)
 		{
-			std::cout << "(" << it.row() << ", " << it.col() << ") ---\t" << it.value() << std::endl;
-			count++;
-			if (count >= showElems && showElems >= 0)
+			break;
+		}
+		std::string::iterator iter = str1.begin();
+		for (unsigned j = 0; j < 3; ++j)
+		{
+			if (iter == str1.end())
 			{
-				return;
+				break;
 			}
+
+			if (*iter == ' ')						// 负号后面可能有空格，需要去除
+			{
+				iter = str1.erase(iter);
+			}
+			iter++;
 		}
+		*ptr++ = std::stoi(str1);
 	}
-}
-#endif
+	file.close();
 
-template<typename T, int N>
-void dispVec(const Matrix<T, N, 1>& vec)
-{
-	std::cout << ": rows == " << vec.rows() << std::endl;
-	for (int i = 0; i < vec.rows(); ++i)
-	{
-		std::cout << i << "---\t" << vec(i) << std::endl;
-	}
-	std::cout << std::endl;
-}
-
-template<typename T, int N>
-void dispVec(const Matrix<T, 1, N>& vec)
-{
-	std::cout << ": cols == " << vec.cols() << std::endl;
-	for (int i = 0; i < vec.cols(); ++i)
-	{
-		std::cout << i << "---\t" << vec(i) << std::endl;
-	}
-	std::cout << std::endl;
-}
-
-
-template<typename T, int N>
-void dispVecSeg(const Matrix<T, N, 1>& vec, const int start, const int end)
-{
-	if (start < 0 || end > vec.rows() - 1 || start >= end)
-	{
-		std::cout << "input error." << std::endl;
-		return;
-	}
-
-	std::cout << ": rows == " << vec.rows() << std::endl;
-	for (int i = start; i <= end; ++i)
-	{
-		std::cout << i << "---\t" << vec(i) << std::endl;
-	}
-	std::cout << std::endl;
-}
-
-template<typename T, int N>
-void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
-{
-	if (start < 0 || end > vec.cols() - 1 || start >= end)
-	{
-		std::cout << "input error." << std::endl;
-		return;
-	}
-
-	std::cout << ": cols == " << vec.cols() << std::endl;
-	for (int i = start; i <= end; ++i)
-	{
-		std::cout << i << "---\t" << vec(i) << std::endl;
-	}
-	std::cout << std::endl;
-}
+};
 
 
 void objReadMeshMat(MatrixXf& vers, MatrixXi& tris, const char* fileName);
@@ -522,6 +530,13 @@ void objWriteMeshMat(const char* fileName, const MatrixXf& vers, const MatrixXi&
 void objReadVerticesMat(MatrixXf& vers, const char* fileName);
 
 void objWriteVerticesMat(const char* fileName, const MatrixXf& vers);
+
+void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& dir);
+
+void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& xdir, \
+	const RowVector3f& ydir, const RowVector3f& zdir);
+ 
+/////////////////////////////////////// 齐次坐标系相关接口
 
 void objReadVerticesHomoMat(MatrixXf& vers, const char* fileName);
 
@@ -535,14 +550,8 @@ void homoVers2vers(MatrixXf& vers, const MatrixXf& homoVers);
 
 MatrixXf homoVers2vers(const MatrixXf& homoVers);
 
-void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& dir);
 
-void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& xdir, \
-	const RowVector3f& ydir, const RowVector3f& zdir);
-
-// 网格串联——合并两个孤立的网格到一个网格里
-void concatMeshMat(MatrixXf& vers, MatrixXi& tris, const MatrixXf& vers1, const MatrixXi& tris1);
-
+////////////////////////// 科学计算相关
 
 // 解恰定的稠密线性方程组Ax == b;
 template<typename T, int N>
@@ -628,7 +637,6 @@ float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
 }
 
 
-
 // 多项式插值
 void polyInterpolation();
 
@@ -637,13 +645,21 @@ void polyInterpolation();
 void gaussInterpolation();
 
 
-
 // 最小二乘多项式拟合曲线：
 void leastSquarePolyFitting();
 
 
 // 岭回归多项式拟合曲线
 void ridgeRegressionPolyFitting(VectorXf& theta, const MatrixXf& vers);
+
+
+Matrix3f getRotationMat(const RowVector3f& originArrow, const RowVector3f& targetArrow);
+
+
+/////////////////////////////////////// 图形生成接口：
+
+bool interpolateToLine(MatrixXf& vers, const RowVector3f& start, const RowVector3f& end, const float SR, const bool SE);
+
 
 
 // 自定义计时器，使用WINDOWS计时API

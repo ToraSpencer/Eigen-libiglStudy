@@ -22,9 +22,11 @@
 
 // 项目信息
 /*
+	编译环境： x64 Relase
+ 
 	使用的第三方库:
 		eigen
-		libigl				x64
+		libigl				 
 		glad
 		glfw
 */
@@ -47,7 +49,7 @@
 
 int main()
 {
-	DENSEMAT::test7();
+	DENSEMAT::test9();
  
 	//SPARSEMAT::test1();
 
