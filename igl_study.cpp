@@ -1,25 +1,49 @@
 #include "igl_study.h"
 
+#define DATA_PATH "./data/"
 
 namespace IGLSTUDY
 {
-	// libigl中的文件IO
+	//// libigl中的文件IO
+	//void test0()
+	//{
+	//	Eigen::MatrixXd vers;
+	//	Eigen::MatrixXi tris;
+	//	igl::readOFF("./data/bunny.off", vers, tris);
+	//	igl::writeOBJ("./data/bunny.obj", vers, tris);
+
+	//	dispMatBlock<double>(vers, 0, 10, 0, 2);
+	//}
+
 	void test0()
 	{
 		Eigen::MatrixXd vers;
-		Eigen::MatrixXi tris;
-		igl::readOFF("./data/bunny.off", vers, tris);
-		igl::writeOBJ("./data/bunny.obj", vers, tris);
+		Eigen::MatrixXd tris;
+		igl::readOBJ("./data/bunny.obj", vers, tris);
 
+		return;
 	}
+
 
 	
 	// libigl中的显示窗口类Viewer
 	void test1() 
 	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		igl::readOBJ("./data/bunny.obj", vers, tris);
 
+		igl::opengl::glfw::Viewer viewer;				// libigl中的基于glfw的显示窗口；
 
+		// Viewer::data()——返回viewer中数据对象的引用；
 
+		// ViewerData::set_mesh()——输入顶点和三角片矩阵生成网格数据，写入到ViewerData的成员变量中；
+		viewer.data().set_mesh(vers, tris);		// 窗口中装载数据；
+
+		 // 默认是两轴旋转，加上下面这一句设定为三轴旋转。
+		viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL);
+
+		viewer.launch();
 	}
 
 #if 0
@@ -70,6 +94,7 @@ namespace IGLSTUDY
 
 	}
 #endif
+
 
 	// 使用Laplacian平滑网格
 	void test3() 

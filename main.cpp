@@ -3,6 +3,8 @@
 #include "scientific_calc.h"
 #include "igl_study.h"
 
+#define DATA_PATH "./data/"
+
 // 当前问题-easy
 /*
 	
@@ -45,16 +47,17 @@
 */
 
 
+
  
 
 int main()
 {
-	DENSEMAT::test9();
+	//DENSEMAT::test9();
  
 	//SPARSEMAT::test1();
 
-	//IGLSTUDY::test3();
+	IGLSTUDY::test0();
 
 	//SCIENTIFICCALC::test1();
-
+ 
 }
