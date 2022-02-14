@@ -56,7 +56,7 @@ int main()
  
 	//SPARSEMAT::test1();
 
-	IGLSTUDY::test0();
+	IGLSTUDY::test3();
 
 	//SCIENTIFICCALC::test1();
  

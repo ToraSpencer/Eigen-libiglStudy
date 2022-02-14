@@ -5,6 +5,10 @@
 #include <Eigen/Sparse>
 #include <iostream>
 
+#include <igl/readOFF.h>
+#include <igl/readOBJ.h>
+#include <igl/writeOBJ.h>
+
 #include <igl/avg_edge_length.h>
 #include <igl/barycenter.h>
 #include <igl/cotmatrix.h>
@@ -14,13 +18,11 @@
 #include <igl/massmatrix.h>
 #include <igl/per_vertex_normals.h>
 #include <igl/readDMAT.h>
-#include <igl/readOFF.h>
-#include <igl/readOBJ.h>
-#include <igl/writeOBJ.h>
 #include <igl/repdiag.h>
 #include <igl/opengl/glfw/Viewer.h>
 
 #include "tutorial_shared_path.h"
+
 
 namespace IGLSTUDY
 {
