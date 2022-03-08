@@ -2,125 +2,21 @@
 
 #define DATA_PATH "./data/"
 
-namespace IGLSTUDY
+// libigl基本功能
+namespace IGL_BASIC
 {
-
-#if 0
-	Eigen::MatrixXd vers, newVers;
-	Eigen::MatrixXi tris;
-	Eigen::SparseMatrix<double> L;
-	igl::opengl::glfw::Viewer viewer;
-
-
-	// lambda——键盘事件
-	const auto& key_down = [](igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod)->bool
-	{
-		switch (key)
-		{
-		case 'r':
-
-		case 'R':
-			newVers = vers;
-			break;
-
-		case ' ':
-		{
-			// 重新计算质量矩阵
-			Eigen::SparseMatrix<double> mass;
-			igl::massmatrix(newVers, tris, igl::MASSMATRIX_TYPE_BARYCENTRIC, mass);
-
-			// 解线性方程组 (mass - delta*L) * newVers = mass * newVers
-			float delta = 0.001;
-			const auto& S = (mass - delta * L);
-			Eigen::SimplicialLLT<Eigen::SparseMatrix<double > > solver(S);
-			assert(solver.info() == Eigen::Success);
-			newVers = solver.solve(mass * newVers).eval();
-
-#if 0
-			// Compute centroid and subtract (also important for numerics)
-			VectorXd dblA;                                     // 每个三角片面积的两倍；
-			igl::doublearea(newVers, tris, dblA);
-			double areaSum = 0.5 * dblA.sum();
-			MatrixXd centers;
-			igl::barycenter(newVers, tris, centers);
-			RowVector3d centroid(0, 0, 0);
-			for (int i = 0; i < centers.rows(); i++)
-				centroid += 0.5 * dblA(i) / areaSum * centers.row(i);
-			newVers.rowwise() -= centroid;
-
-			// 面积归一化
-			newVers.array() /= sqrt(areaSum);
-#endif
-
-			break;
-		}
-
-		default:
-			return false;
-		}
-
-		viewer.data().set_vertices(newVers);
-		viewer.data().compute_normals();
-		viewer.core().align_camera_center(newVers, tris);
-		return true;
-	};
-
-
-	void test3()
-	{
-		using namespace Eigen;
-		using namespace std;
-
-		igl::readOFF("./data/cow.off", vers, tris);
-
-		// 1.a 直接构造laplacian——Compute Laplace-Beltrami operator: 
-		igl::cotmatrix(vers, tris, L);
-
-		// 1.b 分步构造laplacian
-		{
-			SparseMatrix<double> Gradient, L2;
-
-			igl::grad(vers, tris, Gradient);      // 离散梯度
-
-			// Diagonal per-triangle "mass matrix"
-			VectorXd dblA;
-			igl::doublearea(vers, tris, dblA);             // 每个三角片面积的两倍
-
-			// Place areas along diagonal  #dim times
-			const auto& T = 1. * (dblA.replicate(3, 1) * 0.5).asDiagonal();
-
-			L2 = -Gradient.transpose() * T * Gradient;         // discrete Dirichelet energy Hessian 离散狄利克雷能量海塞矩阵
-			std::cout << "两种方法得到的laplacian的差的范数：" << std::endl;
-			cout << "(L2 - L).norm() == " << (L2 - L).norm() << endl;
-		}
-
-		// 2. 根据原始的法向量，使用伪色
-		MatrixXd norms;
-		igl::per_vertex_normals(vers, tris, norms);
-		MatrixXd colors = norms.rowwise().normalized().array() * 0.5 + 0.5;
-
-		// 3. viewr填充初始数据
-		newVers = vers;
-		viewer.data().set_mesh(newVers, tris);
-		viewer.data().set_colors(colors);
-		viewer.callback_key_down = key_down;
-
-		// 4. 运行
-		cout << "Press [space] to smooth." << endl;;
-		cout << "Press [r] to reset." << endl;;
-		viewer.launch();
-	}
-
-#else
 	Eigen::MatrixXd vers, newVers;
 	Eigen::MatrixXi tris;
 	Eigen::SparseMatrix<double> L;
 	igl::opengl::glfw::Viewer viewer;		// libigl中的基于glfw的显示窗口；
 
-
+	// 文件IO
 	void test0()
 	{
+		// readOBJ(), writeObj()——OBJ文件的IO，有多个重载，至少有路径、点云、三角片这三个数据。
 		igl::readOBJ("./data/bunny.obj", vers, tris);
+		igl::writeOBJ("./data/bunny_export.obj", vers, tris);
+		igl::writeOBJ("./data/bunnyVers.obj", vers, Eigen::MatrixXi{});			// 只要点云不需要三角片的话，传入空矩阵；
 
 		return;
 	}
@@ -224,10 +120,8 @@ namespace IGLSTUDY
 	// 使用Laplacian光顺网格
 	void test3() 
 	{
-		igl::readOFF("./data/cow.off", vers, tris);
-		// igl::readOBJ( "./data/bunny.obj", vers, tris);
+		 igl::readOBJ( "./data/bunny.obj", vers, tris);
 		newVers = vers;
-		Eigen::SparseMatrix<double> L;
 
 		// 1.a 直接构造laplacian——Compute Laplace-Beltrami operator: 
 		igl::cotmatrix(vers, tris, L);
@@ -265,24 +159,21 @@ namespace IGLSTUDY
 		cout << "Press [space] to smooth." << endl;;
 		cout << "Press [r] to reset." << endl;;
 		viewer.launch();
-
-		//int loopCount = 10;
-		//for (int i = 0; i<loopCount; ++i) 
-		//{
-		//	// 重新计算质量矩阵
-		//	SparseMatrix<double> mass;
-		//	igl::massmatrix(newVers, tris, igl::MASSMATRIX_TYPE_BARYCENTRIC, mass);
-
-		//	// 解线性方程组 (mass - delta*L) * newVers = mass * newVers
-		//	float delta = 0.01;
-		//	const auto& S = (mass - delta * L);
-		//	Eigen::SimplicialLLT<Eigen::SparseMatrix<double > > solver(S);
-		//	assert(solver.info() == Eigen::Success);
-		//	newVers = solver.solve(mass * newVers).eval();
-
-		//	vers = newVers;
-		//}
  
 	}
-#endif
+ 
+}
+
+
+// libigl中的微分几何相关
+namespace IGL_DIF_GEO 
+{
+
+	void test1() 
+	{
+
+
+
+	}
+
 }

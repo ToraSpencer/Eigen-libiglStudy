@@ -22,11 +22,9 @@
 using namespace std;
 using namespace Eigen;
 
-//声明***********************************************************************************************************************************************
 
 
-
-///////////////////////////////// 控制台打印接口
+/////////////////////////////////////////////////////////////////////////////////////////////////// 控制台打印接口
 
 // 传入函数子或函数指针遍历stl容器
 template<typename T, typename F>
@@ -184,7 +182,7 @@ void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
 
 
 
-/////////////////////////////////// 不同数据类型的变换
+///////////////////////////////////////////////////////////////////////////////////////////////////// 不同数据类型的变换
 
 // 根据索引向量从源矩阵中提取元素生成输出矩阵。
 template <typename T>
@@ -263,7 +261,7 @@ Eigen::Matrix<T, Dynamic, 1> vec2Vec(const std::vector<T>& vIn)
 }
 
 
-/////////////////////////////////////// 矩阵的增删查改
+///////////////////////////////////////////////////////////////////////////////////////////////////////// 矩阵的增删查改
 
 // 向量插入数据
 template<typename T>
@@ -408,7 +406,7 @@ void concatMeshMat(MatrixXf& vers, MatrixXi& tris, const MatrixXf& vers1, const 
 
 
 
-////////////////////////// IO接口
+//////////////////////////////////////////////////////////////////////////////////////////// IO接口
 
 unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize);
 
@@ -421,6 +419,7 @@ void vecWriteToFile(const char* fileName, const std::vector<T>& vec)
 	file.write((char*)(&vec[0]), sizeof(T) * vec.size());
 	file.close();
 }
+
 
 // to be optimized——元素数应该不需要传入函数，应该可以由文件流大小推断出来。
 template<typename T>
@@ -536,8 +535,8 @@ void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVec
 void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& xdir, \
 	const RowVector3f& ydir, const RowVector3f& zdir);
  
-/////////////////////////////////////// 齐次坐标系相关接口
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////// 齐次坐标系相关接口
 void objReadVerticesHomoMat(MatrixXf& vers, const char* fileName);
 
 void objWriteVerticesHomoMat(const char* fileName, const MatrixXf& vers);
@@ -551,7 +550,7 @@ void homoVers2vers(MatrixXf& vers, const MatrixXf& homoVers);
 MatrixXf homoVers2vers(const MatrixXf& homoVers);
 
 
-////////////////////////// 科学计算相关
+//////////////////////////////////////////////////////////////////////////////////////////// 科学计算相关
 
 // 解恰定的稠密线性方程组Ax == b;
 template<typename T, int N>
@@ -657,7 +656,6 @@ Matrix3f getRotationMat(const RowVector3f& originArrow, const RowVector3f& targe
 
 
 /////////////////////////////////////// 图形生成接口：
-
 bool interpolateToLine(MatrixXf& vers, const RowVector3f& start, const RowVector3f& end, const float SR, const bool SE);
 
 
