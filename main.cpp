@@ -56,7 +56,9 @@ int main()
  
 	//SPARSEMAT::test1();
 
-	IGL_BASIC::test2();
+	//IGL_BASIC::test2();
+
+	IGL_DIF_GEO::test1();
 
 	//SCIENTIFICCALC::test1();
  

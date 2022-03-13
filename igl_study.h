@@ -21,6 +21,8 @@
 #include <igl/repdiag.h>
 #include <igl/opengl/glfw/Viewer.h>
 
+#include <igl/copyleft/cgal/mesh_boolean.h>
+
 #include "tutorial_shared_path.h"
 
 
