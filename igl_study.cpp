@@ -20,14 +20,18 @@ namespace IGL_BASIC
 		
 		vers.resize(0, 0);
 		tris.resize(0, 0);
-		igl::readOBJ("./data/tooth.obj", vers, tris);
-		igl::writeOFF("./data/tooth.off", vers, tris);
+		igl::readOBJ("E:/²ÄÁÏ/cube.obj", vers, tris);
+		igl::writeOFF("E:/²ÄÁÏ/cube.off", vers, tris);
 
 		vers.resize(0, 0);
 		tris.resize(0, 0);
-		igl::readOBJ("./data/tetrahedron.obj", vers, tris);
-		igl::writeOFF("./data/tetrahedron.off", vers, tris);
+		igl::readOBJ("./data/cylinder1.obj", vers, tris);
+		igl::writeOFF("./data/cylinder1.off", vers, tris);
 
+		vers.resize(0, 0);
+		tris.resize(0, 0);
+		igl::readOBJ("./data/cylinder2.obj", vers, tris);
+		igl::writeOFF("./data/cylinder2.off", vers, tris);
 
 		igl::readOBJ("E:/²ÄÁÏ/tetrahedron.obj", vers, tris);
 		vers = -vers;
