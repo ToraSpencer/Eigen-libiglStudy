@@ -8,6 +8,7 @@
 #include <igl/readOFF.h>
 #include <igl/readOBJ.h>
 #include <igl/writeOBJ.h>
+#include <igl/writeOFF.h>
 
 #include <igl/avg_edge_length.h>
 #include <igl/barycenter.h>

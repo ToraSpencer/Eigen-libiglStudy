@@ -46,19 +46,16 @@
 	CMAKE_INTDIR="Release"
 */
 
-
-
  
-
 int main()
 {
 	//DENSEMAT::test9();
  
 	//SPARSEMAT::test1();
 
-	//IGL_BASIC::test2();
+	IGL_BASIC::test0();
 
-	IGL_DIF_GEO::test1();
+	// IGL_DIF_GEO::test1();
 
 	//SCIENTIFICCALC::test1();
  

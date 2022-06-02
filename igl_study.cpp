@@ -13,12 +13,32 @@ namespace IGL_BASIC
 	// 文件IO
 	void test0()
 	{
-		// readOBJ(), writeObj()——OBJ文件的IO，有多个重载，至少有路径、点云、三角片这三个数据。
+		//// readOBJ(), writeObj()——OBJ文件的IO，有多个重载，至少有路径、点云、三角片这三个数据。
 		igl::readOBJ("./data/bunny.obj", vers, tris);
 		igl::writeOBJ("./data/bunny_export.obj", vers, tris);
 		igl::writeOBJ("./data/bunnyVers.obj", vers, Eigen::MatrixXi{});			// 只要点云不需要三角片的话，传入空矩阵；
+		
+		vers.resize(0, 0);
+		tris.resize(0, 0);
+		igl::readOBJ("./data/tooth.obj", vers, tris);
+		igl::writeOFF("./data/tooth.off", vers, tris);
 
-		return;
+		vers.resize(0, 0);
+		tris.resize(0, 0);
+		igl::readOBJ("./data/tetrahedron.obj", vers, tris);
+		igl::writeOFF("./data/tetrahedron.off", vers, tris);
+
+
+		igl::readOBJ("E:/材料/tetrahedron.obj", vers, tris);
+		vers = -vers;
+		vers.rowwise() += Eigen::RowVector3d(1,1,1);
+		auto tris2 = tris;
+		tris2.col(1) = tris.col(0);
+		tris2.col(0) = tris.col(1);
+		igl::writeOFF("E:/材料/tetrahedron2.off", vers, tris2);
+
+		std::cout << "finished." << std::endl;
+ 
 	}
 
 
@@ -159,9 +179,7 @@ namespace IGL_BASIC
 		cout << "Press [space] to smooth." << endl;;
 		cout << "Press [r] to reset." << endl;;
 		viewer.launch();
- 
 	}
- 
 }
 
 
