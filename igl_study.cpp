@@ -20,29 +20,16 @@ namespace IGL_BASIC
 		
 		vers.resize(0, 0);
 		tris.resize(0, 0);
-		igl::readOBJ("E:/材料/cube.obj", vers, tris);
-		igl::writeOFF("E:/材料/cube.off", vers, tris);
+		igl::readOBJ("E:/fatTeeth11_去除所有过短的边之后.obj", vers, tris);
+		igl::writeOFF("E:/fatTeeth_去除所有过短的边之后11.off", vers, tris);
 
 		vers.resize(0, 0);
 		tris.resize(0, 0);
-		igl::readOBJ("./data/cylinder1.obj", vers, tris);
-		igl::writeOFF("./data/cylinder1.off", vers, tris);
+		igl::readOBJ("E:/fatTeeth12_去除所有过短的边之后.obj", vers, tris);
+		igl::writeOFF("E:/fatTeeth_去除所有过短的边之后12.off", vers, tris);
 
-		vers.resize(0, 0);
-		tris.resize(0, 0);
-		igl::readOBJ("./data/cylinder2.obj", vers, tris);
-		igl::writeOFF("./data/cylinder2.off", vers, tris);
-
-		igl::readOBJ("E:/材料/tetrahedron.obj", vers, tris);
-		vers = -vers;
-		vers.rowwise() += Eigen::RowVector3d(1,1,1);
-		auto tris2 = tris;
-		tris2.col(1) = tris.col(0);
-		tris2.col(0) = tris.col(1);
-		igl::writeOFF("E:/材料/tetrahedron2.off", vers, tris2);
 
 		std::cout << "finished." << std::endl;
- 
 	}
 
 
