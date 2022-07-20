@@ -17,16 +17,21 @@ namespace IGL_BASIC
 		igl::readOBJ("./data/bunny.obj", vers, tris);
 		igl::writeOBJ("./data/bunny_export.obj", vers, tris);
 		igl::writeOBJ("./data/bunnyVers.obj", vers, Eigen::MatrixXi{});			// 只要点云不需要三角片的话，传入空矩阵；
-		
+	
 		vers.resize(0, 0);
 		tris.resize(0, 0);
-		igl::readOBJ("E:/fatTeeth11_去除所有过短的边之后.obj", vers, tris);
-		igl::writeOFF("E:/fatTeeth_去除所有过短的边之后11.off", vers, tris);
+		igl::readOBJ("E:/fatTeeth1_预处理后.obj", vers, tris);
+		igl::writeOFF("E:/fatTeeth1_预处理后.off", vers, tris);
 
 		vers.resize(0, 0);
 		tris.resize(0, 0);
-		igl::readOBJ("E:/fatTeeth12_去除所有过短的边之后.obj", vers, tris);
-		igl::writeOFF("E:/fatTeeth_去除所有过短的边之后12.off", vers, tris);
+		igl::readOBJ("E:/fatTeeth2_预处理后.obj", vers, tris);
+		igl::writeOFF("E:/fatTeeth2_预处理后.off", vers, tris);
+
+		vers.resize(0, 0);
+		tris.resize(0, 0);
+		igl::readOBJ("E:/s9block_预处理后.obj", vers, tris);
+		igl::writeOFF("E:/s9block_预处理后.off", vers, tris);
 
 
 		std::cout << "finished." << std::endl;

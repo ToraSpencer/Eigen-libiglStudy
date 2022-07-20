@@ -49,11 +49,11 @@
  
 int main()
 {
-	// DENSEMAT::test9();
+	DENSEMAT::test3();
  
 	//SPARSEMAT::test1();
 
-	IGL_BASIC::test0();
+	// IGL_BASIC::test0();
 
 	// IGL_DIF_GEO::test1();
 

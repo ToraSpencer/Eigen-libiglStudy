@@ -90,14 +90,16 @@ namespace DENSEMAT
 	void test0()
 	{
 		// 堆矩阵、向量——确定了尺寸，但未初始化,数据存在堆上
-		//			最基本模板——Matrix<typename Scalar, int RowsAtCompileTime, int ColsAtCompileTime>
-		//			堆矩阵——typedef Matrix<double, Dynamic, Dynamic> MatrixXd;
-		//			堆向量——typedef Matrix<int, Dynamic, 1> VectorXi;
+		/*
+			最基本模板——Matrix<typename Scalar, int RowsAtCompileTime, int ColsAtCompileTime>
+			堆矩阵——typedef Matrix<double, Dynamic, Dynamic> MatrixXd;
+			堆向量——typedef Matrix<int, Dynamic, 1> VectorXi;
+		*/
+
 		MatrixXd m1(2, 2);
 		MatrixXf mf1(1, 2);
 		VectorXd v1(3);			// 注意是列向量
 		cout << v1 << endl;
-
 
 		// 堆Array
 		ArrayXXd a1(2, 2), a2(2, 2);
@@ -105,7 +107,6 @@ namespace DENSEMAT
 		a2 << 1, 2, 3, 4;
 		cout << "a1 = \n" << a1 << endl;
 		cout << "a1*a2 = \n" << a1 * a2 << endl;
-
 
 		// 生成特殊向量的接口——LinSpaced()
 		int start = 0;
@@ -175,11 +176,9 @@ namespace DENSEMAT
 		// 下标运算符[]只能获取向量元素，矩阵对象无法使用，因为[]只支持一个参数。
 		cout << "v1[0] == " << v1[0] << endl << endl;
 
-
 		// 括号运算符访问元素，注意索引从0开始
 		cout << "m1(0, 1) ==" << m1(0, 1) << endl;
 		cout << "v1(3) == " << v1(3) << endl;
-
 
 		// 求矩阵的性质的类内接口
 		m1 = MatrixXd::Random(3, 4);
@@ -313,7 +312,6 @@ namespace DENSEMAT
 		cout << aa << endl << endl;;
 		cout << bb << endl << endl;
 
-
 		// reverse();
 		m1.resize(3, 3);
 		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9;
@@ -327,9 +325,6 @@ namespace DENSEMAT
 		m1.colwise().reverseInPlace();
 		cout << "m1 = \n" << m1 << endl << endl;
 
-
-
-
 		// 向量点乘、叉乘
 		Vector3f v1(1, 2, 3);
 		Vector3f v2(3, 2, 1);
@@ -341,9 +336,6 @@ namespace DENSEMAT
 		cout << "v1 = \n" << v1 << endl << endl;
 		cout << "v2.normalized() = \n" << v2.normalized() << endl << endl;
 		cout << "v2 = \n" << v2 << endl << endl;
-
-
-
 	}
 
 
@@ -421,6 +413,11 @@ namespace DENSEMAT
 		Vector3f v1(1, 2, 3);
 		std::cout << "v1.norm() == " << v1.norm() << std::endl;	// 向量的范数等于向量的模长。
 
+		//			求行向量的模长：
+		Matrix3f arrows;
+		arrows << 0, 1, 0, 0, 3, 4, 0, 5, 12;
+		Vector3f arrowsLen = arrows.rowwise().norm();
+		dispVec<float>(arrowsLen);
 	}
 
 
@@ -514,7 +511,6 @@ namespace DENSEMAT
 			pdata[i] = static_cast<float>(i);
 		}
 		std::cout << "m1 == \n" << m1 << std::endl;
-
 
 		// 按元素操作需要使用array()
 		MatrixXf result = m1.array() * MatrixXf::Ones(5, 6).array();
