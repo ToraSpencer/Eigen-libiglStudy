@@ -94,9 +94,7 @@ namespace SPARSEMAT
 		// 列优先存储稀疏矩阵的row()方法返回的引用是只读的，不可以被赋值。
 		std::cout << "遍历第i列：" << std::endl;
 		for (spMatf::InnerIterator it(sm1, 1); it; ++it)				// 内维度就是存储优先的维度，如这里使用默认的列优先存储，这里的it就是某一列的迭代器；
-		{
 			std::cout << it.value() << ", ";
-		}
 		std::cout << std::endl;
 
 		RowVectorXf tempVec = sm1.row(1);
@@ -115,8 +113,6 @@ namespace SPARSEMAT
 		// 使用sp2的某一行给sp1的某一列赋值时，必须将该行向量转置为列向量，否则会出错，且编译器不报异常；
 		sm1.col(0) = sm2.row(0).transpose();
 		dispMat<float>(sm1.toDense());
-
-
 	}
 
 

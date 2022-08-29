@@ -79,22 +79,16 @@ template<typename T>
 void dispMatBlock(const Matrix<T, Dynamic, Dynamic>& mat, const int rowStart, const int rowEnd, const int colStart, const int colEnd)
 {
 	if (rowEnd > mat.rows() - 1 || rowStart < 0 || rowStart >= rowEnd)
-	{
 		return;
-	}
 	if (colEnd > mat.cols() - 1 || colStart < 0 || colStart >= colEnd)
-	{
 		return;
-	}
 
 	std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
 	for (int i = rowStart; i <= rowEnd; ++i)
 	{
 		std::cout << i << " ---\t";
 		for (int j = colStart; j <= colEnd; ++j)
-		{
 			std::cout << mat(i, j) << ", ";
-		}
 		std::cout << std::endl;
 	}
 	std::cout << std::endl;
@@ -116,9 +110,7 @@ void dispSpMat(const SparseMatrix<T>& mat, const int showElems = -1)
 			std::cout << "(" << it.row() << ", " << it.col() << ") ---\t" << it.value() << std::endl;
 			count++;
 			if (count >= showElems && showElems >= 0)
-			{
 				return;
-			}
 		}
 	}
 }
@@ -157,9 +149,7 @@ void dispVecSeg(const Matrix<T, N, 1>& vec, const int start, const int end)
 
 	std::cout << ": rows == " << vec.rows() << std::endl;
 	for (int i = start; i <= end; ++i)
-	{
 		std::cout << i << "---\t" << vec(i) << std::endl;
-	}
 	std::cout << std::endl;
 }
 
@@ -174,9 +164,7 @@ void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
 
 	std::cout << ": cols == " << vec.cols() << std::endl;
 	for (int i = start; i <= end; ++i)
-	{
 		std::cout << i << "---\t" << vec(i) << std::endl;
-	}
 	std::cout << std::endl;
 }
 
@@ -534,7 +522,40 @@ void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVec
 
 void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& xdir, \
 	const RowVector3f& ydir, const RowVector3f& zdir);
+
+
+// 边数据写入到OBJ文件中：
+template	<typename DerivedV, typename DerivedI>
+void objWriteEdgesMat(const char* pathName, const Eigen::MatrixBase<DerivedI>& edges, const Eigen::MatrixBase<DerivedV>& vers)
+{
+	std::ofstream dstFile(pathName);
+	for (int i = 0; i < vers.rows(); ++i)
+		dstFile << "v " << vers(i, 0) << " " << vers(i, 1) << " " << vers(i, 2) << std::endl;
+
+	for (int i = 0; i < edges.rows(); ++i)
+		dstFile << "l " << edges(i, 0) + 1 << " " << edges(i, 1) + 1 << std::endl;
+
+	dstFile.close();
+}
+
+// 路径数据写入到OBJ文件中：
+template <typename DerivedV, typename	 DerivedI>
+void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const Eigen::MatrixBase<DerivedV>& vers)
+{
+	if (path.size() <= 1)
+		return;
+
+	unsigned edgesCount = path.size() - 1;
+	Eigen::Matrix<DerivedI, Dynamic, Dynamic> pathEdges(edgesCount, 2);
+
+	for (unsigned i = 0; i < edgesCount; ++i)
+		pathEdges(i, 0) = path[i];
+	for (unsigned i = 0; i < edgesCount; ++i)
+		pathEdges(i, 1) = path[i + 1];
+	objWriteEdgesMat(pathName, pathEdges, vers);
+}
  
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 齐次坐标系相关接口
 void objReadVerticesHomoMat(MatrixXf& vers, const char* fileName);

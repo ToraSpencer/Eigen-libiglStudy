@@ -202,9 +202,7 @@ void objWriteVerticesMat(const char* fileName, const MatrixXf& vers)
 {
 	std::ofstream dstFile(fileName);
 	for (int i = 0; i < vers.rows(); i++)
-	{
 		dstFile << "v " << vers(i, 0) << " " << vers(i, 1) << " " << vers(i, 2) << std::endl;
-	}
 	dstFile.close();
 };
 

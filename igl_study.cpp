@@ -2,10 +2,12 @@
 
 #define DATA_PATH "./data/"
 
+
+
 // libigl基本功能
 namespace IGL_BASIC
 {
-	Eigen::MatrixXd vers, newVers;
+	Eigen::MatrixXd vers, newVers, normals;
 	Eigen::MatrixXi tris;
 	Eigen::SparseMatrix<double> L;
 	igl::opengl::glfw::Viewer viewer;		// libigl中的基于glfw的显示窗口；
@@ -18,21 +20,20 @@ namespace IGL_BASIC
 		igl::writeOBJ("./data/bunny_export.obj", vers, tris);
 		igl::writeOBJ("./data/bunnyVers.obj", vers, Eigen::MatrixXi{});			// 只要点云不需要三角片的话，传入空矩阵；
 	
+		//vers.resize(0, 0);
+		//tris.resize(0, 0);
+		//igl::readOBJ("E:/fatTeeth1_预处理后.obj", vers, tris);
+		//igl::writeOFF("E:/fatTeeth1_预处理后.off", vers, tris);
+
+		// 读取stl文件；
+		std::string fileName{"E:/材料/jawMesh_noHP_noPro"};
 		vers.resize(0, 0);
 		tris.resize(0, 0);
-		igl::readOBJ("E:/fatTeeth1_预处理后.obj", vers, tris);
-		igl::writeOFF("E:/fatTeeth1_预处理后.off", vers, tris);
-
-		vers.resize(0, 0);
-		tris.resize(0, 0);
-		igl::readOBJ("E:/fatTeeth2_预处理后.obj", vers, tris);
-		igl::writeOFF("E:/fatTeeth2_预处理后.off", vers, tris);
-
-		vers.resize(0, 0);
-		tris.resize(0, 0);
-		igl::readOBJ("E:/s9block_预处理后.obj", vers, tris);
-		igl::writeOFF("E:/s9block_预处理后.off", vers, tris);
-
+		std::ifstream fileIn((fileName + std::string{ ".stl" }).c_str(), std::ios::binary);			// stl文件是二进制文件；
+		igl::readSTL(fileIn, vers, tris, normals);
+		fileIn.close();
+		igl::writeOBJ((fileName + std::string{".obj"}).c_str(), vers, tris);
+ 
 
 		std::cout << "finished." << std::endl;
 	}
@@ -292,5 +293,70 @@ namespace IGL_DIF_GEO
 		viewer.launch();
 	}
 #endif
+
+}
+
+
+// 图算法
+namespace IGL_GRAPH 
+{
+	// 图数据结构的转换：
+	void test0() 
+	{
+		MatrixXd vers;
+		MatrixXi tris;
+		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
+
+		std::vector<std::vector<int>> adjList;
+		Eigen::SparseMatrix<int> adjM;
+		
+		// 由面片信息得到图的邻接表、邻接矩阵
+		igl::adjacency_list(tris, adjList);
+		igl::adjacency_matrix(tris, adjM);
+
+		std::cout << "索引为0的顶点的出边连接的顶点：" << std::endl;
+		traverseSTL(adjList[0], disp<int>);
+		std::cout << std::endl << std::endl;
+
+		std::cout << "索引为1的顶点的出边：" << std::endl;
+		for (Eigen::SparseMatrix<int>::InnerIterator it(adjM, 0); it; ++it)
+		{
+			std::cout << "value == " << it.value() << std::endl;
+			std::cout << "row == " << it.row() << std::endl;			 // row index
+			std::cout << "col == " << it.col() << std::endl;			 // col index (here it is equal to k)
+			std::cout << std::endl;
+			//std::cout << "" << it.index() << std::endl;			// inner index, here it is equal to it.row()
+		}
+ 
+	}
+
+
+	// libigl中已有的图算法轮子
+	void test1() 
+	{
+		MatrixXd vers;
+		MatrixXi tris;
+		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
+ 
+		std::vector<std::vector<int>> adjList;
+		Eigen::SparseMatrix<int> adjM;
+		igl::adjacency_list(tris, adjList);
+		igl::adjacency_matrix(tris, adjM);
+
+		Eigen::VectorXd min_distance;
+		Eigen::VectorXi previous;
+		std::vector<int> path1, path2;
+		igl::dijkstra(vers, adjList, 0, std::set<int>{}, min_distance, previous);
+		igl::dijkstra(99, previous, path1);
+		igl::dijkstra(88, previous, path2);
+		traverseSTL(path1, disp<int>);
+
+		objWritePath("E:/path1.obj", path1, vers);
+		objWritePath("E:/path2.obj", path2, vers);
+
+		std::cout << "finished." << std::endl;
+	}
+
+
 
 }

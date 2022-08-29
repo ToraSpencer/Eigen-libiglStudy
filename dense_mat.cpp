@@ -103,12 +103,12 @@ namespace DENSEMAT
 
 		// 堆Array
 		ArrayXXd a1(2, 2), a2(2, 2);
-		a1 << 1, 2, 3, 4;
+		a1 << 1, 2, 3, 4;											// operator << 填充元素是行优先的顺序；
 		a2 << 1, 2, 3, 4;
 		cout << "a1 = \n" << a1 << endl;
 		cout << "a1*a2 = \n" << a1 * a2 << endl;
 
-		// 生成特殊向量的接口——LinSpaced()
+		// 生成特殊向量的接口——LinSpaced(元素数，起点，终点)
 		int start = 0;
 		int end = 10;
 		VectorXi vi1 = VectorXi::LinSpaced(end - start + 1, start, end);
@@ -121,8 +121,7 @@ namespace DENSEMAT
 		MatrixXd m2 = MatrixXd::Random(3, 3);              // 矩阵类static方法——Random()——返回随机矩阵
 		MatrixXd m3 = MatrixXd::Constant(3, 3, 1.2);		// 常数矩阵，前面是尺寸，后面是值；
 		MatrixXd m4 = MatrixXd::Ones(1, 2);					// 全1矩阵
-
-
+ 
 		// 数据存在栈上的矩阵类型
 		Matrix3d mm1 = Matrix3d::Random();
 		Vector3d vv1(1, 2, 3);
@@ -224,7 +223,7 @@ namespace DENSEMAT
 			elemPtr = m2.data() + i;
 			*elemPtr = i;
 		}
-		std::cout << m2 << std::endl << std::endl;;
+		std::cout << "m2 == \n" << m2 << std::endl << std::endl;;
 
 
 		//				拷贝堆矩阵中的数据：
@@ -470,11 +469,16 @@ namespace DENSEMAT
 
 
 		// row(), col()——提取某一行或者某一列
-		std::cout << "m1.col(3) == \n" << m1.col(3) << std::endl;
+		std::cout << "row(), col()——提取某一行或者某一列\n m1.col(3) == \n" << m1.col(3) << std::endl;
 
 		//			提取出的行、列是原数据的引用，不是新的拷贝，并且是左值。
 		m1.col(3) << 1, 2, 3, 4, 5;
 		std::cout << "m1.col(3) == \n" << m1.col(3) << std::endl;
+
+		// topRows(), bottomRows(), leftCols(), rightCols();
+		std::cout << "m1.leftCols(2) ==   \n" << m1.leftCols(2) << std::endl;
+		std::cout << "m1.topRows(2) == \n" << m1.topRows(2) << std::endl;
+ 
 
 		//	minCoeff()求最值对矩阵分块也同样适用
 		MatrixXf::Index maxRow, maxCol;
