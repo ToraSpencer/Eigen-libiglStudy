@@ -51,7 +51,7 @@ int main()
 {
 	// DENSEMAT::test1();
  
-	//SPARSEMAT::test1();
+	// SPARSEMAT::test0();
 	
 	// IGL_BASIC::test0();
 

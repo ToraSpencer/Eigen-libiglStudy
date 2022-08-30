@@ -2,10 +2,10 @@
 
 namespace SPARSEMAT
 {
-	using spMatf = SparseMatrix<float, ColMajor>;
+	using spMatf = SparseMatrix<float>;				// 默认是colMajor;
 	using TripF = Eigen::Triplet<float>;
 
-	// 稀疏矩阵
+	// 稀疏矩阵的构造、基本属性
 	void test0()
 	{
 		std::vector<TripF> tripList;
@@ -14,18 +14,22 @@ namespace SPARSEMAT
 		tripList.push_back(TripF(2, 2, 1.2));
 		tripList.push_back(TripF(3, 3, 1.3));
 		tripList.push_back(TripF(4, 4, 1.4));
+		tripList.push_back(TripF(1, 1, 9.0));
 
 		//   1. 生成稀疏矩阵：
 
 		//					使用三元数数组生成稀疏矩阵——setFromTriplets()
-		spMatf sm1(120, 100);
+		spMatf sm1(6, 7);
 		sm1.setFromTriplets(tripList.begin(), tripList.end());
+		dispMat<float>(sm1.toDense());
 
 		//					插入元素的方式生成稀疏矩阵——insert()
 		spMatf sm2(120, 100);
 		sm2.insert(1, 2) = 1;
 		sm2.insert(2, 3) = 2;
+		sm2.insert(8, 3) = 88;
 		sm2.insert(3, 4) = 3;
+		sm2.insert(4, 4) = 99;
 		sm2.makeCompressed();					// 压缩剩余空间：
 
 		//					生成一些特殊的稀疏矩阵：
@@ -47,18 +51,18 @@ namespace SPARSEMAT
 
 		//					使用InnerIterator访问稀疏矩阵的非零元素
 		std::cout << "sm2非零元素数：" << sm2.nonZeros() << std::endl;
-		for (int k = 0; k < sm2.outerSize(); ++k)
+		int outerSize2 = sm2.outerSize();				// 默认的列优先存储矩阵，outerSize即列数；
+		for (int k = 0; k < outerSize2; ++k)
 		{
-			for (spMatf::InnerIterator it(sm2, k); it; ++it)
+			for (spMatf::InnerIterator it(sm2, k); it; ++it)			// 列优先存储时，InnerIterator即列内迭代器；
 			{
 				std::cout << "value == " << it.value() << std::endl;
 				std::cout << "row == " << it.row() << std::endl;			 // row index
-				std::cout << "col == " << it.col() << std::endl;			 // col index (here it is equal to k)
+				std::cout << "col == " << it.col() << std::endl;				 // col index (here it is equal to k)
 				std::cout << std::endl;
-				//std::cout << "" << it.index() << std::endl;			// inner index, here it is equal to it.row()
+				//std::cout << "" << it.index() << std::endl;				// inner index, here it is equal to it.row()
 			}
 		}
-
 
 		// 4.  稀疏矩阵和稠密矩阵的转换：
 		MatrixXf m1(3, 4);
@@ -131,6 +135,7 @@ namespace SPARSEMAT
 		sm4 = m4.sparseView();
 		sm.leftCols(3) = sm1;			// 对于行存储的稀疏矩阵来说，leftCols()和rightCols()返回的列是只读的，topRows()和bottomRows()返回的行是可读写的。
 		sm.rightCols(1) = sm2;		// 列存储的稀疏矩阵则反之
+
 		//sm.topRows(1) = sm3;
 		//sm.bottomRows(3) = sm4;
 
@@ -189,18 +194,12 @@ namespace SPARSEMAT
 		IterSolver.setTolerance(0.00001);
 		IterSolver.compute(A);
 		if (IterSolver.info() != Success)
-		{
 			return;
-		}
 
 		x = IterSolver.solve(b);
 		if (IterSolver.info() != Success)
-		{
 			return;
-		}
 		std::cout << "x == \n" << x << std::endl;
-
 	}
-
 }
 

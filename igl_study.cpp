@@ -305,43 +305,105 @@ namespace IGL_GRAPH
 	{
 		MatrixXd vers;
 		MatrixXi tris;
-		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
+		igl::readOBJ("E:/材料/cube重复三角片.obj", vers, tris);
 
 		std::vector<std::vector<int>> adjList;
-		Eigen::SparseMatrix<int> adjM;
+		Eigen::SparseMatrix<int> adjSM;
 		
 		// 由面片信息得到图的邻接表、邻接矩阵
 		igl::adjacency_list(tris, adjList);
-		igl::adjacency_matrix(tris, adjM);
+		igl::adjacency_matrix(tris, adjSM);		// 有向边存在则元素为1，否则为0；
 
-		std::cout << "索引为0的顶点的出边连接的顶点：" << std::endl;
+		// 手动计算邻接矩阵：
+		unsigned versCount = vers.rows();
+		unsigned trisCount = tris.rows();
+		unsigned edgesCount = 3 * trisCount;
+		Eigen::SparseMatrix<int> adjSM_weighted;				// 有向边邻接矩阵，权重为该有向边的数量；
+
+		MatrixXi edges = MatrixXi::Zero(edgesCount, 2);
+		edges.block(0, 0, trisCount, 1) = tris.col(0);
+		edges.block(0, 1, trisCount, 1) = tris.col(1);
+		edges.block(trisCount, 0, trisCount, 1) = tris.col(1);
+		edges.block(trisCount, 1, trisCount, 1) = tris.col(2);
+		edges.block(2 * trisCount, 0, trisCount, 1) = tris.col(2);
+		edges.block(2 * trisCount, 1, trisCount, 1) = tris.col(0);
+
+		// FOR DEBUG:
+		dispMatBlock<int>(edges, 0, 10, 0, 1);
+		dispMatBlock<int>(edges, 3 * trisCount - 10, 3 * trisCount - 1, 0, 1);
+
+		std::vector<Eigen::Triplet<int>> elems;
+		elems.reserve(2 * (versCount + trisCount + 100));				// euler formula: E = V + S - 2 + 2*g;
+		for (unsigned i = 0; i < edgesCount; ++i)
+			elems.push_back(Eigen::Triplet<int>(edges(i, 0), edges(i, 1), 1));
+
+		adjSM_weighted.resize(versCount, versCount);
+		adjSM_weighted.reserve(elems.size());
+		adjSM_weighted.setFromTriplets(elems.begin(), elems.end());
+		adjSM_weighted.makeCompressed();
+
+		std::cout << "索引为0的顶点的1邻域顶点：" << std::endl;
 		traverseSTL(adjList[0], disp<int>);
 		std::cout << std::endl << std::endl;
 
-		std::cout << "索引为1的顶点的出边：" << std::endl;
-		for (Eigen::SparseMatrix<int>::InnerIterator it(adjM, 0); it; ++it)
+		std::cout << "索引为1的顶点的入边（即邻接矩阵中第1列中所有不为零的元素下标）：" << std::endl;
+		for (Eigen::SparseMatrix<int>::InnerIterator it(adjSM, 0); it; ++it)
 		{
 			std::cout << "value == " << it.value() << std::endl;
 			std::cout << "row == " << it.row() << std::endl;			 // row index
 			std::cout << "col == " << it.col() << std::endl;			 // col index (here it is equal to k)
 			std::cout << std::endl;
-			//std::cout << "" << it.index() << std::endl;			// inner index, here it is equal to it.row()
+		} 
+
+		std::cout << "索引为2的顶点的出边（即邻接矩阵中第2行中所有不为零的元素下标）：" << std::endl;
+		for (int i = 0; i < adjSM_weighted.outerSize(); ++i)			// 对列的遍历：
+		{
+			for (Eigen::SparseMatrix<int>::InnerIterator it(adjSM_weighted, i); it; ++it)		// 当前列的列内迭代器；
+			{
+				if (2 == it.row())
+				{
+					std::cout << "value == " << it.value() << std::endl;
+					std::cout << "row == " << it.row() << std::endl;			 // row index
+					std::cout << "col == " << it.col() << std::endl;			 // col index (here it is equal to k)
+				}
+			}
 		}
- 
+
+		// 判断是否有重复三角片——若有重复三角片，则存在重复有向边：
+		bool hasDupTri = false;;
+		for (int i = 0; i < adjSM_weighted.outerSize(); ++i)			// 对列的遍历：
+		{
+			if (hasDupTri)
+				break;
+			for (Eigen::SparseMatrix<int>::InnerIterator it(adjSM_weighted, i); it; ++it)		// 当前列的列内迭代器；
+			{
+				if (it.value() > 1)
+				{
+					std::cout << "存在重复三角片" << std::endl;
+					hasDupTri = true;
+					break;
+				}
+			}
+		}
+		if (!hasDupTri)
+			std::cout << "没有重复三角片" << std::endl;
+
+		std::cout << "finished." << std::endl;
 	}
 
 
 	// libigl中已有的图算法轮子
 	void test1() 
 	{
+		// dijkstra
 		MatrixXd vers;
 		MatrixXi tris;
 		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
  
 		std::vector<std::vector<int>> adjList;
-		Eigen::SparseMatrix<int> adjM;
+		Eigen::SparseMatrix<int> adjSM;
 		igl::adjacency_list(tris, adjList);
-		igl::adjacency_matrix(tris, adjM);
+		igl::adjacency_matrix(tris, adjSM);
 
 		Eigen::VectorXd min_distance;
 		Eigen::VectorXi previous;
@@ -354,9 +416,24 @@ namespace IGL_GRAPH
 		objWritePath("E:/path1.obj", path1, vers);
 		objWritePath("E:/path2.obj", path2, vers);
 
+		// dfs:
+		Eigen::VectorXi disCoveredIdx, bfsTreeVec, dfsTreeVec, retC;
+		size_t startIdx = 0;
+		igl::dfs(adjList, startIdx, disCoveredIdx, dfsTreeVec, retC);
+		objWriteTree("E:/dfsTree.obj", bfsTreeVec, vers);
+		auto retCrev = retC.reverse();
+		auto flag = (retCrev == disCoveredIdx);
+
+		std::vector<int> vec1, vec2, vec3;
+		vec1 = vec2Vec<int>(disCoveredIdx);
+		vec2 = vec2Vec<int>(retC);
+		vec3 = vec2Vec<int>(retCrev);
+
+		// bfs:
+		igl::bfs(adjList, startIdx, disCoveredIdx, bfsTreeVec);
+		objWriteTree("E:/bfsTree.obj", bfsTreeVec, vers);
+ 
 		std::cout << "finished." << std::endl;
 	}
-
-
-
+ 
 }

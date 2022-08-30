@@ -91,9 +91,15 @@ namespace DENSEMAT
 	{
 		// 堆矩阵、向量——确定了尺寸，但未初始化,数据存在堆上
 		/*
-			最基本模板——Matrix<typename Scalar, int RowsAtCompileTime, int ColsAtCompileTime>
+			基本模板——Matrix<typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
 			堆矩阵——typedef Matrix<double, Dynamic, Dynamic> MatrixXd;
 			堆向量——typedef Matrix<int, Dynamic, 1> VectorXi;
+
+			Options_:
+					RowMajor		行优先存储；
+					ColMajor			列优先存储（默认值）；
+					AutoAlign
+					DontAlign. 
 		*/
 
 		MatrixXd m1(2, 2);
@@ -146,7 +152,6 @@ namespace DENSEMAT
 		//			列向量对象可以和矩阵对象相互构造
 		Vector3d vv2(1, 2, 3);
 
-
 		//			列向量对象可以和矩阵对象相互赋值
 		MatrixXd mm(v1);
 		vv2 = m2.block<3, 1>(0, 0);
@@ -181,6 +186,7 @@ namespace DENSEMAT
 
 		// 求矩阵的性质的类内接口
 		m1 = MatrixXd::Random(3, 4);
+		Eigen::Matrix<double, Dynamic, Dynamic, RowMajor> m1_rm(5, 6);		// 行优先存储；
 		cout << "m1 == \n" << m1 << endl;
 		cout << "元素数：m1.size() == " << m1.size() << endl;
 		cout << "行数：m1.rows() == " << m1.rows() << endl;
@@ -193,6 +199,12 @@ namespace DENSEMAT
 		cout << "矩阵的迹：trace():     " << m1.trace() << endl << endl;
 		std::cout << "行列式：m1.determinant() == " << m1.determinant() << std::endl;
 
+		// outerSize(), innerSize()——默认的列优先存储的矩阵，outerSize为列数，行优先存储的outerSize为行数；
+		std::cout << "m1.outerSize() == " << m1.outerSize() << std::endl;			
+		std::cout << "m1.innerSize() == " << m1.innerSize() << std::endl;
+		std::cout << "m1_rm.outerSize() == " << m1_rm.outerSize() << std::endl;
+		std::cout << "m1_rm.innerSize() == " << m1_rm.innerSize() << std::endl;
+ 
 		// 逆矩阵——使用lu分解得到
 		cout << "逆矩阵：m1.inverse() ==  \n" << m1.inverse() << endl;
 
@@ -426,9 +438,7 @@ namespace DENSEMAT
 		MatrixXf m1(5, 6);
 		float* pdata = m1.data();
 		for (unsigned i = 0; i < m1.size(); ++i)
-		{
 			pdata[i] = static_cast<float>(i);
-		}
 		std::cout << "m1 == \n" << m1 << std::endl << std::endl;
 
 		// VectorXT::segment<>()方法——提取向量的子向量片段，返回其左值引用。两个重载

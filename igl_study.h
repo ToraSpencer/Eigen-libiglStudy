@@ -28,6 +28,8 @@
 
 #include <igl/adjacency_list.h>
 #include <igl/adjacency_matrix.h>
+#include <igl/dfs.h>
+#include <igl/bfs.h>
 #include <igl/dijkstra.h>
 
 #include <igl/copyleft/cgal/mesh_boolean.h>

@@ -104,8 +104,8 @@ void dispSpMat(const SparseMatrix<T>& mat, const int showElems = -1)
 	int count = 0;
 	for (int k = 0; k < mat.outerSize(); ++k)
 	{
-		SparseMatrix<T, Eigen::ColMajor>::InnerIterator it(mat, k);			// 64位时，貌似T类型在编译器不确定的话，此句会报错
-		for (; ; ++it)
+		//for(decltype(mat)::InnerIterator it(mat, k); ; ++it)
+		for (SparseCompressedBase<T>::InnerIterator it(mat, k); it; ++it)// 64位时，貌似T类型在编译器不确定的话，此句会报错
 		{
 			std::cout << "(" << it.row() << ", " << it.col() << ") ---\t" << it.value() << std::endl;
 			count++;
@@ -141,14 +141,15 @@ void dispVec(const Matrix<T, 1, N>& vec)
 template<typename T, int N>
 void dispVecSeg(const Matrix<T, N, 1>& vec, const int start, const int end)
 {
-	if (start < 0 || end > vec.rows() - 1 || start >= end)
+	if (start < 0 || start >= end)
 	{
 		std::cout << "input error." << std::endl;
 		return;
 	}
 
+	int endIdx = (vec.rows() - 1 < end) ? (vec.rows() - 1) : end;
 	std::cout << ": rows == " << vec.rows() << std::endl;
-	for (int i = start; i <= end; ++i)
+	for (int i = start; i <= endIdx; ++i)
 		std::cout << i << "---\t" << vec(i) << std::endl;
 	std::cout << std::endl;
 }
@@ -156,14 +157,14 @@ void dispVecSeg(const Matrix<T, N, 1>& vec, const int start, const int end)
 template<typename T, int N>
 void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
 {
-	if (start < 0 || end > vec.cols() - 1 || start >= end)
+	if (start < 0  || start >= end)
 	{
 		std::cout << "input error." << std::endl;
 		return;
 	}
-
+	int endIdx = (vec.cols() - 1 < end) ? (vec.cols() -  1) : end;
 	std::cout << ": cols == " << vec.cols() << std::endl;
-	for (int i = start; i <= end; ++i)
+	for (int i = start; i <= endIdx; ++i)
 		std::cout << i << "---\t" << vec(i) << std::endl;
 	std::cout << std::endl;
 }
@@ -556,6 +557,39 @@ void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const
 }
  
 
+// 点云树数据写入到OBJ文件中：
+template<typename DerivedV>
+void objWriteTree(const char* pathName, const Eigen::VectorXi& treeVec, const Eigen::MatrixBase<DerivedV>& vers)
+{
+	/*
+		void objWriteTree(
+			const char* pathName,					
+			const Eigen::MatrixBase<DerivedI>& treeVec,				描述树的列向量，树中索引为i的结点，其父节点索引为treeVec[i]
+			const Eigen::MatrixBase<DerivedV>& vers					点云矩阵
+			)
+	*/
+	if (treeVec.size() <= 1)
+		return;
+	unsigned versCount = vers.rows();
+	unsigned edgesCount = versCount - 1;
+
+	// 生成边数据：
+	std::vector<std::pair<int, int>> edgesVec;
+	edgesVec.reserve(edgesCount);
+	for (unsigned i = 0; i < treeVec.rows(); ++i)
+	{
+		int parentIdx = treeVec(i, 0);
+		if (parentIdx >= 0)							// 树的根节点没有父结点，向量中其父节点索引写为-1；
+			edgesVec.push_back({parentIdx, i});
+	}
+	MatrixXi edges = MatrixXi::Zero(edgesVec.size(), 2);
+	for (unsigned i = 0; i < edgesVec.size(); ++i)
+	{
+		edges(i, 0) = edgesVec[i].first;
+		edges(i, 1) = edgesVec[i].second;
+	}
+	objWriteEdgesMat(pathName, edges, vers);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 齐次坐标系相关接口
 void objReadVerticesHomoMat(MatrixXf& vers, const char* fileName);
