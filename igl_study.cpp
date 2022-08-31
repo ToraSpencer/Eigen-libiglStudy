@@ -392,13 +392,13 @@ namespace IGL_GRAPH
 	}
 
 
-	// libigl中已有的图算法轮子
+	// 基本的图算法；
 	void test1() 
 	{
 		// dijkstra
 		MatrixXd vers;
 		MatrixXi tris;
-		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
+		igl::readOBJ("E:/材料/roundSurf.obj", vers, tris);
  
 		std::vector<std::vector<int>> adjList;
 		Eigen::SparseMatrix<int> adjSM;
@@ -417,23 +417,81 @@ namespace IGL_GRAPH
 		objWritePath("E:/path2.obj", path2, vers);
 
 		// dfs:
-		Eigen::VectorXi disCoveredIdx, bfsTreeVec, dfsTreeVec, retC;
-		size_t startIdx = 0;
-		igl::dfs(adjList, startIdx, disCoveredIdx, dfsTreeVec, retC);
+		Eigen::VectorXi disCoveredIdx, bfsTreeVec, dfsTreeVec, closedIdx;
+		size_t startIdx = 165;			// 接近圆心的顶点；
+		igl::dfs(adjList, startIdx, disCoveredIdx, dfsTreeVec, closedIdx);
 		objWriteTree("E:/dfsTree.obj", bfsTreeVec, vers);
-		auto retCrev = retC.reverse();
+		auto retCrev = closedIdx.reverse();
 		auto flag = (retCrev == disCoveredIdx);
 
 		std::vector<int> vec1, vec2, vec3;
 		vec1 = vec2Vec<int>(disCoveredIdx);
-		vec2 = vec2Vec<int>(retC);
+		vec2 = vec2Vec<int>(closedIdx);
 		vec3 = vec2Vec<int>(retCrev);
 
 		// bfs:
 		igl::bfs(adjList, startIdx, disCoveredIdx, bfsTreeVec);
 		objWriteTree("E:/bfsTree.obj", bfsTreeVec, vers);
+
+
+		// myDfs:
+		std::vector<bool> visited(vers.rows(), false);
+		std::list<int> discoveredVersIdx;				// 已被访问的顶点：
+		std::list<int> closedVersIdx;
+
+		std::function<void(const int, const int)> myDfs = [&](const int index, const int parentIdx)
+		{
+			// 递归终止；
+			if (visited[index])			
+				return;
+
+			visited[index] = true;
+			discoveredVersIdx.push_back(index);
+			const std::vector<int>& adjVersIdx = adjList[index];
+
+			// 递归递推；
+			for (const auto& adjIdx : adjVersIdx)			
+				myDfs(adjIdx, index);
+
+			closedVersIdx.push_back(index);
+		};
+
+
  
 		std::cout << "finished." << std::endl;
 	}
  
+}
+
+
+// 空间划分
+namespace IGL_SPACE_PARTITION
+{
+	// aabb树实现的BVH(层次包围体)
+	void test0()
+	{
+		Eigen::MatrixXd vers, vers0, minDisVers;
+		Eigen::MatrixXi tris;
+		Eigen::VectorXd minSqrDis;
+		Eigen::VectorXi minDisIdx;
+		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
+
+		vers0.resize(2, 3);
+		vers0.row(0) = vers.row(0);
+		vers0.row(1) = vers.row(99);
+
+		// igl::point_mesh_squared_distance()——使用BVH求顶点到网格最小距离；
+		igl::point_mesh_squared_distance(vers0, vers, tris, minSqrDis, minDisIdx, minDisVers);
+		igl::writeOBJ("E:/inputMesh.obj", vers, tris);
+		igl::writeOBJ("E:/vers0.obj", vers0, Eigen::MatrixXi{});
+		igl::writeOBJ("E:/minDisVers.obj", minDisVers, Eigen::MatrixXi{});
+
+		// 生成网格的BVH对象：
+		igl::AABB<double, 3> bvh;
+		bvh.init();
+		
+
+		std::cout << "finished." << std::endl;
+	}
+
 }
