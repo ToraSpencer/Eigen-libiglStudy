@@ -57,11 +57,11 @@ int main()
 
 	// IGL_DIF_GEO::test1();
 
-	// IGL_GRAPH::test1();
+	IGL_GRAPH::test2();
 
-	IGL_SPACE_PARTITION::test0();
+	// IGL_SPACE_PARTITION::test0();
 
-	//SCIENTIFICCALC::test1();
+	// SCIENTIFICCALC::test1();
 
 	
  

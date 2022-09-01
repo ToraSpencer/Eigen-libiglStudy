@@ -539,7 +539,7 @@ void objWriteEdgesMat(const char* pathName, const Eigen::MatrixBase<DerivedI>& e
 	dstFile.close();
 }
 
-// 路径数据写入到OBJ文件中：
+// objWritePath() 路径数据写入到OBJ文件中：
 template <typename DerivedV, typename	 DerivedI>
 void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const Eigen::MatrixBase<DerivedV>& vers)
 {
@@ -557,39 +557,37 @@ void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const
 }
  
 
-// 点云树数据写入到OBJ文件中：
-template<typename DerivedV>
-void objWriteTree(const char* pathName, const Eigen::VectorXi& treeVec, const Eigen::MatrixBase<DerivedV>& vers)
+// objWirteTreePath()——输入树向量或路径向量，写入到OBJ文件中：
+template <typename DerivedV>
+void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, const Eigen::MatrixBase<DerivedV>& vers)
 {
-	/*
-		void objWriteTree(
-			const char* pathName,					
-			const Eigen::MatrixBase<DerivedI>& treeVec,				描述树的列向量，树中索引为i的结点，其父节点索引为treeVec[i]
-			const Eigen::MatrixBase<DerivedV>& vers					点云矩阵
-			)
-	*/
+	// 路径被视为树的特例；
+	
+	// 树中索引为i的顶点的前驱顶点索引为treeVec(i), 若其没有前驱顶点（父节点），则treeVec(i) == -1;
 	if (treeVec.size() <= 1)
 		return;
-	unsigned versCount = vers.rows();
-	unsigned edgesCount = versCount - 1;
 
-	// 生成边数据：
-	std::vector<std::pair<int, int>> edgesVec;
-	edgesVec.reserve(edgesCount);
-	for (unsigned i = 0; i < treeVec.rows(); ++i)
+	unsigned edgesCount = 0;
+	for (int i = 0; i < treeVec.rows(); ++i)
+		if (treeVec(i) >= 0)
+			edgesCount++;
+	 
+	Eigen::MatrixXi edges(edgesCount, 2);
+	int rowIdx = 0;
+	for (int i = 0; i < treeVec.rows(); ++i)
 	{
-		int parentIdx = treeVec(i, 0);
-		if (parentIdx >= 0)							// 树的根节点没有父结点，向量中其父节点索引写为-1；
-			edgesVec.push_back({parentIdx, i});
+		if (treeVec(i) >= 0)
+		{
+			edges(rowIdx, 0) = treeVec(i);
+			edges(rowIdx, 1) = i;
+			rowIdx++;
+		}
 	}
-	MatrixXi edges = MatrixXi::Zero(edgesVec.size(), 2);
-	for (unsigned i = 0; i < edgesVec.size(); ++i)
-	{
-		edges(i, 0) = edgesVec[i].first;
-		edges(i, 1) = edgesVec[i].second;
-	}
+ 
 	objWriteEdgesMat(pathName, edges, vers);
 }
+
+ 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 齐次坐标系相关接口
 void objReadVerticesHomoMat(MatrixXf& vers, const char* fileName);

@@ -395,7 +395,6 @@ namespace IGL_GRAPH
 	// 基本的图算法；
 	void test1() 
 	{
-		// dijkstra
 		MatrixXd vers;
 		MatrixXi tris;
 		igl::readOBJ("E:/材料/roundSurf.obj", vers, tris);
@@ -405,22 +404,11 @@ namespace IGL_GRAPH
 		igl::adjacency_list(tris, adjList);
 		igl::adjacency_matrix(tris, adjSM);
 
-		Eigen::VectorXd min_distance;
-		Eigen::VectorXi previous;
-		std::vector<int> path1, path2;
-		igl::dijkstra(vers, adjList, 0, std::set<int>{}, min_distance, previous);
-		igl::dijkstra(99, previous, path1);
-		igl::dijkstra(88, previous, path2);
-		traverseSTL(path1, disp<int>);
-
-		objWritePath("E:/path1.obj", path1, vers);
-		objWritePath("E:/path2.obj", path2, vers);
-
 		// dfs:
 		Eigen::VectorXi disCoveredIdx, bfsTreeVec, dfsTreeVec, closedIdx;
 		size_t startIdx = 165;			// 接近圆心的顶点；
 		igl::dfs(adjList, startIdx, disCoveredIdx, dfsTreeVec, closedIdx);
-		objWriteTree("E:/dfsTree.obj", bfsTreeVec, vers);
+		objWriteTreePath("E:/dfsTree.obj", bfsTreeVec, vers);
 		auto retCrev = closedIdx.reverse();
 		auto flag = (retCrev == disCoveredIdx);
 
@@ -431,8 +419,7 @@ namespace IGL_GRAPH
 
 		// bfs:
 		igl::bfs(adjList, startIdx, disCoveredIdx, bfsTreeVec);
-		objWriteTree("E:/bfsTree.obj", bfsTreeVec, vers);
-
+		objWriteTreePath("E:/bfsTree.obj", bfsTreeVec, vers);
 
 		// myDfs:
 		std::vector<bool> visited(vers.rows(), false);
@@ -458,6 +445,33 @@ namespace IGL_GRAPH
 
 
  
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// prime, dijkstra
+	void test2() 
+	{
+		// dijkstra
+		MatrixXd vers;
+		MatrixXi tris;
+		igl::readOBJ("E:/材料/roundSurf.obj", vers, tris);
+
+		std::vector<std::vector<int>> adjList;
+		Eigen::SparseMatrix<int> adjSM;
+		igl::adjacency_list(tris, adjList);
+		igl::adjacency_matrix(tris, adjSM);
+
+		Eigen::VectorXd min_distance;				// 图中所有顶点到指定顶点的最短路径长度；
+		Eigen::VectorXi mst;						// 最小生成树；
+		int verIdx0 = 165;						// 设起点为接近圆心的顶点；
+
+		// 不指定重点时， igl::dijkstra()返回图中以verIdx0为起点的最小生成树；
+		int retIdx = igl::dijkstra(vers, adjList, verIdx0, std::set<int>{}, min_distance, mst);
+		std::cout << "retIdx == " << retIdx << std::endl;
+		objWriteTreePath("E:/mst.obj", mst, vers);
+
+
 		std::cout << "finished." << std::endl;
 	}
  
@@ -486,9 +500,9 @@ namespace IGL_SPACE_PARTITION
 		igl::writeOBJ("E:/vers0.obj", vers0, Eigen::MatrixXi{});
 		igl::writeOBJ("E:/minDisVers.obj", minDisVers, Eigen::MatrixXi{});
 
-		// 生成网格的BVH对象：
-		igl::AABB<double, 3> bvh;
-		bvh.init();
+		//// 生成网格的BVH对象：
+		//igl::AABB<double, 3> bvh;
+
 		
 
 		std::cout << "finished." << std::endl;
