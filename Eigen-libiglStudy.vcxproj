@@ -20,6 +20,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dense_mat.cpp" />
+    <ClCompile Include="HW1_MST_dijkstra.cpp" />
+    <ClCompile Include="HW2_curvature.cpp" />
     <ClCompile Include="igl_study.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="myEigen.cpp" />
@@ -28,6 +30,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dense_mat.h" />
+    <ClInclude Include="Fu%27s_homework.h" />
+    <ClInclude Include="HW1_MST_dijkstra.h" />
+    <ClInclude Include="HW2_curvature.h" />
     <ClInclude Include="igl_study.h" />
     <ClInclude Include="myEigen.h" />
     <ClInclude Include="scientific_calc.h" />

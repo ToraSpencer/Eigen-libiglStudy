@@ -9,9 +9,14 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
-    <Filter Include="资源文件">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    <Filter Include="Fu%27s HW">
+      <UniqueIdentifier>{c17940c6-fc0d-4771-acda-3bd455f4045b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Fu%27s HW\headFiles">
+      <UniqueIdentifier>{c94de142-06cc-4f98-a0ae-2df5d1b11aea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Fu%27s HW\sourceFiles">
+      <UniqueIdentifier>{5bce6556-e56a-4675-bf2c-78d95cc005a5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -33,6 +38,12 @@
     <ClCompile Include="sparse_mat.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="HW1_MST_dijkstra.cpp">
+      <Filter>Fu%27s HW\sourceFiles</Filter>
+    </ClCompile>
+    <ClCompile Include="HW2_curvature.cpp">
+      <Filter>Fu%27s HW\sourceFiles</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="myEigen.h">
@@ -49,6 +60,15 @@
     </ClInclude>
     <ClInclude Include="sparse_mat.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="HW1_MST_dijkstra.h">
+      <Filter>Fu%27s HW\headFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="HW2_curvature.h">
+      <Filter>Fu%27s HW\headFiles</Filter>
+    </ClInclude>
+    <ClInclude Include="Fu%27s_homework.h">
+      <Filter>Fu%27s HW\headFiles</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
