@@ -3,7 +3,6 @@
 #define DATA_PATH "./data/"
 
 
-
 // libigl基本功能
 namespace IGL_BASIC
 {
@@ -506,6 +505,83 @@ namespace IGL_SPACE_PARTITION
 		
 
 		std::cout << "finished." << std::endl;
+	}
+
+}
+
+
+// IGL实现的基础三角网格处理算法；
+namespace IGL_BASIC_PMP 
+{
+	// 非流形网格中的边-三角片邻接关系：
+	void test1() 
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris, edges;
+		igl::readOBJ("E:/材料/meshArranged.obj", vers, tris);
+		unsigned versCount = vers.rows();
+		unsigned trisCount = tris.rows();
+		unsigned edgesCount = 3 * trisCount;		// 非流形网格中edgesCount比真实的有向边数要大，因为对于重复的同一有向边进行了重复计数；
+
+		// edges == [ea; eb; ec] == [vbIdxes, vcIdxes; vcIdxes, vaIdxes; vaIdxes, vbIdxes];
+		/*
+			若网格是流形网格，则edges列表里每条边都是unique的；
+			若存在非流形边，则非流形边在edges里会重复存储，实际边数量也会少于edges行数；
+			可以说使用这种representation的话，非流形边有不止一个索引，取决包含该非流形边的三角片数量；
+		*/
+		edges = Eigen::MatrixXi::Zero(edgesCount, 2);
+		Eigen::MatrixXi vaIdxes = tris.col(0);
+		Eigen::MatrixXi vbIdxes = tris.col(1);
+		Eigen::MatrixXi vcIdxes = tris.col(2);
+		edges.block(0, 0, versCount, 1) = vbIdxes;
+		edges.block(versCount, 0, versCount, 1) = vcIdxes;
+		edges.block(versCount * 2, 0, versCount, 1) = vaIdxes;
+		edges.block(0, 1, versCount, 1) = vcIdxes;
+		edges.block(versCount, 1, versCount, 1) = vaIdxes;
+		edges.block(versCount * 2, 1, versCount, 1) = vbIdxes;
+
+		// 邻接矩阵：
+		std::vector<Eigen::Triplet<int>> smElems;
+		smElems.reserve(edgesCount);
+		for (unsigned i = 0; i < edgesCount; ++i)
+			smElems.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), 1});
+
+		Eigen::SparseMatrix<int> adjSM_weighted;
+		adjSM_weighted.resize(versCount, versCount);
+		adjSM_weighted.setFromTriplets(smElems.begin(), smElems.end());		// 权重为该有向边重复的次数；
+
+		// 边索引-三角片索引映射表；etInfo(i)是索引为i的边所在的三角片的索引；
+		std::vector<int> etInfo(edgesCount);
+		for (int i = 0; i < edgesCount; ++i)
+			etInfo[i] = i % trisCount;
+
+		// 确定非流形边；
+		std::unordered_set<std::pair<int, int>> edgesNM;		// 非流形边；使用unordered_set去重；
+		for (unsigned i = 0; i < adjSM_weighted.outerSize(); ++i)	 
+		{
+			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM_weighted, i); iter; ++iter)	// 第i列的列内迭代器；
+			{
+				if (iter.value() > 1)
+					edgesNM.insert({iter.row(), iter.col()});
+			}
+		}
+
+		//std::vector<int> edgesNMidx;							// 非流形边索引；
+		//edgesNMidx.reserve(edgesCount);
+		//for (unsigned i = 0; i < edgesCount; ++i)
+		//{
+		//	std::pair<int, int> currentEdge = {edges(i, 0), edges(i, 1)};
+		//	if (edgesNM.end() == edgesNM.find(currentEdge))
+		//		edgesNMidx.push_back(i);
+		//}
+		//edgesNMidx.shrink_to_fit();
+
+		std::unordered_map<std::pair<int, int>, std::vector<int>> edgesNMmap;		// 非流形有向边-其索引的键值对，一个非流形边对应着多个边索引；
+		for (const auto& nmEdge : edgesNM)
+		{
+	 
+		}
+
 	}
 
 }

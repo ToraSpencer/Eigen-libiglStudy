@@ -51,13 +51,13 @@ int main()
 {
 	// DENSEMAT::test1();
  
-	// SPARSEMAT::test0();
+	SPARSEMAT::test0();
 	
 	// IGL_BASIC::test0();
 
 	// IGL_DIF_GEO::test1();
 
-	IGL_GRAPH::test2();
+	// IGL_GRAPH::test2();
 
 	// IGL_SPACE_PARTITION::test0();
 

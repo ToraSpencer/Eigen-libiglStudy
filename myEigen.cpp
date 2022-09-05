@@ -332,6 +332,7 @@ void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVec
 	objWriteVerticesMat(pathName, line);
 };
 
+
 void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& xdir, \
 	const RowVector3f& ydir, const RowVector3f& zdir)
 {
