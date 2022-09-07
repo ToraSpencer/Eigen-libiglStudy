@@ -59,6 +59,7 @@ void dispQuat(const Quaternion<T>& q)
 	std::cout << q.vec() << std::endl;
 }
 
+
 template<typename T>
 void dispMat(const Matrix<T, Dynamic, Dynamic>& mat)
 {
@@ -74,6 +75,7 @@ void dispMat(const Matrix<T, Dynamic, Dynamic>& mat)
 	}
 	std::cout << std::endl;
 }
+
 
 template<typename T>
 void dispMatBlock(const Matrix<T, Dynamic, Dynamic>& mat, const int rowStart, const int rowEnd, const int colStart, const int colEnd)
@@ -95,7 +97,7 @@ void dispMatBlock(const Matrix<T, Dynamic, Dynamic>& mat, const int rowStart, co
 }
 
 
-#ifndef _WIN64
+#if 0
 template<typename T>
 void dispSpMat(const SparseMatrix<T>& mat, const int showElems = -1)
 {
@@ -105,7 +107,7 @@ void dispSpMat(const SparseMatrix<T>& mat, const int showElems = -1)
 	for (int k = 0; k < mat.outerSize(); ++k)
 	{
 		//for(decltype(mat)::InnerIterator it(mat, k); ; ++it)
-		for (SparseCompressedBase<T>::InnerIterator it(mat, k); it; ++it)// 64位时，貌似T类型在编译器不确定的话，此句会报错
+		for (SparseMatrix<T>::InnerIterator it(mat, k); it; ++it)// 64位时，貌似T类型在编译器不确定的话，此句会报错
 		{
 			std::cout << "(" << it.row() << ", " << it.col() << ") ---\t" << it.value() << std::endl;
 			count++;
@@ -372,18 +374,14 @@ VectorXi vecInMat(const Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, 1, Dyn
 	// 逐列比较：
 	MatrixXi tempMat(rows, cols);
 	for (int i = 0; i < cols; ++i)
-	{
 		tempMat.col(i) = (mat.col(i).array() == vec(i)).select(VectorXi::Ones(rows), VectorXi::Zero(rows));
-	}
 
 	retVec = tempMat.col(0);
 
 	if (cols > 1)
 	{
 		for (int i = 1; i < cols; ++i)
-		{
 			retVec = retVec.array() * tempMat.col(i).array();			// 逐列相乘：
-		}
 	}
 
 	return retVec;
@@ -437,6 +435,7 @@ bool matWriteToFile(const char* fileName, const Matrix<T, Dynamic, Dynamic>& mat
 
 	return true;
 };
+
 
 template<typename T>
 bool matReadFromFile(Matrix<T, Dynamic, Dynamic>& mat, const char* fileName)
@@ -511,15 +510,181 @@ bool matReadFromFile(Matrix<T, Dynamic, Dynamic>& mat, const char* fileName)
 };
 
 
-void objReadMeshMat(MatrixXf& vers, MatrixXi& tris, const char* fileName);
+template	<typename DerivedV, typename DerivedI>
+void objReadMeshMat(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, Eigen::Matrix<DerivedI, Dynamic, Dynamic>& tris, const char* fileName)
+{
+	char* pTmp = NULL;
+	std::ifstream ifs(fileName);//cube bunny Eight
+	if (false == ifs.is_open())
+		return;
+	std::streampos   pos = ifs.tellg();     //   save   current   position   
+	ifs.seekg(0, std::ios::end);
+	unsigned fileLen = (unsigned)ifs.tellg();
+	if (0 == fileLen)
+		return;
+	ifs.seekg(pos);     //   restore   saved   position   
+	char* pFileBuf = new char[fileLen + 1];
+	std::memset(pFileBuf, 0, fileLen + 1);
+	ifs.read(pFileBuf, fileLen);
+	char tmpBuffer[1024];
+	unsigned nMaxSize = 1024;
+	pTmp = pFileBuf;
+	unsigned nReadLen = 0;
+	unsigned nRet = 0;
 
-void objWriteMeshMat(const char* fileName, const MatrixXf& vers, const MatrixXi& tris);
+	vers.resize(0, 0);
+	tris.resize(0, 0);
+	int versCols = vers.cols();
+	int trisCols = tris.cols();
 
-void objReadVerticesMat(MatrixXf& vers, const char* fileName);
+	while (nReadLen < fileLen)
+	{
+		nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+		if (0 == nRet)
+			break;
 
-void objWriteVerticesMat(const char* fileName, const MatrixXf& vers);
+		if (std::strcmp(tmpBuffer, "v") == 0)
+		{
+			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+			if (0 == nRet)
+				break;
+
+			Vector3f ver;
+			ver(0) = (float)atof(tmpBuffer);
+			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+			if (0 == nRet)
+				break;
+			ver(1) = (float)atof(tmpBuffer);
+			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+			if (0 == nRet)
+				break;
+			ver(2) = (float)atof(tmpBuffer);
+
+			vers.conservativeResize(3, ++versCols);
+			vers.col(versCols - 1) = ver;
+		}
+		else if (std::strcmp(tmpBuffer, "f") == 0)
+		{
+			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+			if (0 == nRet)
+				break;
+
+			Vector3i tri;
+			tri(0) = atoi(tmpBuffer) - 1;
+			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+			if (0 == nRet)
+				break;
+			tri(1) = atoi(tmpBuffer) - 1;
+
+			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+			if (0 == nRet)
+				break;
+			tri(2) = atoi(tmpBuffer) - 1;
+			tris.conservativeResize(3, ++trisCols);
+			tris.col(trisCols - 1) = tri;
+		}
+	}
+	vers.transposeInPlace();
+	tris.transposeInPlace();
+	delete[] pFileBuf;
+};
+
+
+template	<typename DerivedV, typename DerivedI>
+void objWriteMeshMat(const char* fileName, const Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, \
+	const Eigen::Matrix<DerivedI, Dynamic, Dynamic>& tris)
+{
+	std::ofstream dstFile(fileName);
+
+	for (int j = 0; j < vers.rows(); j++)
+	{
+		char szBuf[256] = { 0 };
+		sprintf_s(szBuf, 256, "v %f %f %f", vers(j, 0), vers(j, 1), vers(j, 2));
+		dstFile << szBuf << "\n";
+	}
+
+	for (unsigned j = 0; j < tris.rows(); ++j)
+	{
+		char szBuf[256] = { 0 };
+		sprintf_s(szBuf, 256, "f %d %d %d", tris(j, 0) + 1, tris(j, 1) + 1, tris(j, 2) + 1);
+		dstFile << szBuf << "\n";
+	}
+};
+
+
+template	<typename DerivedV>
+void objReadVerticesMat(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, const char* fileName)
+{
+	char* pTmp = NULL;
+	std::ifstream ifs(fileName);			// cube bunny Eight
+	if (false == ifs.is_open())
+		return;
+	
+	std::streampos   pos = ifs.tellg();			//  save   current   position   
+	ifs.seekg(0, std::ios::end);
+	unsigned fileLen = (unsigned)ifs.tellg();
+	if (0 == fileLen)
+		return;
+
+	ifs.seekg(pos);				  //   restore   saved   position   
+	char* pFileBuf = new char[fileLen + 1];
+	std::memset(pFileBuf, 0, fileLen + 1);
+	ifs.read(pFileBuf, fileLen);
+	char tmpBuffer[1024];
+	unsigned nMaxSize = 1024;
+	pTmp = pFileBuf;
+	unsigned nReadLen = 0;
+	unsigned nRet = 0;
+
+	vers.resize(0, 0);
+	int cols = vers.cols();
+	while (nReadLen < fileLen)
+	{
+		nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+		if (0 == nRet)
+			break;
+
+		// 顶点信息		
+		if (std::strcmp(tmpBuffer, "v") == 0)
+		{
+			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+			if (0 == nRet)
+				break;
+
+			Vector3f ver(Vector3f::Zero());
+			ver(0) = (float)atof(tmpBuffer);
+			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+			if (0 == nRet)
+				break;
+			ver(1) = (float)atof(tmpBuffer);
+			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
+			if (0 == nRet)
+				break;
+			ver(2) = (float)atof(tmpBuffer);
+
+			vers.conservativeResize(3, ++cols);
+			vers.col(cols - 1) = ver;
+		}
+		else
+			break;
+	}
+	vers.transposeInPlace();
+	delete[] pFileBuf;
+};
+
+
+template	<typename DerivedV>
+void objWriteVerticesMat(const char* fileName, const Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers)
+{
+	std::ofstream dstFile(fileName);
+	for (int i = 0; i < vers.rows(); i++)
+		dstFile << "v " << vers(i, 0) << " " << vers(i, 1) << " " << vers(i, 2) << std::endl;
+	dstFile.close();
+};
+
 
 void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& dir);
+
 
 void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& xdir, \
 	const RowVector3f& ydir, const RowVector3f& zdir);
@@ -527,7 +692,8 @@ void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const
 
 // 边数据写入到OBJ文件中：
 template	<typename DerivedV, typename DerivedI>
-void objWriteEdgesMat(const char* pathName, const Eigen::MatrixBase<DerivedI>& edges, const Eigen::MatrixBase<DerivedV>& vers)
+void objWriteEdgesMat(const char* pathName, const Eigen::Matrix<DerivedI, Dynamic, Dynamic>& edges, \
+	const Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers)
 {
 	std::ofstream dstFile(pathName);
 	for (int i = 0; i < vers.rows(); ++i)
@@ -539,9 +705,10 @@ void objWriteEdgesMat(const char* pathName, const Eigen::MatrixBase<DerivedI>& e
 	dstFile.close();
 }
 
+
 // objWritePath() 路径数据写入到OBJ文件中：
 template <typename DerivedV, typename	 DerivedI>
-void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const Eigen::MatrixBase<DerivedV>& vers)
+void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers)
 {
 	if (path.size() <= 1)
 		return;
@@ -559,7 +726,7 @@ void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const
 
 // objWirteTreePath()——输入树向量或路径向量，写入到OBJ文件中：
 template <typename DerivedV>
-void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, const Eigen::MatrixBase<DerivedV>& vers)
+void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, const Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers)
 {
 	// 路径被视为树的特例；
 	

@@ -2,46 +2,87 @@
 
 namespace SPARSEMAT
 {
-	using spMatf = SparseMatrix<float>;				// 默认是colMajor;
-	using TripF = Eigen::Triplet<float>;
-
 	// 稀疏矩阵的构造、基本属性
 	void test0()
 	{
-		std::vector<TripF> tripList;
-		tripList.push_back(TripF(0, 0, 1));
-		tripList.push_back(TripF(1, 1, 1.1));
-		tripList.push_back(TripF(2, 2, 1.2));
-		tripList.push_back(TripF(3, 3, 1.3));
-		tripList.push_back(TripF(4, 4, 1.4));
-		tripList.push_back(TripF(1, 1, 9.0));
+		std::vector<Eigen::Triplet<float>> tripList;
+		tripList.push_back(Eigen::Triplet<float>(0, 0, 1));
+		tripList.push_back(Eigen::Triplet<float>(1, 1, 1.1));
+		tripList.push_back(Eigen::Triplet<float>(2, 2, 1.2));
+		tripList.push_back(Eigen::Triplet<float>(3, 3, 1.3));
+		tripList.push_back(Eigen::Triplet<float>(4, 4, 1.4));
+		tripList.push_back(Eigen::Triplet<float>(1, 1, 9.0));
 
 		//   1. 生成稀疏矩阵：
 
 		//					使用三元数数组生成稀疏矩阵——setFromTriplets()
-		spMatf sm1(6, 7);
+		SparseMatrix<float> sm1(6, 7);
 		sm1.setFromTriplets(tripList.begin(), tripList.end());
 		dispMat<float>(sm1.toDense());
 
 		//					插入元素的方式生成稀疏矩阵——insert()
-		spMatf sm2(120, 100);
+		SparseMatrix<float> sm2(120, 100);
 		sm2.insert(1, 2) = 1;
 		sm2.insert(2, 3) = 2;
 		sm2.insert(8, 3) = 88;
 		sm2.insert(3, 4) = 3;
 		sm2.insert(4, 4) = 99;
-		sm2.makeCompressed();					// 压缩剩余空间：
 
 		//					生成一些特殊的稀疏矩阵：
-		spMatf sm3(4, 4);
+		SparseMatrix<float> sm3(4, 4);
+
+		//			setIdentity()
 		sm3.setIdentity();
 		std::cout << "sm3 == \n" << sm3 << std::endl;
+
+		// 1+. 压缩：
+
+		//			isCompressed()方法——查看是否是压缩状态；插入元素之后若不手动压缩则是非压缩状态；
+		std::cout << "sm1.isCompressed() == " << sm1.isCompressed() << std::endl;
+		std::cout << "sm2.isCompressed() == " << sm2.isCompressed() << std::endl;
+ 
+		//			 makeCompressed()方法——压缩剩余空间：
+		sm2.makeCompressed();				
+		std::cout << "sm2.isCompressed() == " << sm2.isCompressed() << std::endl;
+
 
 		//	 2. 稀疏矩阵的属性
 		std::cout << "sm1非零元素数：" << sm1.nonZeros() << std::endl;
 		std::cout << "sm1内维度：" << sm1.innerSize() << std::endl;			// 列优先的稀疏矩阵的列数，行优先的稀疏矩阵的行数
 		std::cout << "sm1外维度：" << sm1.outerSize() << std::endl;			// 列优先的稀疏矩阵的行数，行优先的稀疏矩阵的列数
 		std::cout << "sm1是否是压缩格式：" << sm1.isCompressed() << std::endl;
+
+		//		valuePtr()方法——返回稀疏矩阵元素数组的首地址；
+		auto dataPtr = sm1.valuePtr();
+		std::cout << "data of sm1: " << std::endl;
+		for(unsigned i = 0; i < sm1.nonZeros(); ++i)
+			std::cout << dataPtr[i] << std::endl;
+		std::cout << std::endl;
+
+		// 注：貌似直接修改dataPtr指向的数据是危险的。如果要将某元素清零应该使用prune()方法；
+		SparseMatrix<float> sm11 = sm1;
+
+		//		prune方法()——将不满足条件的元素清零；
+		sm1.prune([&](const Index& row, const Index& col, const float& value)->bool
+			{
+				if (value > 1.3)
+					return true;			// 返回true的元素被保留；
+				else
+					return false;
+			});
+		dispMat<float>(sm1.toDense());
+		std::cout << "sm1.nonZeros() == " << sm1.nonZeros() << std::endl;
+		std::cout << "sm1.isCompressed() == " << sm1.isCompressed() << std::endl;
+
+		sm11.prune([&](const Index& row, const Index& col, const float& value)->bool
+			{
+				if (0 == row && 0 == col)
+					return false;
+				else
+					return true;
+			});
+		dispMat<float>(sm11.toDense());
+		std::cout << "sm11.nonZeros() == " << sm11.nonZeros() << std::endl;
 
 
 		//	3. 访问稀疏矩阵的元素
@@ -54,7 +95,7 @@ namespace SPARSEMAT
 		int outerSize2 = sm2.outerSize();				// 默认的列优先存储矩阵，outerSize即列数；
 		for (int k = 0; k < outerSize2; ++k)
 		{
-			for (spMatf::InnerIterator it(sm2, k); it; ++it)			// 列优先存储时，InnerIterator即列内迭代器；
+			for (SparseMatrix<float>::InnerIterator it(sm2, k); it; ++it)			// 列优先存储时，InnerIterator即列内迭代器；
 			{
 				std::cout << "value == " << it.value() << std::endl;
 				std::cout << "row == " << it.row() << std::endl;			 // row index
@@ -76,7 +117,6 @@ namespace SPARSEMAT
 		//			toDense();
 		MatrixXf m2 = sm1.toDense();
 		std::cout << "m2 == \n" << m2 << std::endl;
-
 	}
 
 
@@ -88,6 +128,8 @@ namespace SPARSEMAT
 		MatrixXf m2(4, 4);
 		m2 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16;
 		std::cout << "m1 == \n" << m1 << std::endl;
+
+		// sparseView()方法；
 		SparseMatrix<float> sm1 = m1.sparseView();
 		SparseMatrix<float> sm2 = m2.sparseView();
 		RowVectorXf colSum = RowVectorXf::Ones(4) * sm1;			// 左乘一个全1行向量，得到按列求和的结果。
@@ -97,7 +139,7 @@ namespace SPARSEMAT
 
 		// 列优先存储稀疏矩阵的row()方法返回的引用是只读的，不可以被赋值。
 		std::cout << "遍历第i列：" << std::endl;
-		for (spMatf::InnerIterator it(sm1, 1); it; ++it)				// 内维度就是存储优先的维度，如这里使用默认的列优先存储，这里的it就是某一列的迭代器；
+		for (SparseMatrix<float>::InnerIterator it(sm1, 1); it; ++it)				// 内维度就是存储优先的维度，如这里使用默认的列优先存储，这里的it就是某一列的迭代器；
 			std::cout << it.value() << ", ";
 		std::cout << std::endl;
 
@@ -128,7 +170,7 @@ namespace SPARSEMAT
 		m2 << 0.1, 0.2;
 		m3 << 1, 2, 3, 4;
 		m4 = MatrixXf::Ones(3, 4);
-		spMatf sm1(2, 3), sm2(2, 1), sm3(1, 4), sm4(3, 4), sm(4, 4);
+		SparseMatrix<float> sm1(2, 3), sm2(2, 1), sm3(1, 4), sm4(3, 4), sm(4, 4);
 		sm1 = m1.sparseView();
 		sm2 = m2.sparseView();
 		sm3 = m3.sparseView();

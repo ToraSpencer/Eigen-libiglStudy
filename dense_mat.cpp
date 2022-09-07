@@ -30,15 +30,10 @@ namespace DENSEMAT
 		str1.insert(dis, "_x");
 		str2.insert(dis, "_y");
 
-
 		for (unsigned int i = 0; i < size; i++)
-		{
 			darr1[i] = x(i);
-		}
 		for (unsigned int i = 0; i < size; i++)
-		{
 			darr2[i] = y(i);
-		}
 
 		ofstream file1(str1, ios::out | ios::binary);
 		ofstream file2(str2, ios::out | ios::binary);
@@ -260,17 +255,18 @@ namespace DENSEMAT
 		std::cout << "向量中最小元素：" << min << ", 索引：" << minIdx << std::endl;
 
 		// all(), any(), count()——矩阵元素的搜索
-		ArrayXXf a1(3, 3), a2(2, 2);
+		ArrayXXf a1(3, 3);
+		ArrayXXi a2(2, 2);
 		a1 << 1, 2, 3, 4, 5, 6, 7, 8, 9;
 		a2 << 1, 2, 3, 4;
 		bool flag1 = (a1 > 0).all();						// all()——如果所有元素都为true，则返回true,
-		bool flag2 = (a2 == 4).any();					// any()——如果至少有一个元素为true，则返回true;
+		bool flag2 = (a2 < 3).any();					// any()——如果至少有一个元素为true，则返回true
 		Eigen::Index count = (a1 > 5).count();		// count()——返回满足条件的元素数
 
 		VectorXi vec(9);
 		vec << 1, 2, 3, 4, 5, 6, 7, 8, 9;
 		ArrayXi aa = vec.array();
-		flag1 = (aa == 2).any();
+		flag1 = (aa > 2).any();
 		std::cout << "flag1" << flag1 << std::endl;
 
 		// 貌似只能对单个元素使用，不能对一组元素使用。

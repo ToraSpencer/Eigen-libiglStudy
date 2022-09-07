@@ -9,6 +9,8 @@
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
+#include <algorithm>
+#include <functional>
 
 #include <igl/readOFF.h>
 #include <igl/readOBJ.h>

@@ -25,7 +25,7 @@ namespace SCIENTIFICCALC
 		MatrixXf versDesc = vers.transpose();
 		versDesc = (rotation * scale * versDesc).eval();
 		versDesc = (versDesc.colwise() + moveVec).eval();
-		objWriteMeshMat("E:/笛卡尔坐标下仿射变换后的bunny.obj", versDesc.transpose(), tris);
+		objWriteMeshMat<float, int>("E:/笛卡尔坐标下仿射变换后的bunny.obj", versDesc.transpose(), tris);
 
 		// 3. 齐次坐标下施加仿射变换——旋转、放缩， 最后平移：
 		Matrix4f scaleHomo = Matrix4f::Identity();

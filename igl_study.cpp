@@ -317,7 +317,7 @@ namespace IGL_GRAPH
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
 		unsigned edgesCount = 3 * trisCount;
-		Eigen::SparseMatrix<int> adjSM_weighted;				// 有向边邻接矩阵，权重为该有向边的数量；
+		Eigen::SparseMatrix<int> adjSM_eCount;				// 有向边邻接矩阵，权重为该有向边的数量；
 
 		MatrixXi edges = MatrixXi::Zero(edgesCount, 2);
 		edges.block(0, 0, trisCount, 1) = tris.col(0);
@@ -336,10 +336,10 @@ namespace IGL_GRAPH
 		for (unsigned i = 0; i < edgesCount; ++i)
 			elems.push_back(Eigen::Triplet<int>(edges(i, 0), edges(i, 1), 1));
 
-		adjSM_weighted.resize(versCount, versCount);
-		adjSM_weighted.reserve(elems.size());
-		adjSM_weighted.setFromTriplets(elems.begin(), elems.end());
-		adjSM_weighted.makeCompressed();
+		adjSM_eCount.resize(versCount, versCount);
+		adjSM_eCount.reserve(elems.size());
+		adjSM_eCount.setFromTriplets(elems.begin(), elems.end());
+		adjSM_eCount.makeCompressed();
 
 		std::cout << "索引为0的顶点的1邻域顶点：" << std::endl;
 		traverseSTL(adjList[0], disp<int>);
@@ -355,9 +355,9 @@ namespace IGL_GRAPH
 		} 
 
 		std::cout << "索引为2的顶点的出边（即邻接矩阵中第2行中所有不为零的元素下标）：" << std::endl;
-		for (int i = 0; i < adjSM_weighted.outerSize(); ++i)			// 对列的遍历：
+		for (int i = 0; i < adjSM_eCount.outerSize(); ++i)			// 对列的遍历：
 		{
-			for (Eigen::SparseMatrix<int>::InnerIterator it(adjSM_weighted, i); it; ++it)		// 当前列的列内迭代器；
+			for (Eigen::SparseMatrix<int>::InnerIterator it(adjSM_eCount, i); it; ++it)		// 当前列的列内迭代器；
 			{
 				if (2 == it.row())
 				{
@@ -370,11 +370,11 @@ namespace IGL_GRAPH
 
 		// 判断是否有重复三角片——若有重复三角片，则存在重复有向边：
 		bool hasDupTri = false;;
-		for (int i = 0; i < adjSM_weighted.outerSize(); ++i)			// 对列的遍历：
+		for (int i = 0; i < adjSM_eCount.outerSize(); ++i)			// 对列的遍历：
 		{
 			if (hasDupTri)
 				break;
-			for (Eigen::SparseMatrix<int>::InnerIterator it(adjSM_weighted, i); it; ++it)		// 当前列的列内迭代器；
+			for (Eigen::SparseMatrix<int>::InnerIterator it(adjSM_eCount, i); it; ++it)		// 当前列的列内迭代器；
 			{
 				if (it.value() > 1)
 				{
@@ -513,12 +513,31 @@ namespace IGL_SPACE_PARTITION
 // IGL实现的基础三角网格处理算法；
 namespace IGL_BASIC_PMP 
 {
+	// 边std::pair<int, int>的自定义哈希函数；
+	struct edgeHash
+	{
+		bool operator()(const std::pair<int, int>& edge) const
+		{
+			return (std::hash<int>()(edge.first) + std::hash<int>()(edge.second));
+		}
+	};
+
+	// 边std::pair<int, int>的等价比较器；
+	struct edgeComparator 
+	{
+		bool operator()(const std::pair<int, int>& edge1, const std::pair<int, int>& edge2) const
+		{
+			return (edge1.first == edge2.first && edge1.second == edge2.second);
+		}
+	};
+
+
 	// 非流形网格中的边-三角片邻接关系：
 	void test1() 
 	{
 		Eigen::MatrixXd vers;
 		Eigen::MatrixXi tris, edges;
-		igl::readOBJ("E:/材料/meshArranged.obj", vers, tris);
+		igl::readOBJ("E:/材料/meshArranged_hole.obj", vers, tris);
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
 		unsigned edgesCount = 3 * trisCount;		// 非流形网格中edgesCount比真实的有向边数要大，因为对于重复的同一有向边进行了重复计数；
@@ -533,55 +552,252 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXi vaIdxes = tris.col(0);
 		Eigen::MatrixXi vbIdxes = tris.col(1);
 		Eigen::MatrixXi vcIdxes = tris.col(2);
-		edges.block(0, 0, versCount, 1) = vbIdxes;
-		edges.block(versCount, 0, versCount, 1) = vcIdxes;
-		edges.block(versCount * 2, 0, versCount, 1) = vaIdxes;
-		edges.block(0, 1, versCount, 1) = vcIdxes;
-		edges.block(versCount, 1, versCount, 1) = vaIdxes;
-		edges.block(versCount * 2, 1, versCount, 1) = vbIdxes;
+		edges.block(0, 0, trisCount, 1) = vbIdxes;
+		edges.block(trisCount, 0, trisCount, 1) = vcIdxes;
+		edges.block(trisCount * 2, 0, trisCount, 1) = vaIdxes;
+		edges.block(0, 1, trisCount, 1) = vcIdxes;
+		edges.block(trisCount, 1, trisCount, 1) = vaIdxes;
+		edges.block(trisCount * 2, 1, trisCount, 1) = vbIdxes;
 
-		// 邻接矩阵：
+		// 1. 邻接矩阵：
 		std::vector<Eigen::Triplet<int>> smElems;
 		smElems.reserve(edgesCount);
 		for (unsigned i = 0; i < edgesCount; ++i)
 			smElems.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), 1});
 
-		Eigen::SparseMatrix<int> adjSM_weighted;
-		adjSM_weighted.resize(versCount, versCount);
-		adjSM_weighted.setFromTriplets(smElems.begin(), smElems.end());		// 权重为该有向边重复的次数；
+		Eigen::SparseMatrix<int> adjSM_eCount;
+		adjSM_eCount.resize(versCount, versCount);
+		adjSM_eCount.setFromTriplets(smElems.begin(), smElems.end());		// 权重为该有向边重复的次数；
 
-		// 边索引-三角片索引映射表；etInfo(i)是索引为i的边所在的三角片的索引；
+		// 2. 边索引-三角片索引映射表；etInfo(i)是索引为i的边所在的三角片的索引；
 		std::vector<int> etInfo(edgesCount);
 		for (int i = 0; i < edgesCount; ++i)
 			etInfo[i] = i % trisCount;
 
-		// 确定非流形边；
-		std::unordered_set<std::pair<int, int>> edgesNM;		// 非流形边；使用unordered_set去重；
-		for (unsigned i = 0; i < adjSM_weighted.outerSize(); ++i)	 
+#if __cplusplus < 202002L
+		// 3. 确定非流形边；
+		std::unordered_set<std::pair<int, int>, edgeHash, edgeComparator> edgesNM;
+#else
+		// lambda——std::pair<int, int>表示的边的自定义哈希函数；
+		auto edgeHashLamb = [](const std::pair<int, int>& edge)->std::size_t
 		{
-			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM_weighted, i); iter; ++iter)	// 第i列的列内迭代器；
+			return (std::hash<int>()(edge.first) + std::hash<int>()(edge.second));
+		};
+
+		// lambda——std::pair<int, int>表示的边的等价比较器；
+		auto edgeComLamb = [](const std::pair<int, int>& edge1, const std::pair<int, int>& edge2)->bool
+		{
+			return (edge1.first == edge2.first && edge1.second == edge2.second);
+		};
+
+		// 3. 确定非流形边；
+		std::unordered_set<std::pair<int, int>, decltype(edgeHashLamb), decltype(edgeComLamb)> edgesNM;				// 需要C++20;非流形边；使用unordered_set去重；
+#endif
+		 for (unsigned i = 0; i < adjSM_eCount.outerSize(); ++i)
+		{
+			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM_eCount, i); iter; ++iter)	// 第i列的列内迭代器；
 			{
 				if (iter.value() > 1)
-					edgesNM.insert({iter.row(), iter.col()});
+				{
+					int num1 = iter.row();
+					int num2 = iter.col();
+					edgesNM.insert({num1, num2});
+				}
 			}
 		}
 
-		//std::vector<int> edgesNMidx;							// 非流形边索引；
-		//edgesNMidx.reserve(edgesCount);
-		//for (unsigned i = 0; i < edgesCount; ++i)
-		//{
-		//	std::pair<int, int> currentEdge = {edges(i, 0), edges(i, 1)};
-		//	if (edgesNM.end() == edgesNM.find(currentEdge))
-		//		edgesNMidx.push_back(i);
-		//}
-		//edgesNMidx.shrink_to_fit();
+		
+#if __cplusplus < 202002L
+		 //		非流形有向边-其索引的键值对，一个非流形边对应着多个边索引；
+		 std::unordered_map<std::pair<int, int>, std::vector<int>, edgeHash, edgeComparator> edgesNMmap;
 
-		std::unordered_map<std::pair<int, int>, std::vector<int>> edgesNMmap;		// 非流形有向边-其索引的键值对，一个非流形边对应着多个边索引；
-		for (const auto& nmEdge : edgesNM)
+		 //		非流形有向边-其所在的三角片的索引的键值对，一个非流形边对应着多个三角片索引；
+		 std::unordered_map<std::pair<int, int>, std::vector<int>, edgeHash, edgeComparator> etNMmap;
+#else
+		 //		非流形有向边-其索引的键值对，一个非流形边对应着多个边索引；
+		 std::unordered_map<std::pair<int, int>, std::vector<int>, decltype(edgeHashLamb), decltype(edgeComLamb)> edgesNMmap;
+		 //		非流形有向边-其所在的三角片的索引的键值对，一个非流形边对应着多个三角片索引；
+		 std::unordered_map<std::pair<int, int>, std::vector<int>, decltype(edgeHashLamb), decltype(edgeComLamb)> etNMmap;
+#endif
+
+		for (auto& nmEdge : edgesNM)
 		{
-	 
+			for (int i = 0; i < edgesCount; ++i)
+			{
+				if (edges(i, 0) == nmEdge.first && edges(i, 1) == nmEdge.second)
+				{
+					auto retPair = edgesNMmap.insert({nmEdge, std::vector<int>{i} });
+					if (!retPair.second)			// 若插入失败，则说明已有此键；
+					{
+						auto iter = edgesNMmap.find(nmEdge);
+						iter->second.push_back(i);
+					}
+				}
+			}
 		}
+		for (const auto& pair : edgesNMmap)
+		{
+			auto copyPair = pair;
+			for (auto& index : copyPair.second)
+				index = etInfo[index];
+			etNMmap.insert(copyPair);
+		}
+
+		// 4. 找出所有非流形边所在三角片：
+		std::vector<int> trisIdxNM;
+		for (auto& pair : etNMmap)
+		{
+			for (auto& index : pair.second)
+				trisIdxNM.push_back(index);
+		}
+		Eigen::MatrixXi trisNM(Eigen::MatrixXi::Zero(trisIdxNM.size(), 3));
+		for (int i = 0; i < trisIdxNM.size(); ++i)
+			trisNM.row(i) = tris.row(trisIdxNM[i]);
+
+		// for debug: 打印trisNM:
+		objWriteMeshMat("E:/trisNM.obj", vers, trisNM);
+		std::cout << "finished." << std::endl;
+
+		// 5. 确定流形三角片、非流形三角片的邻接关系：
 
 	}
 
+
+	bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, Eigen::MatrixXi& ttAdj_nmnEdge, \
+		Eigen::MatrixXi& ttAdj_nmnOppEdge)
+	{
+		const unsigned trisCount = tris.rows();
+		const unsigned edgesCount = 3 * trisCount;
+		const unsigned versCount = tris.maxCoeff() + 1;
+
+		// 1. 求基本邻接关系：
+		
+		// edges == [ea; eb; ec] == [vbIdxes, vcIdxes; vcIdxes, vaIdxes; vaIdxes, vbIdxes];
+		/*
+			若网格是流形网格，则edges列表里每条边都是unique的；
+			若存在非流形边，则非流形边在edges里会重复存储，实际边数量也会少于edges行数；
+			可以说使用这种representation的话，非流形边有不止一个索引，取决包含该非流形边的三角片数量；
+		*/
+		Eigen::MatrixXi edges = Eigen::MatrixXi::Zero(edgesCount, 2);
+		Eigen::MatrixXi vaIdxes = tris.col(0);
+		Eigen::MatrixXi vbIdxes = tris.col(1);
+		Eigen::MatrixXi vcIdxes = tris.col(2);
+		edges.block(0, 0, trisCount, 1) = vbIdxes;
+		edges.block(trisCount, 0, trisCount, 1) = vcIdxes;
+		edges.block(trisCount * 2, 0, trisCount, 1) = vaIdxes;
+		edges.block(0, 1, trisCount, 1) = vcIdxes;
+		edges.block(trisCount, 1, trisCount, 1) = vaIdxes;
+		edges.block(trisCount * 2, 1, trisCount, 1) = vbIdxes;
+
+		std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;
+		smElems.reserve(edgesCount);
+		smElems_weighted.reserve(edgesCount);
+		for (unsigned i = 0; i < edgesCount; ++i)
+		{
+			smElems.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), 1});
+			smElems_weighted.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), i});
+		}
+
+		Eigen::SparseMatrix<int> adjSM_eCount, adjSM_weighted;
+		adjSM_eCount.resize(versCount, versCount);
+		adjSM_weighted.resize(versCount, versCount);
+		adjSM_eCount.setFromTriplets(smElems.begin(), smElems.end());		// 权重为该有向边重复的次数；
+		adjSM_weighted.setFromTriplets(smElems_weighted.begin(), smElems_weighted.end());		// 权重为该有向边重复的次数(非流形边的值无效)
+
+		Eigen::SparseMatrix<int> adjSM = adjSM_eCount;		// 有向边邻接矩阵；
+		for (unsigned i = 0; i<adjSM.outerSize(); ++i) 
+		{
+			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM, i); iter; ++iter)
+			{
+				if (iter.value() > 0)
+					adjSM.coeffRef(iter.row(), iter.col()) = 1;
+			}
+		}
+
+		// 2. 确定所有非边缘的流形有向边：
+		Eigen::SparseMatrix<int> adjSM_eCount_ND = adjSM_eCount + Eigen::SparseMatrix<int>(adjSM_eCount.transpose());		// 权重为无向边ij关联的三角片数量；
+		
+		// 非边缘流形无向边：
+		Eigen::SparseMatrix<int> adjSM_MNnonBdry_ND = adjSM_eCount_ND;
+		for (unsigned i = 0; i < adjSM_MNnonBdry_ND.outerSize(); ++i)
+		{
+			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM_MNnonBdry_ND, i); iter; ++iter)
+			{
+				if (iter.value() > 0)
+				{
+					if(iter.value() == 2)
+						adjSM_MNnonBdry_ND.coeffRef(iter.row(), iter.col()) = 1;
+					else
+						adjSM_MNnonBdry_ND.coeffRef(iter.row(), iter.col()) = 0;
+				}
+			}
+		}
+
+		// 非边缘流形有向边：
+		Eigen::SparseMatrix<int> adjSM_MNnonBdry = adjSM + adjSM_MNnonBdry_ND;		// adjSM & adjSM_MNnonBdry_ND
+		adjSM_MNnonBdry.prune([](const Index& row, const Index& col, const float& value)->bool
+			{
+				if (2 == value)
+					return true;
+				else
+					return false;
+			});
+		adjSM_MNnonBdry /= 2;
+
+		unsigned edgesCount_MNnonBdry = adjSM_MNnonBdry.sum();
+		Eigen::MatrixXi edges_MNnonBdry(edgesCount_MNnonBdry, 2);
+		std::vector<int> edgesIdx_MNnonBdry;							// 非边缘流形有向边的索引；
+		edgesIdx_MNnonBdry.reserve(edgesCount_MNnonBdry);
+		unsigned index = 0;
+		for (unsigned i = 0; i<adjSM_MNnonBdry.outerSize(); ++i) 
+		{
+			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM_MNnonBdry, i); iter; ++iter)
+			{
+				edges_MNnonBdry(index, 0) = iter.row();
+				edges_MNnonBdry(index, 1) = iter.col();
+				edgesIdx_MNnonBdry.push_back(adjSM_weighted.coeffRef(iter.row(), iter.col()));
+				index++;
+			}
+		}
+ 
+		Eigen::SparseMatrix<int> adjSM_MNnonBdry_opp = adjSM_MNnonBdry.transpose();
+		Eigen::MatrixXi edges_MNnonBdry_opp(edgesCount_MNnonBdry, 2);
+		std::vector<int> edgesIdx_MNnonBdry_opp;				// 非边缘流形有向边的对边的索引；
+		edgesIdx_MNnonBdry_opp.reserve(edgesCount_MNnonBdry);
+		index = 0;
+		for (unsigned i = 0; i < adjSM_MNnonBdry_opp.outerSize(); ++i)
+		{
+			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM_MNnonBdry_opp, i); iter; ++iter)
+			{
+				edges_MNnonBdry_opp(index, 0) = iter.row();
+				edges_MNnonBdry_opp(index, 1) = iter.col();
+				edgesIdx_MNnonBdry_opp.push_back(adjSM_weighted.coeffRef(iter.row(), iter.col()));
+				index++;
+			}
+		}
+
+		// for debug:
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris0;
+		igl::readOBJ("E:/材料/meshArranged_hole.obj", vers, tris0);
+		objWriteEdgesMat("E:/edges_MNnonBdry.obj", edges_MNnonBdry, vers);
+
+		// 3. 流形边-三角片邻接关系，三角片邻接关系：
+
+
+ 
+		return true;
+	}
+
+
+	// test buildAdjacency();
+	void test2() 
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris, edges;
+		igl::readOBJ("E:/材料/meshArranged_hole.obj", vers, tris);
+
+		Eigen::MatrixXi ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge;
+		bool retFlag = buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
+	}
 }
