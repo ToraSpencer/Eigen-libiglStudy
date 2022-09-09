@@ -49,7 +49,7 @@
  
 int main()
 {
-	// DENSEMAT::test1();
+	//DENSEMAT::test8();
  
 	// SPARSEMAT::test0();
 	
@@ -64,6 +64,7 @@ int main()
 	// SCIENTIFICCALC::test1();
 
 	IGL_BASIC_PMP::test2();
+
  
 
 	std::cout << "main() finished." << std::endl;

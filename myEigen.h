@@ -116,6 +116,16 @@ void dispSpMat(const SparseMatrix<T>& mat, const int showElems = -1)
 		}
 	}
 }
+#else
+	template<typename spMat>
+	void dispSpMat(const spMat& sm, const unsigned startRow, const unsigned endRow)
+	{
+		std::cout << "rows == " << sm.rows() << ", cols == " << sm.cols() << std::endl;
+		for (unsigned i = startRow; i <= endRow; ++i)
+			for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
+				std::cout << "(" << iter.row() << ", " << iter.col() << ") " << iter.value() << std::endl;
+		std::cout << std::endl;
+	}
 #endif
 
 template<typename T, int N>

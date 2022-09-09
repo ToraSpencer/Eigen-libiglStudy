@@ -660,23 +660,39 @@ namespace IGL_BASIC_PMP
 
 		// 5. 确定流形三角片、非流形三角片的邻接关系：
 
+
 	}
 
+	using ttTuple = std::tuple<std::vector<int>, std::vector<int>, std::vector<int>>;
 
-	bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, Eigen::MatrixXi& ttAdj_nmnEdge, \
-		Eigen::MatrixXi& ttAdj_nmnOppEdge)
+	bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, \
+		std::vector<ttTuple>& ttAdj_nmnEdge, std::vector<ttTuple>& ttAdj_nmnOppEdge)
 	{
+		/*
+			bool buildAdjacency(
+						const Eigen::MatrixXi& tris,												输入的三角片数据
+						Eigen::MatrixXi& ttAdj_nmEdge,										三角片的非边缘流形有向边邻接的三角片索引；
+						std::vector<ttTuple>& ttAdj_nmnEdge,							三角片的非流形有向边所在的三角片索引；
+						std::vector<ttTuple>& ttAdj_nmnOppEdge					三角片的非流形有向边邻接的三角片索引（即对边所在的三角片的索引）；
+						)
+
+		*/
 		const unsigned trisCount = tris.rows();
 		const unsigned edgesCount = 3 * trisCount;
 		const unsigned versCount = tris.maxCoeff() + 1;
 
-		// 1. 求基本邻接关系：
-		
+		// 1. 求顶点邻接关系：
+
 		// edges == [ea; eb; ec] == [vbIdxes, vcIdxes; vcIdxes, vaIdxes; vaIdxes, vbIdxes];
 		/*
 			若网格是流形网格，则edges列表里每条边都是unique的；
 			若存在非流形边，则非流形边在edges里会重复存储，实际边数量也会少于edges行数；
 			可以说使用这种representation的话，非流形边有不止一个索引，取决包含该非流形边的三角片数量；
+		*/
+
+		// 三角片三条边的索引：teIdx == [eaIdx, ebIdx, ecIdx] == [(0: trisCount-1)', (trisCount: 2*trisCount-1)', (2*trisCount, 3*trisCount-1)'];
+		/*
+			teIdx(i, j) = trisCount *j + i;
 		*/
 		Eigen::MatrixXi edges = Eigen::MatrixXi::Zero(edgesCount, 2);
 		Eigen::MatrixXi vaIdxes = tris.col(0);
@@ -692,7 +708,7 @@ namespace IGL_BASIC_PMP
 		std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;
 		smElems.reserve(edgesCount);
 		smElems_weighted.reserve(edgesCount);
-		for (unsigned i = 0; i < edgesCount; ++i)
+		for (int i = 0; i < edgesCount; ++i)
 		{
 			smElems.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), 1});
 			smElems_weighted.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), i});
@@ -703,9 +719,10 @@ namespace IGL_BASIC_PMP
 		adjSM_weighted.resize(versCount, versCount);
 		adjSM_eCount.setFromTriplets(smElems.begin(), smElems.end());		// 权重为该有向边重复的次数；
 		adjSM_weighted.setFromTriplets(smElems_weighted.begin(), smElems_weighted.end());		// 权重为该有向边重复的次数(非流形边的值无效)
+		Eigen::SparseMatrix<int> adjSM_weighted_opp = adjSM_weighted.transpose();
 
 		Eigen::SparseMatrix<int> adjSM = adjSM_eCount;		// 有向边邻接矩阵；
-		for (unsigned i = 0; i<adjSM.outerSize(); ++i) 
+		for (unsigned i = 0; i < adjSM.outerSize(); ++i)
 		{
 			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM, i); iter; ++iter)
 			{
@@ -714,10 +731,11 @@ namespace IGL_BASIC_PMP
 			}
 		}
 
+
 		// 2. 确定所有非边缘的流形有向边：
 		Eigen::SparseMatrix<int> adjSM_eCount_ND = adjSM_eCount + Eigen::SparseMatrix<int>(adjSM_eCount.transpose());		// 权重为无向边ij关联的三角片数量；
-		
-		// 非边缘流形无向边：
+
+		//		非边缘流形无向边：
 		Eigen::SparseMatrix<int> adjSM_MNnonBdry_ND = adjSM_eCount_ND;
 		for (unsigned i = 0; i < adjSM_MNnonBdry_ND.outerSize(); ++i)
 		{
@@ -725,7 +743,7 @@ namespace IGL_BASIC_PMP
 			{
 				if (iter.value() > 0)
 				{
-					if(iter.value() == 2)
+					if (iter.value() == 2)
 						adjSM_MNnonBdry_ND.coeffRef(iter.row(), iter.col()) = 1;
 					else
 						adjSM_MNnonBdry_ND.coeffRef(iter.row(), iter.col()) = 0;
@@ -733,7 +751,7 @@ namespace IGL_BASIC_PMP
 			}
 		}
 
-		// 非边缘流形有向边：
+		//		非边缘流形有向边邻接矩阵
 		Eigen::SparseMatrix<int> adjSM_MNnonBdry = adjSM + adjSM_MNnonBdry_ND;		// adjSM & adjSM_MNnonBdry_ND
 		adjSM_MNnonBdry.prune([](const Index& row, const Index& col, const float& value)->bool
 			{
@@ -745,11 +763,11 @@ namespace IGL_BASIC_PMP
 		adjSM_MNnonBdry /= 2;
 
 		unsigned edgesCount_MNnonBdry = adjSM_MNnonBdry.sum();
-		Eigen::MatrixXi edges_MNnonBdry(edgesCount_MNnonBdry, 2);
-		std::vector<int> edgesIdx_MNnonBdry;							// 非边缘流形有向边的索引；
+		Eigen::MatrixXi edges_MNnonBdry(edgesCount_MNnonBdry, 2);		// 非边缘流形有向边
+		std::vector<int> edgesIdx_MNnonBdry;												// 非边缘流形有向边的索引；
 		edgesIdx_MNnonBdry.reserve(edgesCount_MNnonBdry);
 		unsigned index = 0;
-		for (unsigned i = 0; i<adjSM_MNnonBdry.outerSize(); ++i) 
+		for (unsigned i = 0; i < adjSM_MNnonBdry.outerSize(); ++i)
 		{
 			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM_MNnonBdry, i); iter; ++iter)
 			{
@@ -759,10 +777,10 @@ namespace IGL_BASIC_PMP
 				index++;
 			}
 		}
- 
+
 		Eigen::SparseMatrix<int> adjSM_MNnonBdry_opp = adjSM_MNnonBdry.transpose();
-		Eigen::MatrixXi edges_MNnonBdry_opp(edgesCount_MNnonBdry, 2);
-		std::vector<int> edgesIdx_MNnonBdry_opp;				// 非边缘流形有向边的对边的索引；
+		Eigen::MatrixXi edges_MNnonBdry_opp(edgesCount_MNnonBdry, 2);		// 非边缘流形有向边的对边；
+		std::vector<int> edgesIdx_MNnonBdry_opp;								// 非边缘流形有向边的对边的索引；
 		edgesIdx_MNnonBdry_opp.reserve(edgesCount_MNnonBdry);
 		index = 0;
 		for (unsigned i = 0; i < adjSM_MNnonBdry_opp.outerSize(); ++i)
@@ -771,20 +789,158 @@ namespace IGL_BASIC_PMP
 			{
 				edges_MNnonBdry_opp(index, 0) = iter.row();
 				edges_MNnonBdry_opp(index, 1) = iter.col();
-				edgesIdx_MNnonBdry_opp.push_back(adjSM_weighted.coeffRef(iter.row(), iter.col()));
+				edgesIdx_MNnonBdry_opp.push_back(adjSM_weighted_opp.coeffRef(iter.row(), iter.col()));
 				index++;
 			}
 		}
 
-		// for debug:
-		Eigen::MatrixXd vers;
-		Eigen::MatrixXi tris0;
-		igl::readOBJ("E:/材料/meshArranged_hole.obj", vers, tris0);
-		objWriteEdgesMat("E:/edges_MNnonBdry.obj", edges_MNnonBdry, vers);
-
 		// 3. 流形边-三角片邻接关系，三角片邻接关系：
+		std::vector<int> etInfo(edgesCount);				// 边索引 - 三角片索引映射表；etInfo(i)是索引为i的边所在的三角片的索引；
+		for (int i = 0; i < edgesCount; ++i)
+			etInfo[i] = i % trisCount;
+
+		Eigen::VectorXi etAdj_mnEdge(-Eigen::VectorXi::Ones(edgesCount));	// 边所在三角片的索引，非流形边或边缘边写-1；
+		for (unsigned i = 0; i < edgesIdx_MNnonBdry.size(); ++i)
+		{
+			const int& edgeIdx = edgesIdx_MNnonBdry[i];
+			const int& edgesIdxOpp = edgesIdx_MNnonBdry_opp[i];
+			etAdj_mnEdge(edgeIdx) = etInfo[edgesIdxOpp];
+		}
+
+		//			三角片邻接矩阵，ttAdj_mnEdge(i, :)是索引为i的三角片三条边邻接的三个三角片，若其中有非流形边或边缘边则写为-1；
+		ttAdj_nmEdge = Eigen::Map<Eigen::MatrixXi>(etAdj_mnEdge.data(), trisCount, 3);
+
+		// 4. 非流形边（关联两个三角片的有向边）信息
+		index = 0;
+		std::vector<int> edgeIdx_nmn;
+		edgeIdx_nmn.reserve(edgesCount);
+		for (int i = 0; i < edgesCount; ++i)
+			if (2 == adjSM_eCount.coeffRef(edges(i, 0), edges(i, 1)))
+				edgeIdx_nmn.push_back(i);
+		edgeIdx_nmn.shrink_to_fit();
 
 
+		//			找出同一条非流形有向边对应的多个边索引：map<pair表示的非流形边数据， 边索引vector>
+		std::unordered_map<std::pair<int, int>, std::vector<int>, edgeHash, edgeComparator> edges_nmn_map;
+		for (const auto& eIdx : edgeIdx_nmn)
+		{
+			std::pair<int, int> edge{ edges(eIdx, 0), edges(eIdx, 1) };
+			auto retPair = edges_nmn_map.insert({ edge , std::vector<int>{eIdx} });
+			if (!retPair.second)		// 若插入失败，则说明已有此键；
+			{
+				auto iter = edges_nmn_map.find(edge);
+				iter->second.push_back(eIdx);
+			}
+		}
+
+		//			map<非流形边Idx, 该边的对边对应的多个边索引的vector>
+		std::unordered_map<int, std::vector<int>> edgeIdx_nmn_map;
+		for (const auto& eIdx : edgeIdx_nmn)
+		{
+			std::pair<int, int> edge{ edges(eIdx, 0), edges(eIdx, 1) };
+			const std::vector<int>& commonEidxes = edges_nmn_map.find(edge)->second;
+			edgeIdx_nmn_map.insert({ eIdx, commonEidxes });
+		}
+		std::unordered_map<int, std::vector<int>> edgeIdx_nmn_opp_map;
+		for (const auto& pair : edgeIdx_nmn_map)
+		{
+			int eIdx = pair.first;
+			int vaIdx = edges(eIdx, 0);
+			int vbIdx = edges(eIdx, 1);
+			int eOppIdx = -1;
+			for (int i = 0; i < edgesCount; ++i)
+				if (edges(i, 0) == vbIdx && edges(i, 1) == vaIdx)
+				{
+					eOppIdx = i;
+					break;
+				}
+			auto iter = edgeIdx_nmn_map.find(eOppIdx);
+			edgeIdx_nmn_opp_map.insert({eIdx, iter->second});
+		}
+
+
+		// 5. 含有非流形边的三角片的邻接关系：
+		ttAdj_nmnEdge.resize(trisCount);
+		for (const auto& pair : edgeIdx_nmn_map)
+		{
+			int eIdx = pair.first;
+			int row = eIdx % trisCount;
+			int col = eIdx / trisCount;
+
+			std::vector<int> trisIdx_nmn = pair.second;
+			for (auto& index : trisIdx_nmn)
+				index = etInfo[index];
+
+			switch (col)
+			{
+			case 0:	std::get<0>(ttAdj_nmnEdge[row]) = trisIdx_nmn;
+				break;
+			case 1:	std::get<1>(ttAdj_nmnEdge[row]) = trisIdx_nmn;
+				break;
+			case 2:	std::get<2>(ttAdj_nmnEdge[row]) = trisIdx_nmn;
+				break;
+			default:
+				return false;
+			}
+		}
+
+		ttAdj_nmnOppEdge.resize(trisCount);
+		for (const auto& pair : edgeIdx_nmn_opp_map)
+		{
+			int eIdx = pair.first;
+			int row = eIdx % trisCount;
+			int col = eIdx / trisCount;
+
+			std::vector<int> trisIdx_nmn_opp = pair.second;
+			for (auto& index : trisIdx_nmn_opp)
+				index = etInfo[index];
+
+			switch (col)
+			{
+			case 0:	std::get<0>(ttAdj_nmnOppEdge[row]) = trisIdx_nmn_opp;
+				break;
+			case 1:	std::get<1>(ttAdj_nmnOppEdge[row]) = trisIdx_nmn_opp;
+				break;
+			case 2:	std::get<2>(ttAdj_nmnOppEdge[row]) = trisIdx_nmn_opp;
+				break;
+			default:
+				return false;
+			}
+		}
+
+
+		// for debug
+		{
+			Eigen::MatrixXd vers;
+			Eigen::MatrixXi tris_useless;
+			igl::readOBJ("E:/材料/meshArranged_hole.obj", vers, tris_useless);
+
+			for (int i = 0; i < ttAdj_nmnEdge.size(); ++i)
+			{
+				const auto& tuple = ttAdj_nmnEdge[i];
+				const auto& tupleOpp = ttAdj_nmnOppEdge[i];
+				if (!std::get<0>(tuple).empty() || !std::get<1>(tuple).empty() || !std::get<2>(tuple).empty())
+				{
+					const std::vector<int>& tmpVec = (std::get<0>(tuple).empty() && std::get<1>(tuple).empty()) ? std::get<2>(tuple)\
+								: (std::get<0>(tuple).empty() ? std::get<1>(tuple): std::get<0>(tuple));
+					Eigen::MatrixXi tris0 = tris.row(i);
+					Eigen::MatrixXi tris00(tmpVec.size(), 3);
+					for (int k = 0; k < tmpVec.size(); ++k)
+						tris00.row(k) = tris.row(tmpVec[k]);
+					igl::writeOBJ("E:/tris0.obj", vers, tris0);
+					igl::writeOBJ("E:/tris00.obj", vers, tris00);
+
+					const std::vector<int>& tmpVecOpp = (std::get<0>(tupleOpp).empty() && std::get<1>(tupleOpp).empty()) ? std::get<2>(tupleOpp)\
+						: (std::get<0>(tupleOpp).empty() ? std::get<1>(tupleOpp) : std::get<0>(tupleOpp));
+					Eigen::MatrixXi tris000(tmpVecOpp.size(), 3);
+					for (int k = 0; k < tmpVecOpp.size(); ++k)
+						tris000.row(k) = tris.row(tmpVecOpp[k]);
+					igl::writeOBJ("E:/tris000.obj", vers, tris000);
+
+					break;
+				}
+			}
+		}
  
 		return true;
 	}
@@ -797,7 +953,27 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXi tris, edges;
 		igl::readOBJ("E:/材料/meshArranged_hole.obj", vers, tris);
 
-		Eigen::MatrixXi ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge;
+		Eigen::MatrixXi ttAdj_nmEdge;
+		std::vector<ttTuple> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
 		bool retFlag = buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
 	}
+
+
+	// boolean——select tris:
+	enum BOOLEAN_TYPE
+	{
+		UNION = 0,
+		DIFF = 1,
+	};
+
+	bool booleanSelectTris() 
+	{
+
+
+
+		return true;
+	}
+
+
+
 }
