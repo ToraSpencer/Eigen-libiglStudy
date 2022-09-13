@@ -39,6 +39,9 @@
 
 #include <igl/AABB.h>
 #include <igl/point_mesh_squared_distance.h>
+#include <igl/voxel_grid.h>
+#include <igl/signed_distance.h>
+#include <igl/marching_cubes.h>
 
 #include <igl/copyleft/cgal/mesh_boolean.h>
 
@@ -56,6 +59,7 @@ namespace IGL_BASIC
 	void test3();
 	void test4();
 	void test5();
+	void test55();
 	void test6();
 	void test7();
 	void test8();

@@ -767,9 +767,9 @@ namespace DENSEMAT
 		dispMat<int>(m1);
 		dispMat<int>(m2);
 
-		std::cout << "数组首元素地址：" << reinterpret_cast<unsigned>(&intArr[0]) << std::endl;
-		std::cout << "mm1首元素地址：" << reinterpret_cast<unsigned>(&mm1(0, 0)) << std::endl;
-		std::cout << "m1首元素地址：" << reinterpret_cast<unsigned>(&m1(0, 0)) << std::endl << std::endl;
+		std::cout << "数组首元素地址：" << reinterpret_cast<size_t>(&intArr[0]) << std::endl;
+		std::cout << "mm1首元素地址：" << reinterpret_cast<size_t>(&mm1(0, 0)) << std::endl;
+		std::cout << "m1首元素地址：" << reinterpret_cast<size_t>(&m1(0, 0)) << std::endl << std::endl;
 
 		// 映射矩阵的数据被改变，原数组的数据也改变
 		mm1.setRandom();

@@ -176,6 +176,151 @@ namespace IGL_BASIC
 		cout << "Press [r] to reset." << endl;;
 		viewer.launch();
 	}
+
+
+	// 生成三维空间中的栅格：
+	void test4() 
+	{
+		Eigen::MatrixXd vers, gridCenters;
+		Eigen::MatrixXi tris;	
+		Eigen::RowVector3i gridCounts;			// 三个维度上栅格的数目；
+		unsigned num = 10;				// 跨度最大的那个维度(xyz中的一个)的栅格数；
+
+		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
+		igl::voxel_grid(vers, 0, num, 1, gridCenters, gridCounts);
+
+		igl::writeOBJ("E:/gridCenters.obj", gridCenters, Eigen::MatrixXi{});
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// 计算符号距离场、marching cubes提取等值面网格；
+	void test5()
+	{
+		MatrixXi tris;
+		MatrixXd vers;
+		igl::readOBJ("E:/材料/jawMesh.obj", vers, tris);
+
+		tiktok& tt = tiktok::getInstance();
+		double gridStep = 0.5;			
+		double range[3];
+		for (unsigned i = 0; i < 3; ++i)
+		{
+			Eigen::VectorXd coors = vers.col(i);
+			range[i] = coors.maxCoeff() - coors.minCoeff();
+		}
+
+		// 1. 生成栅格：
+		double largestRange = std::max({ range[0], range[1], range[2] });
+		int num = std::ceil((largestRange/gridStep));              // 跨度最大的那个维度(xyz中的一个)的栅格数；
+		double gridsOffset = (gridStep * num - largestRange) / 2.;
+		
+		MatrixXd gridCenters;
+		Eigen::RowVector3i gridCounts;
+		tt.start();
+		igl::voxel_grid(vers, gridsOffset, num, 1, gridCenters, gridCounts);
+		tt.endCout("Elapsed time of igl::voxel_grid() is ");
+
+		VectorXd SDF, signValues;
+
+		{
+			VectorXi I;                     // useless
+			MatrixXd C, N;              // useless
+
+			// 2. 计算符号距离场
+			tt.start();
+			igl::signed_distance(gridCenters, vers, tris, igl::SignedDistanceType::SIGNED_DISTANCE_TYPE_PSEUDONORMAL, SDF, I, C, N);
+			tt.endCout("Elapsed time of igl::signed_distance() is ");
+
+			// 3. 符号距离场改写为符号场——网格内为-1，网格面上为0，外面为1：
+			signValues = SDF;
+			for_each(signValues.data(), signValues.data() + signValues.size(), [](double& b)\
+			{
+				b = (b > 0 ? 1 : (b < 0 ? -1 : 0));
+			});
+		}
+
+		// 4. marching cubes算法生成最终曲面：
+		MatrixXd versResult_SDF, versResults_signs;
+		MatrixXi trisResult_SDF, trisResults_signs;
+		double selectedSDF = -1.;
+		tt.start();
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
+		tt.endCout("Elapsed time of igl::marching_cubes() is ");
+		
+		// igl::marching_cubes(signValues, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 0, versResults_signs, trisResults_signs);
+		igl::writeOBJ("E:/shrinkedMesh.obj", versResult_SDF, trisResult_SDF);
+
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+
+	// 读取SDFGen.exe生成的距离场数据，使用igl::marching_cubes()提取等值面网格：
+	void test55() 
+	{
+		std::vector<int> stepCouts(3);				// xyz三个维度上栅格数
+		Eigen::RowVector3d gridsOri;					// 栅格原点：
+		std::ifstream sdfFile("E:/inputMesh.sdf");
+		std::string readStr(1024, '\0');
+
+		// 第一行：
+		{
+			std::string tmpStr;
+			sdfFile.getline(&readStr[0], 1024);
+
+			unsigned index = 0;
+			for (const auto& ch : readStr)
+			{
+				if (ch >= '0' && ch <= '9' || ch == '.')
+					tmpStr.push_back(ch);
+				else
+				{
+					if (tmpStr.size() > 0)
+					{
+						stepCouts[index] = std::stoi(tmpStr);
+						index++;
+						tmpStr.clear();
+					}
+				}
+			}
+		}
+
+		// 第二行：
+		{
+			std::string tmpStr;
+			sdfFile.getline(&readStr[0], 1024);
+
+			unsigned index = 0;
+			for (const auto& ch : readStr)
+			{
+				if (ch >= '0' && ch <= '9' || ch == '.')
+					tmpStr.push_back(ch);
+				else
+				{
+					if (tmpStr.size() > 0)
+					{
+						gridsOri(index) = std::stod(tmpStr);
+						index++;
+						tmpStr.clear();
+					}
+				}
+			}
+		}
+
+		// 第二行之后，距离场数据：
+		
+
+
+		sdfFile.close();
+
+
+		traverseSTL(stepCouts, disp<int>);
+		dispVec<double, 3>(gridsOri);
+		std::cout << "finished." << std::endl;
+	}
 }
 
 
