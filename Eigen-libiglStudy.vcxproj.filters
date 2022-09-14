@@ -70,5 +70,8 @@
     <ClInclude Include="Fu%27s_homework.h">
       <Filter>Fu%27s HW\headFiles</Filter>
     </ClInclude>
+    <ClInclude Include="myIgl.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

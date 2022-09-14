@@ -49,11 +49,11 @@
  
 int main()
 {
-	//DENSEMAT::test8();
+	// DENSEMAT::test8();
  
 	// SPARSEMAT::test0();
 	
-	IGL_BASIC::test55();
+	IGL_BASIC::test6();
 
 	// IGL_DIF_GEO::test1();
 
@@ -63,9 +63,8 @@ int main()
 
 	// SCIENTIFICCALC::test1();
 
-	// IGL_BASIC_PMP::test2();
-
+	// IGL_BASIC_PMP::test3();
  
-
+	
 	std::cout << "main() finished." << std::endl;
 }

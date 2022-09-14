@@ -35,6 +35,7 @@
     <ClInclude Include="HW2_curvature.h" />
     <ClInclude Include="igl_study.h" />
     <ClInclude Include="myEigen.h" />
+    <ClInclude Include="myIgl.h" />
     <ClInclude Include="scientific_calc.h" />
     <ClInclude Include="sparse_mat.h" />
   </ItemGroup>

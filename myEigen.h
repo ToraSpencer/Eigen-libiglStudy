@@ -183,6 +183,13 @@ void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
 
 
 
+
+/////////////////////////////////////// 图形生成接口：
+bool interpolateToLine(MatrixXf& vers, const RowVector3f& start, const RowVector3f& end, const float SR, const bool SE);
+
+
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////// 不同数据类型的变换
 
 // 根据索引向量从源矩阵中提取元素生成输出矩阵。
@@ -193,6 +200,19 @@ bool subFromIdxVec(Matrix<T, Dynamic, Dynamic>& matOut, const Matrix<T, Dynamic,
 	for (unsigned i = 0; i < vec.rows(); ++i)
 	{
 		const int& index = vec(i);
+		matOut.row(i) = matIn.row(index);
+	}
+
+	return true;
+}
+
+template <typename T>
+bool subFromIdxVec(Matrix<T, Dynamic, Dynamic>& matOut, const Matrix<T, Dynamic, Dynamic>& matIn, const std::vector<int>& vec)
+{
+	matOut.resize(vec.size(), matIn.cols());
+	for (unsigned i = 0; i < vec.size(); ++i)
+	{
+		const int& index = vec[i];
 		matOut.row(i) = matIn.row(index);
 	}
 
@@ -260,6 +280,9 @@ Eigen::Matrix<T, Dynamic, 1> vec2Vec(const std::vector<T>& vIn)
 
 	return vOut;
 }
+
+
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 矩阵的增删查改
@@ -885,8 +908,8 @@ void ridgeRegressionPolyFitting(VectorXf& theta, const MatrixXf& vers);
 Matrix3f getRotationMat(const RowVector3f& originArrow, const RowVector3f& targetArrow);
 
 
-/////////////////////////////////////// 图形生成接口：
-bool interpolateToLine(MatrixXf& vers, const RowVector3f& start, const RowVector3f& end, const float SR, const bool SE);
+
+
 
 
 

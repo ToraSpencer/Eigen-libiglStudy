@@ -1,6 +1,8 @@
 #pragma once
 
 #include "myEigen.h"
+#include "myIgl.h"
+
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
@@ -9,6 +11,7 @@
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
+#include <deque>
 #include <algorithm>
 #include <functional>
 

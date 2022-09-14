@@ -216,7 +216,7 @@ namespace IGL_BASIC
 		int num = std::ceil((largestRange/gridStep));              // 跨度最大的那个维度(xyz中的一个)的栅格数；
 		double gridsOffset = (gridStep * num - largestRange) / 2.;
 		
-		MatrixXd gridCenters;
+		Eigen::MatrixXd gridCenters;
 		Eigen::RowVector3i gridCounts;
 		tt.start();
 		igl::voxel_grid(vers, gridsOffset, num, 1, gridCenters, gridCounts);
@@ -257,10 +257,10 @@ namespace IGL_BASIC
 	}
 
 
-
 	// 读取SDFGen.exe生成的距离场数据，使用igl::marching_cubes()提取等值面网格：
 	void test55() 
 	{
+		tiktok& tt = tiktok::getInstance();
 		std::vector<int> stepCouts(3);				// xyz三个维度上栅格数
 		Eigen::RowVector3d gridsOri;					// 栅格原点：
 		std::ifstream sdfFile("E:/inputMesh.sdf");
@@ -310,15 +310,60 @@ namespace IGL_BASIC
 			}
 		}
 
-		// 第二行之后，距离场数据：
-		
+		// 第三行，距离场空间步长：
+		sdfFile.getline(&readStr[0], 1024);
+		double SDFstep = std::stod(readStr);
 
-
+		// 第三行之后，距离场数据：
+		unsigned dataCount = stepCouts[0] * stepCouts[1] * stepCouts[2];
+		Eigen::VectorXd SDF(dataCount);
+		for (unsigned i = 0; i<dataCount; ++i) 
+		{
+			sdfFile.getline(&readStr[0], 1024);
+			SDF(i) = std::stod(readStr);
+		}
 		sdfFile.close();
 
+		// 1. 生成栅格：
+		Eigen::RowVector3i gridCounts;
+		Eigen::MatrixXd gridCenters;
+		Eigen::RowVector3d minp = gridsOri - SDFstep * Eigen::RowVector3d(stepCouts[0] / 2.0, stepCouts[1] / 2.0, stepCouts[2] / 2.0);
+		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCouts[0] / 2.0, stepCouts[1] / 2.0, stepCouts[2] / 2.0);
+		Eigen::AlignedBox<double, 3> box(minp, maxp);
+		igl::voxel_grid(box, std::max({stepCouts[0], stepCouts[1], stepCouts[2]}), 0, gridCenters, gridCounts);
+		
+		// 2. marching cubes算法生成最终曲面：
+		MatrixXd versResult_SDF, versResults_signs;
+		MatrixXi trisResult_SDF, trisResults_signs;
+		double selectedSDF = -1.;
+		tt.start();
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
+		tt.endCout("Elapsed time of igl::marching_cubes() is ");
 
-		traverseSTL(stepCouts, disp<int>);
-		dispVec<double, 3>(gridsOri);
+		igl::writeOBJ("E:/shrinkedMesh.obj", versResult_SDF, trisResult_SDF);
+ 
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// 轴向包围盒类，方向包围盒类
+	void test6() 
+	{
+		//Eigen::MatrixXd aabbVers, obbVers;
+		//Eigen::MatrixXi aabbTris, obbTris;
+		//Eigen::RowVector3d minp = Eigen::RowVector3d(-1, 2, -3);
+		//Eigen::RowVector3d maxp = Eigen::RowVector3d(4, 5, 6);
+		//Eigen::AlignedBox<double, 3> aabb(minp, maxp);
+		//genAABBmesh(aabb, aabbVers, aabbTris);
+ 
+		//OBB<double> obb(aabb, Eigen::RowVector3d(3,4,5).normalized(), Eigen::RowVector3d(-7, -8, -9) );
+		//genOBBmesh(obb, obbVers, obbTris);
+
+		//igl::writeOBJ("E:/aabbMesh.obj", aabbVers, aabbTris);
+		//igl::writeOBJ("E:/obbMesh.obj", obbVers, obbTris);
+
+		dispVec<double, 3>(Eigen::Matrix<double, 1, 3>(1,2,3));
+		dispVec<double, 3>(Eigen::RowVector3d(1, 2, 3));
 		std::cout << "finished." << std::endl;
 	}
 }
@@ -1055,6 +1100,7 @@ namespace IGL_BASIC_PMP
 
 
 		// for debug
+		if(0)
 		{
 			Eigen::MatrixXd vers;
 			Eigen::MatrixXi tris_useless;
@@ -1111,14 +1157,200 @@ namespace IGL_BASIC_PMP
 		DIFF = 1,
 	};
 
-	bool booleanSelectTris() 
+
+	bool booleanSelectTris(const Eigen::MatrixXd& vers, const Eigen::MatrixXi& tris, const Eigen::VectorXi& trisLabel, \
+		const int startIdx, const BOOLEAN_TYPE type, Eigen::MatrixXd& versOut, Eigen::MatrixXi& trisOut)
 	{
+		/*
+			bool booleanSelectTris(
+					const Eigen::MatrixXd& vers,
+					const Eigen::MatrixXi& tris,
+					const Eigen::VectorXi& trisLabel, 
+					const int startIdx, 
+					const BOOLEAN_TYPE type, 
+					Eigen::MatrixXd& versOut, 
+					Eigen::MatrixXi& trisOut
+					)
 
 
+		
+		*/
+
+		Eigen::MatrixXi ttAdj_nmEdge;
+		std::vector<ttTuple> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
+		buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
+		unsigned trisCount = tris.rows();
+		std::vector<bool> visited(trisCount, false);
+
+		std::deque<int> triIdxDeq;
+		triIdxDeq.push_back(startIdx);
+		visited[startIdx] = true;
+		const int startLabel = trisLabel[startIdx];
+
+		// 区域生长的循环：
+		while (!triIdxDeq.empty())
+		{
+			int currentTriIdx = triIdxDeq.front();
+			int currentLabel = trisLabel[currentTriIdx];
+			triIdxDeq.pop_front();				
+			
+			// 对当前三角片邻接的三个三角片的遍历：
+			for (int i = 0; i < 3; ++i)
+			{
+				int nbrTriIdx = ttAdj_nmEdge(currentTriIdx, i);
+				
+				// 若当前边为非流形边：
+				if (-1 == nbrTriIdx)
+				{
+					std::vector<std::vector<int>*> vecPtr(3), vecOppPtr(3);
+					vecPtr[0] = &std::get<0>(ttAdj_nmnEdge[currentTriIdx]);
+					vecPtr[1] = &std::get<1>(ttAdj_nmnEdge[currentTriIdx]);
+					vecPtr[2] = &std::get<2>(ttAdj_nmnEdge[currentTriIdx]);
+					vecOppPtr[0] = &std::get<0>(ttAdj_nmnOppEdge[currentTriIdx]);
+					vecOppPtr[1] = &std::get<1>(ttAdj_nmnOppEdge[currentTriIdx]);
+					vecOppPtr[2] = &std::get<2>(ttAdj_nmnOppEdge[currentTriIdx]);
+
+					switch (type)
+					{
+					case BOOLEAN_TYPE::DIFF:
+						{
+							const std::vector<int>& relaTrisIdx = *vecPtr[i];		// 当前非流形边所在的所有三角片（正常的话应该为两个）；
+							const std::vector<int>& relaOppTrisIdx = *vecOppPtr[i];	// 当前非流形边的所有对面三角片（正常的话应该为两个）；
+							assert(2 == relaTrisIdx.size() && "Exceptional non-manifold edge detected!");
+							assert(2 == relaOppTrisIdx.size() && "Exceptional non-manifold edge detected!");
+
+							// 若nbrTriIdx两个三角片中至少有一个和startIdx三角片标签相同；往标签跳变的三角片上扩散；
+							if (trisLabel[relaTrisIdx[0]] == startLabel || trisLabel[relaTrisIdx[1]] == startLabel)
+							{
+								nbrTriIdx = (trisLabel[relaTrisIdx[0]] == currentLabel ? relaTrisIdx[1] : relaTrisIdx[0]);
+								assert(trisLabel[relaTrisIdx[0]] != trisLabel[relaTrisIdx[1]] && "Exceptional non-manifold edge detected!");
+							}
+							else    // 若nbrTriIdx两个三角片都和startIdx三角片标签不同；往标签跳变的对面三角片上扩散；
+							{
+								nbrTriIdx = (trisLabel[relaOppTrisIdx[0]] == currentLabel ? relaOppTrisIdx[1] : relaOppTrisIdx[0]);
+								assert(trisLabel[relaOppTrisIdx[0]] != trisLabel[relaOppTrisIdx[1]] && "Exceptional non-manifold edge detected!");
+							}
+							break;
+						}
+
+					default:
+						return false;
+					}
+				}
+
+				if (!visited[nbrTriIdx])
+				{
+					visited[nbrTriIdx] = true;
+					triIdxDeq.push_back(nbrTriIdx);
+				}
+			}
+		}
+
+		// 提取被标记的部分：
+		switch (type)
+		{
+		case BOOLEAN_TYPE::DIFF:
+			{
+				// 找出区域生长过程中被标记的三角片，按是否和起始三角片标记相同分成两组；
+				std::vector<int> selectedTrisIdx1, selectedTrisIdx2;
+				Eigen::MatrixXi selectedTris1, selectedTris2;
+				selectedTrisIdx1.reserve(trisCount);
+				selectedTrisIdx2.reserve(trisCount);
+				for (int i = 0; i < trisCount; ++i)
+				{
+					if (visited[i])
+					{
+						if((trisLabel[i] == startLabel))
+							selectedTrisIdx1.push_back(i);
+						else
+							selectedTrisIdx2.push_back(i);
+					}
+				}
+				selectedTrisIdx1.shrink_to_fit();
+				selectedTrisIdx2.shrink_to_fit();
+				subFromIdxVec(selectedTris1, tris, selectedTrisIdx1);
+				subFromIdxVec(selectedTris2, tris, selectedTrisIdx2);
+
+				// 与起始三角片标记不同，则flip该三角片
+				Eigen::VectorXi tmpVec = selectedTris2.col(2);
+				selectedTris2.col(2) = selectedTris2.col(1);
+				selectedTris2.col(1) = tmpVec;
+				trisOut = selectedTris1;
+				matInsertRows(trisOut, selectedTris2);
+
+				// 去除其他顶点，修正三角片中的索引；
+				std::set<int> newTrisIdxSet;
+				std::vector<int> newOldIdxInfo;
+				int* intPtr = trisOut.data();
+				for (unsigned i = 0; i < trisOut.size(); ++i)
+					newTrisIdxSet.insert(*(intPtr+ i));
+				newOldIdxInfo.insert(newOldIdxInfo.end(), newTrisIdxSet.begin(), newTrisIdxSet.end());
+
+				std::vector<int> oldNewIdxInfo(trisCount, -1);
+				int index = 0;
+				for (const auto& oldIdx : newOldIdxInfo)
+					oldNewIdxInfo[oldIdx] = index++;
+				
+				subFromIdxVec(versOut, vers, newOldIdxInfo);
+
+				intPtr = trisOut.data();
+				for (unsigned i = 0; i < trisOut.size(); ++i)
+				{
+					int& currentIdx = *(intPtr + i);
+					currentIdx = oldNewIdxInfo[currentIdx];
+				}
+
+				break;
+			}
+		default:
+			break;
+		}
 
 		return true;
 	}
 
 
+	// 选择合适的三角片用于booleanSelectTris中区域生长的起点：
+	int getStartTriIdx(const Eigen::MatrixXd& vers0, const Eigen::MatrixXi& tris0, \
+		const Eigen::MatrixXd& vers1, const Eigen::MatrixXi& tris1, \
+		const Eigen::MatrixXd& versArranged, const Eigen::MatrixXi& trisArranged)
+	{
+		// 在融合网格中，选取1网格区域外部属于0网格的任意一个三角片：
+
+		// 做1网格的方向包围盒，然后取盒外的融合网格任意一个三角片：
+
+		
+
+
+		return -1;
+	}
+
+	// test boolean:
+	void test3() 
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		Eigen::VectorXi trisLabel;
+
+		igl::readOBJ("E:/meshArranged.obj", vers, tris);
+		int trisCount = tris.rows();
+
+		// 读取trisLabel
+		std::string str(1024, '\0');
+		trisLabel.resize(trisCount);
+		std::ifstream file("E:/outputlabel.txt");
+		for(int i = 0; i<trisCount; ++i)
+		{
+			file.getline(&str[0], 1024);
+			trisLabel(i) = std::stoi(str);
+		}
+
+		int startIdx = 0;
+		booleanSelectTris(vers, tris, trisLabel, startIdx, BOOLEAN_TYPE::DIFF, versOut, trisOut);
+
+		igl::writeOBJ("E:/diffResult.obj", versOut, trisOut);
+
+		std::cout << "finished." << std::endl;
+	}
 
 }
