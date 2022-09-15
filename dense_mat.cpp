@@ -786,29 +786,59 @@ namespace DENSEMAT
 	}
 
 
-	// 暂时无法分类：
-	void test000()
+	// test13——类型转换：
+	void test13() 
 	{
+		// cast()方法：
 		MatrixXf m1(5, 6);
 
 		for (unsigned i = 0; i < m1.rows(); ++i)
-		{
 			for (unsigned j = 0; j < m1.cols(); ++j)
-			{
 				m1(i, j) = 10 * i + j;
-			}
-		}
 		std::cout << "m1 == \n" << m1 << std::endl;
-
 
 		MatrixXi indices = (m1.array() < 33).cast<int>();
 		std::cout << indices << std::endl;
 
-		// cast()
 		auto mu1 = m1.array().cast<unsigned>();
 		std::cout << "mu1 == \n" << mu1 << std::endl;
 		std::cout << typeid(mu1).name() << std::endl;
 
+	}
+
+
+	template<typename Derived>											// Derived是具体的矩阵类型，如Eigen::Matrix<int,1,-1,1,1,-1>
+	void foo(const Eigen::MatrixBase<Derived>& base)			// Eigen::MatrixBase<>是任意稠密矩阵、向量的基类；
+	{
+		const Derived& originMat = base.derived();			// derived()返回原矩阵的引用，类型为原类型；
+		std::cout << "typeid(base).name() == " << typeid(base).name() << std::endl;
+		std::cout << "typeid(base.derived()).name()  == " << typeid(originMat).name() << std::endl;
+		std::cout << "typeid(Derived).name() == " << typeid(Derived).name() << std::endl;
+
+		std::cout << "address of base: " << reinterpret_cast<size_t>(&base) << std::endl;
+		std::cout << "address of base.derived(): " << reinterpret_cast<size_t>(&originMat) << std::endl;
+		std::cout << std::endl;
+	}
+
+	// test14——dense mat的类层次结构：
+	void test14() 
+	{
+		Eigen::Vector3f v1;
+		Eigen::RowVectorXi v2;
+		Eigen::Matrix3d m1(Matrix3d::Ones());
+		Eigen::MatrixXi m2(5, 6);
+
+		foo(v1);
+		foo(v2);
+		foo(m1);
+		foo(m2);
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// 暂时无法分类：
+	void test000()
+	{
 		// 矩阵索引：
 		std::vector<int> rowVec{ 1, 3, 4 };
 		std::vector<int> colVec{ 5, 2, 0 };
@@ -816,7 +846,6 @@ namespace DENSEMAT
 		std::vector<int> ind{ 4,2,5,5,3 };
 		MatrixXi A = MatrixXi::Random(4, 6);
 		cout << "Initial matrix A:\n" << A << "\n\n";
-
 
 		// 查看eigen库的版本：
 		std::cout << EIGEN_WORLD_VERSION << std::endl;

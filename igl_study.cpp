@@ -349,21 +349,31 @@ namespace IGL_BASIC
 	// 轴向包围盒类，方向包围盒类
 	void test6() 
 	{
-		//Eigen::MatrixXd aabbVers, obbVers;
-		//Eigen::MatrixXi aabbTris, obbTris;
-		//Eigen::RowVector3d minp = Eigen::RowVector3d(-1, 2, -3);
-		//Eigen::RowVector3d maxp = Eigen::RowVector3d(4, 5, 6);
-		//Eigen::AlignedBox<double, 3> aabb(minp, maxp);
-		//genAABBmesh(aabb, aabbVers, aabbTris);
+		// 生成包围盒网格：
+		Eigen::MatrixXd aabbVers, obbVers;
+		Eigen::MatrixXi aabbTris, obbTris;
+		Eigen::RowVector3d minp = Eigen::RowVector3d(-1, 2, -3);
+		Eigen::RowVector3d maxp = Eigen::RowVector3d(4, 5, 6);
+		Eigen::AlignedBox<double, 3> aabb(minp, maxp);
+		genAABBmesh(aabb, aabbVers, aabbTris);
+		igl::writeOBJ("E:/aabbMesh.obj", aabbVers, aabbTris);
  
-		//OBB<double> obb(aabb, Eigen::RowVector3d(3,4,5).normalized(), Eigen::RowVector3d(-7, -8, -9) );
-		//genOBBmesh(obb, obbVers, obbTris);
+		OBB<double> obb(aabb, Eigen::RowVector3d(3,4,5).normalized(), Eigen::RowVector3d(1, 2, 3) );
+		genOBBmesh(obb, obbVers, obbTris);
+		igl::writeOBJ("E:/obbMesh.obj", obbVers, obbTris);
+ 
+		// contains()——判断顶点与包围盒的关系，顶点需要用列向量表示；在包围盒表面上也视为在内部；
+		std::cout << "aabb.contains (3,4,5) ? " << aabb.contains(Eigen::RowVector3d(3, 4, 5).transpose()) << std::endl;
+		std::cout << "aabb.contains (4,5,5) ? " << aabb.contains(Eigen::RowVector3d(4, 5, 5).transpose()) << std::endl;
+		std::cout << "aabb.contains (9,9,9) ? " << aabb.contains(Eigen::RowVector3d(9, 9, 9).transpose()) << std::endl;
 
-		//igl::writeOBJ("E:/aabbMesh.obj", aabbVers, aabbTris);
-		//igl::writeOBJ("E:/obbMesh.obj", obbVers, obbTris);
+		// OBB类重写的contains()方法：
+		std::cout << "obb.contains(0, 0, 0) ? " << obb.contains(Eigen::RowVector3d(0, 0, 0)) << std::endl;
+		std::cout << "obb.contains(4, 2, 6) ? " << obb.contains(Eigen::RowVector3d(4, 2, 6)) << std::endl;
+		std::cout << "obb.contains(-5, -5, -5) ? " << obb.contains(Eigen::RowVector3d(-5, -5, -5)) << std::endl;
+ 
+		igl::writeOBJ("E:/426.obj", MatrixXd{ RowVector3d(4, 2, 6) }, MatrixXi{});
 
-		dispVec<double, 3>(Eigen::Matrix<double, 1, 3>(1,2,3));
-		dispVec<double, 3>(Eigen::RowVector3d(1, 2, 3));
 		std::cout << "finished." << std::endl;
 	}
 }

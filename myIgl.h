@@ -38,7 +38,7 @@
 template <typename _Scalar>
 class OBB : public AlignedBox<_Scalar, 3>
 {
-	// 成员数据：
+	// 成员数据：注！！！继承自AlignedBox中的m_min, m_max是列向量，下面两个是行向量；
 public:
 	Eigen::Matrix<_Scalar, 1, 3> m_dir;
 	Eigen::Matrix<_Scalar, 1, 3> m_center;
@@ -48,6 +48,7 @@ public:
 public:
 	inline OBB() :m_dir(0, 0, 1), m_center(Eigen::Matrix<_Scalar, 1, 3>::Zero(3)), m_rotation(Eigen::Matrix3d::Identity()) {}
 
+
 	inline OBB(const AlignedBox<_Scalar, 3>& aabb)
 	{
 		auto minp = aabb.m_min;
@@ -56,35 +57,37 @@ public:
 		this->m_dir = Eigen::Matrix<_Scalar, 1, 3>(0, 0, 1);
 		this->m_rotation = Eigen::Matrix3d::Identity();
 
-		this->m_min = minp - this->center;
-		this->m_max = maxp - this->center;
+		this->m_min = minp - this->center.transpose();
+		this->m_max = maxp - this->center.transpose();
 	}
+
 
 	inline OBB(const AlignedBox<_Scalar, 3>& aabb, const Eigen::Matrix<_Scalar, 1, 3>& dir, \
 		const Eigen::Matrix<_Scalar, 1, 3>& center): m_dir(dir), m_center(center)
 	{
+		// 注：方向包围盒的方向取dir和-dir没有区别，所以控制dir和z轴正向夹角不大于pi/2;
 		const double epsilon = 1e-6;
 		assert((dir.norm() - 1) < epsilon && "input dir is invalid.");
+
+		double dotValue = Eigen::Matrix<_Scalar, 1, 3>(0, 0, 1).dot(dir);
+		if (dotValue < 0)
+			this->m_dir = -dir;
+		Eigen::Matrix<_Scalar, 1, 3> crossValue = Eigen::Matrix<_Scalar, 1, 3>(0, 0, 1).cross(this->m_dir);		// 旋转轴；
 
 		auto minp = aabb.min();
 		auto maxp = aabb.max();
 		Eigen::Matrix<_Scalar, 1, 3> centerOri = (minp + maxp) / 2.0;
-		this->m_min = minp - centerOri;
-		this->m_max = maxp - centerOri;
-
-		Eigen::Matrix<_Scalar, 1, 3> crossValue = Eigen::Matrix<_Scalar, 1, 3>(0, 0, 1).cross(dir);		// 旋转轴；
-		double dotValue = Eigen::Matrix<_Scalar, 1, 3>(0, 0, 1).dot(dir);
+		this->m_min = minp - centerOri.transpose();
+		this->m_max = maxp - centerOri.transpose();
 
 		// 若指定方向和z轴平行：
 		if (crossValue.norm() < epsilon)
 		{
 			this->m_rotation = Eigen::Matrix3d::Identity();
-			if (dotValue < 0)
-				this->m_rotation(2, 2) = -1;
 			return;
 		}
 
-		Eigen::Matrix<_Scalar, 1, 3> zNew = dir;
+		Eigen::Matrix<_Scalar, 1, 3> zNew = this->m_dir;
 		Eigen::Matrix<_Scalar, 1, 3> xNew = -crossValue.normalized();
 		Eigen::Matrix<_Scalar, 1, 3> yNew = zNew.cross(xNew);
 
@@ -96,6 +99,46 @@ public:
 		}
 	}
 
+
+	inline OBB(const AlignedBox<_Scalar, 3>& aabb, const Eigen::Matrix<_Scalar, 1, 3>& center, \
+		const Eigen::Matrix3d& rotation) : m_center(center), m_rotation(rotation)
+	{
+		const double epsilon = 1e-6;
+		auto minp = aabb.min();
+		auto maxp = aabb.max();
+		Eigen::Matrix<_Scalar, 1, 3> centerOri = (minp + maxp) / 2.0;
+		this->m_min = minp - centerOri.transpose();
+		this->m_max = maxp - centerOri.transpose();
+
+		this->m_dir = (rotation * Eigen::Matrix<_Scalar, 3, 1>(0, 0, 1)).transpose(); 
+	}
+
+	
+	//// 输入点云，生成方向包围盒，方向为点云的长轴：
+	//inline OBB(const Eigen::Matrix<_Scalar, Dynamic, 3>& vers) 
+	//{
+	//	// 
+
+
+	//}
+
+
+	template<typename Derived>
+	inline bool contains(const Eigen::MatrixBase<Derived>& ver) const
+	{
+		Eigen::Vector3d minp = this->m_min.cast<double>();
+		Eigen::Vector3d maxp = this->m_max.cast<double>();
+
+		const Derived& ver0 = ver.derived();
+		assert((ver0.rows() == 1 && ver0.cols() == 3) || (ver0.cols() == 1 && ver0.rows() == 3) && "Input vertice must be a 3D vector!");
+
+		// 顶点逆仿射变换到AABB的空间：
+		auto dataPtr = ver0.data();
+		Eigen::Vector3d p00(static_cast<double>(dataPtr[0]), static_cast<double>(dataPtr[1]), static_cast<double>(dataPtr[2]));
+		Eigen::Vector3d p0 = this->m_rotation.inverse() * (p00 - this->m_center.transpose()); 
+		return (minp.array() <= p0.array()).all() && (p0.array() <= maxp.array()).all();
+	}
+ 
 };
 
 

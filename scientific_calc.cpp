@@ -73,5 +73,15 @@ namespace SCIENTIFICCALC
 
 
 	}
+
+
+	// 主成分分析：
+	void test5() 
+	{
+
+
+	}
+
 }
+
 
