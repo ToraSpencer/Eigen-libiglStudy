@@ -889,6 +889,38 @@ float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
 }
 
 
+// 计算三角网格的体积：
+template<typename DerivedV, typename DerivedI>
+double meshVolume(const Eigen::MatrixBase<DerivedV>& V, const Eigen::MatrixBase<DerivedI>& T)
+{
+	double volume = -1.0;
+	const DerivedV& vers = V.derived();
+	const DerivedI& tris = T.derived();
+	unsigned versCount = vers.rows();
+	unsigned trisCount = tris.rows();
+	if (vers.cols() != 3 || tris.cols()!= 3)
+		return volume;
+
+	Eigen::VectorXi vaIdxes = tris.col(0);
+	Eigen::VectorXi vbIdxes = tris.col(1);
+	Eigen::VectorXi vcIdxes = tris.col(2);
+	DerivedV versA, versB, versC;
+	subFromIdxVec(versA, vers, vaIdxes);
+	subFromIdxVec(versB, vers, vbIdxes);
+	subFromIdxVec(versC, vers, vcIdxes);
+
+	// 一个三角片对应的四面体的符号体积（signed volume） V(t0) == (-x3y2z1 + x2y3z1 + x3y1z2 - x1y3z2 - x2y1z3 + x1y2z3) / 6.0;
+	auto volumeVec =\
+		(- versC.col(0).array() * versB.col(1).array() * versA.col(2).array() + versB.col(0).array() * versC.col(1).array() * versA.col(2).array()\
+		 +versC.col(0).array() * versA.col(1).array() * versB.col(2).array() - versA.col(0).array() * versC.col(1).array() * versB.col(2).array()\
+		 - versB.col(0).array() * versA.col(1).array() * versC.col(2).array() + versA.col(0).array() * versB.col(1).array() * versC.col(2).array())/6.0;
+
+	volume = volumeVec.sum();
+
+	return volume;
+}
+
+
 // 多项式插值
 void polyInterpolation();
 

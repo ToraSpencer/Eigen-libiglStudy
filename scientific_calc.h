@@ -1,6 +1,7 @@
 #pragma once
 
 #include "myEigen.h"
+#include "igl_study.h"
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <iostream>

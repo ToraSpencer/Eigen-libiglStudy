@@ -82,6 +82,20 @@ namespace SCIENTIFICCALC
 
 	}
 
+
+	// 计算三角网格的体积——
+	void test6() 
+	{
+		Eigen::MatrixXf vers;
+		Eigen::MatrixXi tris;
+		objReadMeshMat(vers, tris, "E:/材料/jawMesh.obj");
+ 
+		double volume = meshVolume(vers, tris);
+		std::cout << "volume == " << volume << std::endl;
+
+		std::cout << "finished." << std::endl;
+	}
+
 }
 
 

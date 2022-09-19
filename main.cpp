@@ -53,7 +53,7 @@ int main()
  
 	// SPARSEMAT::test0();
 	
-	IGL_BASIC::test6();
+	// IGL_BASIC::test6();
 
 	// IGL_DIF_GEO::test1();
 
@@ -61,7 +61,7 @@ int main()
 
 	// IGL_SPACE_PARTITION::test0();
 
-	// SCIENTIFICCALC::test1();
+	SCIENTIFICCALC::test6();
 
 	// IGL_BASIC_PMP::test3();
  
