@@ -99,3 +99,17 @@ namespace SCIENTIFICCALC
 }
 
 
+
+// libigl中的数学工具
+namespace IGL_MATH 
+{
+	// 计算特征值、特征向量：
+	void test0() 
+	{
+
+
+
+	}
+}
+
+

@@ -953,7 +953,7 @@ namespace IGL_BASIC_PMP
 
 		//		非边缘流形有向边邻接矩阵
 		Eigen::SparseMatrix<int> adjSM_MNnonBdry = adjSM + adjSM_MNnonBdry_ND;		// adjSM & adjSM_MNnonBdry_ND
-		adjSM_MNnonBdry.prune([](const Index& row, const Index& col, const float& value)->bool
+		adjSM_MNnonBdry.prune([](const Eigen::Index& row, const Eigen::Index& col, const float& value)->bool
 			{
 				if (2 == value)
 					return true;
