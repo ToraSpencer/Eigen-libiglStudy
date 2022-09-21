@@ -608,13 +608,13 @@ namespace IGL_GRAPH
 		size_t startIdx = 165;			// 接近圆心的顶点；
 		igl::dfs(adjList, startIdx, disCoveredIdx, dfsTreeVec, closedIdx);
 		objWriteTreePath("E:/dfsTree.obj", bfsTreeVec, vers);
-		auto retCrev = closedIdx.reverse();
+		Eigen::VectorXi retCrev = closedIdx.reverse();
 		auto flag = (retCrev == disCoveredIdx);
 
 		std::vector<int> vec1, vec2, vec3;
-		vec1 = vec2Vec<int>(disCoveredIdx);
-		vec2 = vec2Vec<int>(closedIdx);
-		vec3 = vec2Vec<int>(retCrev);
+		vec1 = vec2Vec(disCoveredIdx);
+		vec2 = vec2Vec(closedIdx);
+		vec3 = vec2Vec(retCrev);
 
 		// bfs:
 		igl::bfs(adjList, startIdx, disCoveredIdx, bfsTreeVec);
@@ -1186,19 +1186,20 @@ namespace IGL_BASIC_PMP
 		
 		*/
 
+		// 1. 计算三角片邻接关系
 		Eigen::MatrixXi ttAdj_nmEdge;
 		std::vector<ttTuple> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
 		buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
 		unsigned trisCount = tris.rows();
 		std::vector<bool> visited(trisCount, false);
 
+		// 2. 使用区域生长的形式遍历三角片：
 		std::deque<int> triIdxDeq;
 		triIdxDeq.push_back(startIdx);
 		visited[startIdx] = true;
 		const int startLabel = trisLabel[startIdx];
 
-		// 区域生长的循环：
-		while (!triIdxDeq.empty())
+		while (!triIdxDeq.empty())					// 区域生长的循环：
 		{
 			int currentTriIdx = triIdxDeq.front();
 			int currentLabel = trisLabel[currentTriIdx];
@@ -1209,7 +1210,7 @@ namespace IGL_BASIC_PMP
 			{
 				int nbrTriIdx = ttAdj_nmEdge(currentTriIdx, i);
 				
-				// 若当前边为非流形边：
+				// wf1. 若当前边为非流形边：
 				if (-1 == nbrTriIdx)
 				{
 					std::vector<std::vector<int>*> vecPtr(3), vecOppPtr(3);
@@ -1220,12 +1221,12 @@ namespace IGL_BASIC_PMP
 					vecOppPtr[1] = &std::get<1>(ttAdj_nmnOppEdge[currentTriIdx]);
 					vecOppPtr[2] = &std::get<2>(ttAdj_nmnOppEdge[currentTriIdx]);
 
+					const std::vector<int>& relaTrisIdx = *vecPtr[i];				// 当前非流形边所在的所有三角片（正常的话应该为两个）；
+					const std::vector<int>& relaOppTrisIdx = *vecOppPtr[i];	// 当前非流形边的所有对面三角片（正常的话应该为两个）；
 					switch (type)
 					{
 					case BOOLEAN_TYPE::DIFF:
 						{
-							const std::vector<int>& relaTrisIdx = *vecPtr[i];		// 当前非流形边所在的所有三角片（正常的话应该为两个）；
-							const std::vector<int>& relaOppTrisIdx = *vecOppPtr[i];	// 当前非流形边的所有对面三角片（正常的话应该为两个）；
 							assert(2 == relaTrisIdx.size() && "Exceptional non-manifold edge detected!");
 							assert(2 == relaOppTrisIdx.size() && "Exceptional non-manifold edge detected!");
 
@@ -1243,11 +1244,20 @@ namespace IGL_BASIC_PMP
 							break;
 						}
 
+					case BOOLEAN_TYPE::UNION:
+						{
+							// 若nbrTriIdx两个三角片都和startIdx三角片标签不同；往标签跳变的对面三角片上扩散；
+							nbrTriIdx = (trisLabel[relaOppTrisIdx[0]] == currentLabel ? relaOppTrisIdx[1] : relaOppTrisIdx[0]);
+							assert(trisLabel[relaOppTrisIdx[0]] != trisLabel[relaOppTrisIdx[1]] && "Exceptional non-manifold edge detected!");
+							break;
+						}
+
 					default:
-						return false;
+						assert("invalid BOOLEAN_TYPE!");
 					}
 				}
 
+				// wf2. 标记访问之后的三角片，队尾加入新的三角片
 				if (!visited[nbrTriIdx])
 				{
 					visited[nbrTriIdx] = true;
@@ -1256,53 +1266,57 @@ namespace IGL_BASIC_PMP
 			}
 		}
 
-		// 提取被标记的部分：
+		// 3. 找出区域生长过程中被标记的三角片，区分是否和起始三角片标记相同；
+		std::vector<int> selectedTrisIdx, selectedTrisIdx1, selectedTrisIdx2;
+		Eigen::MatrixXi selectedTris1, selectedTris2, selectedTris;
+		selectedTrisIdx.reserve(trisCount);
+		selectedTrisIdx1.reserve(trisCount);
+		selectedTrisIdx2.reserve(trisCount);
+		for (int i = 0; i < trisCount; ++i)
+		{
+			if (visited[i])
+			{
+				selectedTrisIdx.push_back(i);
+				if ((trisLabel[i] == startLabel))
+					selectedTrisIdx1.push_back(i);
+				else
+					selectedTrisIdx2.push_back(i);
+			}
+		}
+		selectedTrisIdx.shrink_to_fit();
+		selectedTrisIdx1.shrink_to_fit();
+		selectedTrisIdx2.shrink_to_fit();
+
+		// 4. 选取三角片生成结果网格：
 		switch (type)
 		{
 		case BOOLEAN_TYPE::DIFF:
 			{
-				// 找出区域生长过程中被标记的三角片，按是否和起始三角片标记相同分成两组；
-				std::vector<int> selectedTrisIdx1, selectedTrisIdx2;
-				Eigen::MatrixXi selectedTris1, selectedTris2;
-				selectedTrisIdx1.reserve(trisCount);
-				selectedTrisIdx2.reserve(trisCount);
-				for (int i = 0; i < trisCount; ++i)
-				{
-					if (visited[i])
-					{
-						if((trisLabel[i] == startLabel))
-							selectedTrisIdx1.push_back(i);
-						else
-							selectedTrisIdx2.push_back(i);
-					}
-				}
-				selectedTrisIdx1.shrink_to_fit();
-				selectedTrisIdx2.shrink_to_fit();
+				// d1. 提取被标记的三角片，区分是否和起始三角片标记相同；
 				subFromIdxVec(selectedTris1, tris, selectedTrisIdx1);
 				subFromIdxVec(selectedTris2, tris, selectedTrisIdx2);
 
-				// 与起始三角片标记不同，则flip该三角片
+				// d2. 与起始三角片标记不同，则flip该三角片
 				Eigen::VectorXi tmpVec = selectedTris2.col(2);
 				selectedTris2.col(2) = selectedTris2.col(1);
 				selectedTris2.col(1) = tmpVec;
 				trisOut = selectedTris1;
 				matInsertRows(trisOut, selectedTris2);
 
-				// 去除其他顶点，修正三角片中的索引；
+				// d3. 去除其他顶点，修正三角片中的索引；
 				std::set<int> newTrisIdxSet;
 				std::vector<int> newOldIdxInfo;
+				std::vector<int> oldNewIdxInfo(trisCount, -1);
+				int index = 0;
 				int* intPtr = trisOut.data();
 				for (unsigned i = 0; i < trisOut.size(); ++i)
 					newTrisIdxSet.insert(*(intPtr+ i));
 				newOldIdxInfo.insert(newOldIdxInfo.end(), newTrisIdxSet.begin(), newTrisIdxSet.end());
 
-				std::vector<int> oldNewIdxInfo(trisCount, -1);
-				int index = 0;
 				for (const auto& oldIdx : newOldIdxInfo)
 					oldNewIdxInfo[oldIdx] = index++;
 				
 				subFromIdxVec(versOut, vers, newOldIdxInfo);
-
 				intPtr = trisOut.data();
 				for (unsigned i = 0; i < trisOut.size(); ++i)
 				{
@@ -1312,6 +1326,37 @@ namespace IGL_BASIC_PMP
 
 				break;
 			}
+
+		case BOOLEAN_TYPE::UNION:
+			{
+				// u1. 提取被标记的三角片：
+				subFromIdxVec(selectedTris, tris, selectedTrisIdx);
+				trisOut = selectedTris;
+
+				// u2. 去除其他顶点，修正三角片中的索引；
+				std::set<int> newTrisIdxSet;
+				std::vector<int> newOldIdxInfo;
+				std::vector<int> oldNewIdxInfo(trisCount, -1);
+				int index = 0;
+				int* intPtr = trisOut.data();
+				for (unsigned i = 0; i < trisOut.size(); ++i)
+					newTrisIdxSet.insert(*(intPtr + i));
+				newOldIdxInfo.insert(newOldIdxInfo.end(), newTrisIdxSet.begin(), newTrisIdxSet.end());
+
+				for (const auto& oldIdx : newOldIdxInfo)
+					oldNewIdxInfo[oldIdx] = index++;
+
+				subFromIdxVec(versOut, vers, newOldIdxInfo);
+				intPtr = trisOut.data();
+				for (unsigned i = 0; i < trisOut.size(); ++i)
+				{
+					int& currentIdx = *(intPtr + i);
+					currentIdx = oldNewIdxInfo[currentIdx];
+				}
+
+				break;
+			}
+
 		default:
 			break;
 		}
@@ -1320,29 +1365,17 @@ namespace IGL_BASIC_PMP
 	}
 
 
-	// 选择合适的三角片用于booleanSelectTris中区域生长的起点：
-	int getStartTriIdx(const Eigen::MatrixXd& vers0, const Eigen::MatrixXi& tris0, \
-		const Eigen::MatrixXd& vers1, const Eigen::MatrixXi& tris1, \
-		const Eigen::MatrixXd& versArranged, const Eigen::MatrixXi& trisArranged)
-	{
-		// 在融合网格中，选取1网格区域外部属于0网格的任意一个三角片：
+ 
 
-		// 做1网格的方向包围盒，然后取盒外的融合网格任意一个三角片：
-
-		
-
-
-		return -1;
-	}
 
 	// test boolean:
 	void test3() 
 	{
-		Eigen::MatrixXd vers, versOut;
-		Eigen::MatrixXi tris, trisOut;
+		Eigen::MatrixXd vers, versDiff, versUnion;
+		Eigen::MatrixXi tris, trisDiff, trisUnion;
 		Eigen::VectorXi trisLabel;
 
-		igl::readOBJ("E:/meshArranged.obj", vers, tris);
+		igl::readOBJ("E:/材料/meshArranged.obj", vers, tris);
 		int trisCount = tris.rows();
 
 		// 读取trisLabel
@@ -1356,9 +1389,11 @@ namespace IGL_BASIC_PMP
 		}
 
 		int startIdx = 0;
-		booleanSelectTris(vers, tris, trisLabel, startIdx, BOOLEAN_TYPE::DIFF, versOut, trisOut);
+		booleanSelectTris(vers, tris, trisLabel, startIdx, BOOLEAN_TYPE::UNION, versUnion, trisUnion);
+		booleanSelectTris(vers, tris, trisLabel, startIdx, BOOLEAN_TYPE::DIFF, versDiff, trisDiff);
 
-		igl::writeOBJ("E:/diffResult.obj", versOut, trisOut);
+		igl::writeOBJ("E:/diffResult.obj", versDiff, trisDiff);
+		igl::writeOBJ("E:/unionResult.obj", versUnion, trisUnion);
 
 		std::cout << "finished." << std::endl;
 	}

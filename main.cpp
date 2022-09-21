@@ -61,10 +61,16 @@ int main()
 
 	// IGL_SPACE_PARTITION::test0();
 
-	SCIENTIFICCALC::test6();
+	// SCIENTIFICCALC::test6();
 
 	// IGL_BASIC_PMP::test3();
  
-	
+	Eigen::VectorXi v1(8);
+	v1 << 1, 2, 3, 4, 5, 6, 7, 8;
+	v1 = -v1;
+	Eigen::Vector3i v2(1,2,3);
+	std::vector<int> vec1 = vec2Vec(v1);
+	std::vector<int> vec2 = vec2Vec(v2);
+
 	std::cout << "main() finished." << std::endl;
 }

@@ -193,45 +193,47 @@ bool interpolateToLine(MatrixXf& vers, const RowVector3f& start, const RowVector
 ///////////////////////////////////////////////////////////////////////////////////////////////////// 不同数据类型的变换
 
 // 根据索引向量从源矩阵中提取元素生成输出矩阵。
-template <typename T>
-bool subFromIdxVec(Matrix<T, Dynamic, Dynamic>& matOut, const Matrix<T, Dynamic, Dynamic>& matIn, const VectorXi& vec)
+template <typename Derived>
+bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec)
 {
-	matOut.resize(vec.rows(), matIn.cols());
+	Derived& matOut = matBaseOut.derived();
+	matOut.resize(vec.size(), matBaseIn.cols());
 	for (unsigned i = 0; i < vec.rows(); ++i)
 	{
 		const int& index = vec(i);
-		matOut.row(i) = matIn.row(index);
+		matOut.row(i) = matBaseIn.row(index);
 	}
 
 	return true;
 }
+ 
 
-template <typename T>
-bool subFromIdxVec(Matrix<T, Dynamic, Dynamic>& matOut, const Matrix<T, Dynamic, Dynamic>& matIn, const std::vector<int>& vec)
+template <typename Derived>
+bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const std::vector<int>& vec)
 {
-	matOut.resize(vec.size(), matIn.cols());
+	Derived& matOut = matBaseOut.derived();
+	matOut.resize(vec.size(), matBaseIn.cols());
 	for (unsigned i = 0; i < vec.size(); ++i)
 	{
 		const int& index = vec[i];
-		matOut.row(i) = matIn.row(index);
+		matOut.row(i) = matBaseIn.row(index);
 	}
 
 	return true;
 }
 
-
 // 根据flag向量从源矩阵中提取元素生成输出矩阵。
-template<typename T>
-bool subFromFlagVec(Matrix<T, Dynamic, Dynamic>& matOut, const Matrix<T, Dynamic, Dynamic>& matIn, const VectorXi& vec)
+template <typename Derived>
+bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec)
 {
-	matOut.resize(vec.sum(), matIn.cols());
+	Derived& matOut = matBaseOut.derived();
+	matOut.resize(vec.sum(), matBaseIn.cols());
+
 	int count = 0;
 	for (unsigned i = 0; i < vec.rows(); ++i)
 	{
 		if (vec(i) > 0)
-		{
-			matOut.row(count++) = matIn.row(i);
-		}
+			matOut.row(count++) = matBaseIn.row(i);
 	}
 
 	return true;
@@ -249,6 +251,7 @@ std::vector<T>  vec2Vec(const Eigen::Matrix<T, N, 1>& vIn)
 	return vOut;
 }
 
+ 
 template<typename T, int N>
 Eigen::Matrix<T, N, 1> vec2Vec(const std::vector<T>& vIn)
 {
@@ -260,15 +263,15 @@ Eigen::Matrix<T, N, 1> vec2Vec(const std::vector<T>& vIn)
 	return vOut;
 }
 
-template<typename T>
-std::vector<T>  vec2Vec(const Eigen::Matrix<T, Dynamic, 1>& vIn)		// 注：Matrix<T, Dynamic, 1> == VectorXT;
-{
-	unsigned elemCount = vIn.rows();
-	std::vector<T> vOut(elemCount, 1);
-	std::memcpy(&vOut[0], vIn.data(), sizeof(T) * elemCount);
-
-	return vOut;
-}
+//template<typename T, int N>
+//std::vector<T>  vec2Vec(const Eigen::Matrix<T, N, 1>& vIn)		// 注：Matrix<T, Dynamic, 1> == VectorXT;
+//{
+//	unsigned elemCount = vIn.rows();
+//	std::vector<T> vOut(elemCount, 1);
+//	std::memcpy(&vOut[0], vIn.data(), sizeof(T) * elemCount);
+//
+//	return vOut;
+//}
 
 template<typename T>
 Eigen::Matrix<T, Dynamic, 1> vec2Vec(const std::vector<T>& vIn)
@@ -317,17 +320,14 @@ bool vecInsertVec(Eigen::Matrix<T, Dynamic, 1>& vec1, const Eigen::Matrix<T, Dyn
 
 //	矩阵末端插入矩阵
 template<typename T>
-bool matInsertRows(Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, Dynamic, Dynamic>& mat1)
+bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat1)
 {
 	unsigned cols = mat1.cols();
 	unsigned currentRows = mat.rows();
 	unsigned addRows = mat1.rows();
 	mat.conservativeResize(currentRows + addRows, cols);
 	for (unsigned i = 0; i < addRows; ++i)
-	{
 		mat.row(currentRows + i) = mat1.row(i);
-	}
-
 
 	return true;
 }
@@ -335,26 +335,24 @@ bool matInsertRows(Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, Dynamic, Dy
 
 //	矩阵末端插入行向量
 template<typename T, int N>
-bool matInsertRows(Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, 1, N>& rowVec)
+bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, 1, N>& rowVec)
 {
 	unsigned cols = rowVec.cols();
 	unsigned currentRows = mat.rows();
 
 	if (0 == cols)
-	{
 		return false;
-	}
 
 	if (rowVec.cols() != mat.cols() && rowVec.cols() != 0)
-	{
 		return false;
-	}
 
 	mat.conservativeResize(currentRows + 1, cols);
 	mat.row(currentRows) = rowVec;
 
 	return true;
 }
+
+
 
 
 // 返回一个类似于matlab索引向量的int列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；若程序出错则retVec所有元素为-1
@@ -623,16 +621,17 @@ void objReadMeshMat(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, Eigen::Matr
 };
 
 
-template	<typename DerivedV, typename DerivedI>
-void objWriteMeshMat(const char* fileName, const Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, \
-	const Eigen::Matrix<DerivedI, Dynamic, Dynamic>& tris)
+template	<typename T>
+void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Dynamic, Dynamic>& vers, const Eigen::MatrixXi& tris)
 {
 	std::ofstream dstFile(fileName);
+	if (vers.cols() != 3 || tris.cols() != 3)
+		return;
 
 	for (int j = 0; j < vers.rows(); j++)
 	{
 		char szBuf[256] = { 0 };
-		sprintf_s(szBuf, 256, "v %f %f %f", vers(j, 0), vers(j, 1), vers(j, 2));
+		sprintf_s(szBuf, 256, "v %f %f %f", static_cast<float>(vers(j, 0)), static_cast<float>(vers(j, 1)), static_cast<float>(vers(j, 2)));
 		dstFile << szBuf << "\n";
 	}
 
@@ -714,6 +713,8 @@ void objWriteVerticesMat(const char* fileName, const Eigen::Matrix<DerivedV, Dyn
 		dstFile << "v " << vers(i, 0) << " " << vers(i, 1) << " " << vers(i, 2) << std::endl;
 	dstFile.close();
 };
+
+
 
 
 void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& dir);
