@@ -383,6 +383,23 @@ namespace IGL_BASIC
 namespace IGL_DIF_GEO 
 {
 
+	// 质量矩阵和LB算子
+	void test0() 
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		Eigen::SparseMatrix<double> L, M;
+
+		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
+		igl::cotmatrix(vers, tris, L);
+		igl::massmatrix(vers, tris, igl::MassMatrixType::MASSMATRIX_TYPE_DEFAULT, M);
+
+		dispSpMat(M, 0, M.rows() - 1, 10);
+
+		std::cout << "finished." << std::endl;
+	}
+
+
 	// libigl中的网格布尔操作；！！！需要配置CGAL库，当前未完成；
 #if 0
 	// https://stackoverflow.com/questions/37898084/how-to-perform-boolean-operation-on-thin-surface-using-libigl

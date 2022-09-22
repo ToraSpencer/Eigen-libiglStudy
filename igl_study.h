@@ -24,6 +24,7 @@
 
 #include <igl/avg_edge_length.h>
 #include <igl/barycenter.h>
+#include <igl/massmatrix.h>
 #include <igl/cotmatrix.h>
 #include <igl/doublearea.h>
 #include <igl/grad.h>
@@ -49,8 +50,6 @@
 #include <igl/copyleft/cgal/mesh_boolean.h>
 
 #include "tutorial_shared_path.h"
-
-
 
 
 namespace IGL_BASIC
