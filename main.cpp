@@ -53,9 +53,9 @@ int main()
  
 	// SPARSEMAT::test0();
 	
-	// IGL_BASIC::test6();
+	IGL_BASIC::test7();
 
-	IGL_DIF_GEO::test0();
+	// IGL_DIF_GEO::test0();
 
 	// IGL_GRAPH::test2();
 

@@ -25,7 +25,7 @@ namespace IGL_BASIC
 		//igl::writeOFF("E:/fatTeeth1_预处理后.off", vers, tris);
 
 		// 读取stl文件；
-		std::string fileName{"E:/材料/jawMesh_noHP_noPro"};
+		std::string fileName{"E:/材料/jawMeshSimplified"};
 		vers.resize(0, 0);
 		tris.resize(0, 0);
 		std::ifstream fileIn((fileName + std::string{ ".stl" }).c_str(), std::ios::binary);			// stl文件是二进制文件；
@@ -96,7 +96,7 @@ namespace IGL_BASIC
  
 
 	// lambda——键盘事件：使用laplacian光顺网格
-	const auto& key_down = [](igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod)->bool
+	bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod)
 	{
 		switch (key)
 		{
@@ -257,16 +257,18 @@ namespace IGL_BASIC
 	}
 
 
-	// 读取SDFGen.exe生成的距离场数据，使用igl::marching_cubes()提取等值面网格：
-	void test55() 
-	{
-		tiktok& tt = tiktok::getInstance();
-		std::vector<int> stepCouts(3);				// xyz三个维度上栅格数
-		Eigen::RowVector3d gridsOri;					// 栅格原点：
-		std::ifstream sdfFile("E:/inputMesh.sdf");
-		std::string readStr(1024, '\0');
+	// 读取SDFGen.exe生成的.sdf距离场数据，使用igl::marching_cubes()提取等值面网格：
 
-		// 第一行：
+	// 解析.sdf文本文件：
+	double parseSDF(std::vector<int>& stepCounts, Eigen::RowVector3d& gridsOri, Eigen::VectorXd& SDF, const char* filePath)
+	{
+		double SDFstep = -1;
+		std::string readStr(1024, '\0');
+		std::ifstream sdfFile(filePath);
+		if (!sdfFile)
+			return SDFstep;
+
+		// 第一行：步数
 		{
 			std::string tmpStr;
 			sdfFile.getline(&readStr[0], 1024);
@@ -280,7 +282,7 @@ namespace IGL_BASIC
 				{
 					if (tmpStr.size() > 0)
 					{
-						stepCouts[index] = std::stoi(tmpStr);
+						stepCounts[index] = std::stoi(tmpStr);
 						index++;
 						tmpStr.clear();
 					}
@@ -288,7 +290,7 @@ namespace IGL_BASIC
 			}
 		}
 
-		// 第二行：
+		// 第二行：栅格原点
 		{
 			std::string tmpStr;
 			sdfFile.getline(&readStr[0], 1024);
@@ -310,29 +312,43 @@ namespace IGL_BASIC
 			}
 		}
 
-		// 第三行，距离场空间步长：
+		// 第三行：距离场空间步长：
 		sdfFile.getline(&readStr[0], 1024);
-		double SDFstep = std::stod(readStr);
+		SDFstep = std::stod(readStr);
 
-		// 第三行之后，距离场数据：
-		unsigned dataCount = stepCouts[0] * stepCouts[1] * stepCouts[2];
-		Eigen::VectorXd SDF(dataCount);
-		for (unsigned i = 0; i<dataCount; ++i) 
+		// 第三行之后：距离场数据：
+		unsigned dataCount = stepCounts[0] * stepCounts[1] * stepCounts[2];
+		SDF.resize(dataCount);
+		for (unsigned i = 0; i < dataCount; ++i)
 		{
 			sdfFile.getline(&readStr[0], 1024);
 			SDF(i) = std::stod(readStr);
 		}
 		sdfFile.close();
 
+		return SDFstep;
+	}
+
+
+	void test55() 
+	{
+		// 0. 解析SDFGen.exe生成的.sdf距离场数据文件：
+		std::vector<int> stepCounts(3);				// xyz三个维度上栅格数
+		Eigen::RowVector3d gridsOri;					// 栅格原点：
+		Eigen::VectorXd SDF;
+		const char* sdfFilePath = "E:/inputMesh.sdf";
+		double SDFstep = parseSDF(stepCounts, gridsOri, SDF, sdfFilePath);
+
 		// 1. 生成栅格：
 		Eigen::RowVector3i gridCounts;
 		Eigen::MatrixXd gridCenters;
-		Eigen::RowVector3d minp = gridsOri - SDFstep * Eigen::RowVector3d(stepCouts[0] / 2.0, stepCouts[1] / 2.0, stepCouts[2] / 2.0);
-		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCouts[0] / 2.0, stepCouts[1] / 2.0, stepCouts[2] / 2.0);
+		Eigen::RowVector3d minp = gridsOri - SDFstep * Eigen::RowVector3d(stepCounts[0] / 2.0, stepCounts[1] / 2.0, stepCounts[2] / 2.0);
+		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCounts[0] / 2.0, stepCounts[1] / 2.0, stepCounts[2] / 2.0);
 		Eigen::AlignedBox<double, 3> box(minp, maxp);
-		igl::voxel_grid(box, std::max({stepCouts[0], stepCouts[1], stepCouts[2]}), 0, gridCenters, gridCounts);
+		igl::voxel_grid(box, std::max({stepCounts[0], stepCounts[1], stepCounts[2]}), 0, gridCenters, gridCounts);
 		
 		// 2. marching cubes算法生成最终曲面：
+		tiktok& tt = tiktok::getInstance();
 		MatrixXd versResult_SDF, versResults_signs;
 		MatrixXi trisResult_SDF, trisResults_signs;
 		double selectedSDF = -1.;
@@ -373,6 +389,30 @@ namespace IGL_BASIC
 		std::cout << "obb.contains(-5, -5, -5) ? " << obb.contains(Eigen::RowVector3d(-5, -5, -5)) << std::endl;
  
 		igl::writeOBJ("E:/426.obj", MatrixXd{ RowVector3d(4, 2, 6) }, MatrixXi{});
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// 网格精简：
+	void test7() 
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		Eigen::VectorXi newOldTrisInfo;				// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
+		tiktok& tt = tiktok::getInstance();
+
+		igl::readOBJ("E:/材料/jawMeshDense.obj", vers, tris);
+		unsigned trisCount = tris.rows();
+		unsigned tarTrisCount = std::round(trisCount * 0.9);
+
+		tt.start();
+		std::cout << "succeeded? " << igl::decimate(vers, tris, tarTrisCount, versOut, trisOut, newOldTrisInfo) << std::endl;
+		tt.endCout("Elapsed time of mesh simplification is ");
+		std::vector<int> newOldTrisInfoVec = vec2Vec(newOldTrisInfo);
+
+		igl::writeOBJ("E:/meshIn.obj", vers, tris);
+		igl::writeOBJ("E:/meshSimplified.obj", versOut, trisOut);
 
 		std::cout << "finished." << std::endl;
 	}
@@ -1382,9 +1422,6 @@ namespace IGL_BASIC_PMP
 	}
 
 
- 
-
-
 	// test boolean:
 	void test3() 
 	{
@@ -1415,4 +1452,47 @@ namespace IGL_BASIC_PMP
 		std::cout << "finished." << std::endl;
 	}
 
+
+	// marching cubes:
+
+	//		输入AABB，生成栅格：
+	template <typename Scalar, typename DerivedV,	typename DerivedI>
+	bool genGrids(const Eigen::AlignedBox<Scalar, 3>& box, const int largestCount,	const int pad_count,\
+			Eigen::PlainObjectBase<DerivedV>& gridCenters, Eigen::PlainObjectBase<DerivedI>& gridCounts)
+	{
+		/*bool genGrids(																		成功返回true
+				const Eigen::AlignedBox<Scalar, 3>&box,						输入的AABB对象；
+				const int largestCount,													跨度最大的那个维度(xyz中的一个)的栅格数；		
+				const int pad_count,														超出包围盒边界的栅格数；
+				Eigen::PlainObjectBase<DerivedV>&gridCenters,			栅格中心；
+				Eigen::PlainObjectBase<DerivedI>&gridCounts				xyz三个维度上栅格的数量；
+				)
+		*/
+
+		return true;
+	}
+
+	bool marchingCubes(const Eigen::VectorXd& SDF, const Eigen::MatrixXd& gridCenters, const Eigen::RowVector3i& gridCounts, \
+				const double selectedSDF, Eigen::MatrixXd& versResult_SDF, Eigen::MatrixXi& trisResult_SDF)
+	{
+
+
+		return true;
+	}
+
+
+	void test4() 
+	{
+		// 0. 解析SDFGen.exe生成的.sdf距离场数据文件：
+		std::vector<int> stepCounts(3);				// xyz三个维度上栅格数
+		Eigen::RowVector3d gridsOri;					// 栅格原点：
+		Eigen::VectorXd SDF;
+		const char* sdfFilePath = "E:/inputMesh.sdf";
+		double SDFstep = IGL_BASIC::parseSDF(stepCounts, gridsOri, SDF, sdfFilePath);
+
+
+
+
+
+	}
 }

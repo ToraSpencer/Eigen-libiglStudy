@@ -47,6 +47,8 @@
 #include <igl/signed_distance.h>
 #include <igl/marching_cubes.h>
 
+#include <igl/decimate.h>
+
 #include <igl/copyleft/cgal/mesh_boolean.h>
 
 #include "tutorial_shared_path.h"
