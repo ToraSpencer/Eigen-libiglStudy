@@ -13,18 +13,134 @@
 #include <random>
 #include <initializer_list>
 #include <memory>
+#include <thread>
 #include <windows.h>
 
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
 
-
 using namespace std;
 using namespace Eigen;
 
 
-
 /////////////////////////////////////////////////////////////////////////////////////////////////// 控制台打印接口
+
+// 并行for循环
+template<typename Func>
+void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, const unsigned int serial_if_less_than = 12)
+{
+	/*
+		PARALLEL_FOR(
+			unsigned int   beg,                                     起始元素索引
+			unsigned int  end,                                      尾元素索引
+			const unsigned int  serial_if_less_than,      如果需要处理的元素不小于该值，则使用并行化；
+			const Func & func										操作元素的函数子；
+			)
+	*/
+	unsigned int elemCount = end - beg + 1;
+
+	if (elemCount < serial_if_less_than)
+		for (unsigned int i = beg; i < end; ++i) 
+			func(i);
+	else
+	{
+		// 确定起的线程数；
+		const static unsigned n_threads_hint = std::thread::hardware_concurrency();
+		const static unsigned n_threads = (n_threads_hint == 0u) ? 8u : n_threads_hint;
+
+		// for循环的范围分解成几段；
+		unsigned int slice = (unsigned int)std::round(elemCount / static_cast<double>(n_threads));
+		slice = std::max(slice, 1u);
+
+		// 线程函数：
+		auto subTraverse = [&func](unsigned int head, unsigned int tail)
+		{
+			for (unsigned int k = head; k < tail; ++k)
+				func(k);
+		};
+
+		// 生成线程池，执行并发for循环；
+		std::vector<std::thread> pool;              // 线程池；
+		pool.reserve(n_threads);
+		unsigned int head = beg;
+		unsigned int tail = std::min(beg + slice, end);
+		for (unsigned int i = 0; i + 1 < n_threads && head < end; ++i)
+		{
+			pool.emplace_back(subTraverse, head, tail);
+			head = tail;
+			tail = std::min(tail + slice, end);
+		}
+		if (head < end)
+			pool.emplace_back(subTraverse, head, end);
+
+		// 线程同步；
+		for (std::thread& t : pool)
+		{
+			if (t.joinable())
+				t.join();
+		}
+	}
+}
+
+
+// 变参并行for循环——索引以外的参数使用std::tuple传入；
+template<typename Func, typename paramTuple>
+void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, const paramTuple& pt, const unsigned int serial_if_less_than = 12)
+{
+	/*
+		PARALLEL_FOR(
+			unsigned int   beg,                                     起始元素索引
+			unsigned int  end,                                      尾元素索引
+			const unsigned int  serial_if_less_than,      如果需要处理的元素不小于该值，则使用并行化；
+			const paramTuple& pt								索引以外的其他参数；
+			const Func & func										操作元素的函数子；
+			)
+	*/
+	unsigned int elemCount = end - beg + 1;
+
+	if (elemCount < serial_if_less_than)
+		for (unsigned int i = beg; i < end; ++i)
+			func(i, pt);
+	else
+	{
+		// 确定起的线程数；
+		const static unsigned n_threads_hint = std::thread::hardware_concurrency();
+		const static unsigned n_threads = (n_threads_hint == 0u) ? 8u : n_threads_hint;
+
+		// for循环的范围分解成几段；
+		unsigned int slice = (unsigned int)std::round(elemCount / static_cast<double>(n_threads));
+		slice = std::max(slice, 1u);
+
+		// 线程函数：
+		auto subTraverse = [&func, &pt](unsigned int head, unsigned int tail)
+		{
+			for (unsigned int k = head; k < tail; ++k)
+				func(k, pt);
+		};
+
+		// 生成线程池，执行并发for循环；
+		std::vector<std::thread> pool;              // 线程池；
+		pool.reserve(n_threads);
+		unsigned int head = beg;
+		unsigned int tail = std::min(beg + slice, end);
+		for (unsigned int i = 0; i + 1 < n_threads && head < end; ++i)
+		{
+			pool.emplace_back(subTraverse, head, tail);
+			head = tail;
+			tail = std::min(tail + slice, end);
+		}
+		if (head < end)
+			pool.emplace_back(subTraverse, head, end);
+
+		// 线程同步；
+		for (std::thread& t : pool)
+		{
+			if (t.joinable())
+				t.join();
+		}
+	}
+}
+
 
 // 传入函数子或函数指针遍历stl容器
 template<typename T, typename F>
@@ -205,7 +321,6 @@ bool interpolateToLine(MatrixXf& vers, const RowVector3f& start, const RowVector
 
 
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////// 不同数据类型的变换
 
 // 根据索引向量从源矩阵中提取元素生成输出矩阵。
@@ -367,8 +482,6 @@ bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const 
 
 	return true;
 }
-
-
 
 
 // 返回一个类似于matlab索引向量的int列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；若程序出错则retVec所有元素为-1
@@ -731,8 +844,6 @@ void objWriteVerticesMat(const char* fileName, const Eigen::Matrix<DerivedV, Dyn
 };
 
 
-
-
 void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& dir);
 
 
@@ -938,6 +1049,44 @@ double meshVolume(const Eigen::MatrixBase<DerivedV>& V, const Eigen::MatrixBase<
 }
 
 
+// 计算稠密矩阵的克罗内克积（Kronecker product）
+template <typename T, typename Derived1, typename Derived2>
+void kron(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& result, \
+	const Eigen::MatrixBase<Derived1>& mm1, \
+	const Eigen::MatrixBase<Derived2>& mm2)
+{
+	// A(m×n) tensor B(p×q) == C(m*p × n*q);
+	/*
+		其中C.block(i * m, j* n, p, q) == Aij * B;
+	*/
+	const Derived1& m1 = mm1.derived();
+	const Derived2& m2 = mm2.derived();
+
+	unsigned m = m1.rows();
+	unsigned n = m1.cols();
+	unsigned p = m2.rows();
+	unsigned q = m2.cols();
+
+	result.resize(0, 0);						// 重新分配内存；
+	result.resize(m * p, n * q);
+	Eigen::VectorXi rowIdxVec = Eigen::VectorXi::LinSpaced(0, m - 1, m - 1);
+	auto calcKronCol = [&](const unsigned colIdx, const std::tuple<unsigned>& pt)
+	{
+		unsigned rowIdx0 = std::get<0>(pt);
+		result.block(rowIdx0 * p, colIdx * q, p, q) = static_cast<T>(m1(rowIdx0, colIdx)) * m2.array().cast<T>();		// 转换成输出矩阵中的数据类型；
+	};
+
+	auto calcKronRow = [&](const unsigned rowIdx)
+	{
+		std::tuple<unsigned> pt0 = std::make_tuple(rowIdx);
+		PARALLEL_FOR(0, n, calcKronCol, pt0);
+	};
+
+	PARALLEL_FOR(0, m, calcKronRow);
+}
+
+
+
 // 多项式插值
 void polyInterpolation();
 
@@ -955,10 +1104,6 @@ void ridgeRegressionPolyFitting(VectorXf& theta, const MatrixXf& vers);
 
 
 Matrix3f getRotationMat(const RowVector3f& originArrow, const RowVector3f& targetArrow);
-
-
-
-
 
 
 
@@ -990,6 +1135,7 @@ public:
 		this->endTik = GetTickCount();
 		std::cout << str << endTik - startTik << std::endl;
 	}
+
 
 	bool endWrite(const char* fileName, const char* str)
 	{

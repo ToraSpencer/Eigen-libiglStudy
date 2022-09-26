@@ -307,17 +307,22 @@ namespace DENSEMAT
 		cout << m1.colwise().sum() << endl << endl;				// 按列求和，压成一个行向量
 		cout << m1.rowwise().sum() << endl << endl;				// 按行求和，压成一个列向量。
 
-		// 矩阵扩张——通过矩阵乘法实现
-		MatrixXf  a(1, 3), b(3, 1);
-		a << 1, 2, 3;
-		b << 4, 5, 6;
-		//		行向量扩张N行 == 左乘ones(N,1)
-		auto aa = MatrixXf::Ones(3, 1) * a;
-		//		列向量扩张为N列 == 右乘ones(1,N)
-		auto bb = b * MatrixXf::Ones(1, 4);
-
+		// 矩阵扩张——通过矩阵乘法，或克罗内克积实现；类似于matlab中的repmat();
+		std::cout << "矩阵扩张：" << std::endl;
+		RowVector3f a(1,2,3);
+		Vector3f b(4, 5, 6);
+		
+		auto aa = MatrixXf::Ones(3, 1) * a;			//		行向量扩张N行 == 左乘ones(N,1)
+		auto bb = b * MatrixXf::Ones(1, 4);			//		列向量扩张为N列 == 右乘ones(1,N)
 		cout << aa << endl << endl;;
 		cout << bb << endl << endl;
+
+		MatrixXf aaa, bbbb;
+		kron(aaa, RowVector3f::Ones(), a);
+		kron(bbbb, Matrix2i::Ones(), b);
+		cout << aaa << endl << endl;;
+		cout << bbbb << endl << endl;
+
 
 		// reverse();
 		m1.resize(3, 3);

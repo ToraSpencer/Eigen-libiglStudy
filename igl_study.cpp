@@ -259,7 +259,7 @@ namespace IGL_BASIC
 
 	// 读取SDFGen.exe生成的.sdf距离场数据，使用igl::marching_cubes()提取等值面网格：
 
-	// 解析.sdf文本文件：
+	//		解析.sdf文本文件：
 	double parseSDF(std::vector<int>& stepCounts, Eigen::RowVector3d& gridsOri, Eigen::VectorXd& SDF, const char* filePath)
 	{
 		double SDFstep = -1;
@@ -1455,6 +1455,43 @@ namespace IGL_BASIC_PMP
 
 	// marching cubes:
 
+	template <
+		typename Derivedres,
+		typename DerivedV>
+		IGL_INLINE void grid(
+			const Eigen::MatrixBase<Derivedres>& res,
+			Eigen::PlainObjectBase<DerivedV>& GV)
+	{
+		using namespace Eigen;
+		typedef typename DerivedV::Scalar Scalar;
+		GV.resize(res.array().prod(), res.size());
+		const auto lerp = [&res](const Scalar di, const int d)->Scalar {return di / (Scalar)(res(d) - 1); };
+
+		int gi = 0;
+		Derivedres sub;
+		sub.resizeLike(res);
+		sub.setConstant(0);
+
+		for (int gi = 0; gi < GV.rows(); gi++)
+		{
+			// omg, I'm implementing addition...
+			for (int c = 0; c < res.size() - 1; c++)
+			{
+				if (sub(c) >= res(c))
+				{
+					sub(c) = 0;
+					// roll over
+					sub(c + 1)++;
+				}
+			}
+
+			for (int c = 0; c < res.size(); c++)
+				GV(gi, c) = lerp(sub(c), c);
+
+			sub(0)++;
+		}
+	}
+
 	//		输入AABB，生成栅格：
 	template <typename Scalar, typename DerivedV,	typename DerivedI>
 	bool genGrids(const Eigen::AlignedBox<Scalar, 3>& box, const int largestCount,	const int pad_count,\
@@ -1468,9 +1505,61 @@ namespace IGL_BASIC_PMP
 				Eigen::PlainObjectBase<DerivedI>&gridCounts				xyz三个维度上栅格的数量；
 				)
 		*/
+		using namespace Eigen;
+		using namespace std;
+
+		// 1. 计算包围盒对角线向量中的最大分量；
+		gridCounts.resize(1, 3);
+		typename DerivedV::Index maxCompIdx = -1;            // 包围盒box的对角线向量中最大的分量的索引；0,1,2分别对应xyz分量；
+		box.diagonal().maxCoeff(&maxCompIdx);
+		const Scalar maxComp = box.diagonal()(maxCompIdx);          // 包围盒box的对角线向量中最大的分量；
+		assert(largestCount > (pad_count * 2 + 1) && "largestCount should be > 2*pad_count+1");
+
+
+		// 2. 计算xyz三个维度上栅格的个数gridCounts
+		const Scalar largestCount0 = largestCount - 2 * pad_count;
+		gridCounts(maxCompIdx) = largestCount0;
+		for (int i = 0; i < 3; i++)
+		{
+			if (i != maxCompIdx)
+				gridCounts(i) = std::ceil(largestCount0 * (box.diagonal()(i)) / maxComp);
+		}
+		gridCounts.array() += 2 * pad_count;
+
+		// 3. 计算gridCenters;
+		grid(gridCounts, gridCenters);            // 计算中心在原点的gridCenters;
+
+		/*
+			 A *    p/largestCount  + B = min
+			 A * (1-p/largestCount) + B = max
+			 B = min - A * p/largestCount
+			 A * (1-p/largestCount) + min - A * p/largestCount = max
+			 A * (1-p/largestCount) - A * p/largestCount = max-min
+			 A * (1-2p/largestCount) = max-min
+			 A  = (max-min)/(1-2p/largestCount)
+		*/
+
+		auto tmp = gridCounts.transpose().template cast<Scalar>().array() - 1.;
+		const Array<Scalar, 3, 1> ps = (Scalar)(pad_count) / tmp;
+		const Array<Scalar, 3, 1> A = box.diagonal().array() / (1.0 - 2. * ps);
+
+		/*
+			// This would result in an "anamorphic",  but perfectly fit grid:
+			const Array<Scalar, 3, 1> B = box.min().array() - A.array()*ps;
+			gridCenters.array().rowwise() *= A.transpose();
+			gridCenters.array().rowwise() += B.transpose();
+			 Instead scale by largest factor and move to match center
+		*/
+		typename Array<Scalar, 3, 1>::Index ai = -1;
+		Scalar a = A.maxCoeff(&ai);
+		const Array<Scalar, 1, 3> ratio = a * (gridCounts.template cast<Scalar>().array() - 1.0) / (Scalar)(gridCounts(ai) - 1.0);
+		gridCenters.array().rowwise() *= ratio;
+		const Eigen::Matrix<Scalar, 1, 3> offset = (box.center().transpose() - gridCenters.colwise().mean()).eval();
+		gridCenters.rowwise() += offset;
 
 		return true;
 	}
+
 
 	bool marchingCubes(const Eigen::VectorXd& SDF, const Eigen::MatrixXd& gridCenters, const Eigen::RowVector3i& gridCounts, \
 				const double selectedSDF, Eigen::MatrixXd& versResult_SDF, Eigen::MatrixXi& trisResult_SDF)
@@ -1481,7 +1570,7 @@ namespace IGL_BASIC_PMP
 	}
 
 
-	void test4() 
+	void test4()
 	{
 		// 0. 解析SDFGen.exe生成的.sdf距离场数据文件：
 		std::vector<int> stepCounts(3);				// xyz三个维度上栅格数
@@ -1490,9 +1579,42 @@ namespace IGL_BASIC_PMP
 		const char* sdfFilePath = "E:/inputMesh.sdf";
 		double SDFstep = IGL_BASIC::parseSDF(stepCounts, gridsOri, SDF, sdfFilePath);
 
+		// 1. 生成栅格：
+		Eigen::RowVector3i gridCounts;
+		Eigen::MatrixXd gridCenters;
+		Eigen::RowVector3d minp = gridsOri - SDFstep * Eigen::RowVector3d(stepCounts[0] / 2.0, stepCounts[1] / 2.0, stepCounts[2] / 2.0);
+		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCounts[0] / 2.0, stepCounts[1] / 2.0, stepCounts[2] / 2.0);
+		Eigen::AlignedBox<double, 3> box(minp, maxp);
+		genGrids(box, std::max({ stepCounts[0], stepCounts[1], stepCounts[2] }), 0, gridCenters, gridCounts);
 
+		// gridCenters是所有栅格中点坐标的矩阵，每行都是一个中点坐标；存储优先级是x, y, z
+		Eigen::MatrixXd gridCenters0;
+		Eigen::RowVector3i gridCounts0{stepCounts[0], stepCounts[1], stepCounts[2]};
+		Eigen::RowVector3d arrow = box.diagonal();
+		gridCenters0.resize(gridCounts0(0) * gridCounts(1) * gridCounts(2), 3);
+		Eigen::VectorXd xPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(0), minp(0), maxp(0));
+		Eigen::VectorXd yPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(1), minp(1), maxp(1));
+		Eigen::VectorXd zPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(2), minp(2), maxp(2));
 
+		Eigen::MatrixXd tmpVec0, tmpVec1, tmpVec2;
+		kron(tmpVec0, VectorXd::Ones(gridCounts(1) * gridCounts(2)), xPeriod);
+ 
 
+		// for debug
+		dispVec<double>(xPeriod);
+		dispVecSeg<double>(Eigen::VectorXd{ tmpVec0 }, 0, 150);
+		dispMatBlock<double>(gridCenters, 0, 144, 0, 2);
+
+		// 2. marching cubes算法生成最终曲面：
+		tiktok& tt = tiktok::getInstance();
+		MatrixXd versResult_SDF, versResults_signs;
+		MatrixXi trisResult_SDF, trisResults_signs;
+		double selectedSDF = -1.;
+		tt.start();
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
+		tt.endCout("Elapsed time of igl::marching_cubes() is ");
+
+		igl::writeOBJ("E:/shrinkedMesh.obj", versResult_SDF, trisResult_SDF);
 
 	}
 }

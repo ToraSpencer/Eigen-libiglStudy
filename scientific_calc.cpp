@@ -96,6 +96,33 @@ namespace SCIENTIFICCALC
 		std::cout << "finished." << std::endl;
 	}
 
+
+	// 测试计算克罗内克积(Kronecker product);
+	void test7() 
+	{
+		Eigen::MatrixXd result, m1, m2;
+		Eigen::VectorXd vec = Eigen::VectorXd::LinSpaced(100, 1, 100);
+
+		m1 = Eigen::Map<MatrixXd>(vec.data(), 10, 10);
+		m2.resize(2, 2);
+		m2 << 1, 1.1, 1, 1;
+		Eigen::Matrix2d m22;
+		m22 << 1, 1.1, 1, 1;
+
+		kron(result, m1, m2);
+		dispMat(m1);
+		dispMat(result);
+
+		kron(result, m1, m22);
+		dispMat(result);
+
+		Eigen::Vector3f v1(1,2,3);
+		Eigen::Vector4f v2{Eigen::Vector4f::Ones()};
+		kron(result, v1, v2);
+		dispMat(result);
+
+		std::cout << "finished." << std::endl;
+	}
 }
 
 
@@ -107,9 +134,6 @@ namespace IGL_MATH
 	void test0() 
 	{
 
-
-
 	}
 }
-
 

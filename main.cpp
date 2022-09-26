@@ -46,14 +46,80 @@
 	CMAKE_INTDIR="Release"
 */
 
- 
+
+// 测试并行for循环PARALLEL_FOR()
+void test0() 
+{
+	tiktok& tt = tiktok::getInstance();
+	const unsigned colsCount = 500000;
+	Eigen::MatrixXd m1{ Eigen::MatrixXd::Random(100, colsCount) };
+	Eigen::VectorXd sumVec(colsCount);
+	auto myPlus = [&](const unsigned colIdx)
+	{
+		Eigen::VectorXd colVec = m1.col(colIdx);
+		sumVec(colIdx) = colVec.sum();
+	};
+
+	tt.start();
+	for (unsigned i = 0; i < colsCount; ++i)
+	{
+		Eigen::VectorXd colVec = m1.col(i);
+		sumVec(i) = colVec.sum();
+	}
+	tt.endCout("regular for-loop time comsumed: ");
+
+	tt.start();
+	PARALLEL_FOR(0, colsCount, myPlus);
+	tt.endCout("PARALLEL_FOR loop time comsumed: ");
+
+	std::cout << "finished." << std::endl;
+}
+
+
+template <typename T, int M, int N>
+void dispData(const Eigen::Matrix<T, M, N>& m)
+{
+	auto dataPtr = m.data();
+	unsigned elemsCount = m.size();
+
+	for (unsigned i = 0; i < elemsCount; ++i)
+		std::cout << dataPtr[i] << ", ";
+
+	std::cout << std::endl;
+}
+
+
+template <typename Derived>
+void dispData(const Eigen::PlainObjectBase<Derived>& m)
+{
+	int m0 = m.RowsAtCompileTime;
+	int n0 = m.ColsAtCompileTime;
+
+	auto dataPtr = m.data();
+	unsigned elemsCount = m.size();
+
+	for (unsigned i = 0; i < elemsCount; ++i)
+		std::cout << dataPtr[i] << ", ";
+
+	std::cout << std::endl;
+}
+
+
+template <typename Derived>
+void dispElem(const Eigen::MatrixBase<Derived>& m)
+{
+	const Derived& mm = m.derived();
+	std::cout << mm(1, 1) << std::endl;
+}
+
+
 int main()
 {
-	// DENSEMAT::test14();
+	// DENSEMAT::test2();
  
 	// SPARSEMAT::test0();
 	
-	IGL_BASIC::test7();
+	// IGL_BASIC::test7();
 
 	// IGL_DIF_GEO::test0();
 
@@ -61,9 +127,10 @@ int main()
 
 	// IGL_SPACE_PARTITION::test0();
 
-	// SCIENTIFICCALC::test6();
+	// SCIENTIFICCALC::test7();
 
-	// IGL_BASIC_PMP::test3();
+	IGL_BASIC_PMP::test4();
+
  
 
 	std::cout << "main() finished." << std::endl;
