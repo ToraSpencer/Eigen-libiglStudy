@@ -399,20 +399,27 @@ namespace IGL_BASIC
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
-		Eigen::VectorXi newOldTrisInfo;				// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
+		Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
+		Eigen::VectorXi newOldVersInfo;						 
 		tiktok& tt = tiktok::getInstance();
 
-		igl::readOBJ("E:/材料/jawMeshDense.obj", vers, tris);
+		// igl::readOBJ("E:/材料/jawMeshDense.obj", vers, tris);
+		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
 		unsigned trisCount = tris.rows();
-		unsigned tarTrisCount = std::round(trisCount * 0.9);
+		unsigned tarTrisCount = std::round(trisCount * 0.5);
 
+
+		// 当前使用igl::decimate()简化简单的网格可以成功，太复杂的网格会失败；
 		tt.start();
-		std::cout << "succeeded? " << igl::decimate(vers, tris, tarTrisCount, versOut, trisOut, newOldTrisInfo) << std::endl;
+		std::cout << "succeeded? " << igl::decimate(vers, tris, tarTrisCount, versOut, trisOut, newOldTrisInfo, newOldVersInfo) << std::endl;
 		tt.endCout("Elapsed time of mesh simplification is ");
 		std::vector<int> newOldTrisInfoVec = vec2Vec(newOldTrisInfo);
+		Eigen::MatrixXd vers1;
+		subFromIdxVec(vers1, vers, newOldVersInfo);
 
 		igl::writeOBJ("E:/meshIn.obj", vers, tris);
 		igl::writeOBJ("E:/meshSimplified.obj", versOut, trisOut);
+		igl::writeOBJ("E:/meshSimplifiedVers.obj", vers1, Eigen::MatrixXi{});
 
 		std::cout << "finished." << std::endl;
 	}
