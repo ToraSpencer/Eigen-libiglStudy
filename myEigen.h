@@ -176,25 +176,23 @@ void dispQuat(const Quaternion<T>& q)
 }
 
 
-template<typename T>
-void dispMat(const Matrix<T, Dynamic, Dynamic>& mat)
+template <typename Derived>
+void dispMat(const Eigen::PlainObjectBase<Derived>& mat)
 {
 	std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
 	for (int i = 0; i < mat.rows(); ++i)
 	{
 		std::cout << i << " ---\t";
 		for (int j = 0; j < mat.cols(); ++j)
-		{
-			std::cout << mat(i, j) << ", ";
-		}
+			std::cout << mat.coeff(i, j) << ", ";
 		std::cout << std::endl;
 	}
 	std::cout << std::endl;
 }
 
-
-template<typename T>
-void dispMatBlock(const Matrix<T, Dynamic, Dynamic>& mat, const int rowStart, const int rowEnd, const int colStart, const int colEnd)
+ 
+template <typename Derived>
+void dispMatBlock(const Eigen::PlainObjectBase<Derived>& mat, const int rowStart, const int rowEnd, const int colStart, const int colEnd)
 {
 	if (rowEnd > mat.rows() - 1 || rowStart < 0 || rowStart >= rowEnd)
 		return;
@@ -853,15 +851,15 @@ void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const
 
 // 边数据写入到OBJ文件中：
 template	<typename DerivedV, typename DerivedI>
-void objWriteEdgesMat(const char* pathName, const Eigen::Matrix<DerivedI, Dynamic, Dynamic>& edges, \
-	const Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers)
+void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<DerivedI>& edges, \
+	const Eigen::PlainObjectBase<DerivedV>& vers)
 {
 	std::ofstream dstFile(pathName);
 	for (int i = 0; i < vers.rows(); ++i)
-		dstFile << "v " << vers(i, 0) << " " << vers(i, 1) << " " << vers(i, 2) << std::endl;
+		dstFile << "v " << vers.coeffRef(i, 0) << " " << vers.coeffRef(i, 1) << " " << vers.coeffRef(i, 2) << std::endl;
 
 	for (int i = 0; i < edges.rows(); ++i)
-		dstFile << "l " << edges(i, 0) + 1 << " " << edges(i, 1) + 1 << std::endl;
+		dstFile << "l " << edges.coeffRef(i, 0) + 1 << " " << edges.coeffRef(i, 1) + 1 << std::endl;
 
 	dstFile.close();
 }

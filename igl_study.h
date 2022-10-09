@@ -22,6 +22,9 @@
 #include <igl/readSTL.h>
 #include <igl/writeSTL.h>
 
+#include <igl/slice.h>
+
+
 #include <igl/avg_edge_length.h>
 #include <igl/barycenter.h>
 #include <igl/massmatrix.h>
@@ -35,6 +38,8 @@
 #include <igl/repdiag.h>
 #include <igl/opengl/glfw/Viewer.h>
 
+#include <igl/edge_flaps.h>
+#include <igl/unique_edge_map.h>
 #include <igl/adjacency_list.h>
 #include <igl/adjacency_matrix.h>
 #include <igl/dfs.h>
@@ -48,6 +53,7 @@
 #include <igl/marching_cubes.h>
 
 #include <igl/decimate.h>
+#include <igl/collapse_edge.h>
 
 #include <igl/copyleft/cgal/mesh_boolean.h>
 
@@ -57,6 +63,8 @@
 namespace IGL_BASIC
 {
 	const double pi = 3.14159;
+	void test00();
+	void test000();
 	void test0();
 	void test1();
 	void test2();
@@ -66,6 +74,7 @@ namespace IGL_BASIC
 	void test55();
 	void test6();
 	void test7();
+	void test77();
 	void test8();
 	void test9();
 	void test10();

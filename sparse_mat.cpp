@@ -18,7 +18,7 @@ namespace SPARSEMAT
 		//					使用三元数数组生成稀疏矩阵——setFromTriplets()
 		SparseMatrix<float> sm1(6, 7);
 		sm1.setFromTriplets(tripList.begin(), tripList.end());
-		dispMat<float>(sm1.toDense());
+		dispMat(sm1.toDense());
 
 		//					插入元素的方式生成稀疏矩阵——insert()
 		SparseMatrix<float> sm2(120, 100);
@@ -70,7 +70,7 @@ namespace SPARSEMAT
 				else
 					return false;
 			});
-		dispMat<float>(sm1.toDense());
+		dispMat(sm1.toDense());
 		std::cout << "sm1.nonZeros() == " << sm1.nonZeros() << std::endl;
 		std::cout << "sm1.isCompressed() == " << sm1.isCompressed() << std::endl;
 
@@ -81,7 +81,7 @@ namespace SPARSEMAT
 				else
 					return true;
 			});
-		dispMat<float>(sm11.toDense());
+		dispMat(sm11.toDense());
 		std::cout << "sm11.nonZeros() == " << sm11.nonZeros() << std::endl;
 
 
@@ -158,7 +158,7 @@ namespace SPARSEMAT
 
 		// 使用sp2的某一行给sp1的某一列赋值时，必须将该行向量转置为列向量，否则会出错，且编译器不报异常；
 		sm1.col(0) = sm2.row(0).transpose();
-		dispMat<float>(sm1.toDense());
+		dispMat(sm1.toDense());
 	}
 
 

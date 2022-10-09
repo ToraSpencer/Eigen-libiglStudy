@@ -13,8 +13,8 @@ namespace SCIENTIFICCALC
 		// 1. 顶点使用齐次坐标来表示——一个点是一个四元列向量(w*x, w*y, w*z, w)，w通常为1，为0时表示无穷远处的点。
 		MatrixXf versHomo;
 		vers2homoVers(versHomo, vers);
-		dispMatBlock<float>(vers, 0, 3, 0, 2);
-		dispMatBlock<float>(versHomo, 0, 3, 0, 3);
+		dispMatBlock(vers, 0, 3, 0, 2);
+		dispMatBlock(versHomo, 0, 3, 0, 3);
 
 		// 2. 笛卡尔坐标下施加仿射变换——旋转、放缩，最后平移：
 		Matrix3f scale = Matrix3f::Identity();

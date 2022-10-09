@@ -3,6 +3,7 @@
 #define DATA_PATH "./data/"
 
 
+
 // libigl基本功能
 namespace IGL_BASIC
 {
@@ -10,6 +11,92 @@ namespace IGL_BASIC
 	Eigen::MatrixXi tris;
 	Eigen::SparseMatrix<double> L;
 	igl::opengl::glfw::Viewer viewer;		// libigl中的基于glfw的显示窗口；
+
+	// igl中基础的矩阵算子：
+	void test00() 
+	{
+		Eigen::MatrixXi m1(3, 3);
+		Eigen::MatrixXi m11;
+		Eigen::VectorXi vec1(2);
+
+		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9;
+		dispMat(m1);
+
+		// slice()——使用索引矩阵、索引向量提取矩阵中的元素；
+		/*
+			  template <typename MatX,  typename DerivedR,  typename MatY>
+			  IGL_INLINE void slice(
+						const MatX& X,																	输入矩阵
+						const Eigen::DenseBase<DerivedR> & R,							索引向量
+						const int dim,															维度——1-行，2-列；
+						MatY& Y																				输出矩阵；
+					)
+		*/
+
+		vec1 << 0, 2;
+		igl::slice(m1, vec1, 1, m11);				// 提取第0, 2行；
+		dispMat(m11);
+
+		igl::slice(m1, vec1, 2, m11);				// 提取第0, 2列；
+		dispMat(m11);
+
+		Eigen::VectorXi vec2(2);
+		vec2 << 1, 2;
+		igl::slice(m1, vec1, vec2, m11);		// 等价于：m11 == m1(0: 2, 1: 2);
+		dispMat(m11);
+
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// igl中计算基础几何属性的接口：
+	void test000()
+	{
+		// unique_edge_map()——计算网格的半边、无向边、及其对应关系；
+		bool retFlag = igl::readOBJ("E:/材料/cube.obj", vers, tris);
+		Eigen::MatrixXi edges, uEdges;
+		Eigen::VectorXi edgeUeInfo;
+		std::vector<std::vector<int>> UeEdgeInfo;
+		igl::unique_edge_map(tris, edges, uEdges, edgeUeInfo, UeEdgeInfo);
+
+		std::cout << "tris:" << std::endl;
+		dispMat(tris);
+		std::cout << "edges:" << std::endl;
+		dispMat(edges);				// 半边
+		std::cout << "uEdges:" << std::endl;
+		dispMat(uEdges);			// 无向边，既是undirected的又是unique的；
+		std::cout << "edgeUeInfo:" << std::endl;
+		dispMat(edgeUeInfo);		// 半边在无向边中对应的索引；
+
+		Eigen::VectorXi uEC, uEE;
+		igl::unique_edge_map(tris, edges, uEdges, edgeUeInfo, uEC, uEE);
+
+		std::cout << "uEC:" << std::endl;
+		dispMat(uEC);		 
+		std::cout << "uEE:" << std::endl;
+		dispMat(uEE);
+
+
+		// edge_flaps()——计算无向边关联的三角片；
+		Eigen::MatrixXi UeTrisInfo, UeCornersInfo;
+		igl::edge_flaps(tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
+		std::cout << "UeTrisInfo:" << std::endl;
+		dispMat(UeTrisInfo);								// 第i行的元素——索引为i的无向边关联的三角片的索引；
+		std::cout << "UeCornersInfo:" << std::endl;
+		dispMat(UeCornersInfo);
+
+		objWriteEdgesMat("E:/edge0.obj", Eigen::RowVector2i(uEdges.row(0)), vers);
+		Eigen::RowVector3i tri00 = tris.row(UeTrisInfo(0, 0));
+		Eigen::RowVector3i tri01 = tris.row(UeTrisInfo(0, 1));
+		Eigen::MatrixXd oppVers(2, 3);
+		oppVers.row(0) = vers.row(tri00(UeCornersInfo(0, 0)));
+		oppVers.row(1) = vers.row(tri01(UeCornersInfo(0, 1)));
+		objWriteVerticesMat("E:/oppVers.obj", oppVers);
+
+		std::cout << "finished." << std::endl;
+	}
+
 
 	// 文件IO
 	void test0()
@@ -394,7 +481,7 @@ namespace IGL_BASIC
 	}
 
 
-	// 网格精简：
+	// decimate()直接实现网格精简：
 	void test7() 
 	{
 		Eigen::MatrixXd vers, versOut;
@@ -407,7 +494,6 @@ namespace IGL_BASIC
 		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
 		unsigned trisCount = tris.rows();
 		unsigned tarTrisCount = std::round(trisCount * 0.5);
-
 
 		// 当前使用igl::decimate()简化简单的网格可以成功，太复杂的网格会失败；
 		tt.start();
@@ -422,6 +508,34 @@ namespace IGL_BASIC
 		igl::writeOBJ("E:/meshSimplifiedVers.obj", vers1, Eigen::MatrixXi{});
 
 		std::cout << "finished." << std::endl;
+	}
+
+
+	// collapse_edge()——网格精简中的边折叠算法：
+	void test77() 
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
+
+		igl::writeOBJ("E:/meshInput.obj", vers, tris);
+
+		// 生成边数据：
+		Eigen::MatrixXi edges, uEdges;
+		Eigen::VectorXi edgeUeInfo;
+		Eigen::VectorXi uEC, uEE;
+		igl::unique_edge_map(tris, edges, uEdges, edgeUeInfo, uEC, uEE);
+
+		// 折叠索引为2的边：
+		int uEdgeIdx0 = 2;
+		Eigen::RowVector2i uEdge0 = uEdges.row(uEdgeIdx0);
+		Eigen::RowVector3d ver00 = vers.row(uEdge0(0));
+		Eigen::RowVector3d ver01 = vers.row(uEdge0(1));
+		Eigen::RowVector3d collapsedVer = (ver00 + ver01) / 2.0;
+		
+
+		// igl::collapse_edge();
+
 	}
 }
 
@@ -592,8 +706,8 @@ namespace IGL_GRAPH
 		edges.block(2 * trisCount, 1, trisCount, 1) = tris.col(0);
 
 		// FOR DEBUG:
-		dispMatBlock<int>(edges, 0, 10, 0, 1);
-		dispMatBlock<int>(edges, 3 * trisCount - 10, 3 * trisCount - 1, 0, 1);
+		dispMatBlock(edges, 0, 10, 0, 1);
+		dispMatBlock(edges, 3 * trisCount - 10, 3 * trisCount - 1, 0, 1);
 
 		std::vector<Eigen::Triplet<int>> elems;
 		elems.reserve(2 * (versCount + trisCount + 100));				// euler formula: E = V + S - 2 + 2*g;
@@ -1610,7 +1724,7 @@ namespace IGL_BASIC_PMP
 		// for debug
 		dispVec<double>(xPeriod);
 		dispVecSeg<double>(Eigen::VectorXd{ tmpVec0 }, 0, 150);
-		dispMatBlock<double>(gridCenters, 0, 144, 0, 2);
+		dispMatBlock(gridCenters, 0, 144, 0, 2);
 
 		// 2. marching cubes算法生成最终曲面：
 		tiktok& tt = tiktok::getInstance();

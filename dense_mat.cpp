@@ -66,19 +66,15 @@ namespace DENSEMAT
 	}
 
 
-	// 一些泛型的矩阵接口：
-	template <typename T, unsigned N >
-	void dispVec(const Matrix<T, N, 1>& vec)		// 元素类型不定，行数不定的列向量，且数据可以在栈上也可以在堆上。
-	{
-		std::cout << vec << std::endl;
-	}
+	//// 一些泛型的矩阵接口：
+	//template <typename T, unsigned N >
+	//void dispVec(const Matrix<T, N, 1>& vec)		// 元素类型不定，行数不定的列向量，且数据可以在栈上也可以在堆上。
+	//{
+	//	std::cout << vec << std::endl;
+	//}
 
 
-	template<typename T, unsigned M, unsigned N>
-	void dispMat(const Matrix<T, M, N>& mat)
-	{
-		cout << mat << endl;
-	}
+
 
 
 	// test0——eigen库的基本数据结构
@@ -440,7 +436,15 @@ namespace DENSEMAT
 		float* pdata = m1.data();
 		for (unsigned i = 0; i < m1.size(); ++i)
 			pdata[i] = static_cast<float>(i);
-		std::cout << "m1 == \n" << m1 << std::endl << std::endl;
+		std::cout << "m1 == \n" << std::endl;
+		dispMat(m1);
+
+
+		// setConstant()方法——块赋值：
+		m1.setConstant(1.0);
+		m1.topRightCorner(2, 3).setConstant(2.0);
+		dispMat(m1);
+
 
 		// VectorXT::segment<>()方法——提取向量的子向量片段，返回其左值引用。两个重载
 		VectorXi v1(9);
@@ -769,8 +773,8 @@ namespace DENSEMAT
 		MatrixXi m1 = mm1;
 		MatrixXi m2 = Map<Matrix<int, 4, 3, RowMajor>>(intArr);		// 这样可以快速拷贝数组中的数据，赋值到新创建的矩阵中
 		dispVec<int>(v1);
-		dispMat<int>(m1);
-		dispMat<int>(m2);
+		dispMat(m1);
+		dispMat(m2);
 
 		std::cout << "数组首元素地址：" << reinterpret_cast<size_t>(&intArr[0]) << std::endl;
 		std::cout << "mm1首元素地址：" << reinterpret_cast<size_t>(&mm1(0, 0)) << std::endl;
