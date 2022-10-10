@@ -120,7 +120,7 @@ int main()
  
 	// SPARSEMAT::test0();
 	
-	IGL_BASIC::test77();
+	IGL_BASIC::test0();
 
 	// IGL_DIF_GEO::test0();
 

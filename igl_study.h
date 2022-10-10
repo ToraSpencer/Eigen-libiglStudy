@@ -21,9 +21,12 @@
 #include <igl/writeOFF.h>
 #include <igl/readSTL.h>
 #include <igl/writeSTL.h>
+#include <igl/readMESH.h>
+#include <igl/writeMESH.h>
 
 #include <igl/slice.h>
-
+#include <igl/circulation.h>
+#include <igl/remove_unreferenced.h>
 
 #include <igl/avg_edge_length.h>
 #include <igl/barycenter.h>
@@ -54,6 +57,7 @@
 
 #include <igl/decimate.h>
 #include <igl/collapse_edge.h>
+#include <igl/qslim.h>
 
 #include <igl/copyleft/cgal/mesh_boolean.h>
 

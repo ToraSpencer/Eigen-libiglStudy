@@ -54,37 +54,35 @@ namespace IGL_BASIC
 	void test000()
 	{
 		// unique_edge_map()——计算网格的半边、无向边、及其对应关系；
-		bool retFlag = igl::readOBJ("E:/材料/cube.obj", vers, tris);
+		bool retFlag = igl::readOBJ("E:/材料/tooth.obj", vers, tris);
 		Eigen::MatrixXi edges, uEdges;
 		Eigen::VectorXi edgeUeInfo;
 		std::vector<std::vector<int>> UeEdgeInfo;
 		igl::unique_edge_map(tris, edges, uEdges, edgeUeInfo, UeEdgeInfo);
-
-		std::cout << "tris:" << std::endl;
-		dispMat(tris);
-		std::cout << "edges:" << std::endl;
-		dispMat(edges);				// 半边
-		std::cout << "uEdges:" << std::endl;
-		dispMat(uEdges);			// 无向边，既是undirected的又是unique的；
-		std::cout << "edgeUeInfo:" << std::endl;
-		dispMat(edgeUeInfo);		// 半边在无向边中对应的索引；
+		//std::cout << "tris:" << std::endl;
+		//dispMat(tris);
+		//std::cout << "edges:" << std::endl;
+		//dispMat(edges);				// 半边
+		//std::cout << "uEdges:" << std::endl;
+		//dispMat(uEdges);			// 无向边，既是undirected的又是unique的；
+		//std::cout << "edgeUeInfo:" << std::endl;
+		//dispMat(edgeUeInfo);		// 半边在无向边中对应的索引；edgeUeInfo(i)是索引为i的半边对应的无向边的索引；
 
 		Eigen::VectorXi uEC, uEE;
 		igl::unique_edge_map(tris, edges, uEdges, edgeUeInfo, uEC, uEE);
-
-		std::cout << "uEC:" << std::endl;
-		dispMat(uEC);		 
-		std::cout << "uEE:" << std::endl;
-		dispMat(uEE);
+		//std::cout << "uEC:" << std::endl;
+		//dispMat(uEC);		 
+		//std::cout << "uEE:" << std::endl;
+		//dispMat(uEE);
 
 
 		// edge_flaps()——计算无向边关联的三角片；
 		Eigen::MatrixXi UeTrisInfo, UeCornersInfo;
 		igl::edge_flaps(tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
-		std::cout << "UeTrisInfo:" << std::endl;
-		dispMat(UeTrisInfo);								// 第i行的元素——索引为i的无向边关联的三角片的索引；
-		std::cout << "UeCornersInfo:" << std::endl;
-		dispMat(UeCornersInfo);
+		//std::cout << "UeTrisInfo:" << std::endl;
+		//dispMat(UeTrisInfo);								// 第i行的元素——索引为i的无向边关联的三角片的索引；
+		//std::cout << "UeCornersInfo:" << std::endl;
+		//dispMat(UeCornersInfo);
 
 		objWriteEdgesMat("E:/edge0.obj", Eigen::RowVector2i(uEdges.row(0)), vers);
 		Eigen::RowVector3i tri00 = tris.row(UeTrisInfo(0, 0));
@@ -93,6 +91,20 @@ namespace IGL_BASIC
 		oppVers.row(0) = vers.row(tri00(UeCornersInfo(0, 0)));
 		oppVers.row(1) = vers.row(tri01(UeCornersInfo(0, 1)));
 		objWriteVerticesMat("E:/oppVers.obj", oppVers);
+
+		// circulation()——寻找输入边的端点关联的三角片，及其1领域顶点；
+		std::vector<int> nbrVersIdx, nbrTrisIdx;
+		igl:: circulation(0, true, tris, edgeUeInfo, UeTrisInfo, UeCornersInfo, nbrVersIdx, nbrTrisIdx);
+		objWriteVerticesMat("E:/edgeHead0.obj", Eigen::MatrixXd{ vers.row(uEdges(0, 0)) });
+
+		Eigen::MatrixXd vers0;
+		subFromIdxVec(vers0, vers, nbrVersIdx);
+		objWriteVerticesMat("E:/vers0.obj", vers0);
+		Eigen::MatrixXi tris0;
+		subFromIdxVec(tris0, tris, nbrTrisIdx);
+		igl::writeOBJ("E:/tris0.obj", vers, tris0);
+
+		// 
 
 		std::cout << "finished." << std::endl;
 	}
@@ -119,8 +131,15 @@ namespace IGL_BASIC
 		igl::readSTL(fileIn, vers, tris, normals);
 		fileIn.close();
 		igl::writeOBJ((fileName + std::string{".obj"}).c_str(), vers, tris);
- 
 
+		// 读.mesh文件
+		fileName = "E:/材料/bunny";
+		vers.resize(0, 0);
+		tris.resize(0, 0);
+		Eigen::MatrixXi tets;
+		igl::readMESH((fileName + std::string{ ".mesh" }).c_str(), vers, tets, tris);
+		igl::writeOBJ((fileName + std::string{ ".obj" }).c_str(), vers, tris);
+		igl::writeOBJ((fileName + std::string{ "_tets.obj" }).c_str(), vers, tets);
 		std::cout << "finished." << std::endl;
 	}
 
@@ -481,7 +500,7 @@ namespace IGL_BASIC
 	}
 
 
-	// decimate()直接实现网格精简：
+	// decimate()，qslim() 直接实现网格精简：
 	void test7() 
 	{
 		Eigen::MatrixXd vers, versOut;
@@ -491,21 +510,31 @@ namespace IGL_BASIC
 		tiktok& tt = tiktok::getInstance();
 
 		// igl::readOBJ("E:/材料/jawMeshDense.obj", vers, tris);
-		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
+		igl::readOBJ("E:/材料/holeMesh.obj", vers, tris);
 		unsigned trisCount = tris.rows();
 		unsigned tarTrisCount = std::round(trisCount * 0.5);
+		igl::writeOBJ("E:/meshIn.obj", vers, tris);
 
-		// 当前使用igl::decimate()简化简单的网格可以成功，太复杂的网格会失败；
+
+		// igl::decimate()——边折叠算法精简网格； 网格不可以有非流形边；				
 		tt.start();
-		std::cout << "succeeded? " << igl::decimate(vers, tris, tarTrisCount, versOut, trisOut, newOldTrisInfo, newOldVersInfo) << std::endl;
-		tt.endCout("Elapsed time of mesh simplification is ");
+				// 当前简化简单的网格可以成功，太复杂的网格会失败；
+		std::cout << "succeeded? " << igl::decimate(vers, tris, tarTrisCount, versOut, trisOut, \
+			newOldTrisInfo, newOldVersInfo) << std::endl;					// 重载1.1
+		tt.endCout("Elapsed time of mesh simplification by igl::decimate() is ");
+
 		std::vector<int> newOldTrisInfoVec = vec2Vec(newOldTrisInfo);
 		Eigen::MatrixXd vers1;
 		subFromIdxVec(vers1, vers, newOldVersInfo);
-
-		igl::writeOBJ("E:/meshIn.obj", vers, tris);
 		igl::writeOBJ("E:/meshSimplified.obj", versOut, trisOut);
 		igl::writeOBJ("E:/meshSimplifiedVers.obj", vers1, Eigen::MatrixXi{});
+
+
+		// igl::qslim()——貌似比igl::decimate()慢一些，目前不知道优势在哪里；
+		tt.start();
+		std::cout << "qslim succeeded? " << igl::qslim(vers, tris, tarTrisCount, versOut, trisOut, newOldTrisInfo, newOldVersInfo) << std::endl;
+		tt.endCout("Elapsed time of mesh simplification by igl::qslim() is ");
+		igl::writeOBJ("E:/meshSimplified_qslim.obj", versOut, trisOut);
 
 		std::cout << "finished." << std::endl;
 	}
@@ -514,28 +543,54 @@ namespace IGL_BASIC
 	// collapse_edge()——网格精简中的边折叠算法：
 	void test77() 
 	{
-		Eigen::MatrixXd vers;
-		Eigen::MatrixXi tris;
-		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
-
+		// 折叠一条边：
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		igl::readOBJ("E:/材料/cylinder1.obj", vers, tris);
 		igl::writeOBJ("E:/meshInput.obj", vers, tris);
 
 		// 生成边数据：
-		Eigen::MatrixXi edges, uEdges;
-		Eigen::VectorXi edgeUeInfo;
+		Eigen::MatrixXi edges, uEdges, UeTrisInfo, UeCornersInfo;
+		Eigen::VectorXi edgeUeInfo ;
 		Eigen::VectorXi uEC, uEE;
 		igl::unique_edge_map(tris, edges, uEdges, edgeUeInfo, uEC, uEE);
+		igl::edge_flaps(tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
 
-		// 折叠索引为2的边：
-		int uEdgeIdx0 = 2;
+		int uEdgeIdx0 = 50;
 		Eigen::RowVector2i uEdge0 = uEdges.row(uEdgeIdx0);
 		Eigen::RowVector3d ver00 = vers.row(uEdge0(0));
 		Eigen::RowVector3d ver01 = vers.row(uEdge0(1));
 		Eigen::RowVector3d collapsedVer = (ver00 + ver01) / 2.0;
+		objWriteEdgesMat("E:/uEdge0.obj", uEdge0, vers);
 		
+		// 1. igl::collapse_edge(); 折叠索引为uEdgeIdx0的边；
+		int e1, e2, f1, f2;
+		igl::collapse_edge(uEdgeIdx0, collapsedVer, vers, tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo, e1, e2, f1, f2);
+		igl::writeOBJ("E:/meshOut_删除三角片前.obj", vers, tris);
 
-		// igl::collapse_edge();
+		// 2. 删除所有含有标记为IGL_COLLAPSE_EDGE_NULL边的三角片：
+		MatrixXi tris0(tris.rows(), 3);
+		int m = 0;
+		for (int i = 0; i < tris.rows(); i++)
+		{
+			if (tris(i, 0) != IGL_COLLAPSE_EDGE_NULL ||
+				tris(i, 1) != IGL_COLLAPSE_EDGE_NULL ||
+				tris(i, 2) != IGL_COLLAPSE_EDGE_NULL)
+			{
+				tris0.row(m) = tris.row(i);
+				m++;
+			}
+		}
+		tris0.conservativeResize(m, tris0.cols());					// 这里相当于shrink_to_fit();
+		igl::writeOBJ("E:/meshOut_beforeRemove.obj", vers, tris0);
 
+		// 3. igl::remove_unreferenced()——删除网格中的孤立顶点；
+		Eigen::VectorXi I, newOldVersInfo;
+		igl::remove_unreferenced(vers, tris0, versOut, trisOut, I, newOldVersInfo);
+		igl::writeOBJ("E:/meshOut.obj", versOut, trisOut);
+
+
+		std::cout << "finished." << std::endl;
 	}
 }
 

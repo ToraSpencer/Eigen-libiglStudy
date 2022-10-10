@@ -833,11 +833,11 @@ void objReadVerticesMat(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, const c
 
 
 template	<typename DerivedV>
-void objWriteVerticesMat(const char* fileName, const Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers)
+void objWriteVerticesMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers)
 {
 	std::ofstream dstFile(fileName);
 	for (int i = 0; i < vers.rows(); i++)
-		dstFile << "v " << vers(i, 0) << " " << vers(i, 1) << " " << vers(i, 2) << std::endl;
+		dstFile << "v " << vers.coeffRef(i, 0) << " " << vers.coeffRef(i, 1) << " " << vers.coeffRef(i, 2) << std::endl;
 	dstFile.close();
 };
 
