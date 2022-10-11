@@ -5,6 +5,8 @@
 #include <fstream>
 #include <set>
 #include <unordered_set>
+#include <set>
+#include <unordered_map>
 #include <map>
 #include <algorithm>
 #include <sstream>
@@ -256,6 +258,12 @@ void dispSpMat(const SparseMatrix<T>& mat, const int showElems = -1)
 			}
 		std::cout << std::endl;
 	}
+
+	template<typename spMat>
+	void dispSpMat(const spMat& sm)
+	{
+		dispSpMat(sm, 0, sm.rows() - 1);
+	}
 #endif
 
 template<typename T, int N>
@@ -269,6 +277,7 @@ void dispVec(const Matrix<T, N, 1>& vec)
 	std::cout << std::endl;
 }
 
+
 template<typename T, int N>
 void dispVec(const Matrix<T, 1, N>& vec)
 {
@@ -279,6 +288,7 @@ void dispVec(const Matrix<T, 1, N>& vec)
 	}
 	std::cout << std::endl;
 }
+
 
 template<typename T, int N>
 void dispVecSeg(const Matrix<T, N, 1>& vec, const int start, const int end)
@@ -295,6 +305,7 @@ void dispVecSeg(const Matrix<T, N, 1>& vec, const int start, const int end)
 		std::cout << i << "---\t" << vec(i) << std::endl;
 	std::cout << std::endl;
 }
+
 
 template<typename T, int N>
 void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
@@ -351,6 +362,7 @@ bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBa
 	return true;
 }
 
+
 // 根据flag向量从源矩阵中提取元素生成输出矩阵。
 template <typename Derived>
 bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec)
@@ -391,16 +403,7 @@ Eigen::Matrix<T, N, 1> vec2Vec(const std::vector<T>& vIn)
 
 	return vOut;
 }
-
-//template<typename T, int N>
-//std::vector<T>  vec2Vec(const Eigen::Matrix<T, N, 1>& vIn)		// 注：Matrix<T, Dynamic, 1> == VectorXT;
-//{
-//	unsigned elemCount = vIn.rows();
-//	std::vector<T> vOut(elemCount, 1);
-//	std::memcpy(&vOut[0], vIn.data(), sizeof(T) * elemCount);
-//
-//	return vOut;
-//}
+ 
 
 template<typename T>
 Eigen::Matrix<T, Dynamic, 1> vec2Vec(const std::vector<T>& vIn)
@@ -412,8 +415,6 @@ Eigen::Matrix<T, Dynamic, 1> vec2Vec(const std::vector<T>& vIn)
 
 	return vOut;
 }
-
-
 
 
 
@@ -1015,38 +1016,6 @@ float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
 }
 
 
-// 计算三角网格的体积：
-template<typename DerivedV, typename DerivedI>
-double meshVolume(const Eigen::MatrixBase<DerivedV>& V, const Eigen::MatrixBase<DerivedI>& T)
-{
-	double volume = -1.0;
-	const DerivedV& vers = V.derived();
-	const DerivedI& tris = T.derived();
-	unsigned versCount = vers.rows();
-	unsigned trisCount = tris.rows();
-	if (vers.cols() != 3 || tris.cols()!= 3)
-		return volume;
-
-	Eigen::VectorXi vaIdxes = tris.col(0);
-	Eigen::VectorXi vbIdxes = tris.col(1);
-	Eigen::VectorXi vcIdxes = tris.col(2);
-	DerivedV versA, versB, versC;
-	subFromIdxVec(versA, vers, vaIdxes);
-	subFromIdxVec(versB, vers, vbIdxes);
-	subFromIdxVec(versC, vers, vcIdxes);
-
-	// 一个三角片对应的四面体的符号体积（signed volume） V(t0) == (-x3y2z1 + x2y3z1 + x3y1z2 - x1y3z2 - x2y1z3 + x1y2z3) / 6.0;
-	auto volumeVec =\
-		(- versC.col(0).array() * versB.col(1).array() * versA.col(2).array() + versB.col(0).array() * versC.col(1).array() * versA.col(2).array()\
-		 +versC.col(0).array() * versA.col(1).array() * versB.col(2).array() - versA.col(0).array() * versC.col(1).array() * versB.col(2).array()\
-		 - versB.col(0).array() * versA.col(1).array() * versC.col(2).array() + versA.col(0).array() * versB.col(1).array() * versC.col(2).array())/6.0;
-
-	volume = volumeVec.sum();
-
-	return volume;
-}
-
-
 // 计算稠密矩阵的克罗内克积（Kronecker product）
 template <typename T, typename Derived1, typename Derived2>
 void kron(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& result, \
@@ -1084,7 +1053,6 @@ void kron(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& result, \
 }
 
 
-
 // 多项式插值
 void polyInterpolation();
 
@@ -1102,6 +1070,67 @@ void ridgeRegressionPolyFitting(VectorXf& theta, const MatrixXf& vers);
 
 
 Matrix3f getRotationMat(const RowVector3f& originArrow, const RowVector3f& targetArrow);
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////// 三角网格处理：
+
+// 计算三角网格的体积：
+template<typename DerivedV, typename DerivedI>
+double meshVolume(const Eigen::MatrixBase<DerivedV>& V, const Eigen::MatrixBase<DerivedI>& T)
+{
+	double volume = -1.0;
+	const DerivedV& vers = V.derived();
+	const DerivedI& tris = T.derived();
+	unsigned versCount = vers.rows();
+	unsigned trisCount = tris.rows();
+	if (vers.cols() != 3 || tris.cols() != 3)
+		return volume;
+
+	Eigen::VectorXi vaIdxes = tris.col(0);
+	Eigen::VectorXi vbIdxes = tris.col(1);
+	Eigen::VectorXi vcIdxes = tris.col(2);
+	DerivedV versA, versB, versC;
+	subFromIdxVec(versA, vers, vaIdxes);
+	subFromIdxVec(versB, vers, vbIdxes);
+	subFromIdxVec(versC, vers, vcIdxes);
+
+	// 一个三角片对应的四面体的符号体积（signed volume） V(t0) == (-x3y2z1 + x2y3z1 + x3y1z2 - x1y3z2 - x2y1z3 + x1y2z3) / 6.0;
+	auto volumeVec = \
+		(-versC.col(0).array() * versB.col(1).array() * versA.col(2).array() + versB.col(0).array() * versC.col(1).array() * versA.col(2).array()\
+			+ versC.col(0).array() * versA.col(1).array() * versB.col(2).array() - versA.col(0).array() * versC.col(1).array() * versB.col(2).array()\
+			- versB.col(0).array() * versA.col(1).array() * versC.col(2).array() + versA.col(0).array() * versB.col(1).array() * versC.col(2).array()) / 6.0;
+
+	volume = volumeVec.sum();
+
+	return volume;
+}
+
+
+// buildAdjacency()——计算流形网格的三角片邻接信息：
+
+	// 边std::pair<int, int>的自定义哈希函数；
+struct edgeHash
+{
+	bool operator()(const std::pair<int, int>& edge) const
+	{
+		return (std::hash<int>()(edge.first) + std::hash<int>()(edge.second));
+	}
+};
+
+	// 边std::pair<int, int>的等价比较器；
+struct edgeComparator
+{
+	bool operator()(const std::pair<int, int>& edge1, const std::pair<int, int>& edge2) const
+	{
+		return (edge1.first == edge2.first && edge1.second == edge2.second);
+	}
+};
+
+using ttTuple = std::tuple<std::vector<int>, std::vector<int>, std::vector<int>>;
+
+bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, \
+	std::vector<ttTuple>& ttAdj_nmnEdge, std::vector<ttTuple>& ttAdj_nmnOppEdge);
+
 
 
 

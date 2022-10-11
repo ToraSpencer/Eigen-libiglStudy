@@ -159,6 +159,12 @@ namespace SPARSEMAT
 		// 使用sp2的某一行给sp1的某一列赋值时，必须将该行向量转置为列向量，否则会出错，且编译器不报异常；
 		sm1.col(0) = sm2.row(0).transpose();
 		dispMat(sm1.toDense());
+
+		// 貌似列优先的稀疏矩阵的transpose()方法返回的矩阵是行优先的：
+		SparseMatrix<float> tmpSm = sm1.transpose();
+		sm2 = sm1 + tmpSm;						// sm2 = sm1 + sm1.transpose() 会编译不通过；
+		std::cout << "sm2 = sm1 + tmpSm: " << std::endl;
+		dispSpMat(sm2);
 	}
 
 

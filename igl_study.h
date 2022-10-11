@@ -24,6 +24,9 @@
 #include <igl/readMESH.h>
 #include <igl/writeMESH.h>
 
+#include <igl/edge_flaps.h>
+#include <igl/unique_edge_map.h>
+#include <igl/doublearea.h>
 #include <igl/slice.h>
 #include <igl/circulation.h>
 #include <igl/remove_unreferenced.h>
@@ -41,8 +44,6 @@
 #include <igl/repdiag.h>
 #include <igl/opengl/glfw/Viewer.h>
 
-#include <igl/edge_flaps.h>
-#include <igl/unique_edge_map.h>
 #include <igl/adjacency_list.h>
 #include <igl/adjacency_matrix.h>
 #include <igl/dfs.h>
@@ -50,6 +51,7 @@
 #include <igl/dijkstra.h>
 
 #include <igl/AABB.h>
+#include <igl/bounding_box_diagonal.h>
 #include <igl/point_mesh_squared_distance.h>
 #include <igl/voxel_grid.h>
 #include <igl/signed_distance.h>
@@ -57,9 +59,12 @@
 
 #include <igl/decimate.h>
 #include <igl/collapse_edge.h>
+#include <igl/collapse_small_triangles.h>
 #include <igl/qslim.h>
 
 #include <igl/copyleft/cgal/mesh_boolean.h>
+
+#include <igl/topological_hole_fill.h>
 
 #include "tutorial_shared_path.h"
 
@@ -79,6 +84,7 @@ namespace IGL_BASIC
 	void test6();
 	void test7();
 	void test77();
+	void test777();
 	void test8();
 	void test9();
 	void test10();
