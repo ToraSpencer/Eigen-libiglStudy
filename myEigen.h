@@ -866,6 +866,7 @@ void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<Derived
 }
 
 
+
 // objWritePath() 路径数据写入到OBJ文件中：
 template <typename DerivedV, typename	 DerivedI>
 void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers)

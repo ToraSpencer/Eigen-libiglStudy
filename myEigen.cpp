@@ -368,6 +368,7 @@ Matrix3f getRotationMat(const RowVector3f& originArrow, const RowVector3f& targe
 }
 
 
+// 计算输入网格三角片的邻接关系：
 bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, \
 	std::vector<ttTuple>& ttAdj_nmnEdge, std::vector<ttTuple>& ttAdj_nmnOppEdge)
 {
@@ -420,7 +421,7 @@ bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, 
 	Eigen::SparseMatrix<int> adjSM_eCount, adjSM_weighted;
 	adjSM_eCount.resize(versCount, versCount);
 	adjSM_weighted.resize(versCount, versCount);
-	adjSM_eCount.setFromTriplets(smElems.begin(), smElems.end());		// 权重为该有向边重复的次数；
+	adjSM_eCount.setFromTriplets(smElems.begin(), smElems.end());										// 权重为该有向边重复的次数；
 	adjSM_weighted.setFromTriplets(smElems_weighted.begin(), smElems_weighted.end());		// 权重为该有向边的索引；
 	Eigen::SparseMatrix<int> adjSM_weighted_opp = adjSM_weighted.transpose();
 
