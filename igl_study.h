@@ -25,6 +25,7 @@
 #include <igl/readMESH.h>
 #include <igl/writeMESH.h>
 
+#include <igl/barycenter.h>
 #include <igl/edge_flaps.h>
 #include <igl/unique_edge_map.h>
 #include <igl/doublearea.h>
@@ -63,6 +64,8 @@
 #include <igl/collapse_small_triangles.h>
 #include <igl/qslim.h>
 
+#include <igl/winding_number.h>
+
 #include <igl/copyleft/cgal/mesh_boolean.h>
 
 #include <igl/topological_hole_fill.h>
@@ -86,6 +89,7 @@ namespace IGL_BASIC
 	void test7();
 	void test77();
 	void test777();
+	void test7777();
 	void test8();
 	void test9();
 	void test10();

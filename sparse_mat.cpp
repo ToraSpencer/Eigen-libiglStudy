@@ -2,6 +2,35 @@
 
 namespace SPARSEMAT
 {
+	// 测试自己写的稀疏矩阵相关的轮子：
+	void test00() 
+	{
+		// traverseSparseMatrix()——传入函数子遍历稀疏矩阵中的元素；
+		Eigen::Matrix3i m1(Eigen::Matrix3i::Zero());
+		m1(1, 1) = 3;
+		m1(1, 2) = 2;
+		Eigen::SparseMatrix<int> sm1 = m1.sparseView();
+		traverseSparseMatrix(sm1, [&](auto& iter)
+			{
+				disp<int>(iter.value());
+			});
+
+		traverseSparseMatrix(sm1, [&](auto& iter)
+			{
+				iter.valueRef()++;
+			});
+
+		traverseSparseMatrix(sm1, [&](auto& iter)
+			{
+				disp<int>(iter.value());
+			});
+
+
+
+	
+	}
+
+
 	// 稀疏矩阵的构造、基本属性
 	void test0()
 	{
@@ -97,7 +126,8 @@ namespace SPARSEMAT
 		{
 			for (SparseMatrix<float>::InnerIterator it(sm2, k); it; ++it)			// 列优先存储时，InnerIterator即列内迭代器；
 			{
-				std::cout << "value == " << it.value() << std::endl;
+				std::cout << "value == " << it.value() << std::endl;					// 元素的值；
+				std::cout << "valueRef == " << it.valueRef() << std::endl;			// 元素的引用；
 				std::cout << "row == " << it.row() << std::endl;			 // row index
 				std::cout << "col == " << it.col() << std::endl;				 // col index (here it is equal to k)
 				std::cout << std::endl;

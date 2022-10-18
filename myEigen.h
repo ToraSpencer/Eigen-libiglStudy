@@ -161,6 +161,28 @@ void revTraverseSTL(T& con, F f)
 	cout << endl;
 }
 
+template <typename Derived, typename F>
+void traverseMatrix(Eigen::PlainObjectBase<Derived>& m, F f) 
+{
+	auto dataPtr = m.data();
+	int elemCount = m.rows() * m.cols();
+	for (int i = 0; i < elemCount; ++i)
+		f(*dataPtr++);
+}
+
+// 传入函数子遍历稀疏矩阵中的非零元素，函数子接受的参数是Eigen::SparseMatrix<T>::InnerIterator&
+template<typename spMat, typename F>
+void traverseSparseMatrix(spMat& sm, F f)
+{
+	for (unsigned i = 0; i<sm.outerSize(); ++i)
+	{
+		for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
+		{
+			f(iter);
+		}
+	}
+}
+
 
 // lambda——打印cout支持的类型变量。
 template <typename T>
@@ -213,58 +235,39 @@ void dispMatBlock(const Eigen::PlainObjectBase<Derived>& mat, const int rowStart
 }
 
 
-#if 0
-template<typename T>
-void dispSpMat(const SparseMatrix<T>& mat, const int showElems = -1)
+// 打印稀疏矩阵中的所有非零元素：
+template<typename spMat>				// 如果模板参数为T, 函数参数为Eigen::SparseMatrix<T>，编译会报错，不知道什么缘故；
+void dispSpMat(const spMat& sm, const unsigned startRow, const unsigned endRow)
 {
-	std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
-	std::cout << "非零元素数：" << mat.nonZeros() << std::endl;
-	int count = 0;
-	for (int k = 0; k < mat.outerSize(); ++k)
-	{
-		//for(decltype(mat)::InnerIterator it(mat, k); ; ++it)
-		for (SparseMatrix<T>::InnerIterator it(mat, k); it; ++it)// 64位时，貌似T类型在编译器不确定的话，此句会报错
-		{
-			std::cout << "(" << it.row() << ", " << it.col() << ") ---\t" << it.value() << std::endl;
-			count++;
-			if (count >= showElems && showElems >= 0)
-				return;
-		}
-	}
+	std::cout << "rows == " << sm.rows() << ", cols == " << sm.cols() << std::endl;
+	for (unsigned i = startRow; i <= endRow; ++i)
+		for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
+			std::cout << "(" << iter.row() << ", " << iter.col() << ") " << iter.value() << std::endl;
+	std::cout << std::endl;
 }
-#else
-	template<typename spMat>
-	void dispSpMat(const spMat& sm, const unsigned startRow, const unsigned endRow)
-	{
-		std::cout << "rows == " << sm.rows() << ", cols == " << sm.cols() << std::endl;
-		for (unsigned i = startRow; i <= endRow; ++i)
-			for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
-				std::cout << "(" << iter.row() << ", " << iter.col() << ") " << iter.value() << std::endl;
-		std::cout << std::endl;
-	}
 
-	template<typename spMat>
-	void dispSpMat(const spMat& sm, const unsigned startRow, const unsigned endRow, const unsigned showElemsCount)
-	{
-		unsigned count = 0;
-		std::cout << "rows == " << sm.rows() << ", cols == " << sm.cols() << std::endl;
-		for (unsigned i = startRow; i <= endRow; ++i)
-			for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
-			{
-				std::cout << "(" << iter.row() << ", " << iter.col() << ") " << iter.value() << std::endl;
-				count++;
-				if (count >= showElemsCount)
-					break;
-			}
-		std::cout << std::endl;
-	}
+template<typename spMat>
+void dispSpMat(const spMat& sm, const unsigned startRow, const unsigned endRow, const unsigned showElemsCount)
+{
+	unsigned count = 0;
+	std::cout << "rows == " << sm.rows() << ", cols == " << sm.cols() << std::endl;
+	for (unsigned i = startRow; i <= endRow; ++i)
+		for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
+		{
+			std::cout << "(" << iter.row() << ", " << iter.col() << ") " << iter.value() << std::endl;
+			count++;
+			if (count >= showElemsCount)
+				break;
+		}
+	std::cout << std::endl;
+}
 
-	template<typename spMat>
-	void dispSpMat(const spMat& sm)
-	{
-		dispSpMat(sm, 0, sm.rows() - 1);
-	}
-#endif
+template<typename spMat>
+void dispSpMat(const spMat& sm)
+{
+	dispSpMat(sm, 0, sm.rows() - 1);
+}
+ 
 
 template<typename T, int N>
 void dispVec(const Matrix<T, N, 1>& vec)
@@ -1106,6 +1109,87 @@ double meshVolume(const Eigen::MatrixBase<DerivedV>& V, const Eigen::MatrixBase<
 	return volume;
 }
 
+
+ 
+// 求三角网格的不同权重的邻接矩阵 
+template<typename DerivedI>
+bool adjMatrix(const Eigen::PlainObjectBase<DerivedI>& tris, Eigen::SparseMatrix<int>& adjSM_eCount, \
+		Eigen::SparseMatrix<int>& adjSM_eIdx)
+{
+	const unsigned trisCount = tris.rows();
+	const unsigned edgesCount = 3 * trisCount;
+	const unsigned versCount = tris.maxCoeff() + 1;
+
+	// 1. 求顶点邻接关系：
+
+	// edges == [ea; eb; ec] == [vbIdxes, vcIdxes; vcIdxes, vaIdxes; vaIdxes, vbIdxes];
+	/*
+		若网格是流形网格，则edges列表里每条边都是unique的；
+		若存在非流形边，则非流形边在edges里会重复存储，实际边数量也会少于edges行数；
+		可以说使用这种representation的话，非流形边有不止一个索引，取决包含该非流形边的三角片数量；
+	*/
+
+	// 三角片三条边的索引：teIdx == [eaIdx, ebIdx, ecIdx] == [(0: trisCount-1)', (trisCount: 2*trisCount-1)', (2*trisCount, 3*trisCount-1)'];
+	/*
+		teIdx(i, j) = trisCount *j + i;
+	*/
+	Eigen::MatrixXi edges = Eigen::MatrixXi::Zero(edgesCount, 2);
+	Eigen::MatrixXi vaIdxes = tris.col(0);
+	Eigen::MatrixXi vbIdxes = tris.col(1);
+	Eigen::MatrixXi vcIdxes = tris.col(2);
+	edges.block(0, 0, trisCount, 1) = vbIdxes;
+	edges.block(trisCount, 0, trisCount, 1) = vcIdxes;
+	edges.block(trisCount * 2, 0, trisCount, 1) = vaIdxes;
+	edges.block(0, 1, trisCount, 1) = vcIdxes;
+	edges.block(trisCount, 1, trisCount, 1) = vaIdxes;
+	edges.block(trisCount * 2, 1, trisCount, 1) = vbIdxes;
+
+	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;
+	smElems.reserve(edgesCount);
+	smElems_weighted.reserve(edgesCount);
+	for (int i = 0; i < edgesCount; ++i)
+	{
+		smElems.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), 1});
+		smElems_weighted.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), i});
+	}
+	adjSM_eCount.resize(versCount, versCount);
+	adjSM_eIdx.resize(versCount, versCount);
+	adjSM_eCount.setFromTriplets(smElems.begin(), smElems.end());										// 权重为该有向边重复的次数；
+	adjSM_eIdx.setFromTriplets(smElems_weighted.begin(), smElems_weighted.end());		// 权重为该有向边的索引；
+
+	return true;
+}
+
+
+// 求三角网格中的非流形半边：
+template<typename DerivedI>
+bool nonManifoldEdges(const Eigen::PlainObjectBase<DerivedI>& tris, Eigen::MatrixXi& nmnEdges)
+{
+	Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
+	adjMatrix(tris, adjSM_eCount, adjSM_eIdx);
+	
+	unsigned nmnEdgesCount = 0;
+	traverseSparseMatrix(adjSM_eCount, [&nmnEdgesCount](auto& iter)
+		{
+			if (iter.value() > 1)
+				nmnEdgesCount++;
+		});
+
+	nmnEdges.resize(nmnEdgesCount, 2);
+	int index = 0;
+	traverseSparseMatrix(adjSM_eCount, [&index, &nmnEdges](auto& iter) 
+		{
+			if (iter.value() > 1)
+			{
+				nmnEdges(index, 0) = iter.row();
+				nmnEdges(index, 1) = iter.col();
+				index++;
+			}
+		});
+
+	return true;
+}
+ 
 
 // buildAdjacency()——计算流形网格的三角片邻接信息：
 

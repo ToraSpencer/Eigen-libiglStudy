@@ -518,7 +518,7 @@ namespace IGL_BASIC
 		igl::readOBJ((std::string{ "E:/材料/" } + fileName + std::string{".obj"}).c_str(), vers, tris);
 		unsigned trisCount = tris.rows();
 		// unsigned tarTrisCount = std::round(trisCount * 0.1);			// 输出网格的最大三角片数；
-		unsigned tarTrisCount = 10000;
+		unsigned tarTrisCount = 30000;
 		igl::writeOBJ("E:/meshIn.obj", vers, tris);
 
 		// igl::decimate()——边折叠算法精简网格； 网格不可以有非流形边；				
@@ -640,6 +640,24 @@ namespace IGL_BASIC
 		std::cout << "trisNew.rows() == " << trisNew.rows() << std::endl;
 
 		std::cout << "finished." << std::endl;
+	}
+
+
+	// 解析边折叠算法：
+	void test7777() 
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		tiktok& tt = tiktok::getInstance();
+		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
+		igl::writeOBJ("E:/meshInput.obj", vers, tris);
+
+		// 生成边数据：
+		Eigen::MatrixXi edges, uEdges, UeTrisInfo, UeCornersInfo;
+		Eigen::VectorXi edgeUeInfo;
+		Eigen::VectorXi uEC, uEE;
+		igl::unique_edge_map(tris, edges, uEdges, edgeUeInfo, uEC, uEE);
+		igl::edge_flaps(tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
 	}
 
 
@@ -795,7 +813,7 @@ namespace IGL_GRAPH
 		
 		// 由面片信息得到图的邻接表、邻接矩阵
 		igl::adjacency_list(tris, adjList);
-		igl::adjacency_matrix(tris, adjSM);		// 有向边存在则元素为1，否则为0；
+		igl::adjacency_matrix(tris, adjSM);				// 有向边存在则元素为1，否则为0；
 
 		// 手动计算邻接矩阵：
 		unsigned versCount = vers.rows();
@@ -1039,8 +1057,9 @@ namespace IGL_BASIC_PMP
 		for (int i = 0; i < edgesCount; ++i)
 			etInfo[i] = i % trisCount;
 
-#if __cplusplus < 202002L
+
 		// 3. 确定非流形边；
+#if __cplusplus < 202002L
 		std::unordered_set<std::pair<int, int>, edgeHash, edgeComparator> edgesNM;
 #else
 		// lambda——std::pair<int, int>表示的边的自定义哈希函数；
@@ -1071,7 +1090,6 @@ namespace IGL_BASIC_PMP
 			}
 		}
 
-		
 #if __cplusplus < 202002L
 		 //		非流形有向边-其索引的键值对，一个非流形边对应着多个边索引；
 		 std::unordered_map<std::pair<int, int>, std::vector<int>, edgeHash, edgeComparator> edgesNMmap;
@@ -1108,6 +1126,13 @@ namespace IGL_BASIC_PMP
 			etNMmap.insert(copyPair);
 		}
 
+		//	 nonManifoldEdges()——输出非流形半边：
+		Eigen::MatrixXi  nmnEdges;
+		nonManifoldEdges(tris, nmnEdges);
+		dispMatBlock(nmnEdges, 0, 10, 0, 1);
+		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
+
+
 		// 4. 找出所有非流形边所在三角片：
 		std::vector<int> trisIdxNM;
 		for (auto& pair : etNMmap)
@@ -1125,7 +1150,6 @@ namespace IGL_BASIC_PMP
 
 		// 5. 确定流形三角片、非流形三角片的邻接关系：
 
-
 	}
 
 
@@ -1134,13 +1158,16 @@ namespace IGL_BASIC_PMP
 	{
 		Eigen::MatrixXd vers;
 		Eigen::MatrixXi tris, edges;
-		igl::readOBJ("E:/材料/meshArranged.obj", vers, tris);
+		igl::readOBJ("E:/材料/jawMeshArranged.obj", vers, tris);
 		igl::writeOBJ("E:/meshInput.obj", vers, tris);
+		unsigned versCount = vers.rows();
+		unsigned trisCount = tris.rows();
 
 		Eigen::MatrixXi ttAdj_nmEdge;
 		std::vector<ttTuple> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
 		bool retFlag = buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
 
+		// 输出包含非流形边的三角片：
 		std::vector<int> nmnTrisIdx;
 		for (const auto& tuple : ttAdj_nmnEdge)
 		{
@@ -1152,6 +1179,23 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXi nmnTris;
 		subFromIdxVec(nmnTris, tris, nmnTrisIdx);
 		objWriteMeshMat("E:/nmnTris.obj", vers, nmnTris);
+
+		std::vector<int> mnTrisIdx;
+		std::sort(nmnTrisIdx.begin(), nmnTrisIdx.end());
+		std::unordered_set<int> tmpSet;
+		for (int i = 0; i < trisCount; ++i)
+			tmpSet.insert(i);
+		for (const auto& index : nmnTrisIdx)
+			tmpSet.erase(index);
+
+		mnTrisIdx.insert(mnTrisIdx.end(), tmpSet.begin(), tmpSet.end());
+		Eigen::MatrixXi mnTris;
+		subFromIdxVec(mnTris, tris, mnTrisIdx);
+		objWriteMeshMat("E:/mnTris.obj", vers, mnTris);
+
+		Eigen::MatrixXi nmnEdges;
+		nonManifoldEdges(tris, nmnEdges);
+		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers); 
 
 		std::cout << "finished." << std::endl;
 	}
@@ -1390,118 +1434,52 @@ namespace IGL_BASIC_PMP
 
 
 	// test solve self-intersection:
+	enum class VISIT_FLAG
+	{
+		NOT_VISITED = 0,
+		VISITED = 1,
+		COLLECTED = 2,
+	};
+
+
 	void test33()
 	{
 		Eigen::MatrixXd vers, versOut;
-		Eigen::MatrixXi tris, trisOut, tris0;
+		Eigen::MatrixXi tris, trisOut;
 		igl::readOBJ("E:/材料/jawMeshArranged.obj", vers, tris);
 		igl::writeOBJ("E:/meshInput.obj", vers, tris);
+		igl::writeOBJ("E:/triNMN0.obj", vers, Eigen::MatrixXi{ tris.row(4431) });
 
-		Eigen::MatrixXd triNorms;
-		igl::per_face_normals(vers, tris, triNorms);
 
-		// 1. 取z坐标最大的顶点所在的三角片为区域扩散起始三角片，确保其是外部三角片
-		Eigen::Index verIdx0 = 0;
-		Eigen::MatrixXi trisTrans = tris.transpose();
-		vers.col(2).maxCoeff(&verIdx0);
-		int triIdx0 = 0;
-		for (int i = 0; i < trisTrans.size(); ++i)
-		{
-			if (verIdx0 == *(trisTrans.data() + i))
-			{
-				triIdx0 = i / 3;
-				break;
-			}
-		}
-		objWriteMeshMat("E:/tri0.obj", vers, tris.row(triIdx0));
+		unsigned versCount = vers.rows();
+		unsigned trisCount = tris.rows();
 
-		// 2. 计算重划分后的网格的三角片邻接关系：
 		Eigen::MatrixXi ttAdj_nmEdge;
-		std::vector<ttTuple> ttAdj_nmnEdge;
-		std::vector<ttTuple> ttAdj_nmnOppEdge;
-		buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
-#if 1
+		std::vector<ttTuple> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
+		bool retFlag = buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
+
+		// 输出包含非流形边的三角片：
+		std::vector<int> nmnTrisIdx;
+		for (const auto& tuple : ttAdj_nmnEdge)
 		{
-			std::vector<int> nmnTrisIdx;
-			for (const auto& tuple : ttAdj_nmnEdge)
+			nmnTrisIdx.insert(nmnTrisIdx.end(), std::get<0>(tuple).begin(), std::get<0>(tuple).end());
+			nmnTrisIdx.insert(nmnTrisIdx.end(), std::get<1>(tuple).begin(), std::get<1>(tuple).end());
+			nmnTrisIdx.insert(nmnTrisIdx.end(), std::get<2>(tuple).begin(), std::get<2>(tuple).end());
+		}
+		std::unique(nmnTrisIdx.begin(), nmnTrisIdx.end());
+		Eigen::MatrixXi nmnTris;
+		subFromIdxVec(nmnTris, tris, nmnTrisIdx);
+		objWriteMeshMat("E:/nmnTris.obj", vers, nmnTris);
+
+		Eigen::MatrixXi mnTris;				// 不包含非流形边的三角片：
+		std::set<int> tmpSet;
+		traverseMatrix(ttAdj_nmEdge, [&](const int num)
 			{
-				nmnTrisIdx.insert(nmnTrisIdx.end(), std::get<0>(tuple).begin(), std::get<0>(tuple).end());
-				nmnTrisIdx.insert(nmnTrisIdx.end(), std::get<1>(tuple).begin(), std::get<1>(tuple).end());
-				nmnTrisIdx.insert(nmnTrisIdx.end(), std::get<2>(tuple).begin(), std::get<2>(tuple).end());
-			}
-			std::unique(nmnTrisIdx.begin(), nmnTrisIdx.end());
-			Eigen::MatrixXi nmnTris;
-			subFromIdxVec(nmnTris, tris, nmnTrisIdx);
-			objWriteMeshMat("E:/nmnTris.obj", vers, nmnTris);
-		}
-#endif
+				if (num > 0)
+					tmpSet.insert(num);
+			});
 
-		// 3. 区域生长循环：
-		std::deque<int> triIdxQueue;
-		std::vector<bool> visited(tris.rows(), false);
-		int currentTriIdx = -1;
-		visited[triIdx0] = 1;
-		triIdxQueue.push_back(triIdx0);
-		while (!triIdxQueue.empty()) 
-		{
-			currentTriIdx = triIdxQueue.front();
-			triIdxQueue.pop_front();
-
-			// 对当前三角片三条边的遍历：
-			for (int i = 0; i < 3; ++i)
-			{
-				// wf0: 若当前边是流形边，则从ttAdj_nmEdge中获取对面的索引；
-				int nbrTriIdx = ttAdj_nmEdge(currentTriIdx, i);
-
-				// wf1. 若当前边为非流形边;
-				if (-1 == nbrTriIdx)
-				{
-					// 非流形边有两个对面，比较这两个对面的法向和当前三角片法向的夹角，取夹角更大的那个对面：
-					std::vector<std::vector<int>*> tmpPtrVec(3);
-					tmpPtrVec[0] = &std::get<0>(ttAdj_nmnOppEdge[currentTriIdx]);
-					tmpPtrVec[1] = &std::get<1>(ttAdj_nmnOppEdge[currentTriIdx]);
-					tmpPtrVec[2] = &std::get<2>(ttAdj_nmnOppEdge[currentTriIdx]);
-					const std::vector<int>& relaOppTrisIdx = *tmpPtrVec[i];			// 当前非流形边的所有对面三角片（正常的话应该为两个）；
-					Eigen::RowVector3d currentNorm = triNorms.row(currentTriIdx);
-
-					double minCosValue = 2.0;
-					for (const auto& triIdx : relaOppTrisIdx)
-					{
-						Eigen::RowVector3d oppNorm = triNorms.row(triIdx);
-						double cosValue = currentNorm.dot(oppNorm);				// 点积越小，夹角越大；
-						if (cosValue < minCosValue)
-						{
-							nbrTriIdx = triIdx;
-							minCosValue = cosValue;
-						}
-					}
-				}
-
-				// wf2. 标记访问之后的三角片，队尾加入新的三角片
-				if (!visited[nbrTriIdx])
-				{
-					visited[nbrTriIdx] = true;
-					triIdxQueue.push_back(nbrTriIdx);
-				}
-			}
-		}
-
-		// 4. 提取区域生长循环中访问的三角片生成输出网格：
-		std::vector<int> selectedTrisIdx;
-		selectedTrisIdx.reserve(tris.rows());
-		for (int i = 0; i < tris.rows(); ++i)
-		{
-			if (visited[i] > 0)
-				selectedTrisIdx.push_back(i);
-		}
-		selectedTrisIdx.shrink_to_fit();
-		subFromIdxVec(tris0, tris, selectedTrisIdx);
-		
-		// 5. 去除孤立顶点：
-		Eigen::VectorXi I, newOldVersInfo;
-		igl::remove_unreferenced(vers, tris0, versOut, trisOut, I, newOldVersInfo);
-		igl::writeOBJ("E:/meshOut.obj", versOut, trisOut);
-
+ 
 		std::cout << "finished." << std::endl;
 	}
 
@@ -1762,6 +1740,36 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXi trisOut;
 		igl::topological_hole_fill(tris, Eigen::VectorXi{}, hole, trisOut);
 		igl::writeOBJ("E:/meshFilled.obj", versOut, trisOut);
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// 缠绕数winding number:
+	void test6() 
+	{
+		Eigen::MatrixXd vers0, vers1;
+		Eigen::MatrixXi tris0, tris1;
+		igl::readOBJ("E:/材料/tooth.obj", vers0, tris0);
+		igl::readOBJ("E:/材料/cylinder1.obj", vers1, tris1);
+		Eigen::VectorXd wNums;
+
+		igl::winding_number(vers0, tris0, vers1, wNums);			// 网格外部则缠绕数为0；
+
+		std::vector<double> wNumsVec = vec2Vec(wNums);
+		std::vector<int> vec;
+		vec.reserve(wNums.rows());
+		const double eps = 1e-6;
+		for (unsigned i = 0; i< wNums.rows(); ++i) 
+		{
+			if (std::abs(wNums(i)) < eps)
+				vec.push_back(i);
+		}
+		vec.shrink_to_fit();
+
+		Eigen::MatrixXd versOut;
+		subFromIdxVec(versOut, vers1, vec);
+		objWriteVerticesMat("E:/versOut.obj", versOut);
+
 		std::cout << "finished." << std::endl;
 	}
 }
