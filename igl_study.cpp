@@ -121,10 +121,10 @@ namespace IGL_BASIC
 		igl::writeOBJ("./data/bunny_export.obj", vers, tris);
 		igl::writeOBJ("./data/bunnyVers.obj", vers, Eigen::MatrixXi{});			// 只要点云不需要三角片的话，传入空矩阵；
 	
-		//vers.resize(0, 0);
-		//tris.resize(0, 0);
-		//igl::readOBJ("E:/fatTeeth1_预处理后.obj", vers, tris);
-		//igl::writeOFF("E:/fatTeeth1_预处理后.off", vers, tris);
+		vers.resize(0, 0);
+		tris.resize(0, 0);
+		igl::readOBJ("E:/材料/jawMeshDense.obj", vers, tris);
+		igl::writeOFF("E:/材料/jawMeshDense.off", vers, tris);
 
 		// 读取stl文件；
 		std::string fileName{"E:/材料/jawMeshSimplified"};
@@ -514,13 +514,16 @@ namespace IGL_BASIC
 
 		std::string fileName = "jawMeshDenseRepaired";
 
-		// igl::readOBJ("E:/材料/jawMeshDense.obj", vers, tris);
+		tt.start();
 		igl::readOBJ((std::string{ "E:/材料/" } + fileName + std::string{".obj"}).c_str(), vers, tris);
+		tt.endCout("elapsed time of loading mesh is: ");
+
 		unsigned trisCount = tris.rows();
 		// unsigned tarTrisCount = std::round(trisCount * 0.1);			// 输出网格的最大三角片数；
-		unsigned tarTrisCount = 30000;
+		unsigned tarTrisCount = 2672;
 		igl::writeOBJ("E:/meshIn.obj", vers, tris);
 
+#if 0 
 		// igl::decimate()——边折叠算法精简网格； 网格不可以有非流形边；				
 		tt.start();
 		std::cout << "succeeded? " << igl::decimate(vers, tris, tarTrisCount, versOut, trisOut, \
@@ -531,6 +534,7 @@ namespace IGL_BASIC
 		std::vector<int> newOldTrisInfoVec = vec2Vec(newOldTrisInfo);
 		Eigen::MatrixXd vers1;
 		subFromIdxVec(vers1, vers, newOldVersInfo);
+#endif
 
 		// igl::qslim()——貌似比igl::decimate()慢一些，目前不知道优势在哪里；
 		tt.start();
