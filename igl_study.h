@@ -32,6 +32,8 @@
 #include <igl/slice.h>
 #include <igl/circulation.h>
 #include <igl/remove_unreferenced.h>
+#include <igl/connect_boundary_to_infinity.h>
+#include <igl/is_edge_manifold.h>
 
 #include <igl/avg_edge_length.h>
 #include <igl/barycenter.h>
@@ -63,6 +65,8 @@
 #include <igl/collapse_edge.h>
 #include <igl/collapse_small_triangles.h>
 #include <igl/qslim.h>
+#include <igl/per_vertex_point_to_plane_quadrics.h>
+#include <igl/quadric_binary_plus_operator.h>
 
 #include <igl/winding_number.h>
 
@@ -90,6 +94,7 @@ namespace IGL_BASIC
 	void test77();
 	void test777();
 	void test7777();
+	void test77777();
 	void test8();
 	void test9();
 	void test10();
