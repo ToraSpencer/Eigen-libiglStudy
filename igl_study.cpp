@@ -512,18 +512,18 @@ namespace IGL_BASIC
 		Eigen::VectorXi newOldVersInfo;						 
 		tiktok& tt = tiktok::getInstance();
 
-		std::string fileName = "jawMeshDenseRepaired";
+		std::string fileName = "s8block";
 
 		tt.start();
 		igl::readOBJ((std::string{ "E:/材料/" } + fileName + std::string{".obj"}).c_str(), vers, tris);
 		tt.endCout("elapsed time of loading mesh is: ");
 
 		unsigned trisCount = tris.rows();
-		// unsigned tarTrisCount = std::round(trisCount * 0.1);			// 输出网格的最大三角片数；
-		unsigned tarTrisCount = 60000;
+		unsigned tarTrisCount = std::round(trisCount * 0.1);			// 输出网格的最大三角片数；
+		// unsigned tarTrisCount = 60000;
 		igl::writeOBJ("E:/meshIn.obj", vers, tris);
 
-#if 0 
+#if 1
 		// igl::decimate()——边折叠算法精简网格； 网格不可以有非流形边；				
 		tt.start();
 		std::cout << "succeeded? " << igl::decimate(vers, tris, tarTrisCount, versOut, trisOut, \
