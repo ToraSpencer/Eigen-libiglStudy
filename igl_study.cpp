@@ -1,7 +1,7 @@
 #include "igl_study.h"
-
 #define DATA_PATH "./data/"
 
+igl::opengl::glfw::Viewer viewer;				// libigl中的基于glfw的显示窗口；
 
 
 // libigl基本功能
@@ -10,7 +10,7 @@ namespace IGL_BASIC
 	Eigen::MatrixXd vers, newVers, normals;
 	Eigen::MatrixXi tris;
 	Eigen::SparseMatrix<double> L;
-	igl::opengl::glfw::Viewer viewer;		// libigl中的基于glfw的显示窗口；
+
 
 	// igl中基础的矩阵算子：
 	void test00() 
@@ -53,8 +53,15 @@ namespace IGL_BASIC
 	// igl中计算基础几何属性的接口：
 	void test000()
 	{
-		// unique_edge_map()——计算网格的半边、无向边、及其对应关系；
 		bool retFlag = igl::readOBJ("E:/材料/tooth.obj", vers, tris);
+
+		// per_vertex_normals
+		Eigen::MatrixXd verNorms, triNorms, conerNorms;			// 每行是一个法向量；
+		igl::per_vertex_normals(vers, tris, verNorms);
+		igl::per_face_normals(vers, tris, triNorms);
+		igl::per_corner_normals(vers, tris, conerNorms);
+
+		// unique_edge_map()——计算网格的半边、无向边、及其对应关系；
 		Eigen::MatrixXi edges, uEdges;
 		Eigen::VectorXi edgeUeInfo;
 		std::vector<std::vector<int>> UeEdgeInfo;

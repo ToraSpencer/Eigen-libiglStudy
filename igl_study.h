@@ -25,6 +25,9 @@
 #include <igl/readMESH.h>
 #include <igl/writeMESH.h>
 
+#include <igl/per_vertex_normals.h>
+#include <igl/per_face_normals.h>
+#include <igl/per_corner_normals.h>
 #include <igl/barycenter.h>
 #include <igl/edge_flaps.h>
 #include <igl/unique_edge_map.h>

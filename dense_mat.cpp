@@ -64,18 +64,7 @@ namespace DENSEMAT
 		}
 
 	}
-
-
-	//// 一些泛型的矩阵接口：
-	//template <typename T, unsigned N >
-	//void dispVec(const Matrix<T, N, 1>& vec)		// 元素类型不定，行数不定的列向量，且数据可以在栈上也可以在堆上。
-	//{
-	//	std::cout << vec << std::endl;
-	//}
-
-
-
-
+ 
 
 	// test0——eigen库的基本数据结构
 	void test0()
@@ -344,6 +333,14 @@ namespace DENSEMAT
 		cout << "v1 = \n" << v1 << endl << endl;
 		cout << "v2.normalized() = \n" << v2.normalized() << endl << endl;
 		cout << "v2 = \n" << v2 << endl << endl;
+
+		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9;
+		Eigen::MatrixXf m11 = m1.rowwise().normalized();			// 每条行向量归一化；
+		Eigen::MatrixXf m12 = m1.colwise().normalized();				// 每条列向量归一化；
+		cout << "m1 = \n" << m1 << endl << endl;		
+		cout << "m11 = \n" << m11 << endl << endl;
+		cout << "m12 = \n" << m12 << endl << endl;
+		
 	}
 
 
@@ -415,11 +412,14 @@ namespace DENSEMAT
 		cout << "线性方程组AX == B的解：" << endl << X << endl << endl;
 
 		// norm()——欧几里得范数，也是p==2时的lp范数。既所有元素平方和的开方。
-		m.resize(2, 2);
-		m << 1, 2, 3, 4;
-		std::cout << "m.norm() == " << m.norm() << std::endl;
 		Vector3f v1(1, 2, 3);
 		std::cout << "v1.norm() == " << v1.norm() << std::endl;	// 向量的范数等于向量的模长。
+		m.resize(3, 4);
+		m << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 , 11, 12;
+		std::cout << "m == \n" << m << std::endl;
+		std::cout << "m.norm() == " << m.norm() << std::endl;
+		std::cout << "m.rowwise().norm() == \n" << m.rowwise().norm() << std::endl;		// 所有行向量求norm，返回一个列向量；
+		std::cout << "m.colwise().norm() == \n" << m.colwise().norm() << std::endl;
 
 		//			求行向量的模长：
 		Matrix3f arrows;

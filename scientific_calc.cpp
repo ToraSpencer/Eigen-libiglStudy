@@ -1,6 +1,8 @@
 #include "scientific_calc.h"
 
 
+extern igl::opengl::glfw::Viewer viewer;				// libigl中的基于glfw的显示窗口；
+
 namespace SCIENTIFICCALC
 {
 	// 齐次坐标表示下的坐标变换；
@@ -83,22 +85,11 @@ namespace SCIENTIFICCALC
 	}
 
 
-	// 计算三角网格的体积——
-	void test6() 
-	{
-		Eigen::MatrixXf vers;
-		Eigen::MatrixXi tris;
-		objReadMeshMat(vers, tris, "E:/材料/jawMesh.obj");
- 
-		double volume = meshVolume(vers, tris);
-		std::cout << "volume == " << volume << std::endl;
 
-		std::cout << "finished." << std::endl;
-	}
 
 
 	// 测试计算克罗内克积(Kronecker product);
-	void test7() 
+	void test6() 
 	{
 		Eigen::MatrixXd result, m1, m2;
 		Eigen::VectorXd vec = Eigen::VectorXd::LinSpaced(100, 1, 100);
@@ -126,6 +117,58 @@ namespace SCIENTIFICCALC
 }
 
 
+namespace TEST_PMP
+{
+	// 测试求法向的接口
+	void test1() 
+	{
+		Eigen::MatrixXd vers, triNorms, barycenters, edgeArrows, vas, vbs;
+		Eigen::MatrixXi tris, edges;
+		objReadMeshMat(vers, tris, "E:/材料/tooth.obj");
+
+		getEdges(edges, vers, tris);
+		trianglesBarycenter(barycenters, vers, tris);
+		trianglesNorm(triNorms, vers, tris);
+		objWriteVerticesMat("E:/barycenters.obj", barycenters);
+
+		int edgesCount = edges.rows();
+		Eigen::VectorXi vaIdxes = edges.col(0);
+		Eigen::VectorXi vbIdxes = edges.col(1);
+		subFromIdxVec(vas, vers, vaIdxes);
+		subFromIdxVec(vbs, vers, vbIdxes);
+		edgeArrows = vbs - vas;
+		Eigen::VectorXd edgesLen = edgeArrows.rowwise().norm();
+
+		viewer.data().set_mesh(vers, tris);
+		viewer.data().show_lines = false;                 // 隐藏网格线
+		viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL);    // 设定可以三轴旋转
+
+		// 三角片法向指示线用边数据的形式渲染出来；
+		const RowVector3d red(0.8, 0.2, 0.2), blue(0.2, 0.2, 0.8);    // RGB色彩向量；
+		double aveLen = edgesLen.mean();							// 所有边长的平均值；
+		viewer.data().add_edges(barycenters - aveLen * triNorms, barycenters + aveLen * triNorms, red);         // 最大曲率方向用红色指示线标识
+
+		viewer.launch();
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// 计算三角网格的体积——
+	void test2()
+	{
+		Eigen::MatrixXf vers;
+		Eigen::MatrixXi tris;
+		objReadMeshMat(vers, tris, "E:/材料/jawMesh.obj");
+
+		double volume = meshVolume(vers, tris);
+		std::cout << "volume == " << volume << std::endl;
+
+		std::cout << "finished." << std::endl;
+	}
+
+}
+
 
 // libigl中的数学工具
 namespace IGL_MATH 
@@ -136,4 +179,8 @@ namespace IGL_MATH
 
 	}
 }
+
+
+
+
 

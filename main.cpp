@@ -116,11 +116,11 @@ void dispElem(const Eigen::MatrixBase<Derived>& m)
 
 int main()
 {
-	// DENSEMAT::test4();
+	// DENSEMAT::test3();
  
 	// SPARSEMAT::test1();
 	
-	IGL_BASIC::test7();
+	// IGL_BASIC::test000();
 
 	// IGL_DIF_GEO::test0();
 
@@ -131,6 +131,8 @@ int main()
 	// SCIENTIFICCALC::test7();
 
 	// IGL_BASIC_PMP::test2();
+
+	TEST_PMP::test1();
  
 
 	std::cout << "main() finished." << std::endl;

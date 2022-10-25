@@ -21,6 +21,7 @@
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
 
+
 using namespace std;
 using namespace Eigen;
 
@@ -409,10 +410,10 @@ Eigen::Matrix<T, N, 1> vec2Vec(const std::vector<T>& vIn)
  
 
 template<typename T>
-Eigen::Matrix<T, Dynamic, 1> vec2Vec(const std::vector<T>& vIn)
+Eigen::Matrix<T, Eigen::Dynamic, 1> vec2Vec(const std::vector<T>& vIn)
 {
 	unsigned elemCount = vIn.size();
-	Eigen::Matrix<T, Dynamic, 1> vOut;
+	Eigen::Matrix<T, Eigen::Dynamic, 1> vOut;
 	vOut.resize(elemCount, 1);
 	std::memcpy(vOut.data(), &vIn[0], sizeof(T) * elemCount);
 
@@ -425,7 +426,7 @@ Eigen::Matrix<T, Dynamic, 1> vec2Vec(const std::vector<T>& vIn)
 
 // 向量插入数据
 template<typename T>
-bool vecInsertNum(Eigen::Matrix<T, Dynamic, 1>& vec, const T num)
+bool vecInsertNum(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec, const T num)
 {
 	vec.conservativeResize(vec.rows() + 1, 1);
 	vec(vec.rows() - 1) = num;
@@ -435,7 +436,7 @@ bool vecInsertNum(Eigen::Matrix<T, Dynamic, 1>& vec, const T num)
 
 // 向量插入向量
 template<typename T>
-bool vecInsertVec(Eigen::Matrix<T, Dynamic, 1>& vec1, const Eigen::Matrix<T, Dynamic, 1>& vec2)
+bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix<T, Eigen::Dynamic, 1>& vec2)
 {
 	unsigned currentRows = vec1.rows();
 	unsigned addRows = vec2.rows();
@@ -488,7 +489,7 @@ bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const 
 
 // 返回一个类似于matlab索引向量的int列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；若程序出错则retVec所有元素为-1
 template<typename T, int N>
-VectorXi vecInMat(const Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, 1, N>& vec)
+VectorXi vecInMat(const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Matrix<T, 1, N>& vec)
 {
 	int rows = mat.rows();
 	int cols = mat.cols();
@@ -503,25 +504,21 @@ VectorXi vecInMat(const Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, 1, N>&
 	// 逐列比较：
 	MatrixXi tempMat(rows, cols);
 	for (int i = 0; i < cols; ++i)
-	{
 		tempMat.col(i) = (mat.col(i).array() == vec(i)).select(VectorXi::Ones(rows), VectorXi::Zero(rows));
-	}
 
 	retVec = tempMat.col(0);
 
 	if (cols > 1)
 	{
 		for (int i = 1; i < cols; ++i)
-		{
 			retVec = retVec.array() * tempMat.col(i).array();			// 逐列相乘：
-		}
 	}
 
 	return retVec;
 }
 
 template<typename T>
-VectorXi vecInMat(const Matrix<T, Dynamic, Dynamic>& mat, const Matrix<T, 1, Dynamic>& vec)
+VectorXi vecInMat(const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Matrix<T, 1, Eigen::Dynamic>& vec)
 {
 	int rows = mat.rows();
 	int cols = mat.cols();
@@ -582,7 +579,7 @@ void vecReadFromFile(std::vector<T>& vec, const char* fileName, const unsigned e
 
 
 template<typename T>
-bool matWriteToFile(const char* fileName, const Matrix<T, Dynamic, Dynamic>& mat)
+bool matWriteToFile(const char* fileName, const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat)
 {
 	std::ofstream file(fileName);
 	file << "row " << mat.rows() << std::endl;
@@ -600,7 +597,7 @@ bool matWriteToFile(const char* fileName, const Matrix<T, Dynamic, Dynamic>& mat
 
 
 template<typename T>
-bool matReadFromFile(Matrix<T, Dynamic, Dynamic>& mat, const char* fileName)
+bool matReadFromFile(Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const char* fileName)
 {
 	std::ifstream file(fileName);
 	const unsigned LINE_LENGTH = 100;
@@ -672,18 +669,20 @@ bool matReadFromFile(Matrix<T, Dynamic, Dynamic>& mat, const char* fileName)
 };
 
 
-template	<typename DerivedV, typename DerivedI>
-void objReadMeshMat(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, Eigen::Matrix<DerivedI, Dynamic, Dynamic>& tris, const char* fileName)
+template	<typename Scalar, typename Index>
+void objReadMeshMat(Eigen::Matrix<Scalar, Dynamic, Dynamic>& vers, Eigen::Matrix<Index, Dynamic, Dynamic>& tris, const char* fileName)
 {
 	char* pTmp = NULL;
-	std::ifstream ifs(fileName);//cube bunny Eight
+	std::ifstream ifs(fileName);		//cube bunny Eight
 	if (false == ifs.is_open())
 		return;
+
 	std::streampos   pos = ifs.tellg();     //   save   current   position   
 	ifs.seekg(0, std::ios::end);
 	unsigned fileLen = (unsigned)ifs.tellg();
 	if (0 == fileLen)
 		return;
+
 	ifs.seekg(pos);     //   restore   saved   position   
 	char* pFileBuf = new char[fileLen + 1];
 	std::memset(pFileBuf, 0, fileLen + 1);
@@ -711,7 +710,8 @@ void objReadMeshMat(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, Eigen::Matr
 			if (0 == nRet)
 				break;
 
-			Vector3f ver;
+			Eigen::Matrix<Scalar, 3, 1> ver;
+			// Vector3f ver;
 			ver(0) = (float)atof(tmpBuffer);
 			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
 			if (0 == nRet)
@@ -731,7 +731,8 @@ void objReadMeshMat(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, Eigen::Matr
 			if (0 == nRet)
 				break;
 
-			Vector3i tri;
+			Eigen::Matrix<Index, 3, 1> tri;
+			// Vector3i tri;
 			tri(0) = atoi(tmpBuffer) - 1;
 			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
 			if (0 == nRet)
@@ -753,7 +754,7 @@ void objReadMeshMat(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, Eigen::Matr
 
 
 template	<typename T>
-void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Dynamic, Dynamic>& vers, const Eigen::MatrixXi& tris)
+void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
 {
 	std::ofstream dstFile(fileName);
 	if (vers.cols() != 3 || tris.cols() != 3)
@@ -775,8 +776,8 @@ void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Dynamic, Dynam
 };
 
 
-template	<typename DerivedV>
-void objReadVerticesMat(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, const char* fileName)
+template	<typename Scalar>
+void objReadVerticesMat(Eigen::Matrix<Scalar, Dynamic, Dynamic>& vers, const char* fileName)
 {
 	char* pTmp = NULL;
 	std::ifstream ifs(fileName);			// cube bunny Eight
@@ -814,7 +815,8 @@ void objReadVerticesMat(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, const c
 			if (0 == nRet)
 				break;
 
-			Vector3f ver(Vector3f::Zero());
+			Eigen::Matrix<Scalar, 3, 1> ver(Eigen::Matrix<Scalar, 3, 1>::Zero());
+			// Vector3f ver(Vector3f::Zero());
 			ver(0) = (float)atof(tmpBuffer);
 			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
 			if (0 == nRet)
@@ -938,10 +940,10 @@ MatrixXf homoVers2vers(const MatrixXf& homoVers);
 
 // 解恰定的稠密线性方程组Ax == b;
 template<typename T, int N>
-bool solveLinearEquation(Matrix<T, N, 1>& x, const Matrix<T, Dynamic, Dynamic>& A, const Matrix<T, N, 1>& b)
+bool solveLinearEquation(Matrix<T, N, 1>& x, const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, const Matrix<T, N, 1>& b)
 {
 	// 解线性方程组Ax == b;
-	JacobiSVD<Matrix<T, Dynamic, Dynamic>> svd(A, ComputeThinU | ComputeThinV);
+	JacobiSVD<Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(A, ComputeThinU | ComputeThinV);
 	x = svd.solve(b);
 
 	return true;
@@ -950,18 +952,18 @@ bool solveLinearEquation(Matrix<T, N, 1>& x, const Matrix<T, Dynamic, Dynamic>& 
 
 // 解一系列恰定的稠密线性方程组AX == B;
 template <typename T>
-bool solveLinearEquations(Matrix<T, Dynamic, Dynamic>& X, const Matrix<T, Dynamic, Dynamic>& A, const Matrix<T, Dynamic, Dynamic>& B)
+bool solveLinearEquations(Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& B)
 {
 	if (A.rows() != B.rows())
 	{
 		return false;
 	}
 
-	JacobiSVD<Matrix<T, Dynamic, Dynamic>> svd(A, ComputeThinU | ComputeThinV);
+	JacobiSVD<Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(A, ComputeThinU | ComputeThinV);
 	X.resize(A.cols(), B.cols());
 	for (int i = 0; i < B.cols(); ++i)
 	{
-		Matrix < T, Dynamic, 1> x = svd.solve(B.col(i));
+		Matrix < T, Eigen::Dynamic, 1> x = svd.solve(B.col(i));
 		X.col(i) = x;
 	}
 
@@ -1076,7 +1078,132 @@ void ridgeRegressionPolyFitting(VectorXf& theta, const MatrixXf& vers);
 Matrix3f getRotationMat(const RowVector3f& originArrow, const RowVector3f& targetArrow);
 
 
+
+// 最小二乘法拟合（逼近）标准椭圆（长短轴和xy坐标轴对齐）
+VectorXd fittingStandardEllipse(const MatrixXf& sampleVers);
+
+
 //////////////////////////////////////////////////////////////////////////////////////////////// 三角网格处理：
+
+template <typename DerivedV, typename DerivedI>
+void getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	const unsigned trisCount = tris.rows();
+	const unsigned edgesCount = 3 * trisCount;
+	const unsigned versCount = tris.maxCoeff() + 1;
+ 
+	edges = Eigen::MatrixXi::Zero(edgesCount, 2);
+	Eigen::MatrixXi vaIdxes = tris.col(0).array().cast<int>();
+	Eigen::MatrixXi vbIdxes = tris.col(1).array().cast<int>();
+	Eigen::MatrixXi vcIdxes = tris.col(2).array().cast<int>();
+	edges.block(0, 0, trisCount, 1) = vbIdxes;
+	edges.block(trisCount, 0, trisCount, 1) = vcIdxes;
+	edges.block(trisCount * 2, 0, trisCount, 1) = vaIdxes;
+	edges.block(0, 1, trisCount, 1) = vcIdxes;
+	edges.block(trisCount, 1, trisCount, 1) = vaIdxes;
+	edges.block(trisCount * 2, 1, trisCount, 1) = vbIdxes;
+}
+ 
+// 计算网格所有三角片的重心
+template<typename T, typename DerivedV, typename DerivedI>
+bool trianglesBarycenter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& barys, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	const double eps = 1e-6;
+	int versCount = vers.rows();
+	int trisCount = tris.rows();
+	if (versCount == 0 || trisCount == 0)
+		return false;
+
+	barys.resize(trisCount, 3);
+	for (int i = 0; i < trisCount; ++i)
+	{
+		int vaIdx, vbIdx, vcIdx;
+		vaIdx = tris(i, 0);
+		vbIdx = tris(i, 1);
+		vcIdx = tris(i, 2);
+		Eigen::Matrix<T, 3, 3> tmpMat;
+		tmpMat.row(0) = vers.row(vaIdx).array().cast<T>();
+		tmpMat.row(1) = vers.row(vbIdx).array().cast<T>();
+		tmpMat.row(2) = vers.row(vcIdx).array().cast<T>();
+		barys.row(i) = tmpMat.colwise().mean();
+	}
+
+	return true;
+}
+
+
+// 计算网格所有三角片的归一化法向量
+template<typename T, typename DerivedV, typename DerivedI>
+bool trianglesNorm(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& triNorms, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	const double eps = 1e-12;
+	int versCount = vers.rows();
+	int trisCount = tris.rows();
+	if (versCount == 0 || trisCount == 0)
+		return false;
+
+	triNorms.resize(trisCount, 3);
+	for (int i = 0; i<trisCount; ++i) 
+	{
+		int vaIdx, vbIdx, vcIdx;
+		RowVector3d va, vb, vc, arrow1, arrow2, norm;
+		vaIdx = tris(i, 0);
+		vbIdx = tris(i, 1);
+		vcIdx = tris(i, 2);
+		va = vers.row(vaIdx).array().cast<double>();
+		vb = vers.row(vbIdx).array().cast<double>();
+		vc = vers.row(vcIdx).array().cast<double>();
+		arrow1 = vb - va;
+		arrow2 = vc - va;
+		triNorms.row(i) = (arrow1.cross(arrow2)).array().cast<T>();
+	}
+
+	// 法向量归一化，若存在退化三角片，则返回false;
+	for (int i = 0; i<trisCount; ++i)
+	{
+		double length = triNorms.row(i).norm();
+		if (abs(length) < eps)
+			return false;
+		Eigen::Matrix<T, 1, 3> tmpVec = triNorms.row(i)/length;
+		triNorms.row(i) = tmpVec;
+	}
+
+	return true;
+}
+
+
+// 计算网格所有三角片所在平面
+template<typename DerivedV, typename DerivedI>
+bool trianglesPlane(Eigen::MatrixXd& planeCoeff, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	int versCount = vers.rows();
+	int trisCount = tris.rows();
+	if (versCount == 0 || trisCount == 0)
+		return false;
+
+	Eigen::MatrixXd triNorms;
+	if (!trianglesNorm(triNorms, vers, tris))
+		return false;
+
+	planeCoeff.resize(trisCount, 4);
+	planeCoeff.leftCols(3) = triNorms;
+	for(int i = 0; i<trisCount; ++i)
+	{
+		RowVector3d va = vers.row(tris(i, 0)).array().cast<double>();
+		RowVector3d norm = triNorms.row(i);
+
+		// va点在平面上 → va点到平面的距离为0 → norm.dot(va) +d == 0; → d = -norm.dot(va);
+		planeCoeff(i, 3) = -norm.dot(va);
+	}
+
+	return true;
+}
+
+ 
 
 // 计算三角网格的体积：
 template<typename DerivedV, typename DerivedI>
@@ -1215,8 +1342,6 @@ using ttTuple = std::tuple<std::vector<int>, std::vector<int>, std::vector<int>>
 
 bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, \
 	std::vector<ttTuple>& ttAdj_nmnEdge, std::vector<ttTuple>& ttAdj_nmnOppEdge);
-
-
 
 
 // 自定义计时器，使用WINDOWS计时API
