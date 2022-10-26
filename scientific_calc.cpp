@@ -85,9 +85,6 @@ namespace SCIENTIFICCALC
 	}
 
 
-
-
-
 	// 测试计算克罗内克积(Kronecker product);
 	void test6() 
 	{
@@ -165,6 +162,46 @@ namespace TEST_PMP
 		std::cout << "volume == " << volume << std::endl;
 
 		std::cout << "finished." << std::endl;
+	}
+
+
+	// 计算三角网格的拓扑性质:
+	void test3() 
+	{
+		// 求三角网格中的非流形半边：
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		Eigen::MatrixXi nmnEdges;
+
+		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense2.obj");
+		nonManifoldEdges(tris, nmnEdges);
+		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
+
+		std::cout << "trisCount == " << tris.rows() << std::endl;
+		std::cout << "非流形有向边数：" << nmnEdges.rows() << std::endl;
+
+		unsigned trisSum = 0;
+		for (unsigned i = 0; i < 34; ++i) 
+		{
+			char str[512];
+			sprintf_s(str, 512, "E:/网格精简/splittedData2/splitedMesh%d.obj", i);
+			Eigen::MatrixXd vers;
+			Eigen::MatrixXi tris;
+			Eigen::MatrixXi nmnEdges;
+			objReadMeshMat(vers, tris, str);
+			nonManifoldEdges(tris, nmnEdges);
+
+			trisSum += tris.rows();
+			if (nmnEdges.rows() > 0) 
+				std::cout << "splitedMesh" << i << "有非流形有向边" << nmnEdges.rows() << "条。" << std::endl;
+		}
+		std::cout << "trisSum == " << trisSum << std::endl;
+		std::cout << "finished." << std::endl;
+
+
+		objReadMeshMat(vers, tris, "E:/材料/meshNmnEdges.obj");
+		nonManifoldEdges(tris, nmnEdges);
+		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 	}
 
 }

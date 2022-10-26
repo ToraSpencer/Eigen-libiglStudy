@@ -519,14 +519,14 @@ namespace IGL_BASIC
 		Eigen::VectorXi newOldVersInfo;						 
 		tiktok& tt = tiktok::getInstance();
 
-		std::string fileName = "s8block";
+		std::string fileName = "meshNmnEdges";
 
 		tt.start();
 		igl::readOBJ((std::string{ "E:/材料/" } + fileName + std::string{".obj"}).c_str(), vers, tris);
 		tt.endCout("elapsed time of loading mesh is: ");
 
 		unsigned trisCount = tris.rows();
-		unsigned tarTrisCount = std::round(trisCount * 0.1);			// 输出网格的最大三角片数；
+		unsigned tarTrisCount = std::round(trisCount * 0.5);			// 输出网格的最大三角片数；
 		// unsigned tarTrisCount = 60000;
 		igl::writeOBJ("E:/meshIn.obj", vers, tris);
 
@@ -1012,117 +1012,6 @@ namespace IGL_DIF_GEO
 
 		std::cout << "finished." << std::endl;
 	}
-
-
-	// libigl中的网格布尔操作；！！！需要配置CGAL库，当前未完成；
-#if 0
-	// https://stackoverflow.com/questions/37898084/how-to-perform-boolean-operation-on-thin-surface-using-libigl
-	Eigen::MatrixXd VA, VB, VC;
-	Eigen::VectorXi J, I;
-	Eigen::MatrixXi FA, FB, FC;
-	igl::MeshBooleanType boolean_type(
-		igl::MESH_BOOLEAN_TYPE_UNION);
-
-	const char* MESH_BOOLEAN_TYPE_NAMES[] =
-	{
-	  "Union",
-	  "Intersect",
-	  "Minus",
-	  "XOR",
-	  "Resolve",
-	};
-
-	const auto& key_down = [](igl::opengl::glfw::Viewer& viewer, unsigned char key, int mods) -> bool
-	{
-		switch (key)
-		{
-		default:
-			return false;
-		case 'A':
-			viewer.data().clear();
-			std::cout << "Loading A" << std::endl;
-			viewer.data().set_mesh(VA, FA);
-			break;
-		case 'B':
-			viewer.data().clear();
-			std::cout << "Loading B" << std::endl;
-			viewer.data().set_mesh(VB, FB);
-			break;
-		case 'C':
-			viewer.data().clear();
-			std::cout << "Loading C" << std::endl;
-			viewer.data().set_mesh(VC, FC);
-			return true;
-		}
-
-		return true;
-	};
-
-	void test1()
-	{
-		using namespace Eigen;
-		using namespace std;
-
-		double prismSize = 150;
-		double Heigh = 300;
-		VA.resize(6, 3);
-		VA << -prismSize, prismSize, 0,
-			prismSize, prismSize, 0,
-			0, 2 * prismSize, 0,
-			-prismSize, prismSize, Heigh,
-			prismSize, prismSize, Heigh,
-			0, 2 * prismSize, Heigh;
-		FA.resize(8, 3);
-		FA << 1, 0, 2,
-			5, 3, 4,
-			4, 1, 2,
-			2, 5, 4,
-			3, 5, 2,
-			2, 0, 3,
-			0, 1, 4,
-			4, 3, 0;
-
-		double tetsize = 300;
-		VB.resize(4, 3);
-		VB << 0, 0, tetsize,
-			-tetsize, 0, 0,
-			tetsize, 0, 0,
-			0, tetsize * 2, 0;
-		FB.resize(4, 3);
-		FB << 2, 1, 3,
-			2, 0, 1,
-			3, 0, 2,
-			1, 0, 3;
-
-
-		igl::copyleft::cgal::mesh_boolean(VA, FA, VB, FB, igl::MESH_BOOLEAN_TYPE_INTERSECT, VC, FC);
-
-		std::cout
-			<< "VA:" << std::endl << VA << std::endl << "==============" << std::endl
-			<< "FA:" << std::endl << FA << std::endl << "==============" << std::endl
-			<< "VB:" << std::endl << VB << std::endl << "==============" << std::endl
-			<< "FB:" << std::endl << FB << std::endl << "==============" << std::endl
-			<< "VC:" << std::endl << VC << std::endl << "==============" << std::endl
-			<< "FC:" << std::endl << FC << std::endl << "==============" << std::endl;
-
-		// Plot the mesh with pseudocolors
-		igl::opengl::glfw::Viewer viewer;
-
-		viewer.data().set_mesh(VA, FA);
- 
-
-		viewer.data().show_lines = 1;
-		viewer.callback_key_down = key_down;
-		viewer.core().camera_dnear = 3.9;
-		cout <<
-			"Press '.' to switch to next boolean operation type." << endl <<
-			"Press ',' to switch to previous boolean operation type." << endl <<
-			"Press ']' to push near cutting plane away from camera." << endl <<
-			"Press '[' to pull near cutting plane closer to camera." << endl <<
-			"Hint: investigate _inside_ the model to see orientation changes." << endl;
-		viewer.launch();
-	}
-#endif
 
 }
 
