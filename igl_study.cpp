@@ -2,7 +2,7 @@
 #define DATA_PATH "./data/"
 
 igl::opengl::glfw::Viewer viewer;				// libigl中的基于glfw的显示窗口；
-
+static std::mutex g_mutex;
 
 // libigl基本功能
 namespace IGL_BASIC
@@ -519,15 +519,15 @@ namespace IGL_BASIC
 		Eigen::VectorXi newOldVersInfo;						 
 		tiktok& tt = tiktok::getInstance();
 
-		std::string fileName = "meshNmnEdges";
+		std::string fileName = "roundSurf";
 
 		tt.start();
 		igl::readOBJ((std::string{ "E:/材料/" } + fileName + std::string{".obj"}).c_str(), vers, tris);
 		tt.endCout("elapsed time of loading mesh is: ");
 
 		unsigned trisCount = tris.rows();
-		unsigned tarTrisCount = std::round(trisCount * 0.5);			// 输出网格的最大三角片数；
-		// unsigned tarTrisCount = 60000;
+		unsigned tarTrisCount = std::round(trisCount * 0.1);			// 输出网格的最大三角片数；
+		// unsigned tarTrisCount = 7516;
 		igl::writeOBJ("E:/meshIn.obj", vers, tris);
 
 #if 1
@@ -678,7 +678,7 @@ namespace IGL_BASIC
 	}
 
 
-	// 手动实现qslim算法：
+	// 使用viewer对象的动画功能逐步查看qslim的边折叠过程：
 	void test7777() 
 	{
 		using namespace igl;
@@ -687,152 +687,6 @@ namespace IGL_BASIC
 		Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
 		Eigen::VectorXi newOldVersInfo;
 		tiktok& tt = tiktok::getInstance();
-
-		std::string fileName = "jawMeshDenseRepaired";
-
-		tt.start();
-		igl::readOBJ((std::string{ "E:/材料/" } + fileName + std::string{ ".obj" }).c_str(), vers, tris);
-		tt.endCout("elapsed time of loading mesh is: ");
-
-		unsigned trisCount = tris.rows();
-		unsigned tarTrisCount = 2672;								// 输出网格的最大三角片数；
-		igl::writeOBJ("E:/meshIn.obj", vers, tris);
-
-		igl::connect_boundary_to_infinity(vers, tris, vers0, tris0);
-		if (!igl::is_edge_manifold(tris0))
-			return;
-
-		Eigen::VectorXi edgeUeInfo;
-		Eigen::MatrixXi uEdges, UeTrisInfo, UeCornersInfo;
-		igl::edge_flaps(tris0, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
-
-		// 2. 计算每个顶点的Q矩阵：
-		typedef std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double> Quadric;
-		std::vector<Quadric> quadrics;
-		igl::per_vertex_point_to_plane_quadrics(vers0, tris0, edgeUeInfo, UeTrisInfo, UeCornersInfo, quadrics);
-
-		// for debug:
-		dispMat(std::get<0>(quadrics[0]));
-
-		// State variables keeping track of edge we just collapsed
-		int v1 = -1;
-		int v2 = -1;
-
-
-		// 3. qslim算法中的cost_and_placement(), pre_collapse(), post_collapse()算子：
-		typedef std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double> Quadric;
-
-		// lambda——cost_and_placement()——qslim算法中计算每条边折叠的cost值，以及折叠后顶点的位置：
-		auto cost_and_placement = [&quadrics, &v1, &v2](
-			const int e,
-			const Eigen::MatrixXd& vers,
-			const Eigen::MatrixXi& /*tris*/,
-			const Eigen::MatrixXi& E,
-			const Eigen::VectorXi& /*edgeUeInfo*/,
-			const Eigen::MatrixXi& /*EF*/,
-			const Eigen::MatrixXi& /*EI*/,
-			double& cost,
-			Eigen::RowVectorXd& p)
-		{
-			// Combined quadric
-			Quadric quadric_p;
-			quadric_p = quadrics[E(e, 0)] + quadrics[E(e, 1)];
-
-			// Quadric: p'Ap + 2b'p + c,  optimal point: Ap = -b, or rather because we have row vectors: pA=-b
-			const auto& A = std::get<0>(quadric_p);
-			const auto& b = std::get<1>(quadric_p);
-			const auto& c = std::get<2>(quadric_p);
-			p = -b * A.inverse();
-			cost = p.dot(p * A) + 2 * p.dot(b) + c;
-
-			// Force infs and nans to infinity
-			if (std::isinf(cost) || cost != cost)
-			{
-				cost = std::numeric_limits<double>::infinity();
-				// Prevent NaNs. Actually NaNs might be useful for debugging.
-				p.setConstant(0);
-			}
-		};
-
-		// lambda——pre_collapse()
-		auto pre_collapse = [&v1, &v2](
-			const Eigen::MatrixXd&,/*vers*/
-			const Eigen::MatrixXi&,/*tris*/
-			const Eigen::MatrixXi& E,
-			const Eigen::VectorXi&,/*edgeUeInfo*/
-			const Eigen::MatrixXi&,/*EF*/
-			const Eigen::MatrixXi&,/*EI*/
-			const igl::min_heap< std::tuple<double, int, int> >&,/*Q*/
-			const Eigen::VectorXi&,/*EQ*/
-			const Eigen::MatrixXd&,/*C*/
-			const int e)->bool
-		{
-			v1 = E(e, 0);
-			v2 = E(e, 1);
-			return true;
-		};
-
-
-		// lambda——post_collapse()， update quadric
-		auto post_collapse = [&v1, &v2, &quadrics](
-			const Eigen::MatrixXd&,   /*vers*/
-			const Eigen::MatrixXi&,   /*tris*/
-			const Eigen::MatrixXi&,   /*E*/
-			const Eigen::VectorXi&,/*edgeUeInfo*/
-			const Eigen::MatrixXi&,  /*EF*/
-			const Eigen::MatrixXi&,  /*EI*/
-			const igl::min_heap< std::tuple<double, int, int> >&,/*Q*/
-			const Eigen::VectorXi&,/*EQ*/
-			const Eigen::MatrixXd&,   /*C*/
-			const int,   /*e*/
-			const int,  /*e1*/
-			const int,  /*e2*/
-			const int,  /*f1*/
-			const int,  /*f2*/
-			const bool                                          collapsed
-			)->void
-		{
-			if (collapsed)
-				quadrics[v1 < v2 ? v1 : v2] = quadrics[v1] + quadrics[v2];
-		};
-
-
-		// decimate():
-		Eigen::MatrixXd versCopy = vers;
-		Eigen::MatrixXi trisCopy = tris;
-		edge_flaps(trisCopy, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
-
-		{
-			Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> BF;
-			Eigen::Array<bool, Eigen::Dynamic, 1> BE;
-			if (!is_edge_manifold(trisCopy, uEdges.rows(), edgeUeInfo, BF, BE))
-				return;
-		}
-
-		// 优先队列；
-		igl::min_heap<std::tuple<double, int, int> > pQueue;
-		Eigen::VectorXi EQ = Eigen::VectorXi::Zero(uEdges.rows());
-		MatrixXd collapsed(uEdges.rows(), versCopy.cols());
-
-		// 计算每条无向边的cost值，以此为优先级存入优先队列
-		{
-			Eigen::VectorXd costs(uEdges.rows());
-			igl::parallel_for(uEdges.rows(), [&](const int e)
-				{
-					double cost = e;
-					RowVectorXd p(1, 3);
-					cost_and_placement(e, versCopy, trisCopy, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo, cost, p);
-					collapsed.row(e) = p;
-					costs(e) = cost;
-				},
-				10000);
-
-			for (int i = 0; i < uEdges.rows(); i++)
-				pQueue.emplace(costs(i), i, 0);
-			
-			dispCosts(pQueue, 10);
-		}
-
 
 		std::cout << "finished." << std::endl;
 	}
@@ -990,6 +844,87 @@ namespace IGL_BASIC
 
 	}
 
+
+	// 求精简后的网格和原始网格的近似误差（来自QEM的paper）：
+	double calcSimpApproxError(const Eigen::MatrixXd& versSimp, const Eigen::MatrixXi& trisSimp, \
+		const Eigen::MatrixXd& versOri, const Eigen::MatrixXi& trisOri)
+	{
+		// 注意不能出现太大的矩阵，否则容易bad alloc
+
+		double appErr = 0;
+		std::pair<unsigned, float> pair0;
+		int versCount0 = versOri.rows();
+		int versCount1 = versSimp.rows();
+		const Eigen::MatrixXd& versMat0 = versOri;
+		const Eigen::MatrixXd& versMat1 = versSimp;
+		const Eigen::MatrixXi& trisMat0 = trisOri;
+		const Eigen::MatrixXi& trisMat1 = trisSimp;
+		Eigen::MatrixXd planeCoeff0, planeCoeff1;
+		bool ret0 = trianglesPlane(planeCoeff0, versMat0, trisMat0);
+		bool ret1 = trianglesPlane(planeCoeff1, versMat1, trisMat1);
+
+		std::vector<long double> squaredDis0, squaredDis1;
+		squaredDis0.reserve(versCount0);
+		squaredDis1.reserve(versCount1);
+
+		// 点到平面距离： dis == p.dot(v)，注意是有符号的距离； p == (a,b,c,d), v = (x0, y0, z0, 1), (a,b,c)是平面的归一化法向量；
+		Eigen::MatrixXd versExt0{ Eigen::MatrixXd::Ones(versCount0, 4) };
+		Eigen::MatrixXd versExt1{ Eigen::MatrixXd::Ones(versCount1, 4) };
+		versExt0.leftCols(3) = versMat0.array().cast<double>();
+		versExt1.leftCols(3) = versMat1.array().cast<double>();
+
+		// for debug
+		Eigen::Vector4d verColVec = versExt0.row(3).transpose();
+		// 索引为verIdx的simp网格中的顶点，到ori网格中所有三角片平面的符号距离：
+		Eigen::VectorXd signedDises = planeCoeff0 * verColVec;
+		Eigen::VectorXd sqrDises = signedDises.array() * signedDises.array();
+
+		// for new method:
+		PARALLEL_FOR(0, versCount1, [&](int verIdx)
+			{
+				std::lock_guard<mutex> guard(g_mutex);
+				Eigen::Vector4d verColVec = versExt1.row(verIdx).transpose();
+				// 索引为verIdx的simp网格中的顶点，到ori网格中所有三角片平面的符号距离：
+				Eigen::VectorXd signedDises = planeCoeff0 * verColVec;
+				Eigen::VectorXd sqrDises = signedDises.array() * signedDises.array();
+				squaredDis1.push_back(sqrDises.minCoeff());
+			});
+
+		PARALLEL_FOR(0, versCount0, [&](int verIdx)
+			{
+				std::lock_guard<mutex> guard(g_mutex);
+				Eigen::Vector4d verColVec = versExt0.row(verIdx).transpose();
+				// 索引为verIdx的simp网格中的顶点，到ori网格中所有三角片平面的符号距离：
+				Eigen::VectorXd signedDises = planeCoeff1 * verColVec;
+				Eigen::VectorXd sqrDises = signedDises.array() * signedDises.array();
+				squaredDis0.push_back(sqrDises.minCoeff());
+			});
+
+		long double s0 = 0;
+		long double s1 = 0;
+		for (const auto& num : squaredDis0)
+			s0 += num;
+		for (const auto& num : squaredDis1)
+			s1 += num;
+		appErr = (s0 + s1) / (static_cast<long>(versCount0) + static_cast<long>(versCount1));
+
+		return appErr;
+	}
+
+
+	// 测量精简网格的近似误差：
+	void test777777() 
+	{
+		Eigen::MatrixXd vers0, vers1;
+		Eigen::MatrixXi tris0, tris1;
+		objReadMeshMat(vers0, tris0, "E:/材料/jawMeshDense4.obj");
+		objReadMeshMat(vers1, tris1, "E:/jawMeshSimplified4.obj");
+
+		double appErr = calcSimpApproxError(vers1, tris1, vers0, tris0);
+
+		std::cout << "appErr == " << appErr << std::endl;
+		std::cout << "finished." << std::endl;
+	}
 }
 
 

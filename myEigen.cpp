@@ -238,23 +238,6 @@ VectorXi IdxVec2FlagVec(const VectorXi& idxVec, const unsigned size)
 }
 
 
-// 网格串联——合并两个孤立的网格到一个网格里
-void concatMeshMat(MatrixXf& vers, MatrixXi& tris, const MatrixXf& vers1, const MatrixXi& tris1)
-{
-	int versCount = vers.rows();
-	matInsertRows<float>(vers, vers1);
-
-	MatrixXi trisCopy1 = tris1;
-	int* intPtr = trisCopy1.data();
-	for (int i = 0; i < trisCopy1.size(); ++i)
-	{
-		*(intPtr++) = versCount + *intPtr;
-	}
-
-	matInsertRows<int>(tris, trisCopy1);
-};
- 
-
 // 多项式插值
 void polyInterpolation() 
 {

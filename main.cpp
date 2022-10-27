@@ -120,7 +120,7 @@ int main()
  
 	// SPARSEMAT::test1();
 	
-	// IGL_BASIC::test7();
+	IGL_BASIC::test7();
 
 	// IGL_DIF_GEO::test0();
 
@@ -132,7 +132,7 @@ int main()
 
 	// IGL_BASIC_PMP::test2();
 
-	TEST_PMP::test3();
+	// TEST_PMP::test3();
  
 
 	std::cout << "main() finished." << std::endl;

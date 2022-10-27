@@ -548,7 +548,20 @@ VectorXi vecInMat(const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Ma
 
 
 // 网格串联——合并两个孤立的网格到一个网格里
-void concatMeshMat(MatrixXf& vers, MatrixXi& tris, const MatrixXf& vers1, const MatrixXi& tris1);
+template <typename DerivedV, typename DerivedI>
+void concatMeshMat(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBase<DerivedI>& tris, \
+	const Eigen::PlainObjectBase<DerivedV>& vers1, const Eigen::PlainObjectBase<DerivedI>& tris1)
+{
+	int versCount = vers.rows();
+	matInsertRows(vers, vers1);
+
+	DerivedI trisCopy1 = tris1;
+	int* intPtr = trisCopy1.data();
+	for (int i = 0; i < trisCopy1.size(); ++i)
+		*(intPtr++) = versCount + *intPtr;
+
+	matInsertRows(tris, trisCopy1);
+};
 
 
 
@@ -1134,6 +1147,7 @@ bool trianglesBarycenter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& barys
 }
 
 
+
 // 计算网格所有三角片的归一化法向量
 template<typename T, typename DerivedV, typename DerivedI>
 bool trianglesNorm(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& triNorms, const Eigen::PlainObjectBase<DerivedV>& vers, \
@@ -1146,7 +1160,7 @@ bool trianglesNorm(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& triNorms, c
 		return false;
 
 	triNorms.resize(trisCount, 3);
-	for (int i = 0; i<trisCount; ++i) 
+	for (int i = 0; i < trisCount; ++i)
 	{
 		int vaIdx, vbIdx, vcIdx;
 		RowVector3d va, vb, vc, arrow1, arrow2, norm;
@@ -1161,13 +1175,16 @@ bool trianglesNorm(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& triNorms, c
 		triNorms.row(i) = (arrow1.cross(arrow2)).array().cast<T>();
 	}
 
-	// 法向量归一化，若存在退化三角片，则返回false;
-	for (int i = 0; i<trisCount; ++i)
+	// 法向量归一化，若存在退化三角片，则写为inf
+	for (int i = 0; i < trisCount; ++i)
 	{
 		double length = triNorms.row(i).norm();
 		if (abs(length) < eps)
-			return false;
-		Eigen::Matrix<T, 1, 3> tmpVec = triNorms.row(i)/length;
+		{
+			triNorms.row(i) = Eigen::Matrix<T, 1, 3>{ INFINITY, INFINITY, INFINITY };
+			continue;
+		}
+		Eigen::Matrix<T, 1, 3> tmpVec = triNorms.row(i) / length;
 		triNorms.row(i) = tmpVec;
 	}
 
@@ -1191,10 +1208,15 @@ bool trianglesPlane(Eigen::MatrixXd& planeCoeff, const Eigen::PlainObjectBase<De
 
 	planeCoeff.resize(trisCount, 4);
 	planeCoeff.leftCols(3) = triNorms;
-	for(int i = 0; i<trisCount; ++i)
+	for (int i = 0; i < trisCount; ++i)
 	{
-		RowVector3d va = vers.row(tris(i, 0)).array().cast<double>();
 		RowVector3d norm = triNorms.row(i);
+
+		// 若存在退化三角片，则平面系数都写为NAN:
+		if (std::isinf(norm(0)))
+			planeCoeff(i, 3) = INFINITY;
+
+		RowVector3d va = vers.row(tris(i, 0)).array().cast<double>();
 
 		// va点在平面上 → va点到平面的距离为0 → norm.dot(va) +d == 0; → d = -norm.dot(va);
 		planeCoeff(i, 3) = -norm.dot(va);
@@ -1203,7 +1225,6 @@ bool trianglesPlane(Eigen::MatrixXd& planeCoeff, const Eigen::PlainObjectBase<De
 	return true;
 }
 
- 
 
 // 计算三角网格的体积：
 template<typename DerivedV, typename DerivedI>

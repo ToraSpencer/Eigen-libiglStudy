@@ -173,7 +173,7 @@ namespace TEST_PMP
 		Eigen::MatrixXi tris;
 		Eigen::MatrixXi nmnEdges;
 
-		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense2.obj");
+		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense4.obj");
 		nonManifoldEdges(tris, nmnEdges);
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 
@@ -181,10 +181,10 @@ namespace TEST_PMP
 		std::cout << "非流形有向边数：" << nmnEdges.rows() << std::endl;
 
 		unsigned trisSum = 0;
-		for (unsigned i = 0; i < 34; ++i) 
+		for (unsigned i = 0; i < 40; ++i) 
 		{
 			char str[512];
-			sprintf_s(str, 512, "E:/网格精简/splittedData2/splitedMesh%d.obj", i);
+			sprintf_s(str, 512, "E:/网格精简/splittedData4/splitedMesh%d.obj", i);
 			Eigen::MatrixXd vers;
 			Eigen::MatrixXi tris;
 			Eigen::MatrixXi nmnEdges;
