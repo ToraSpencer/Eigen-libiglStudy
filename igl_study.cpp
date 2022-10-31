@@ -4,6 +4,7 @@
 igl::opengl::glfw::Viewer viewer;				// libigl中的基于glfw的显示窗口；
 static std::mutex g_mutex;
 
+
 // libigl基本功能
 namespace IGL_BASIC
 {
@@ -519,14 +520,14 @@ namespace IGL_BASIC
 		Eigen::VectorXi newOldVersInfo;						 
 		tiktok& tt = tiktok::getInstance();
 
-		std::string fileName = "roundSurf";
+		std::string fileName = "tmpMesh";
 
 		tt.start();
 		igl::readOBJ((std::string{ "E:/材料/" } + fileName + std::string{".obj"}).c_str(), vers, tris);
 		tt.endCout("elapsed time of loading mesh is: ");
 
 		unsigned trisCount = tris.rows();
-		unsigned tarTrisCount = std::round(trisCount * 0.1);			// 输出网格的最大三角片数；
+		unsigned tarTrisCount = std::round(trisCount * 0.5);			// 输出网格的最大三角片数；
 		// unsigned tarTrisCount = 7516;
 		igl::writeOBJ("E:/meshIn.obj", vers, tris);
 
@@ -678,15 +679,245 @@ namespace IGL_BASIC
 	}
 
 
-	// 使用viewer对象的动画功能逐步查看qslim的边折叠过程：
+	// 使用viewer对象的动画功能逐步查看精简过程中的边折叠：
 	void test7777() 
 	{
 		using namespace igl;
-		Eigen::MatrixXd vers, versOut, vers0;
-		Eigen::MatrixXi tris, trisOut, tris0;
-		Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
+		Eigen::MatrixXd vers;
+		Eigen:MatrixXi tris;
+		igl::readOBJ("E:/材料/tmpMesh.obj", vers, tris);
+
+		bool keepWorkingFlag = true;
+		bool simplest_decimate_flag = false;
+		bool qslim_decimate_flag = ~simplest_decimate_flag;
+
+		// 1. 准备数据
+		Eigen::MatrixXd versCopy = vers;
+		Eigen::MatrixXi trisCopy = tris;
+		VectorXi edgeUeInfo;
+		MatrixXi uEdges, UeTrisInfo, UeCornersInfo;
+		igl::min_heap<std::tuple<double, int, int> > pQueue;				// 优先队列； 
+
+		int v1 = -1;					// State variables keeping track of edge we just collapsed
+		int v2 = -1;
+		Eigen::VectorXi EQ;
+		MatrixXd collapsed;
+		typedef std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double> Quadric;
+		std::vector<Quadric> quadrics;				// 每个顶点的Q矩阵；
+
+		edge_flaps(trisCopy, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
+		EQ = Eigen::VectorXi::Zero(uEdges.rows());						// Could reserve with https://stackoverflow.com/a/29236236/148668        
+		collapsed.resize(uEdges.rows(), versCopy.cols());				// If an edge were collapsed, we'd collapse it to these points:
+
+		// 检测是否有非流形边：
+		{
+			Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> BF;
+			Eigen::Array<bool, Eigen::Dynamic, 1> BE;
+			if (!is_edge_manifold(trisCopy, uEdges.rows(), edgeUeInfo, BF, BE))
+				return;
+		}
+ 
+		decimate_cost_and_placement_callback cost_and_placement;
+		decimate_pre_collapse_callback pre_collapse;
+		decimate_post_collapse_callback post_collapse;
+
+		if (simplest_decimate_flag)
+		{
+			// 获取最简边折叠精简算法的函数子
+			cost_and_placement = shortest_edge_and_midpoint;
+			decimate_trivial_callbacks(pre_collapse, post_collapse);    // 生成最简边折叠中的pre_collapse和post_collapse函数子——什么都不做；
+		}
+		else
+		{
+			//  计算每个顶点的Q矩阵：
+			per_vertex_point_to_plane_quadrics(vers, tris, edgeUeInfo, UeTrisInfo, UeCornersInfo, quadrics);
+
+			// 获取qslim算法中的函数子：
+			igl::qslim_optimal_collapse_edge_callbacks(uEdges, quadrics, v1, v2, cost_and_placement, pre_collapse, post_collapse);
+		}
+
+		decimate_stopping_condition_callback stopping_condition;
+ 
+		int loopCount = 0;
+		MatrixXd collapsedVers;                       // 边收缩之后生成的顶点的位置；
+		int num_collapsed;                                // 边收缩循环的计数；
+		Eigen::VectorXi timeStamps;
+
+		const auto& exportCurrentMesh = [&]()
+		{
+			MatrixXi tris0(trisCopy.rows(), 3);
+			VectorXi _1;
+			Eigen::VectorXi newOldTrisInfo;
+			Eigen::VectorXi newOldVersInfo;
+			newOldTrisInfo.resize(trisCopy.rows());
+			int m = 0;
+			for (int i = 0; i < trisCopy.rows(); i++)
+			{
+				if (trisCopy(i, 0) != IGL_COLLAPSE_EDGE_NULL ||
+					trisCopy(i, 1) != IGL_COLLAPSE_EDGE_NULL ||
+					trisCopy(i, 2) != IGL_COLLAPSE_EDGE_NULL)
+				{
+					tris0.row(m) = trisCopy.row(i);
+					newOldTrisInfo(m) = i;
+					m++;
+				}
+			}
+			tris0.conservativeResize(m, tris0.cols());              // 这里相当于shrink_to_fit();
+			newOldTrisInfo.conservativeResize(m);
+
+			// 3.2. 删除网格中的孤立顶点：
+			Eigen::MatrixXd versOut;
+			Eigen::MatrixXi trisOut;
+			igl::remove_unreferenced(vers, tris0, versOut, trisOut, _1, newOldVersInfo);
+			char str[256];
+			sprintf_s(str, 256, "E:/decimating_output_%d.obj", loopCount);
+			igl::writeOBJ(str, versOut, trisOut);
+		};
+ 
+		// lambda——所有数据复位
+		const auto& reset = [&]()
+		{
+			tris = trisCopy;
+			vers = versCopy;
+			edge_flaps(tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
+			collapsedVers.resize(uEdges.rows(), vers.cols());
+			VectorXd costs(uEdges.rows());
+
+			pQueue = {};            // https://stackoverflow.com/questions/2852140/priority-queue-clear-method
+			timeStamps = Eigen::VectorXi::Zero(uEdges.rows());
+
+			// r1. 计算每条边的折叠cost值，以及折叠之后的顶点坐标，存入优先队列pQueue；
+			{
+				Eigen::VectorXd costs(uEdges.rows());
+				igl::parallel_for(uEdges.rows(), \
+					[&](const int i)
+					{
+						double cost = i;
+						RowVectorXd edgeCenter(1, 3);           // 取边的中点作为边折叠之后的顶点；
+						cost_and_placement(i, vers, tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo, cost, edgeCenter);
+						collapsedVers.row(i) = edgeCenter;
+						costs(i) = cost;
+					}, \
+					10000);
+
+				for (int i = 0; i < uEdges.rows(); i++)
+					pQueue.emplace(costs(i), i, 0);
+			}
+
+			num_collapsed = 0;
+			viewer.data().clear();
+			viewer.data().set_mesh(vers, tris);
+			viewer.data().set_face_based(true);
+		};
+
+
+		// lambda——执行网格精简，准备渲染的数据；
+		const auto& pre_draw = [&](igl::opengl::glfw::Viewer& viewer)->bool
+		{
+			// p1. 每一次动画循环中，收缩1%的边；
+			if (viewer.core().is_animating && !pQueue.empty())
+			{
+				bool FlagCollapsed = false;           // 本次循环中边收缩是否执行成功；
+
+				// p1.1 执行边收缩——collapse edge
+				const int max_iter = std::ceil(0.01 * pQueue.size());
+				for (int j = 0; j < max_iter; j++)
+				{
+					if (!collapse_edge(cost_and_placement, vers, tris, uEdges, \
+						edgeUeInfo, UeTrisInfo, UeCornersInfo, pQueue, timeStamps, collapsedVers))              // collapse_edge()重载2.1
+						break;
+					FlagCollapsed = true;
+					num_collapsed++;
+				}
+
+				// p1.2 
+				if (FlagCollapsed)
+				{
+					viewer.data().clear();
+					viewer.data().set_mesh(vers, tris);
+					viewer.data().set_face_based(true);
+				}
+			}
+
+			// p2. 计算折叠后的网格三角片数（三个点索引都没有被标记为IGL_COLLAPSE_EDGE_NULL的三角片数）
+			unsigned currentTrisCount = 0;
+			for (int i = 0; i < tris.rows(); i++)
+			{
+				if (tris(i, 0) != IGL_COLLAPSE_EDGE_NULL || tris(i, 1) != IGL_COLLAPSE_EDGE_NULL || tris(i, 2) != IGL_COLLAPSE_EDGE_NULL)
+					currentTrisCount++;
+			}
+
+			if (loopCount < 10)
+				exportCurrentMesh();
+			std::cout << "loop : " << loopCount++ << ", current trisCount == " << currentTrisCount << std::endl;
+			return false;
+		};
+
+
+		// lambda——键盘事件响应；
+		const auto& key_down = [&](igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod)->bool
+		{
+			switch (key)
+			{
+			case ' ':
+				viewer.core().is_animating ^= 1;
+				break;
+			case 'R':
+			case 'r':
+				reset();
+				break;
+			case '0':
+				keepWorkingFlag = false;
+				viewer.core().is_animating = 0;
+				viewer.launch_shut();
+				viewer.shutdown_plugins();
+				break;
+			default:
+				return false;
+			}
+			return true;
+		};
+
+
+		// 1. 初始化（复位）；
+		reset();
+
+		// 2. 打开窗口，动画循环
+		viewer.core().background_color.setConstant(1);
+		viewer.core().is_animating = true;                                 // 动画
+		viewer.core().animation_max_fps = 1.0;						// 指定最大动画帧率；
+		viewer.callback_key_down = key_down;
+		viewer.callback_pre_draw = pre_draw;
+		viewer.launch(keepWorkingFlag);
+
+		// 3. 动画终止后，输出网格：
+		Eigen::VectorXi newOldTrisInfo;
 		Eigen::VectorXi newOldVersInfo;
-		tiktok& tt = tiktok::getInstance();
+		
+		// 3.1. 删除所有含有标记为IGL_COLLAPSE_EDGE_NULL边的三角片：
+		MatrixXi tris0(trisCopy.rows(), 3);
+		VectorXi _1;
+		newOldTrisInfo.resize(trisCopy.rows());
+		int m = 0;
+		for (int i = 0; i < trisCopy.rows(); i++)
+		{
+			if (trisCopy(i, 0) != IGL_COLLAPSE_EDGE_NULL ||
+				trisCopy(i, 1) != IGL_COLLAPSE_EDGE_NULL ||
+				trisCopy(i, 2) != IGL_COLLAPSE_EDGE_NULL)
+			{
+				tris0.row(m) = trisCopy.row(i);
+				newOldTrisInfo(m) = i;
+				m++;
+			}
+		}
+		tris0.conservativeResize(m, tris0.cols());              // 这里相当于shrink_to_fit();
+		newOldTrisInfo.conservativeResize(m);
+
+		// 3.2. 删除网格中的孤立顶点：
+		Eigen::MatrixXd versOut;
+		Eigen::MatrixXi trisOut;
+		igl::remove_unreferenced(vers, tris0, versOut, trisOut, _1, newOldVersInfo);
+		igl::writeOBJ("E:/decimating_output.obj", versOut, trisOut);
 
 		std::cout << "finished." << std::endl;
 	}

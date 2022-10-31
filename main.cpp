@@ -113,6 +113,35 @@ void dispElem(const Eigen::MatrixBase<Derived>& m)
 }
 
 
+namespace DECIMATION 
+{
+	// 循环调用igl::qslim()精简一批网格：
+	void test0()
+	{
+		const unsigned meshesCount = 40;
+		for (unsigned i = 0; i < meshesCount; ++i)
+		{
+			Eigen::MatrixXd vers, versOut;
+			Eigen::MatrixXi tris, trisOut;
+			char fileName[256];
+			sprintf_s(fileName, 256, "E:/网格精简/splittedData4/splitedMesh%d.obj", i);
+			igl::readOBJ(fileName, vers, tris);
+
+			int trisCount = tris.rows();
+			int tarTrisCount = std::round(0.6397 * trisCount);
+			Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
+			Eigen::VectorXi newOldVersInfo;
+			igl::qslim(vers, tris, tarTrisCount, versOut, trisOut, newOldTrisInfo, newOldVersInfo);
+
+			sprintf_s(fileName, 256, "E:/qslimOutput_%d.obj", i);
+			igl::writeOBJ(fileName, versOut, trisOut);
+			std::cout << "Loop " << i << " finished." << std::endl;
+		}
+
+		std::cout << "finished." << std::endl;
+	}
+} 
+
 
 int main()
 {
@@ -120,7 +149,7 @@ int main()
  
 	// SPARSEMAT::test1();
 	
-	IGL_BASIC::test7();
+	// IGL_BASIC::test7777();
 
 	// IGL_DIF_GEO::test0();
 
@@ -134,6 +163,7 @@ int main()
 
 	// TEST_PMP::test3();
  
+	DECIMATION::test0();
 
 	std::cout << "main() finished." << std::endl;
 }
