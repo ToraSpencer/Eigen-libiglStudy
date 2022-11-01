@@ -146,24 +146,22 @@ namespace DECIMATION
 int main()
 {
 	// DENSEMAT::test3();
- 
 	// SPARSEMAT::test1();
+
 	
-	// IGL_BASIC::test7777();
-
+	// IGL_BASIC::test77777();
 	// IGL_DIF_GEO::test0();
-
 	// IGL_GRAPH::test2();
-
 	// IGL_SPACE_PARTITION::test0();
+	IGL_BASIC_PMP::test4();
+
 
 	// SCIENTIFICCALC::test7();
-
-	// IGL_BASIC_PMP::test2();
-
 	// TEST_PMP::test3();
- 
-	DECIMATION::test0();
+	// IGL_MATH::test1();
+
+
+	// DECIMATION::test0();
 
 	std::cout << "main() finished." << std::endl;
 }

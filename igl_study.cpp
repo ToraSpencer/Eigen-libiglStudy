@@ -393,7 +393,7 @@ namespace IGL_BASIC
 			unsigned index = 0;
 			for (const auto& ch : readStr)
 			{
-				if (ch >= '0' && ch <= '9' || ch == '.')
+				if (ch >= '0' && ch <= '9' || ch == '.' || ch == '+' || ch == '-')
 					tmpStr.push_back(ch);
 				else
 				{
@@ -415,7 +415,7 @@ namespace IGL_BASIC
 			unsigned index = 0;
 			for (const auto& ch : readStr)
 			{
-				if (ch >= '0' && ch <= '9' || ch == '.')
+				if (ch >= '0' && ch <= '9' || ch == '.' || ch == '+' || ch == '-')
 					tmpStr.push_back(ch);
 				else
 				{
@@ -700,14 +700,14 @@ namespace IGL_BASIC
 
 		int v1 = -1;					// State variables keeping track of edge we just collapsed
 		int v2 = -1;
-		Eigen::VectorXi EQ;
-		MatrixXd collapsed;
+		Eigen::VectorXi timeStamps;
+		MatrixXd collapsedVers;
 		typedef std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double> Quadric;
 		std::vector<Quadric> quadrics;				// 每个顶点的Q矩阵；
 
 		edge_flaps(trisCopy, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
-		EQ = Eigen::VectorXi::Zero(uEdges.rows());						// Could reserve with https://stackoverflow.com/a/29236236/148668        
-		collapsed.resize(uEdges.rows(), versCopy.cols());				// If an edge were collapsed, we'd collapse it to these points:
+		timeStamps = Eigen::VectorXi::Zero(uEdges.rows());						// Could reserve with https://stackoverflow.com/a/29236236/148668        
+		collapsedVers.resize(uEdges.rows(), versCopy.cols());				// If an edge were collapsed, we'd collapse it to these points:
 
 		// 检测是否有非流形边：
 		{
@@ -739,9 +739,7 @@ namespace IGL_BASIC
 		decimate_stopping_condition_callback stopping_condition;
  
 		int loopCount = 0;
-		MatrixXd collapsedVers;                       // 边收缩之后生成的顶点的位置；
 		int num_collapsed;                                // 边收缩循环的计数；
-		Eigen::VectorXi timeStamps;
 
 		const auto& exportCurrentMesh = [&]()
 		{
@@ -927,152 +925,137 @@ namespace IGL_BASIC
 	void test77777() 
 	{
 		using namespace igl;
-		Eigen::MatrixXd vers, versOut, vers0;
-		Eigen::MatrixXi tris, trisOut, tris0;
+
+		using Quadric = std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double>;
+
+		Eigen::MatrixXd vers, versOut, vers0, versOri;
+		Eigen::MatrixXi tris, trisOut, tris0, trisOri;
 		Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
 		Eigen::VectorXi newOldVersInfo;
-		tiktok& tt = tiktok::getInstance();
-
-		tt.start();
-		igl::readOBJ("E:/jawMeshDenseRepaired_simplified_qslim.obj", vers, tris);
-		tt.endCout("elapsed time of loading mesh is: ");
-
-		unsigned trisCount = tris.rows();
-
-		igl::connect_boundary_to_infinity(vers, tris, vers0, tris0);
-		if (!igl::is_edge_manifold(tris0))
-			return;
-
 		Eigen::VectorXi edgeUeInfo;
 		Eigen::MatrixXi uEdges, UeTrisInfo, UeCornersInfo;
-		igl::edge_flaps(tris0, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
-
-		// 2. 计算每个顶点的Q矩阵：
-		typedef std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double> Quadric;
-		std::vector<Quadric> quadrics;
-		igl::per_vertex_point_to_plane_quadrics(vers0, tris0, edgeUeInfo, UeTrisInfo, UeCornersInfo, quadrics);
-
-		// for debug:
-		dispMat(std::get<0>(quadrics[0]));
-
-		// State variables keeping track of edge we just collapsed
-		int v1 = -1;
+		Eigen::VectorXi timeStamps;
+		MatrixXd collapsedVers;
+		Eigen::VectorXd costs;
+		std::vector<Quadric> quadrics;								// 每个顶点的Q矩阵；
+		igl::min_heap<std::tuple<double, int, int> > pQueue;				// 优先队列；
+		decimate_cost_and_placement_callback cost_and_placement;
+		decimate_pre_collapse_callback pre_collapse;
+		decimate_post_collapse_callback post_collapse;
+		decimate_stopping_condition_callback stop_condition;
+		Eigen::VectorXi _1, I2;
+		int prev_e = -1;
+		bool clean_finish = false;
+		int v1 = -1;				// State variables keeping track of edge we just collapsed
 		int v2 = -1;
 
-		// 3. qslim算法中的cost_and_placement(), pre_collapse(), post_collapse()算子：
-		typedef std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double> Quadric;
+		// 0.
+		tiktok& tt = tiktok::getInstance();
+		tt.start();
+		igl::readOBJ("E:/材料/tmpMesh.obj", versOri, trisOri);
+		tt.endCout("elapsed time of loading mesh is: ");
 
-		// lambda——cost_and_placement()——qslim算法中计算每条边折叠的cost值，以及折叠后顶点的位置：
-		auto cost_and_placement = [&quadrics, &v1, &v2](
-			const int e,
-			const Eigen::MatrixXd& vers,
-			const Eigen::MatrixXi& /*tris*/,
-			const Eigen::MatrixXi& E,
-			const Eigen::VectorXi& /*edgeUeInfo*/,
-			const Eigen::MatrixXi& /*EF*/,
-			const Eigen::MatrixXi& /*EI*/,
-			double& cost,
-			Eigen::RowVectorXd& p)
-		{
-			// Combined quadric
-			Quadric quadric_p;
-			quadric_p = quadrics[E(e, 0)] + quadrics[E(e, 1)];
+		// 1. 
+		unsigned trisCount = trisOri.rows();
+		igl::connect_boundary_to_infinity(versOri, trisOri, vers, tris);
+		if (!igl::is_edge_manifold(tris))
+			return;
+		igl::edge_flaps(tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
 
-			// Quadric: p'Ap + 2b'p + c,  optimal point: Ap = -b, or rather because we have row vectors: pA=-b
-			const auto& A = std::get<0>(quadric_p);
-			const auto& b = std::get<1>(quadric_p);
-			const auto& c = std::get<2>(quadric_p);
-			p = -b * A.inverse();
-			cost = p.dot(p * A) + 2 * p.dot(b) + c;
 
-			// Force infs and nans to infinity
-			if (std::isinf(cost) || cost != cost)
+		// 2. 计算每个顶点的Q矩阵：
+		igl::per_vertex_point_to_plane_quadrics(vers, tris, edgeUeInfo, UeTrisInfo, UeCornersInfo, quadrics);
+
+
+		// 3.  获取qslim算法中的函数子：
+		int trisCountNew = trisCount;
+		int tarTrisCount = std::round(0.5 * trisCount);
+		igl::qslim_optimal_collapse_edge_callbacks(uEdges, quadrics, v1, v2, cost_and_placement, pre_collapse, post_collapse);
+		stop_condition = max_faces_stopping_condition(trisCountNew, trisCount, tarTrisCount);
+
+
+		// 4. 计算每条无向边的cost值，以此为优先级存入优先队列
+		timeStamps = Eigen::VectorXi::Zero(uEdges.rows());
+		collapsedVers.resize(uEdges.rows(), vers.cols());
+		costs.resize(uEdges.rows());
+		igl::parallel_for(uEdges.rows(), [&](const int e)
 			{
-				cost = std::numeric_limits<double>::infinity();
-				// Prevent NaNs. Actually NaNs might be useful for debugging.
-				p.setConstant(0);
-			}
-		};
+				double cost = e;
+				RowVectorXd p(1, 3);
+				cost_and_placement(e, vers, tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo, cost, p);
+				collapsedVers.row(e) = p;
+				costs(e) = cost;
+			},
+			10000);
 
-		// lambda——pre_collapse()
-		auto pre_collapse = [&v1, &v2](
-			const Eigen::MatrixXd&,/*vers*/
-			const Eigen::MatrixXi&,/*tris*/
-			const Eigen::MatrixXi& E,
-			const Eigen::VectorXi&,/*edgeUeInfo*/
-			const Eigen::MatrixXi&,/*EF*/
-			const Eigen::MatrixXi&,/*EI*/
-			const igl::min_heap< std::tuple<double, int, int> >&,/*Q*/
-			const Eigen::VectorXi&,/*EQ*/
-			const Eigen::MatrixXd&,/*C*/
-			const int e)->bool
+		for (int i = 0; i < uEdges.rows(); i++)
+			pQueue.emplace(costs(i), i, 0);
+
+		// 5. 边折叠的循环：
+		while (true)
 		{
-			v1 = E(e, 0);
-			v2 = E(e, 1);
-			return true;
-		};
+			int e, e1, e2, f1, f2;
 
-
-		// lambda——post_collapse()， update quadric
-		auto post_collapse = [&v1, &v2, &quadrics](
-			const Eigen::MatrixXd&,   /*vers*/
-			const Eigen::MatrixXi&,   /*tris*/
-			const Eigen::MatrixXi&,   /*E*/
-			const Eigen::VectorXi&,/*edgeUeInfo*/
-			const Eigen::MatrixXi&,  /*EF*/
-			const Eigen::MatrixXi&,  /*EI*/
-			const igl::min_heap< std::tuple<double, int, int> >&,/*Q*/
-			const Eigen::VectorXi&,/*EQ*/
-			const Eigen::MatrixXd&,   /*C*/
-			const int,   /*e*/
-			const int,  /*e1*/
-			const int,  /*e2*/
-			const int,  /*f1*/
-			const int,  /*f2*/
-			const bool                                          collapsed
-			)->void
-		{
-			if (collapsed)
-				quadrics[v1 < v2 ? v1 : v2] = quadrics[v1] + quadrics[v2];
-		};
-
-		// decimate():
-		Eigen::MatrixXd versCopy = vers;
-		Eigen::MatrixXi trisCopy = tris;
-		edge_flaps(trisCopy, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
-
-		{
-			Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> BF;
-			Eigen::Array<bool, Eigen::Dynamic, 1> BE;
-			if (!is_edge_manifold(trisCopy, uEdges.rows(), edgeUeInfo, BF, BE))
-				return;
-		}
-
-		// 优先队列；
-		igl::min_heap<std::tuple<double, int, int> > pQueue;
-		Eigen::VectorXi EQ = Eigen::VectorXi::Zero(uEdges.rows());
-		MatrixXd collapsed(uEdges.rows(), versCopy.cols());
-
-		// 计算每条无向边的cost值，以此为优先级存入优先队列
-		{
-			Eigen::VectorXd costs(uEdges.rows());
-			igl::parallel_for(uEdges.rows(), [&](const int e)
+			// 执行pre_collapse()操作，折叠边，执行post_collapse()，再更新相关的边的cost值；
+			if (collapse_edge(cost_and_placement, pre_collapse, post_collapse, \
+				vers, tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo, \
+				pQueue, timeStamps, collapsedVers, e, e1, e2, f1, f2))          // collapse_edge()重载2；
+			{
+				// 若满足终止条件——stopping_condition函数子返回true，则跳出折叠循环
+				if (stop_condition(vers, tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo, pQueue, timeStamps, collapsedVers, e, e1, e2, f1, f2))
 				{
-					double cost = e;
-					RowVectorXd p(1, 3);
-					cost_and_placement(e, versCopy, trisCopy, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo, cost, p);
-					collapsed.row(e) = p;
-					costs(e) = cost;
-				},
-				10000);
+					// LIBIGL中当前有两种终止条件函数子：max_faces_stopping_condition(), infinite_cost_stopping_condition();
+					clean_finish = true;
+					break;
+				}
+			}
+			else  // 边折叠失败，退出循环：
+			{
+				if (e == -1)
+					break;                // a candidate edge was not even found in pQueue.
+				if (prev_e == e)
+				{
+					assert(false && "Edge collapse no progress... bad stopping condition?");
+					break;
+				}
 
-			for (int i = 0; i < uEdges.rows(); i++)
-				pQueue.emplace(costs(i), i, 0);
+				// Edge was not collapsed... must have been invalid. collapse_edge should have updated its cost to inf... continue
+			}
 
-			dispCosts(pQueue, 10);
+			prev_e = e;
 		}
 
+		// 6. 删除所有含有标记为IGL_COLLAPSE_EDGE_NULL边的三角片：
+		tris0.resize(tris.rows(), 3);
+		newOldTrisInfo.resize(tris.rows());
+		int index = 0;
+		for (int i = 0; i < tris.rows(); i++)
+		{
+			if (tris(i, 0) != IGL_COLLAPSE_EDGE_NULL ||
+				tris(i, 1) != IGL_COLLAPSE_EDGE_NULL ||
+				tris(i, 2) != IGL_COLLAPSE_EDGE_NULL)
+			{
+				tris0.row(index) = tris.row(i);
+				newOldTrisInfo(index) = i;
+				index++;
+			}
+		}
+		tris0.conservativeResize(index, tris0.cols());              // 这里相当于shrink_to_fit();
+		newOldTrisInfo.conservativeResize(index);
 
+		// 7. 删除网格中的孤立顶点：
+		igl::remove_unreferenced(vers, tris0, versOut, trisOut, _1, newOldVersInfo);
+
+		// 8. ？？？删除内部三角片
+		const Eigen::Array<bool, Eigen::Dynamic, 1> keep = (newOldTrisInfo.array() < trisCount);
+		igl::slice_mask(Eigen::MatrixXi(trisOut), keep, 1, trisOut);
+		igl::slice_mask(Eigen::VectorXi(newOldTrisInfo), keep, 1, newOldTrisInfo);
+		igl::remove_unreferenced(Eigen::MatrixXd(versOut), Eigen::MatrixXi(trisOut), versOut, trisOut, _1, I2);
+		igl::slice(Eigen::VectorXi(newOldVersInfo), I2, 1, newOldVersInfo);
+
+
+		igl::writeOBJ("E:/qslimOutput.obj", versOut, trisOut);
+		std::cout << "finished." << std::endl;
 	}
 
 
@@ -1981,41 +1964,77 @@ namespace IGL_BASIC_PMP
 		return true;
 	}
 
-
+	// test4——测试生成栅格、marchingCubes算法：
 	void test4()
 	{
 		// 0. 解析SDFGen.exe生成的.sdf距离场数据文件：
 		std::vector<int> stepCounts(3);				// xyz三个维度上栅格数
 		Eigen::RowVector3d gridsOri;					// 栅格原点：
 		Eigen::VectorXd SDF;
-		const char* sdfFilePath = "E:/inputMesh.sdf";
+		const char* sdfFilePath = "E:/tooth.sdf";
 		double SDFstep = IGL_BASIC::parseSDF(stepCounts, gridsOri, SDF, sdfFilePath);
 
 		// 1. 生成栅格：
 		Eigen::RowVector3i gridCounts;
-		Eigen::MatrixXd gridCenters;
-		Eigen::RowVector3d minp = gridsOri - SDFstep * Eigen::RowVector3d(stepCounts[0] / 2.0, stepCounts[1] / 2.0, stepCounts[2] / 2.0);
-		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCounts[0] / 2.0, stepCounts[1] / 2.0, stepCounts[2] / 2.0);
+		Eigen::MatrixXd gridCenters;		//	 所有栅格中点坐标的矩阵，每行都是一个中点坐标；存储优先级是x, y, z
+		Eigen::RowVector3d minp = gridsOri;
+		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCounts[0], stepCounts[1], stepCounts[2]);
 		Eigen::AlignedBox<double, 3> box(minp, maxp);
 		genGrids(box, std::max({ stepCounts[0], stepCounts[1], stepCounts[2] }), 0, gridCenters, gridCounts);
+		
+		Eigen::MatrixXd	boxVers;
+		Eigen::MatrixXi boxTris;
+		genAABBmesh(box, boxVers, boxTris);
+		objWriteMeshMat("E:/AABB.obj", boxVers, boxTris);
 
-		// gridCenters是所有栅格中点坐标的矩阵，每行都是一个中点坐标；存储优先级是x, y, z
-		Eigen::MatrixXd gridCenters0;
+		// 栅格数据的分布：
+		/*
+			按索引增大排列的栅格中心点为：
+			gc(000), gc(100), gc(200), gc(300),...... gc(010), gc(110), gc(210), gc(310),...... gc(001), gc(101), gc(201).....
+
+
+			x坐标：
+			x0, x1, x2, x3......x0, x1, x2, x3......x0, x1, x2, x3......
+			周期为xCount;
+			重复次数为(yCount * zCount)
+
+			y坐标：
+			y0, y0, y0...y1, y1, y1...y2, y2, y2.........y0, y0, y0...y1, y1, y1...
+			周期为(xCount * yCount);
+			重复次数为zCount;
+			单个元素重复次数为xCount
+
+			z坐标：
+			z0, z0, z0......z1, z1, z1......z2, z2, z2......
+			单个元素重复次数为(xCount * yCount)
+		*/
+
+
+		Eigen::MatrixXd gridCenters0;				// for try——尝试自己生成栅格数据：
 		Eigen::RowVector3i gridCounts0{stepCounts[0], stepCounts[1], stepCounts[2]};
-		Eigen::RowVector3d arrow = box.diagonal();
-		gridCenters0.resize(gridCounts0(0) * gridCounts(1) * gridCounts(2), 3);
 		Eigen::VectorXd xPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(0), minp(0), maxp(0));
 		Eigen::VectorXd yPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(1), minp(1), maxp(1));
 		Eigen::VectorXd zPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(2), minp(2), maxp(2));
 
 		Eigen::MatrixXd tmpVec0, tmpVec1, tmpVec2;
 		kron(tmpVec0, VectorXd::Ones(gridCounts(1) * gridCounts(2)), xPeriod);
- 
+		Eigen::VectorXd tmpVec11 = kron(yPeriod, VectorXi::Ones(gridCounts(0)));
+		kron(tmpVec1, VectorXi::Ones(gridCounts(2)), tmpVec11);
+		kron(tmpVec2, zPeriod, VectorXd::Ones(gridCounts(0) * gridCounts(1)));
+		gridCenters0.resize(stepCounts[0]* stepCounts[1] * stepCounts[2], 3);
+		gridCenters0.col(0) = tmpVec0;
+		gridCenters0.col(1) = tmpVec1;
+		gridCenters0.col(2) = tmpVec2;
 
-		// for debug
-		dispVec<double>(xPeriod);
-		dispVecSeg<double>(Eigen::VectorXd{ tmpVec0 }, 0, 150);
-		dispMatBlock(gridCenters, 0, 144, 0, 2);
+		// 提取栅格中SDF值小于0的顶点：
+		Eigen::MatrixXd tmpVers(SDF.rows(), 3);
+		int index = 0;
+		for (int i = 0; i<SDF.rows(); ++i) 
+			if (SDF(i) <= 0)
+				tmpVers.row(index++) = gridCenters0.row(i);
+		tmpVers.conservativeResize(index, 3);
+		igl::writeOBJ("E:/tmpVers.obj", tmpVers, Eigen::MatrixXi{});
+
 
 		// 2. marching cubes算法生成最终曲面：
 		tiktok& tt = tiktok::getInstance();

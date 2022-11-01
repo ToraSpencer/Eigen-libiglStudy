@@ -333,6 +333,37 @@ void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
 bool interpolateToLine(MatrixXf& vers, const RowVector3f& start, const RowVector3f& end, const float SR, const bool SE);
 
 
+// 生成中心在原点，边长为1，三角片数为12的正方体网格；
+template	<typename DerivedV, typename DerivedI>
+void genCubeMesh(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, Eigen::Matrix<DerivedI, Dynamic, Dynamic>& tris)
+{
+	vers.resize(8, 3);
+	vers << -0.5000000, -0.5000000, -0.5000000, -0.5000000, 0.5000000, -0.5000000, \
+		0.5000000, -0.5000000, -0.5000000, 0.5000000, 0.5000000, -0.5000000, \
+		0.5000000, -0.5000000, 0.5000000, 0.5000000, 0.5000000, 0.5000000, \
+		- 0.5000000, -0.5000000, 0.5000000, -0.5000000, 0.5000000, 0.5000000;
+
+	tris.resize(12, 3);
+	tris << 1, 2, 0, 1, 3, 2, 3, 4, 2, 3, 5, 4, 0, 4, 6, 0, 2, 4, 7, 3, 1, 7, 5, 3, 7, 0, 6, 7, 1, 0, 5, 6, 4, 5, 7, 6;
+}
+
+
+// 生成轴向包围盒的三角网格；
+template <typename _Scalar, int _AmbientDim>
+void genAABBmesh(const Eigen::AlignedBox<_Scalar, _AmbientDim>& aabb, Eigen::Matrix<_Scalar, Dynamic, Dynamic>& vers, \
+	Eigen::MatrixXi& tris)
+{
+	Matrix<_Scalar, _AmbientDim, 1> minp = aabb.min();
+	Matrix<_Scalar, _AmbientDim, 1> maxp = aabb.max();
+	Matrix<_Scalar, _AmbientDim, 1> newOri = (minp + maxp) / 2.0;
+	Matrix<_Scalar, _AmbientDim, 1> sizeVec = maxp - minp;
+
+	genCubeMesh(vers, tris);
+	vers.col(0) *= sizeVec(0);
+	vers.col(1) *= sizeVec(1);
+	vers.col(2) *= sizeVec(2);
+	vers.rowwise() += newOri.transpose();
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////// 不同数据类型的变换
 
@@ -1044,6 +1075,21 @@ void kron(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& result, \
 	// A(m×n) tensor B(p×q) == C(m*p × n*q);
 	/*
 		其中C.block(i * m, j* n, p, q) == Aij * B;
+		如：
+		1 2 3
+		4 5 6
+
+		tensor
+
+		100 10
+		1		0.1
+
+		==
+		100,	10,	200,		20,	 300,		 30,
+		1,		0.1,		2,		0.2,		 3,		0.3,
+		400,	 40,	500,		 50,	 600, 	60,
+		4,		 0.4,		5,		0.5,		 6,		0.6,
+
 	*/
 	const Derived1& m1 = mm1.derived();
 	const Derived2& m2 = mm2.derived();
@@ -1069,6 +1115,16 @@ void kron(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& result, \
 	};
 
 	PARALLEL_FOR(0, m, calcKronRow);
+}
+
+
+template <typename Derived1, typename Derived2>
+Eigen::MatrixXd kron(const Eigen::MatrixBase<Derived1>& mm1, \
+	const Eigen::MatrixBase<Derived2>& mm2)
+{
+	Eigen::MatrixXd result;
+	kron(result, mm1, mm2);
+	return result;
 }
 
 

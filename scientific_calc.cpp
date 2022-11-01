@@ -215,6 +215,21 @@ namespace IGL_MATH
 	{
 
 	}
+
+	// 克罗内克积：
+	void test1() 
+	{
+		Eigen::MatrixXi m1(2, 3);
+		Eigen::Matrix2d m2;
+		Eigen::MatrixXd result;
+		m1 << 1, 2, 3, 4, 5, 6;
+		m2 << 100, 10, 1, 0.1;
+		dispMat(m1);
+		dispMat(m2);
+		dispMat(kron(m1, m2));
+
+		std::cout << "finished." << std::endl;
+	}
 }
 
 

@@ -142,37 +142,6 @@ public:
 };
 
 
-// 生成中心在原点，边长为1，三角片数为12的正方体网格；
-template	<typename DerivedV, typename DerivedI>
-void genCubeMesh(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, Eigen::Matrix<DerivedI, Dynamic, Dynamic>& tris) 
-{
-	vers.resize(8, 3);
-	vers << -0.5000000, -0.5000000, -0.5000000, -0.5000000, 0.5000000, -0.5000000, \
-		0.5000000, -0.5000000, -0.5000000, 0.5000000, 0.5000000, -0.5000000, \
-		0.5000000, -0.5000000, 0.5000000, 0.5000000, 0.5000000, 0.5000000, \
-		-0.5000000, -0.5000000, 0.5000000, -0.5000000 ,0.5000000, 0.5000000;
-
-	tris.resize(12 ,3);
-	tris << 1,2,0, 1,3,2, 3,4,2, 3,5,4, 0,4,6, 0,2,4, 7,3,1, 7,5,3, 7,0,6, 7,1,0, 5,6,4, 5,7,6;
-}
-
- 
-// 生成轴向包围盒的三角网格；
-template <typename _Scalar, int _AmbientDim>
-void genAABBmesh(const Eigen::AlignedBox<_Scalar, _AmbientDim>& aabb, Eigen::Matrix<_Scalar, Dynamic, Dynamic>& vers, \
-		Eigen::MatrixXi& tris)
-{
-	Matrix<_Scalar, _AmbientDim, 1> minp = aabb.min();
-	Matrix<_Scalar, _AmbientDim, 1> maxp = aabb.max();
-	Matrix<_Scalar, _AmbientDim, 1> newOri = (minp + maxp) / 2.0;
-	Matrix<_Scalar, _AmbientDim, 1> sizeVec = maxp - minp;
-	
-	genCubeMesh(vers, tris);
-	vers.col(0) *= sizeVec(0);
-	vers.col(1) *= sizeVec(1);
-	vers.col(2) *= sizeVec(2);
-	vers.rowwise() += newOri.transpose();
-}
 
 
 template <typename _Scalar>

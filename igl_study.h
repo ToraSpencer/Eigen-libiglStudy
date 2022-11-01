@@ -34,6 +34,7 @@
 #include <igl/unique_edge_map.h>
 #include <igl/doublearea.h>
 #include <igl/slice.h>
+#include <igl/slice_mask.h>
 #include <igl/circulation.h>
 #include <igl/remove_unreferenced.h>
 #include <igl/connect_boundary_to_infinity.h>
