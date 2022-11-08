@@ -149,19 +149,32 @@ int main()
 	// SPARSEMAT::test1();
 
 	
-	// IGL_BASIC::test77777();
+	// IGL_BASIC::test777();
 	// IGL_DIF_GEO::test0();
 	// IGL_GRAPH::test2();
 	// IGL_SPACE_PARTITION::test0();
-	IGL_BASIC_PMP::test4();
+	//IGL_BASIC_PMP::test4();
 
 
 	// SCIENTIFICCALC::test7();
 	// TEST_PMP::test3();
 	// IGL_MATH::test1();
 
-
 	// DECIMATION::test0();
+
+
+	char str[256];
+	for (unsigned i = 0; i<19; ++i) 
+	{
+		Eigen::MatrixXd vers, normals;
+		Eigen::MatrixXi tris;
+		sprintf_s(str, 256, "E:/网格布尔操作/data/1/%d.stl", i);
+		std::ifstream fileIn(str, std::ios::binary);			// stl文件是二进制文件；
+		igl::readSTL(fileIn, vers, tris, normals);
+
+		sprintf_s(str, 256, "E:/网格布尔操作/data/1/%d.obj", i);
+		igl::writeOBJ(str, vers, tris);
+	}
 
 	std::cout << "main() finished." << std::endl;
 }
