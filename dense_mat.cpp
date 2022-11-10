@@ -574,25 +574,26 @@ namespace DENSEMAT
 
 		//		(array条件判断).select(矩阵a,矩阵b)，array中下标为ij的元素条件判断为真，则返回矩阵ij位的元素为矩阵a中ij位的元素，否则为矩阵b中ij位的元素。
 		Matrix3i flag1 = (m1.array() > 4).select(Matrix3i::Ones(), Matrix3i::Zero());
-		std::cout << "m1 == \n" << m1 << std::endl;
-		std::cout << "flag1 == \n" << flag1 << std::endl;
+		std::cout << "m1 == \n" << m1 << std::endl << std::endl;
+		std::cout << "flag1 == \n" << flag1 << std::endl << std::endl;
 		std::cout << std::endl;
 
-		// vecInMat()——检查矩阵内是否包含某一行向量——返回一个索引列向量。
+		// rowInMat()——检查矩阵内是否包含某一行向量——返回一个索引列向量。
 		std::cout << "检查矩阵内是否包含某一行向量——返回一个索引列向量。" << std::endl;
-		MatrixXi m2(3, 5);
-		m2 << 1, 2, 3, 4, 5, 3, 1, 2, 9, 0, 0, 0, 0, 0, 0;
+		MatrixXi m2(5, 5);
+		m2 << 1, 2, 3, 4, 5, 3, 1, 2, 9, 0, 0, 0, 0, 0, 0, 1,2,3,4,5, 1,1,1,1,1;
+		std::cout << "m2 == \n" << m2 << std::endl << std::endl;
+
 		RowVectorXi v(5);
 		v << 1, 2, 3, 4, 5;
+		std::cout << rowInMat(m2, v) << std::endl << std::endl;
 
-		std::cout << vecInMat<int>(m2, v) << std::endl << std::endl;;
+		v << 1, 1, 1, 1, 1;
+		std::cout << rowInMat(m2, v) << std::endl << std::endl;
 
-		MatrixXi m3(1, 5);
-		m3 << 1, 2, 3, 4, 5;
-		std::cout << vecInMat<int>(m3, v) << std::endl << std::endl;;
+		v << 2, 2, 8, 4, 4;
+		std::cout << rowInMat(m2, v) << std::endl << std::endl;
 
-		m3 << 1, 2, 3, 4, 4;
-		std::cout << vecInMat<int>(m3, v) << std::endl << std::endl;
 	}
 
 

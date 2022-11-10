@@ -518,53 +518,24 @@ bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const 
 }
 
 
-// 返回一个类似于matlab索引向量的int列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；若程序出错则retVec所有元素为-1
-template<typename T, int N>
-VectorXi vecInMat(const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Matrix<T, 1, N>& vec)
+// 返回一个flag列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；若程序出错则retVec所有元素为-1
+template <typename Derived1, typename Derived2>
+Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& rowVec)
 {
 	int rows = mat.rows();
 	int cols = mat.cols();
 
-	VectorXi retVec(rows);
-	if (vec.cols() != cols)
+	Eigen::VectorXi retVec(rows);
+	if (rowVec.cols() != cols)
 	{
-		retVec = -VectorXi::Ones(rows);
+		retVec = -Eigen::VectorXi::Ones(rows);
 		return retVec;
 	}
 
 	// 逐列比较：
-	MatrixXi tempMat(rows, cols);
+	Eigen::MatrixXi tempMat(rows, cols);
 	for (int i = 0; i < cols; ++i)
-		tempMat.col(i) = (mat.col(i).array() == vec(i)).select(VectorXi::Ones(rows), VectorXi::Zero(rows));
-
-	retVec = tempMat.col(0);
-
-	if (cols > 1)
-	{
-		for (int i = 1; i < cols; ++i)
-			retVec = retVec.array() * tempMat.col(i).array();			// 逐列相乘：
-	}
-
-	return retVec;
-}
-
-template<typename T>
-VectorXi vecInMat(const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Matrix<T, 1, Eigen::Dynamic>& vec)
-{
-	int rows = mat.rows();
-	int cols = mat.cols();
-
-	VectorXi retVec(rows);
-	if (vec.cols() != cols)
-	{
-		retVec = -VectorXi::Ones(rows);
-		return retVec;
-	}
-
-	// 逐列比较：
-	MatrixXi tempMat(rows, cols);
-	for (int i = 0; i < cols; ++i)
-		tempMat.col(i) = (mat.col(i).array() == vec(i)).select(VectorXi::Ones(rows), VectorXi::Zero(rows));
+		tempMat.col(i) = (mat.col(i).array() == rowVec(i)).select(Eigen::VectorXi::Ones(rows), Eigen::VectorXi::Zero(rows));
 
 	retVec = tempMat.col(0);
 
@@ -593,7 +564,6 @@ void concatMeshMat(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBas
 
 	matInsertRows(tris, trisCopy1);
 };
-
 
 
 //////////////////////////////////////////////////////////////////////////////////////////// IO接口
