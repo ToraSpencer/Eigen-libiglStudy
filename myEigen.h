@@ -1366,25 +1366,6 @@ bool nonManifoldEdges(const Eigen::PlainObjectBase<DerivedI>& tris, Eigen::Matri
  
 
 // buildAdjacency()——计算流形网格的三角片邻接信息：
-
-	// 边std::pair<int, int>的自定义哈希函数；
-struct edgeHash
-{
-	bool operator()(const std::pair<int, int>& edge) const
-	{
-		return (std::hash<int>()(edge.first) + std::hash<int>()(edge.second));
-	}
-};
-
-	// 边std::pair<int, int>的等价比较器；
-struct edgeComparator
-{
-	bool operator()(const std::pair<int, int>& edge1, const std::pair<int, int>& edge2) const
-	{
-		return (edge1.first == edge2.first && edge1.second == edge2.second);
-	}
-};
-
 using ttTuple = std::tuple<std::vector<int>, std::vector<int>, std::vector<int>>;
 
 bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, \

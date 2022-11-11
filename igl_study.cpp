@@ -1516,71 +1516,51 @@ namespace IGL_BASIC_PMP
 
 
 		// 3. 确定非流形边；
-#if __cplusplus < 202002L
-		std::unordered_set<std::pair<int, int>, edgeHash, edgeComparator> edgesNM;
-#else
-		// lambda——std::pair<int, int>表示的边的自定义哈希函数；
-		auto edgeHashLamb = [](const std::pair<int, int>& edge)->std::size_t
-		{
-			return (std::hash<int>()(edge.first) + std::hash<int>()(edge.second));
-		};
-
-		// lambda——std::pair<int, int>表示的边的等价比较器；
-		auto edgeComLamb = [](const std::pair<int, int>& edge1, const std::pair<int, int>& edge2)->bool
-		{
-			return (edge1.first == edge2.first && edge1.second == edge2.second);
-		};
-
-		// 3. 确定非流形边；
-		std::unordered_set<std::pair<int, int>, decltype(edgeHashLamb), decltype(edgeComLamb)> edgesNM;				// 需要C++20;非流形边；使用unordered_set去重；
-#endif
+		std::unordered_set<double> edgesNMN;					// 边用一个浮点数表示——vaIdx + 1e-10 * vbIdx;
 		 for (unsigned i = 0; i < adjSM_eCount.outerSize(); ++i)
 		{
 			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM_eCount, i); iter; ++iter)	// 第i列的列内迭代器；
 			{
 				if (iter.value() > 1)
 				{
-					int num1 = iter.row();
-					int num2 = iter.col();
-					edgesNM.insert({num1, num2});
+					int vaIdx = iter.row();
+					int vbIdx = iter.col();
+					double eNum = vaIdx + 1e-10 * vbIdx;
+					edgesNMN.insert(eNum);
 				}
 			}
 		}
 
-#if __cplusplus < 202002L
 		 //		非流形有向边-其索引的键值对，一个非流形边对应着多个边索引；
-		 std::unordered_map<std::pair<int, int>, std::vector<int>, edgeHash, edgeComparator> edgesNMmap;
+		 std::unordered_map<double, std::vector<int>> edgesNMMmap;
 
 		 //		非流形有向边-其所在的三角片的索引的键值对，一个非流形边对应着多个三角片索引；
-		 std::unordered_map<std::pair<int, int>, std::vector<int>, edgeHash, edgeComparator> etNMmap;
-#else
-		 //		非流形有向边-其索引的键值对，一个非流形边对应着多个边索引；
-		 std::unordered_map<std::pair<int, int>, std::vector<int>, decltype(edgeHashLamb), decltype(edgeComLamb)> edgesNMmap;
-		 //		非流形有向边-其所在的三角片的索引的键值对，一个非流形边对应着多个三角片索引；
-		 std::unordered_map<std::pair<int, int>, std::vector<int>, decltype(edgeHashLamb), decltype(edgeComLamb)> etNMmap;
-#endif
+		 std::unordered_map<double, std::vector<int>> etNMNmap;
 
-		for (auto& nmEdge : edgesNM)
+
+		for (auto& eNum : edgesNMN)
 		{
 			for (int i = 0; i < edgesCount; ++i)
 			{
-				if (edges(i, 0) == nmEdge.first && edges(i, 1) == nmEdge.second)
+				int vaIdx = std::ceil(eNum);
+				int vbIdx = std::round(1e10 * (eNum - vaIdx));
+				if (edges(i, 0) == vaIdx && edges(i, 1) == vbIdx)
 				{
-					auto retPair = edgesNMmap.insert({nmEdge, std::vector<int>{i} });
+					auto retPair = edgesNMMmap.insert({eNum, std::vector<int>{i} });
 					if (!retPair.second)			// 若插入失败，则说明已有此键；
 					{
-						auto iter = edgesNMmap.find(nmEdge);
+						auto iter = edgesNMMmap.find(eNum);
 						iter->second.push_back(i);
 					}
 				}
 			}
 		}
-		for (const auto& pair : edgesNMmap)
+		for (const auto& pair : edgesNMMmap)
 		{
 			auto copyPair = pair;
 			for (auto& index : copyPair.second)
 				index = etInfo[index];
-			etNMmap.insert(copyPair);
+			etNMNmap.insert(copyPair);
 		}
 
 		//	 nonManifoldEdges()——输出非流形半边：
@@ -1589,10 +1569,9 @@ namespace IGL_BASIC_PMP
 		dispMatBlock(nmnEdges, 0, 10, 0, 1);
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 
-
 		// 4. 找出所有非流形边所在三角片：
 		std::vector<int> trisIdxNM;
-		for (auto& pair : etNMmap)
+		for (auto& pair : etNMNmap)
 		{
 			for (auto& index : pair.second)
 				trisIdxNM.push_back(index);
@@ -2137,7 +2116,7 @@ namespace IGL_BASIC_PMP
 	}
 
 
-	// 补洞：opological_hole_fill()
+	// 补洞：opological_hole_fill()——当前有问题
 	void test5()
 	{
 		Eigen::MatrixXd vers;
@@ -2150,7 +2129,11 @@ namespace IGL_BASIC_PMP
 		const unsigned edgesCount = 3 * trisCount;
 		const unsigned versCount = tris.maxCoeff() + 1;
 
-		Eigen::MatrixXi edges = Eigen::MatrixXi::Zero(edgesCount, 2);
+		Eigen::MatrixXi edges;
+		Eigen::SparseMatrix<int> adjSM_eCount;				// 有向边邻接矩阵，权重为该有向边重复的次数；
+		Eigen::SparseMatrix<int> adjSM_ueCount;				// 无向边邻接矩阵，权重为该边重复的次数；
+
+		edges = Eigen::MatrixXi::Zero(edgesCount, 2);
 		Eigen::MatrixXi vaIdxes = tris.col(0);
 		Eigen::MatrixXi vbIdxes = tris.col(1);
 		Eigen::MatrixXi vcIdxes = tris.col(2);
@@ -2166,37 +2149,39 @@ namespace IGL_BASIC_PMP
 		smElems.reserve(edgesCount);
 		for (int i = 0; i < edgesCount; ++i)
 			smElems.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), 1});
-		Eigen::SparseMatrix<int> adjSM_eCount;
+
 		adjSM_eCount.resize(versCount, versCount);
 		adjSM_eCount.setFromTriplets(smElems.begin(), smElems.end());		// 有向边邻接矩阵，权重为该有向边重复的次数；
 		Eigen::SparseMatrix<int> tmpSp = adjSM_eCount.transpose();
-		Eigen::SparseMatrix<int> adjSM_ueCount = adjSM_eCount + tmpSp;		// 无向边邻接矩阵，权重为该边重复的次数；
+		adjSM_ueCount = adjSM_eCount + tmpSp;		// 无向边邻接矩阵，权重为该边重复的次数；
 
 		// 寻找边缘无向边：
-		std::unordered_set<std::pair<int, int>, edgeHash> ueSet;
+		std::unordered_set<double> ueSet;
 		for (unsigned i = 0; i < adjSM_ueCount.outerSize(); ++i)
 			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM_ueCount, i); iter; ++iter)
 				if (1 == iter.value())
-					ueSet.insert(std::make_pair(iter.row(), iter.col()));
+					ueSet.insert(iter.row() + static_cast<double>(1e-10) * iter.col());
 
 		// 寻找边缘半边：
-		std::unordered_set<std::pair<int, int>, edgeHash> bdryEdgeSet;
-		for (const auto& pair : ueSet)
+		std::unordered_set<double> bdryEdgeSet;
+		for (const auto& eNum : ueSet)
 		{
-			int vaIdx = pair.first;
-			int vbIdx = pair.second;
+			int vaIdx = std::floor(eNum);
+			int vbIdx = std::round(1e10 * (eNum - vaIdx));
+			double eNumOpp = vbIdx + static_cast<double>(1e-10) * vaIdx;
 
 			if (adjSM_eCount.coeff(vaIdx, vbIdx) > 0)
-				bdryEdgeSet.insert(std::make_pair(vaIdx, vbIdx));
+				bdryEdgeSet.insert(eNum);
 			if (adjSM_eCount.coeff(vbIdx, vaIdx) > 0)
-				bdryEdgeSet.insert(std::make_pair(vbIdx, vaIdx));
+				bdryEdgeSet.insert(eNumOpp);
 		}
+
 		Eigen::MatrixXi bdryEdges(bdryEdgeSet.size(), 2);
 		unsigned index = 0;
-		for (const auto& pair : bdryEdgeSet)
+		for (const auto& eNum : bdryEdgeSet)
 		{
-			bdryEdges(index, 0) = pair.first;
-			bdryEdges(index, 1) = pair.second;
+			bdryEdges(index, 0) = std::ceil(eNum);
+			bdryEdges(index, 1) = std::round(1e10 * (eNum - std::ceil(eNum)));
 			index++;
 		}
 		objWriteEdgesMat("E:/bdryEdges.obj", bdryEdges, vers);

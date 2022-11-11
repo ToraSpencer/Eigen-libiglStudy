@@ -145,7 +145,7 @@ namespace DECIMATION
 
 int main()
 {
-	DENSEMAT::test7();
+	// DENSEMAT::test7();
 	// SPARSEMAT::test1();
 
 	
@@ -153,7 +153,7 @@ int main()
 	// IGL_DIF_GEO::test0();
 	// IGL_GRAPH::test2();
 	// IGL_SPACE_PARTITION::test0();
-	//IGL_BASIC_PMP::test4();
+	IGL_BASIC_PMP::test5();
 
 
 	// SCIENTIFICCALC::test7();

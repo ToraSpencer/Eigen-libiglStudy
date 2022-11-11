@@ -565,10 +565,10 @@ namespace DENSEMAT
 	}
 
 
-	// test7——索引矩阵
+	// test7——flag矩阵
 	void test7()
 	{
-		// eigen 3.3.7还没有支持索引矩阵，但是可以使用select()方法来实现类似的效果：
+		// eigen 3.3.7还没有支持flag矩阵，但是可以使用select()方法来实现类似的效果：
 		Matrix3i m1;
 		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9;
 
@@ -593,7 +593,6 @@ namespace DENSEMAT
 
 		v << 2, 2, 8, 4, 4;
 		std::cout << rowInMat(m2, v) << std::endl << std::endl;
-
 	}
 
 

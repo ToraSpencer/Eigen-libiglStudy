@@ -25,9 +25,6 @@ namespace SPARSEMAT
 				disp<int>(iter.value());
 			});
 
-
-
-	
 	}
 
 
