@@ -136,6 +136,7 @@ void homoVers2vers(MatrixXf& vers, const MatrixXf& homoVers)
 	vers = tempMat.leftCols(3);
 }
 
+
 MatrixXf homoVers2vers(const MatrixXf& homoVers)
 {
 	MatrixXf tempMat = homoVers.transpose();
@@ -253,7 +254,6 @@ void gaussInterpolation() {}
 // 最小二乘多项式拟合曲线：
 void leastSquarePolyFitting()
 {}
-
 
 
  // 岭回归多项式拟合曲线
