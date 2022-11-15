@@ -1518,7 +1518,7 @@ namespace IGL_BASIC_PMP
 
 
 		// 3. 确定非流形边；
-		std::unordered_set<double> edgesNMN;					// 边用一个浮点数表示——vaIdx + 1e-10 * vbIdx;
+		std::unordered_set<std::int64_t> edgesNMN;					// 边用边编码表示
 		 for (unsigned i = 0; i < adjSM_eCount.outerSize(); ++i)
 		{
 			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM_eCount, i); iter; ++iter)	// 第i列的列内迭代器；
@@ -1527,31 +1527,31 @@ namespace IGL_BASIC_PMP
 				{
 					int vaIdx = iter.row();
 					int vbIdx = iter.col();
-					double eNum = vaIdx + 1e-10 * vbIdx;
-					edgesNMN.insert(eNum);
+					edgesNMN.insert(encodeEdge(vaIdx, vbIdx));
 				}
 			}
 		}
 
 		 //		非流形有向边-其索引的键值对，一个非流形边对应着多个边索引；
-		 std::unordered_map<double, std::vector<int>> edgesNMMmap;
+		 std::unordered_map<std::int64_t, std::vector<int>> edgesNMMmap;
 
 		 //		非流形有向边-其所在的三角片的索引的键值对，一个非流形边对应着多个三角片索引；
-		 std::unordered_map<double, std::vector<int>> etNMNmap;
+		 std::unordered_map<std::int64_t, std::vector<int>> etNMNmap;
 
 
-		for (auto& eNum : edgesNMN)
+		for (auto& eCode : edgesNMN)
 		{
 			for (int i = 0; i < edgesCount; ++i)
 			{
-				int vaIdx = std::floor(eNum);
-				int vbIdx = std::round(1e10 * (eNum - vaIdx));
+				std::pair<int, int> retPair = decodeEdge(eCode);
+				int vaIdx = retPair.first;
+				int vbIdx = retPair.second;
 				if (edges(i, 0) == vaIdx && edges(i, 1) == vbIdx)
 				{
-					auto retPair = edgesNMMmap.insert({eNum, std::vector<int>{i} });
+					auto retPair = edgesNMMmap.insert({eCode, std::vector<int>{i} });
 					if (!retPair.second)			// 若插入失败，则说明已有此键；
 					{
-						auto iter = edgesNMMmap.find(eNum);
+						auto iter = edgesNMMmap.find(eCode);
 						iter->second.push_back(i);
 					}
 				}
@@ -1879,7 +1879,7 @@ namespace IGL_BASIC_PMP
 		COLLECTED = 2,
 	};
 
-
+	// 33. 测试buildAdjacency
 	void test33()
 	{
 		Eigen::MatrixXd vers, versOut;
@@ -2026,22 +2026,14 @@ namespace IGL_BASIC_PMP
 	}
 
 
-	bool marchingCubes(const Eigen::VectorXd& SDF, const Eigen::MatrixXd& gridCenters, const Eigen::RowVector3i& gridCounts, \
-				const double selectedSDF, Eigen::MatrixXd& versResult_SDF, Eigen::MatrixXi& trisResult_SDF)
-	{
-
-
-		return true;
-	}
-
-
+	// marching cubes中单个立方体内的操作：
 	template <
 		typename DerivedGV,
 		typename Scalar,
 		typename Index,
 		typename DerivedV,
 		typename DerivedF>
-		void mySingleMC(
+		void handleCube(
 			const DerivedGV& gridCenters,
 			const Eigen::Matrix<Scalar, 8, 1>& cornerSDF,
 			const Eigen::Matrix<Index, 8, 1>& cornerIdx,
@@ -2052,129 +2044,109 @@ namespace IGL_BASIC_PMP
 			Index& curTrisCount,
 			std::unordered_map<int64_t, int>& edgeIsctMap)
 	{
-
-		Eigen::Matrix<Index, 12, 1> isctVerIdxes;		// 立方体边上的交点的绝对索引——是在最终输出网格中的索引；
-
-		// lambda——在立方体上确认边和新生成三角片的交点，可能会生成新顶点，返回交点的索引；
-		const auto genIsctVer = [&edgeIsctMap, &versResult, &curVersCount, &gridCenters](const Index& i, const Index& j, const Scalar& t)->Index
+		/*
+			const DerivedGV& gridCenters,															栅格数据			
+			const Eigen::Matrix<Scalar, 8, 1>& cornerSDF,									当前立方体八个顶点的SDF值
+			const Eigen::Matrix<Index, 8, 1>& cornerIdx,									当前立方体八个顶点在栅格中的索引；
+			const Scalar& isovalue,																		需要提取的等值面的SDF值
+			Eigen::PlainObjectBase<DerivedV>& versResult,								输出网格的顶点
+			Index& curVersCount,																			当前累计生成的输出网格顶点数
+			Eigen::PlainObjectBase<DerivedF>& trisResult,									输出网格的三角片
+			Index& curTrisCount,																			当前累计生成的输出网格三角片数
+			std::unordered_map<int64_t, int>& edgeIsctMap								边编码-边交点索引的哈希表；
+		
+		*/
+		
+		// lambda——生成边编码（边的两个端点索引映射成一个64位int）
+		const auto getEdgeCode = [](int32_t i, int32_t j)->std::int64_t
 		{
-			// i, j是立方体某条边的两端点的绝对索引——栅格点中的索引，不是最终输出网格的顶点索引；
-
-			// lambda——生成边编码（边的两个端点索引映射成一个64位int）
-			const auto ij2key = [](int32_t i, int32_t j)
-			{
-				if (i > j) 
-					std::swap(i, j); 
-				std::int64_t ret = 0;
-				ret |= i;
-				ret |= static_cast<std::int64_t>(j) << 32;		// 分别用32位存储两个端点的索引；
-				return ret;
-			};
-
-			const auto key = ij2key(i, j);
-			const auto it = edgeIsctMap.find(key);
-			int index = -1;
-
-			if (it == edgeIsctMap.end())
-			{
-				// 插值生成新的顶点：
-				if (curVersCount == versResult.rows())
-					versResult.conservativeResize(versResult.rows() * 2 + 1, versResult.cols());
-
-				versResult.row(curVersCount) = gridCenters.row(i) + t * (gridCenters.row(j) - gridCenters.row(i));
-				index = curVersCount;
-				edgeIsctMap[key] = index;
-				curVersCount++;
-			}
-			else
-				index = it->second;			// 不生成新顶点，交点为已有顶点；
-
-			return index;
+			if (i > j)
+				std::swap(i, j);
+			std::int64_t edgeCode = 0;
+			edgeCode |= i;
+			edgeCode |= static_cast<std::int64_t>(j) << 32;		// 分别用32位存储两个端点的索引；
+			return edgeCode;
 		};
 
-		// 1. 判断当前立方体8个顶点在等值面的内外；
-		int cornerState = 0;						// 立方体顶点状态编码；256种情形；
+		Eigen::Matrix<Index, 12, 1> isctVerIdxes;		// 立方体边上的交点的绝对索引——是在最终输出网格中的索引；
+		int cornerState = 0;											// 立方体顶点状态编码；256种情形；
+
+		// 1. 计算当前立方体的顶点状态编码，即8个顶点在等值面的内外状态1；
 		for (int i = 0; i < 8; i++)
 			if (cornerSDF(i) > isovalue)
 				cornerState |= 1 << i;
 
-		// 2. 确定当前立方体中和新生成三角片相交的边；
-		int edgeState = aiCubeEdgeFlags[cornerState];		// 立方体顶点状态编码映射为相交边编码；
+		// 2. 确定当前立方体中和等值面相交的边；
+		int edgeState = MC_TABLES::edgeStateCodes[cornerState];		// 立方体顶点状态编码映射为相交边编码；
 		if (edgeState == 0)		
-			return;											// 表示当前立方体整体都在等值面外部或内部，没有交点；
-
+			return;															// 表示当前立方体整体都在等值面外部或内部，没有交点；
 
 		// 3. 确定等值面和当前立方体的边的交点； Find the point of intersection of the surface with each edge. Then find the normal to the surface at those points
-		for (int i = 0; i < 12; i++)
+		for (int i = 0; i < 12; i++)						// 对立方体所有边的遍历
 		{
-			// if there is an intersection on this edge
-			if (edgeState & (1 << i))
+			if (edgeState & (1 << i))					// 若等值面和当前边相交：
 			{
-				int vaIdxRela = a2eConnection[i][0];
-				int vbIdxRela = a2eConnection[i][1];
-
-				// 边两端点的SDF值；find crossing point assuming linear interpolation along edges
-				const Scalar& SDFa = cornerSDF(vaIdxRela);
-				const Scalar& SDFb = cornerSDF(vbIdxRela);
-				Scalar t;
-				{
-					const Scalar delta = SDFb - SDFa;
-					if (delta == 0)
-						t = 0.5;
-					t = (isovalue - SDFa) / delta;
-				};
+				int vaIdxRela = MC_TABLES::cubeEdges[i][0];			// 当前边两端点的相对索引；
+				int vbIdxRela = MC_TABLES::cubeEdges[i][1];
 
 				// 生成边上的顶点：
-				isctVerIdxes[i] = genIsctVer(cornerIdx(vaIdxRela), cornerIdx(vbIdxRela), t);
+				int vaIdx = cornerIdx(vaIdxRela);				// 当前边两端点的绝对索引，是栅格中的顶点索引；
+				int vbIdx = cornerIdx(vbIdxRela);
+				const auto edgeCode = getEdgeCode(vaIdx, vbIdx);
+				const auto iter = edgeIsctMap.find(edgeCode);
+
+				if (iter == edgeIsctMap.end())								// 若当前边交点未生成；
+				{
+					if (curVersCount == versResult.rows())
+						versResult.conservativeResize(versResult.rows() * 2 + 1, versResult.cols());
+
+					// 插值生成新的顶点：find crossing point assuming linear interpolation along edges
+					const Scalar& SDFa = cornerSDF(vaIdxRela);			// 当前边两端点的SDF值；
+					const Scalar& SDFb = cornerSDF(vbIdxRela);
+					const Scalar delta = SDFb - SDFa;
+					Scalar t = (isovalue - SDFa) / delta;
+					versResult.row(curVersCount) = gridCenters.row(vaIdx) + t * (gridCenters.row(vbIdx) - gridCenters.row(vaIdx));
+
+					isctVerIdxes[i] = curVersCount;
+					edgeIsctMap[edgeCode] = isctVerIdxes[i];
+					curVersCount++;
+				}
+				else                                                                             // 若当前边交点已生成；
+					isctVerIdxes[i] = iter->second;			 
+
 				assert(isctVerIdxes[i] >= 0);
 				assert(isctVerIdxes[i] < curVersCount);
 			}
 		}
 
-
 		// 4. 生成当前立方体中的三角片，一个立方体中最多生成5个三角片；
 		for (int i = 0; i < 5; i++)
 		{
-			if (a2fConnectionTable[cornerState][3 * i] < 0)
+			if (MC_TABLES::cubeTriangles[cornerState][3 * i] < 0)
 				break;
 
 			if (curTrisCount == trisResult.rows())
 				trisResult.conservativeResize(trisResult.rows() * 2 + 1, trisResult.cols());
 
 			// 新增三角片数据中的顶点索引，是相对索引；
-			int vaIdxRela = a2fConnectionTable[cornerState][3 * i + 0];
-			int vbIdxRela = a2fConnectionTable[cornerState][3 * i + 1];
-			int vcIdxRela = a2fConnectionTable[cornerState][3 * i + 2];
+			int vaIdxRela = MC_TABLES::cubeTriangles[cornerState][3 * i + 0];
+			int vbIdxRela = MC_TABLES::cubeTriangles[cornerState][3 * i + 1];
+			int vcIdxRela = MC_TABLES::cubeTriangles[cornerState][3 * i + 2];
 
 			assert(isctVerIdxes[vaIdxRela] >= 0);
 			assert(isctVerIdxes[vbIdxRela] >= 0);
 			assert(isctVerIdxes[vcIdxRela] >= 0);
 
 			// 相对索引转换为绝对索引，插入新增三角片
-			trisResult.row(curTrisCount) <<
-				isctVerIdxes[vaIdxRela],
-				isctVerIdxes[vbIdxRela],
-				isctVerIdxes[vcIdxRela];
+			trisResult.row(curTrisCount) <<	isctVerIdxes[vaIdxRela],	isctVerIdxes[vbIdxRela],	isctVerIdxes[vcIdxRela];
 			curTrisCount++;
 		}
 
-		// for debug——打印当前已生成的所有三角片：
-		if (curVersCount > 0) 
-		{
-			Eigen::MatrixXd tmpVers;
-			Eigen::MatrixXi tmpTris;
-
-			Eigen::MatrixXd vers0 = versResult;
-			Eigen::MatrixXi tris0 = trisResult;
-			tmpVers = vers0.block(0, 0, curVersCount, 3);
-			tmpTris = tris0.block(0, 0, curTrisCount, 3);
-			igl::writeOBJ("E:/tmpMesh.obj", tmpVers, tmpTris);
-		}
 	}
 
 
 	template <typename DerivedS, typename DerivedGV, typename DerivedV, typename DerivedF>
-	void myMC(const Eigen::MatrixBase<DerivedS>& scalarFied,
+	void marchingCubes(const Eigen::MatrixBase<DerivedS>& scalarFied,
 		const Eigen::MatrixBase<DerivedGV>& gridCenters,
 		const unsigned nx,
 		const unsigned ny,
@@ -2183,59 +2155,67 @@ namespace IGL_BASIC_PMP
 		Eigen::PlainObjectBase<DerivedV>& versResult,
 		Eigen::PlainObjectBase<DerivedF>& trisResult)
 	{
+		/*
+			const Eigen::MatrixBase<DerivedS>& scalarFied,							符号距离场数据
+			const Eigen::MatrixBase<DerivedGV>& gridCenters,					栅格数据
+			const unsigned nx,																			x方向上栅格个数
+			const unsigned ny,
+			const unsigned nz,
+			const typename DerivedS::Scalar isovalue,										需要提取的水平集的SDF值；
+			Eigen::PlainObjectBase<DerivedV>& versResult,							输出网格顶点
+			Eigen::PlainObjectBase<DerivedF>& trisResult								输出网格三角片
+		*/
+
 		typedef typename DerivedS::Scalar Scalar;
-		typedef unsigned Index;
 
-		// use same order as a2fVertexOffset
-		const unsigned ioffset[8] = { 0, 1, 1 + nx, nx, nx * ny, 1 + nx * ny, 1 + nx + nx * ny, nx + nx * ny };
-		std::unordered_map<int64_t, int> edgeIsctMap;							// 边编码-边交点索引的哈希表；
-		versResult.resize(std::pow(nx * ny * nz, 2. / 3.), 3);
-		trisResult.resize(std::pow(nx * ny * nz, 2. / 3.), 3);
-		Index curVersCount = 0;
-		Index curTrisCount = 0;
-
-		// lambda——栅格的三维下标映射到一维的索引：
-		const auto xyz2Idx = [&nx, &ny, &nz](const int& x, const int& y, const int& z)->unsigned
+		// lambda——栅格的三维索引映射到一维索引：
+		const auto getGridIdx = [&nx, &ny, &nz](const int& x, const int& y, const int& z)->unsigned
 		{
 			return x + nx * (y + ny * (z));
 		};
 
+		const unsigned cornerIdxOffset[8] = { 0, 1, 1 + nx, nx, nx * ny, 1 + nx * ny, 1 + nx + nx * ny, nx + nx * ny };	// 立方体八个顶点的索引偏移量；
+		std::unordered_map<int64_t, int> edgeIsctMap;							// 边编码-边交点索引的哈希表；
 
-		// lambda——生成一个立方体中的三角片；
-		const auto cube = [&gridCenters, &scalarFied, &versResult, &curVersCount, &trisResult, &curTrisCount, &isovalue, &edgeIsctMap, &xyz2Idx, &ioffset]
-		(const int x, const int y, const int z)
-		{
-			const unsigned gridIdx = xyz2Idx(x, y, z);
+		unsigned curVersCount = 0;
+		unsigned curTrisCount = 0;
 
-			// Make a local copy of the values at the cube's corners
-			static Eigen::Matrix<Scalar, 8, 1> cornerSDF;              // 方块的八个顶点的SDF值
-			static Eigen::Matrix<Index, 8, 1> cornerIdx;               // 方块的八个顶点在栅格中的索引
-
-			// Find which vertices are inside of the surface and which are outside
-			for (int i = 0; i < 8; i++)
-			{
-				const unsigned originIdx = gridIdx + ioffset[i];
-				cornerIdx(i) = originIdx;
-				cornerSDF(i) = scalarFied(originIdx);
-			}
-
-			mySingleMC(gridCenters, cornerSDF, cornerIdx, isovalue, versResult, curVersCount, trisResult, curTrisCount, edgeIsctMap);
-
-		};
-
-
-		// march over all cubes (loop order chosen to match memory)
+		// 1. march over all cubes (loop order chosen to match memory)
 		/*
 			 Should be possible to parallelize safely if threads are "well separated".
 			 Like red-black Gauss Seidel. Probably each thread need's their own edgeIsctMap, versResult, trisResult,
 				   and then merge at the end.
 			 Annoying part are the edges lying on the  interface between chunks.
 		*/
+		versResult.resize(std::pow(nx * ny * nz, 2. / 3.), 3);
+		trisResult.resize(std::pow(nx * ny * nz, 2. / 3.), 3);
 		for (int z = 0; z < nz - 1; z++)
+		{
 			for (int y = 0; y < ny - 1; y++)
+			{
 				for (int x = 0; x < nx - 1; x++)
-					cube(x, y, z);
+				{
+					// 1.1 计算当前栅格的索引：
+					const unsigned gridIdx = getGridIdx(x, y, z);
 
+					// 1.2 计算当前栅格对应的立方体的八个顶点的数据；
+					static Eigen::Matrix<Scalar, 8, 1> cornerSDF;						// 方块的八个顶点的SDF值
+					static Eigen::Matrix<unsigned, 8, 1> cornerIdx;               // 方块的八个顶点在栅格中的索引
+					for (int i = 0; i < 8; i++)
+					{
+						const unsigned originIdx = gridIdx + cornerIdxOffset[i];
+						cornerIdx(i) = originIdx;
+						cornerSDF(i) = scalarFied(originIdx);
+					}
+
+					// 1.3 生成当前立方体内的三角片
+					handleCube(gridCenters, cornerSDF, cornerIdx, isovalue, versResult, curVersCount, trisResult, curTrisCount, edgeIsctMap);
+				}
+			}
+		}
+
+
+		// 2. shrink_to_fit();
 		versResult.conservativeResize(curVersCount, 3);
 		trisResult.conservativeResize(curTrisCount, 3);
 	}
@@ -2316,7 +2296,7 @@ namespace IGL_BASIC_PMP
 		MatrixXi trisResult_SDF, trisResults_signs;
 		double selectedSDF = -1.;
 		tt.start();
-		myMC(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
+		marchingCubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
 		tt.endCout("Elapsed time of igl::marching_cubes() is ");
 
 		igl::writeOBJ("E:/shrinkedMesh.obj", versResult_SDF, trisResult_SDF);
@@ -2364,32 +2344,34 @@ namespace IGL_BASIC_PMP
 		adjSM_ueCount = adjSM_eCount + tmpSp;		// 无向边邻接矩阵，权重为该边重复的次数；
 
 		// 寻找边缘无向边：
-		std::unordered_set<double> ueSet;
+		std::unordered_set<std::int64_t> ueSet;
 		for (unsigned i = 0; i < adjSM_ueCount.outerSize(); ++i)
 			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM_ueCount, i); iter; ++iter)
 				if (1 == iter.value())
-					ueSet.insert(iter.row() + static_cast<double>(1e-10) * iter.col());
+					ueSet.insert(encodeEdge(iter.row(), iter.col()));
 
 		// 寻找边缘半边：
-		std::unordered_set<double> bdryEdgeSet;
-		for (const auto& eNum : ueSet)
+		std::unordered_set<std::int64_t> bdryEdgeSet;
+		for (const auto& eCode : ueSet)
 		{
-			int vaIdx = std::floor(eNum);
-			int vbIdx = std::round(1e10 * (eNum - vaIdx));
-			double eNumOpp = vbIdx + static_cast<double>(1e-10) * vaIdx;
+			std::pair<int, int> retPair = decodeEdge(eCode);
+			int vaIdx = retPair.first;
+			int vbIdx = retPair.second;
+			std::int64_t eCodeOpp = encodeEdge(vbIdx, vaIdx);
 
 			if (adjSM_eCount.coeff(vaIdx, vbIdx) > 0)
-				bdryEdgeSet.insert(eNum);
+				bdryEdgeSet.insert(eCode);
 			if (adjSM_eCount.coeff(vbIdx, vaIdx) > 0)
-				bdryEdgeSet.insert(eNumOpp);
+				bdryEdgeSet.insert(eCodeOpp);
 		}
 
 		Eigen::MatrixXi bdryEdges(bdryEdgeSet.size(), 2);
 		unsigned index = 0;
-		for (const auto& eNum : bdryEdgeSet)
+		for (const auto& eCode : bdryEdgeSet)
 		{
-			bdryEdges(index, 0) = std::floor(eNum);
-			bdryEdges(index, 1) = std::round(1e10 * (eNum - std::floor(eNum)));
+			auto retPair = decodeEdge(eCode);
+			bdryEdges(index, 0) = retPair.first;
+			bdryEdges(index, 1) = retPair.second;
 			index++;
 		}
 		objWriteEdgesMat("E:/bdryEdges.obj", bdryEdges, vers);

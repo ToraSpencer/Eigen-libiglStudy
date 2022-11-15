@@ -38,6 +38,7 @@
     <ClInclude Include="myIgl.h" />
     <ClInclude Include="scientific_calc.h" />
     <ClInclude Include="sparse_mat.h" />
+    <ClInclude Include="MC_tables.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

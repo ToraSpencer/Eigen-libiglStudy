@@ -609,12 +609,12 @@ bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, 
 		Eigen::MatrixXi nmnEdges;
 		subFromIdxVec(nmnEdges, edges, edgeIdx_nmn);
 
-		// 4.2 建立边-边索引的哈希表；
-		std::unordered_multimap<double, int> edgeMap;			// 浮点数表示的边数据——边索引；
+		// 4.2 建立边编码-边索引的哈希表；
+		std::unordered_multimap<std::int64_t, int> edgeMap;			// 浮点数表示的边数据——边索引；
 		for (int i = 0; i < edges.rows(); ++i)
 		{
-			double key = edges(i, 0) + 1e-10 * edges(i, 1);
-			edgeMap.insert({ key, i });
+			std::int64_t eCode = encodeEdge(edges(i, 0), edges(i, 1));
+			edgeMap.insert({ eCode, i });
 		}
 
 		// 4.3 在哈希表中搜索所有非流形边，建立非流形边及其对边的（边——边索引）映射关系；
@@ -623,10 +623,10 @@ bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, 
 			int neIdx = edgeIdx_nmn[i];		// 当前非流形边索引；
 			int vaIdx = nmnEdges(i, 0);
 			int vbIdx = nmnEdges(i, 1);
-			double key = vaIdx + 1e-10 * vbIdx;
-			double oppKey = vbIdx + 1e-10 * vaIdx;
-			auto iter = edgeMap.find(key);
-			auto oppIter = edgeMap.find(oppKey);
+			std::int64_t eCode = encodeEdge(vaIdx, vbIdx);
+			std::int64_t oppEcode = encodeEdge(vbIdx, vaIdx);
+			auto iter = edgeMap.find(eCode);
+			auto oppIter = edgeMap.find(oppEcode);
 			int otherIdx = (iter->second == neIdx) ? ((++iter)->second) : (iter->second);
 			int oppIdx1 = oppIter->second;
 			int oppIdx2 = (++oppIter)->second;
@@ -699,4 +699,12 @@ bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, 
 	}
 
 	return true;
+}
+
+
+std::pair<int, int> decodeEdge(const std::int64_t code)
+{
+	int a = static_cast<int>(code >> 32);
+	int b = static_cast<int>(code - (static_cast<std::int64_t>(a) << 32));
+	return std::make_pair(a, b);
 }

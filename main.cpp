@@ -2,6 +2,7 @@
 #include "sparse_mat.h"
 #include "scientific_calc.h"
 #include "igl_study.h"
+#include <iomanip>
 
 #define DATA_PATH "./data/"
 
@@ -153,7 +154,7 @@ int main()
 	// IGL_DIF_GEO::test0();
 	// IGL_GRAPH::test2();
 	// IGL_SPACE_PARTITION::test0();
-	IGL_BASIC_PMP::test4();
+	IGL_BASIC_PMP::test3();
 
 
 	// SCIENTIFICCALC::test7();
@@ -161,6 +162,6 @@ int main()
 	// IGL_MATH::test1();
 
 	// DECIMATION::test0();
- 
+
 	std::cout << "main() finished." << std::endl;
 }

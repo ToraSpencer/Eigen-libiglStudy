@@ -162,6 +162,7 @@ void revTraverseSTL(T& con, F f)
 	cout << endl;
 }
 
+
 template <typename Derived, typename F>
 void traverseMatrix(Eigen::PlainObjectBase<Derived>& m, F f) 
 {
@@ -170,6 +171,7 @@ void traverseMatrix(Eigen::PlainObjectBase<Derived>& m, F f)
 	for (int i = 0; i < elemCount; ++i)
 		f(*dataPtr++);
 }
+
 
 // 传入函数子遍历稀疏矩阵中的非零元素，函数子接受的参数是Eigen::SparseMatrix<T>::InnerIterator&
 template<typename spMat, typename F>
@@ -451,6 +453,21 @@ Eigen::Matrix<T, Eigen::Dynamic, 1> vec2Vec(const std::vector<T>& vIn)
 	return vOut;
 }
 
+
+// 生成边编码——边两个端点的索引对映射成一个64位整型数
+template <typename Index>
+std::int64_t encodeEdge(const Index vaIdx, const Index vbIdx)
+{
+	std::int64_t a = static_cast<std::int64_t>(vaIdx);
+	std::int64_t b = static_cast<std::int64_t>(vbIdx);
+	std::int64_t code = 0;
+	code |= (a << 32);
+	code |= b;
+	return code;
+}
+
+// 解码边编码；
+std::pair<int, int> decodeEdge(const std::int64_t code);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 矩阵的增删查改
@@ -1284,7 +1301,6 @@ double meshVolume(const Eigen::MatrixBase<DerivedV>& V, const Eigen::MatrixBase<
 }
 
 
- 
 // 求三角网格的不同权重的邻接矩阵 
 template<typename DerivedI>
 bool adjMatrix(const Eigen::PlainObjectBase<DerivedI>& tris, Eigen::SparseMatrix<int>& adjSM_eCount, \

@@ -67,7 +67,7 @@
 #include <igl/signed_distance.h>
 #include <igl/marching_cubes.h>
 #include <igl/march_cube.h>
-#include <igl/marching_cubes_tables.h>
+#include "MC_tables.h"
 
 #include <igl/decimate.h>
 #include <igl/collapse_edge.h>
