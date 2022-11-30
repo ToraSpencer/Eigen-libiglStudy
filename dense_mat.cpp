@@ -799,14 +799,14 @@ namespace DENSEMAT
 	void test13() 
 	{
 		// cast()·½·¨£º
-		MatrixXf m1(5, 6);
+		Eigen::MatrixXf m1(5, 6);
 
 		for (unsigned i = 0; i < m1.rows(); ++i)
 			for (unsigned j = 0; j < m1.cols(); ++j)
 				m1(i, j) = 10 * i + j;
 		std::cout << "m1 == \n" << m1 << std::endl;
 
-		MatrixXi indices = (m1.array() < 33).cast<int>();
+		Eigen::MatrixXi indices = (m1.array() < 33).cast<int>();
 		std::cout << indices << std::endl;
 
 		auto mu1 = m1.array().cast<unsigned>();

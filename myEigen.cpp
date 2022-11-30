@@ -3,6 +3,7 @@
 using namespace std;
 using namespace Eigen;
  
+ 
 unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize) 
 {
 	unsigned nIndx = 0;
@@ -36,7 +37,6 @@ unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const un
 
 // 读取点云OBJ文件中的数据，存储到齐次坐标系表示的点云矩阵中；注：顶点在矩阵中是列表示的，第四维的元素始终为1；
 void objReadVerticesHomoMat(MatrixXf& vers, const char* fileName)
-
 {
 	char* pTmp = NULL;
 	std::ifstream ifs(fileName);			// cube bunny Eight

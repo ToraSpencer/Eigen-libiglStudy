@@ -43,7 +43,7 @@ void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, const 
 	unsigned int elemCount = end - beg + 1;
 
 	if (elemCount < serial_if_less_than)
-		for (unsigned int i = beg; i < end; ++i) 
+		for (unsigned int i = beg; i < end; ++i)
 			func(i);
 	else
 	{
@@ -519,13 +519,13 @@ bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const 
 template<typename T, int N>
 bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, 1, N>& rowVec)
 {
-	unsigned cols = rowVec.cols();
+	unsigned cols = N;
 	unsigned currentRows = mat.rows();
 
-	if (0 == cols)
+	if (0 == rowVec.cols())
 		return false;
 
-	if (rowVec.cols() != mat.cols() && rowVec.cols() != 0)
+	if (N != mat.cols() && mat.rows() != 0)
 		return false;
 
 	mat.conservativeResize(currentRows + 1, cols);
