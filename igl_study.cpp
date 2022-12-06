@@ -2746,7 +2746,7 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXi boxTris;
 
 		// 0. 解析SDFGen.exe生成的.sdf距离场数据文件：
-		const char* sdfFilePath = "E:/inputMesh.sdf";
+		const char* sdfFilePath = "E:/jawMeshUnionRepair1.sdf";
 		double SDFstep = IGL_BASIC::parseSDF(stepCounts, gridsOri, SDF, sdfFilePath);
 
 		// 1. 生成栅格：

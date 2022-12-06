@@ -177,13 +177,9 @@ void traverseMatrix(Eigen::PlainObjectBase<Derived>& m, F f)
 template<typename spMat, typename F>
 void traverseSparseMatrix(spMat& sm, F f)
 {
-	for (unsigned i = 0; i<sm.outerSize(); ++i)
-	{
+	for (unsigned i = 0; i < sm.outerSize(); ++i)
 		for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
-		{
 			f(iter);
-		}
-	}
 }
 
 
@@ -249,6 +245,7 @@ void dispSpMat(const spMat& sm, const unsigned startRow, const unsigned endRow)
 	std::cout << std::endl;
 }
 
+
 template<typename spMat>
 void dispSpMat(const spMat& sm, const unsigned startRow, const unsigned endRow, const unsigned showElemsCount)
 {
@@ -264,6 +261,7 @@ void dispSpMat(const spMat& sm, const unsigned startRow, const unsigned endRow, 
 		}
 	std::cout << std::endl;
 }
+
 
 template<typename spMat>
 void dispSpMat(const spMat& sm)
@@ -367,6 +365,8 @@ void genAABBmesh(const Eigen::AlignedBox<_Scalar, _AmbientDim>& aabb, Eigen::Mat
 	vers.rowwise() += newOri.transpose();
 }
 
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////// 不同数据类型的变换
 
 // 根据索引向量从源矩阵中提取元素生成输出矩阵。
@@ -465,6 +465,7 @@ std::int64_t encodeEdge(const Index vaIdx, const Index vbIdx)
 	code |= b;
 	return code;
 }
+
 
 // 解码边编码；
 std::pair<int, int> decodeEdge(const std::int64_t code);
@@ -891,6 +892,8 @@ template	<typename DerivedV, typename DerivedI>
 void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<DerivedI>& edges, \
 	const Eigen::PlainObjectBase<DerivedV>& vers)
 {
+	if (0 == edges.rows() || 0 == vers.rows())
+		return;
 	std::ofstream dstFile(pathName);
 	for (int i = 0; i < vers.rows(); ++i)
 		dstFile << "v " << vers.coeffRef(i, 0) << " " << vers.coeffRef(i, 1) << " " << vers.coeffRef(i, 2) << std::endl;
@@ -968,6 +971,23 @@ MatrixXf homoVers2vers(const MatrixXf& homoVers);
 
 
 //////////////////////////////////////////////////////////////////////////////////////////// 科学计算相关
+
+// 稀疏矩阵转置；Eigen::SparseMatrix自带的transpose()方法太垃圾了
+template<typename T>
+bool spMatTranspose(Eigen::SparseMatrix<T>& smOut, const Eigen::SparseMatrix<T>& smIn) 
+{
+	smOut.resize(smIn.cols(), smIn.rows());
+	std::vector<Eigen::Triplet<T>> trips;
+	trips.reserve(smIn.nonZeros());
+	traverseSparseMatrix(smIn, [&smIn, &trips](auto& iter) 
+		{
+			trips.push_back(Eigen::Triplet<T>{static_cast<int>(iter.col()), static_cast<int>(iter.row()), iter.value()});
+		});
+	smOut.setFromTriplets(trips.begin(), trips.end());
+
+	return true;
+}
+
 
 // 解恰定的稠密线性方程组Ax == b;
 template<typename T, int N>

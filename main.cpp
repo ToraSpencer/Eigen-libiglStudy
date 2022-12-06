@@ -147,9 +147,9 @@ namespace DECIMATION
 int main()
 {
 	// DENSEMAT::test7();
-	// SPARSEMAT::test1();
+	// SPARSEMAT::test00();
 
-	IGL_BASIC::test000();
+	// IGL_BASIC::test000();
 	// IGL_DIF_GEO::test0();
 	// IGL_GRAPH::test2();
 	// IGL_SPACE_PARTITION::test0();
@@ -161,6 +161,20 @@ int main()
 	// IGL_MATH::test1();
 
 	// DECIMATION::test0();
+
+	for (unsigned i =0; i<=12; ++i) 
+	{
+		char str[256];
+		sprintf_s(str, "E:/splitedMesh%d.obj", i);
+
+		Eigen::MatrixXd vers, norms;
+		Eigen::MatrixXi tris;
+		igl::readOBJ(str, vers, tris);
+
+		sprintf_s(str, "E:/%d.stl", i);
+		igl::writeSTL(str, vers, tris, norms);
+	}
+
 
 	std::cout << "main() finished." << std::endl;
 }

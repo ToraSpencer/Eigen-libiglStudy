@@ -6,25 +6,38 @@ namespace SPARSEMAT
 	void test00() 
 	{
 		// traverseSparseMatrix()——传入函数子遍历稀疏矩阵中的元素；
-		Eigen::Matrix3i m1(Eigen::Matrix3i::Zero());
+		Eigen::MatrixXi m1(Eigen::MatrixXi::Zero(4, 5));
 		m1(1, 1) = 3;
 		m1(1, 2) = 2;
 		Eigen::SparseMatrix<int> sm1 = m1.sparseView();
 		traverseSparseMatrix(sm1, [&](auto& iter)
 			{
+				std::cout << "value == ";
 				disp<int>(iter.value());
+				std::cout << "row == ";
+				disp<int>(iter.row());
+				std::cout << "col == ";
+				disp<int>(iter.col());
+				std::cout << std::endl;
 			});
+		std::cout << std::endl;
 
+		//		所有非零元素+1；
 		traverseSparseMatrix(sm1, [&](auto& iter)
 			{
 				iter.valueRef()++;
 			});
 
-		traverseSparseMatrix(sm1, [&](auto& iter)
-			{
-				disp<int>(iter.value());
-			});
 
+		//	dispSpMat()——打印稀疏矩阵非零元素
+		dispSpMat(sm1);
+ 
+		Eigen::SparseMatrix<int, RowMajor> sm11 = m1.sparseView();
+		Eigen::SparseMatrix<int> sm2;
+		bool retFlag = spMatTranspose(sm2, sm1);
+		dispSpMat(sm2);
+
+		std::cout << "finished." << std::endl;
 	}
 
 
@@ -61,6 +74,7 @@ namespace SPARSEMAT
 		sm3.setIdentity();
 		std::cout << "sm3 == \n" << sm3 << std::endl;
 
+
 		// 1+. 压缩：
 
 		//			isCompressed()方法——查看是否是压缩状态；插入元素之后若不手动压缩则是非压缩状态；
@@ -73,10 +87,16 @@ namespace SPARSEMAT
 
 
 		//	 2. 稀疏矩阵的属性
+
+		//			nonZeros()
 		std::cout << "sm1非零元素数：" << sm1.nonZeros() << std::endl;
+
+		//			innerSize()
 		std::cout << "sm1内维度：" << sm1.innerSize() << std::endl;			// 列优先的稀疏矩阵的列数，行优先的稀疏矩阵的行数
+		
+		//			outerSize()
 		std::cout << "sm1外维度：" << sm1.outerSize() << std::endl;			// 列优先的稀疏矩阵的行数，行优先的稀疏矩阵的列数
-		std::cout << "sm1是否是压缩格式：" << sm1.isCompressed() << std::endl;
+ 
 
 		//		valuePtr()方法——返回稀疏矩阵元素数组的首地址；
 		auto dataPtr = sm1.valuePtr();
@@ -151,16 +171,16 @@ namespace SPARSEMAT
 	void test1()
 	{
 		// 求和——没有dense matrix里的.colwise().sum()和.rowwise().sum()操作，可以使用左/右乘向量来实现：
-		MatrixXf m1 = MatrixXf::Random(4, 4);
-		MatrixXf m2(4, 4);
-		m2 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16;
+		MatrixXf m1 = MatrixXf::Random(4, 5);
+		MatrixXf m2(4, 5);
+		m2 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20;
 		std::cout << "m1 == \n" << m1 << std::endl;
 
 		// sparseView()方法；
 		SparseMatrix<float> sm1 = m1.sparseView();
 		SparseMatrix<float> sm2 = m2.sparseView();
 		RowVectorXf colSum = RowVectorXf::Ones(4) * sm1;			// 左乘一个全1行向量，得到按列求和的结果。
-		VectorXf rowSum = sm1 * VectorXf::Ones(4);							// 右乘一个全1列向量，得到按行求和的结果。
+		VectorXf rowSum = sm1 * VectorXf::Ones(5);							// 右乘一个全1列向量，得到按行求和的结果。
 		std::cout << "按列求和结果：\n" << colSum << std::endl;
 		std::cout << "按行求和结果：\n" << rowSum << std::endl << std::endl;
 
@@ -183,15 +203,18 @@ namespace SPARSEMAT
 		sm1.makeCompressed();
 		std::cout << "sm1.nonZeros()  == " << sm1.nonZeros() << std::endl;
 
+		// for debug;
+		dispSpMat(sm1);
+		dispSpMat(sm2);
+
 		// 使用sp2的某一行给sp1的某一列赋值时，必须将该行向量转置为列向量，否则会出错，且编译器不报异常；
 		sm1.col(0) = sm2.row(0).transpose();
 		dispMat(sm1.toDense());
 
-		// 貌似列优先的稀疏矩阵的transpose()方法返回的矩阵是行优先的：
-		SparseMatrix<float> tmpSm = sm1.transpose();
-		sm2 = sm1 + tmpSm;						// sm2 = sm1 + sm1.transpose() 会编译不通过；
-		std::cout << "sm2 = sm1 + tmpSm: " << std::endl;
-		dispSpMat(sm2);
+		// 不要用稀疏矩阵自带的tranpose()方法，很垃圾
+		auto tmpSm = sm1.transpose();					// 只能赋值给行优先存储的稀疏矩阵；
+
+		std::cout << "finished." << std::endl;
 	}
 
 
