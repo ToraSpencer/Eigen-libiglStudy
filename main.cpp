@@ -162,19 +162,7 @@ int main()
 
 	// DECIMATION::test0();
 
-	for (unsigned i =0; i<=12; ++i) 
-	{
-		char str[256];
-		sprintf_s(str, "E:/splitedMesh%d.obj", i);
-
-		Eigen::MatrixXd vers, norms;
-		Eigen::MatrixXi tris;
-		igl::readOBJ(str, vers, tris);
-
-		sprintf_s(str, "E:/%d.stl", i);
-		igl::writeSTL(str, vers, tris, norms);
-	}
-
+	TEST_MYEIGEN::test0();
 
 	std::cout << "main() finished." << std::endl;
 }

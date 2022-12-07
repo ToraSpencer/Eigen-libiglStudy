@@ -16,6 +16,7 @@
 #include <initializer_list>
 #include <memory>
 #include <thread>
+#include <limits>
 #include <windows.h>
 
 #include "Eigen/Dense"
@@ -470,6 +471,29 @@ std::int64_t encodeEdge(const Index vaIdx, const Index vbIdx)
 // 解码边编码；
 std::pair<int, int> decodeEdge(const std::int64_t code);
 
+
+// 生成三角片编码——三个顶点索引排序后映射成64位无符号整型数
+template <typename Index>
+std::uint64_t encodeTriangle(const Index vaIdx, const Index vbIdx, const Index vcIdx)
+{
+	// 不区分正反面，即(a, b, c)和(a, c, b)映射为同一个编码；
+	unsigned long triIdxLimit = std::numeric_limits<std::uint16_t>::max();				// 65535
+	if (vaIdx > triIdxLimit || vbIdx > triIdxLimit || vcIdx > triIdxLimit)
+		return 0;			// 索引超出范围
+	if (vaIdx == vbIdx || vaIdx == vcIdx || vbIdx == vcIdx || vaIdx < 0 || vbIdx < 0 || vcIdx < 0)
+		return 0;			// 非法三角片
+
+	std::vector<std::uint64_t> vec{static_cast<std::uint64_t>(vaIdx), static_cast<std::uint64_t>(vbIdx), static_cast<std::uint64_t>(vcIdx)};
+	std::sort(vec.begin(), vec.end());
+	std::uint64_t code = 0;
+	code |= (vec[0] << 32);
+	code |= (vec[1] << 16);
+	code |= vec[2];
+	return code;
+}
+
+// 解码三角片编码：
+std::vector<int> decodeTrianagle(const std::uint64_t code);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 矩阵的增删查改
 
@@ -1455,5 +1479,26 @@ public:
 
 
 
+namespace TEST_MYEIGEN
+{
+	const double pi = 3.14159;
+	void test0();
+	void test1();
+	void test2();
+	void test3();
+	void test4();
+	void test5();
+	void test6();
+	void test7();
+	void test8();
+	void test9();
+	void test10();
+	void test11();
+	void test12();
+	void test13();
+	void test14();
+	void test15();
+	void test16();
+}
 
 

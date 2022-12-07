@@ -708,3 +708,32 @@ std::pair<int, int> decodeEdge(const std::int64_t code)
 	int b = static_cast<int>(code - (static_cast<std::int64_t>(a) << 32));
 	return std::make_pair(a, b);
 }
+
+
+std::vector<int> decodeTrianagle(const std::uint64_t code)
+{
+	std::uint64_t a = code >> 32;
+	std::uint64_t resi = code - (a << 32);
+	std::uint64_t b = resi >> 16;
+	std::uint64_t c = resi - (b << 16);
+	return std::vector<int>{static_cast<int>(a), static_cast<int>(b), static_cast<int>(c)};
+}
+
+
+
+namespace TEST_MYEIGEN 
+{
+	// ²âÊÔ±àÂë½âÂë£º
+	void test0() 
+	{
+		std::vector<int> retVec = decodeTrianagle(encodeTriangle(65535, 65534, 65533));
+		traverseSTL(retVec, disp<int>);
+		std::cout << std::hex << encodeTriangle(65535, 65534, 65533) << std::endl;
+		std::cout << std::dec << encodeTriangle(1, 1, 2) << std::endl;;
+
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+}
