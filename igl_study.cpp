@@ -2544,28 +2544,17 @@ namespace IGL_BASIC_PMP
 
 		return true;
 	}
-
-
-	// marching cubes中单个立方体内的操作：
-	template <
-		typename DerivedGV,
-		typename Scalar,
-		typename Index,
-		typename DerivedV,
-		typename DerivedF>
-		void handleCube(
-			const DerivedGV& gridCenters,
-			const Eigen::Matrix<Scalar, 8, 1>& cornerSDF,
-			const Eigen::Matrix<Index, 8, 1>& cornerIdx,
-			const Scalar& isovalue,
-			Eigen::PlainObjectBase<DerivedV>& versResult,
-			Index& curVersCount,
-			Eigen::PlainObjectBase<DerivedF>& trisResult,
-			Index& curTrisCount,
-			std::unordered_map<int64_t, int>& edgeIsctMap)
+ 
+ 
+	template <typename DerivedGV, typename Scalar, typename Index, typename ScalarV, typename IndexF>
+	void handleCube(const DerivedGV& gridCenters, const Eigen::Matrix<Scalar, 8, 1>& cornerSDF, \
+		const Eigen::Matrix<Index, 8, 1>& cornerIdx, const Scalar& isovalue, \
+		Eigen::Matrix<ScalarV, Eigen::Dynamic, Eigen::Dynamic>& versResult, Index& curVersCount, \
+		Eigen::Matrix<IndexF, Eigen::Dynamic, Eigen::Dynamic>& trisResult, Index& curTrisCount, \
+		std::unordered_map<int64_t, int>& edgeIsctMap)
 	{
 		/*
-			const DerivedGV& gridCenters,															栅格数据			
+			const DerivedGV& gridCenters,															栅格数据
 			const Eigen::Matrix<Scalar, 8, 1>& cornerSDF,									当前立方体八个顶点的SDF值
 			const Eigen::Matrix<Index, 8, 1>& cornerIdx,									当前立方体八个顶点在栅格中的索引；
 			const Scalar& isovalue,																		需要提取的等值面的SDF值
@@ -2574,7 +2563,7 @@ namespace IGL_BASIC_PMP
 			Eigen::PlainObjectBase<DerivedF>& trisResult,									输出网格的三角片
 			Index& curTrisCount,																			当前累计生成的输出网格三角片数
 			std::unordered_map<int64_t, int>& edgeIsctMap								边编码-边交点索引的哈希表；
-		
+
 		*/
 
 		Eigen::Matrix<Index, 12, 1> isctVerIdxes;		// 立方体边上的交点的绝对索引——是在最终输出网格中的索引；
@@ -2587,7 +2576,7 @@ namespace IGL_BASIC_PMP
 
 		// 2. 确定当前立方体中和等值面相交的边；
 		int edgeState = MC_TABLES::edgeStateCodes[cornerState];		// 立方体顶点状态编码映射为相交边编码；
-		if (edgeState == 0)		
+		if (edgeState == 0)
 			return;															// 表示当前立方体整体都在等值面外部或内部，没有交点；
 
 
@@ -2615,14 +2604,14 @@ namespace IGL_BASIC_PMP
 					const Scalar& SDFb = cornerSDF(vbIdxRela);
 					const Scalar delta = SDFb - SDFa;
 					Scalar t = (isovalue - SDFa) / delta;
-					versResult.row(curVersCount) = gridCenters.row(vaIdx) + t * (gridCenters.row(vbIdx) - gridCenters.row(vaIdx));
+					versResult.row(curVersCount) = (gridCenters.row(vaIdx) + t * (gridCenters.row(vbIdx) - gridCenters.row(vaIdx))).array().cast<ScalarV>();
 
 					isctVerIdxes[i] = curVersCount;
 					edgeIsctMap[edgeCode] = isctVerIdxes[i];
 					curVersCount++;
 				}
 				else                                                                             // 若当前边交点已生成；
-					isctVerIdxes[i] = iter->second;			 
+					isctVerIdxes[i] = iter->second;
 
 				assert(isctVerIdxes[i] >= 0);
 				assert(isctVerIdxes[i] < curVersCount);
@@ -2649,24 +2638,27 @@ namespace IGL_BASIC_PMP
 			assert(isctVerIdxes[vcIdxRela] >= 0);
 
 			// 相对索引转换为绝对索引，插入新增三角片
-			trisResult.row(curTrisCount) <<	isctVerIdxes[vaIdxRela],	isctVerIdxes[vbIdxRela],	isctVerIdxes[vcIdxRela];
+			trisResult.row(curTrisCount) << isctVerIdxes[vaIdxRela], isctVerIdxes[vbIdxRela], isctVerIdxes[vcIdxRela];
 			curTrisCount++;
 		}
 
 	}
 
 
-	template <typename DerivedS, typename DerivedGV, typename DerivedV, typename DerivedF>
-	bool marchingCubes(const Eigen::MatrixBase<DerivedS>& scalarFied,
-		const Eigen::MatrixBase<DerivedGV>& gridCenters,
-		const unsigned nx,
-		const unsigned ny,
-		const unsigned nz,
-		const typename DerivedS::Scalar isovalue,
-		Eigen::PlainObjectBase<DerivedV>& versResult,
-		Eigen::PlainObjectBase<DerivedF>& trisResult)
+	template <typename DerivedS, typename DerivedGV, typename ScalarV, typename IndexF>
+	bool marchingCubes(Eigen::Matrix<ScalarV, Eigen::Dynamic, Eigen::Dynamic>& versResult, \
+		Eigen::Matrix<IndexF, Eigen::Dynamic, Eigen::Dynamic>& trisResult, \
+		const Eigen::MatrixBase<DerivedS>& scalarFied, const Eigen::MatrixBase<DerivedGV>& gridCenters, \
+		const unsigned nx, const unsigned ny, const unsigned nz,
+		const typename DerivedS::Scalar isovalue)
 	{
 		/*
+			DerivedS				距离场数据的类型
+			DerivedGV			栅格数据的类型
+			ScalarV					顶点坐标的数据类型；
+			IndexF					面片中的顶点索引的数据类型；
+		
+
 			const Eigen::MatrixBase<DerivedS>& scalarFied,							符号距离场数据
 			const Eigen::MatrixBase<DerivedGV>& gridCenters,					栅格数据
 			const unsigned nx,																			x方向上栅格个数
@@ -2725,14 +2717,13 @@ namespace IGL_BASIC_PMP
 			}
 		}
 
-
 		// 2. shrink_to_fit();
 		versResult.conservativeResize(curVersCount, 3);
 		trisResult.conservativeResize(curTrisCount, 3);
 
 		return true;
 	}
-
+ 
 
 	// test4——测试生成栅格、marchingCubes算法：
 	void test4()
@@ -2805,14 +2796,28 @@ namespace IGL_BASIC_PMP
 
 		// 2. marching cubes算法生成最终曲面：
 		tiktok& tt = tiktok::getInstance();
-		MatrixXd versResult_SDF, versResults_signs;
-		MatrixXi trisResult_SDF, trisResults_signs;
+		MatrixXd versResult_SDF, versResults_signs, versResult_origin;
+		MatrixXi trisResult_SDF, trisResults_signs, trisResult_origin;
 		double selectedSDF = -1.;
 		tt.start();
-		marchingCubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
+		marchingCubes(versResult_SDF, trisResult_SDF, SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF);
 		tt.endCout("Elapsed time of igl::marching_cubes() is ");
-
+ 
 		igl::writeOBJ("E:/shrinkedMesh.obj", versResult_SDF, trisResult_SDF);
+
+		// 3. float版本的测试结果：
+		Eigen::MatrixXf versResult_SDF_float, gridCenters_float;
+		Eigen::VectorXf SDF_float;
+		Eigen::MatrixXi trisResult_SDF_float;
+		float selectedSDFfloat = static_cast<float>(selectedSDF);
+		gridCenters_float = gridCenters.array().cast<float>();
+		SDF_float = SDF.array().cast<float>();
+		marchingCubes(versResult_SDF_float, trisResult_SDF_float, SDF_float, 	gridCenters_float, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDFfloat);
+		
+		objWriteMeshMat("E:/shrinkedMesh_float.obj", versResult_SDF_float, trisResult_SDF_float);
+ 
+
+		std::cout << "finished." << std::endl;
 	}
 
 

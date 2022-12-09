@@ -153,7 +153,7 @@ int main()
 	// IGL_DIF_GEO::test0();
 	// IGL_GRAPH::test2();
 	// IGL_SPACE_PARTITION::test0();
-	// IGL_BASIC_PMP::test4();
+	IGL_BASIC_PMP::test4();
 
 
 	// SCIENTIFICCALC::test7();
@@ -162,7 +162,7 @@ int main()
 
 	// DECIMATION::test0();
 
-	TEST_MYEIGEN::test0();
+	// TEST_MYEIGEN::test0();
 
 	std::cout << "main() finished." << std::endl;
 }
