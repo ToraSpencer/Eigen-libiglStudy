@@ -2399,6 +2399,7 @@ namespace IGL_BASIC_PMP
 		COLLECTED = 2,
 	};
 
+
 	// 33. 测试buildAdjacency
 	void test33()
 	{
@@ -2737,7 +2738,7 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXi boxTris;
 
 		// 0. 解析SDFGen.exe生成的.sdf距离场数据文件：
-		const char* sdfFilePath = "E:/jawMeshUnionRepair1.sdf";
+		const char* sdfFilePath = "E:/jawMesh_noHP3.sdf";
 		double SDFstep = IGL_BASIC::parseSDF(stepCounts, gridsOri, SDF, sdfFilePath);
 
 		// 1. 生成栅格：
@@ -2798,7 +2799,7 @@ namespace IGL_BASIC_PMP
 		tiktok& tt = tiktok::getInstance();
 		MatrixXd versResult_SDF, versResults_signs, versResult_origin;
 		MatrixXi trisResult_SDF, trisResults_signs, trisResult_origin;
-		double selectedSDF = -1.;
+		double selectedSDF = -1.5;
 		tt.start();
 		marchingCubes(versResult_SDF, trisResult_SDF, SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF);
 		tt.endCout("Elapsed time of igl::marching_cubes() is ");

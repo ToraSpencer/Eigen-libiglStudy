@@ -155,14 +155,13 @@ int main()
 	// IGL_SPACE_PARTITION::test0();
 	IGL_BASIC_PMP::test4();
 
-
 	// SCIENTIFICCALC::test7();
 	// TEST_PMP::test3();
 	// IGL_MATH::test1();
 
 	// DECIMATION::test0();
 
-	// TEST_MYEIGEN::test0();
+	// TEST_MYEIGEN::test1();
 
 	std::cout << "main() finished." << std::endl;
 }
