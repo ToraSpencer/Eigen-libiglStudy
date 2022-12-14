@@ -750,10 +750,10 @@ std::pair<int, int> decodeEdge(const std::int64_t code)
 
 std::vector<int> decodeTrianagle(const std::uint64_t code)
 {
-	std::uint64_t a = code >> 32;
-	std::uint64_t resi = code - (a << 32);
-	std::uint64_t b = resi >> 16;
-	std::uint64_t c = resi - (b << 16);
+	std::uint64_t a = code >> 42;
+	std::uint64_t resi = code - (a << 42);
+	std::uint64_t b = resi >> 21;
+	std::uint64_t c = resi - (b << 21);
 	return std::vector<int>{static_cast<int>(a), static_cast<int>(b), static_cast<int>(c)};
 }
 
@@ -769,6 +769,9 @@ namespace TEST_MYEIGEN
 		std::cout << std::hex << encodeTriangle(65535, 65534, 65533) << std::endl;
 		std::cout << std::dec << encodeTriangle(1, 1, 2) << std::endl;;
 
+		retVec.clear();
+		retVec = decodeTrianagle(encodeTriangle(651135, 522534, 653533));
+		traverseSTL(retVec, disp<int>);
 
 		std::cout << "finished." << std::endl;
 	}
@@ -800,4 +803,22 @@ namespace TEST_MYEIGEN
 	}
 
 
+	// ¼ì²âÖØ¸´Èý½ÇÆ¬£¬ÖØ¸´¶¥µã£¬
+	void test2() 
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		objReadMeshMat(vers, tris, "E:/²ÄÁÏ/shrinkedMeshDirty.obj");
+
+		Eigen::MatrixXi bdrys;
+		bdryEdges(bdrys, tris);
+		std::cout << "boundary edges count is " << bdrys.rows() << std::endl;
+		objWriteEdgesMat("E:/bdrys.obj", bdrys, vers);
+
+		std::vector<int> repIdxes;
+		findRepTris(repIdxes, tris);
+
+
+		std::cout << "finished." << std::endl;
+	}
 }

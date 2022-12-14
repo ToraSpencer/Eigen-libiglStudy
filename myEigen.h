@@ -455,6 +455,18 @@ Eigen::Matrix<T, Eigen::Dynamic, 1> vec2Vec(const std::vector<T>& vIn)
 }
 
 
+template <typename DerivedI>
+void edges2mat(Eigen::PlainObjectBase<DerivedI>& mat, const std::vector<std::pair<int, int>>& edges)
+{
+	mat.resize(edges.size(), 2);
+	for (unsigned i = 0; i < edges.size(); ++i)
+	{
+		mat(i, 0) = edges[i].first;
+		mat(i, 1) = edges[i].second;
+	}
+}
+
+
 // 生成边编码——边两个端点的索引对映射成一个64位整型数
 template <typename Index>
 std::int64_t encodeEdge(const Index vaIdx, const Index vbIdx)
@@ -477,7 +489,7 @@ template <typename Index>
 std::uint64_t encodeTriangle(const Index vaIdx, const Index vbIdx, const Index vcIdx)
 {
 	// 不区分正反面，即(a, b, c)和(a, c, b)映射为同一个编码；
-	unsigned long triIdxLimit = std::numeric_limits<std::uint16_t>::max();				// 65535
+	unsigned long triIdxLimit = 0x1FFFFF;								// 最多为21位全1, 0x1FFFFF ==  2097181, 两百多万三角片；
 	if (vaIdx > triIdxLimit || vbIdx > triIdxLimit || vcIdx > triIdxLimit)
 		return 0;			// 索引超出范围
 	if (vaIdx == vbIdx || vaIdx == vcIdx || vbIdx == vcIdx || vaIdx < 0 || vbIdx < 0 || vcIdx < 0)
@@ -486,14 +498,34 @@ std::uint64_t encodeTriangle(const Index vaIdx, const Index vbIdx, const Index v
 	std::vector<std::uint64_t> vec{static_cast<std::uint64_t>(vaIdx), static_cast<std::uint64_t>(vbIdx), static_cast<std::uint64_t>(vcIdx)};
 	std::sort(vec.begin(), vec.end());
 	std::uint64_t code = 0;
-	code |= (vec[0] << 32);
-	code |= (vec[1] << 16);
+	code |= (vec[0] << 42);
+	code |= (vec[1] << 21);
 	code |= vec[2];
 	return code;
 }
 
+
 // 解码三角片编码：
 std::vector<int> decodeTrianagle(const std::uint64_t code);
+
+
+template <typename DerivedI>
+void findRepTris(std::vector<int>& repIdxes, const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	std::unordered_set<std::int64_t> codeSet;
+	unsigned trisCount = tris.rows();
+	repIdxes.reserve(trisCount);
+
+	for (unsigned i = 0; i<trisCount; ++i) 
+	{
+		std::int64_t code = encodeTriangle(tris(i, 0), tris(i, 1), tris(i, 2));
+		auto retPair = codeSet.insert(code);
+		if (!retPair.second)
+			repIdxes.push_back(static_cast<int>(i));
+	}
+	repIdxes.shrink_to_fit();
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 矩阵的增删查改
 
@@ -1185,6 +1217,7 @@ VectorXd fittingStandardEllipse(const MatrixXf& sampleVers);
 
 //////////////////////////////////////////////////////////////////////////////////////////////// 三角网格处理：
 
+// 得到三角网格的有向边数据
 template <typename DerivedV, typename DerivedI>
 void getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris)
@@ -1205,6 +1238,7 @@ void getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& ve
 	edges.block(trisCount * 2, 1, trisCount, 1) = vbIdxes;
 }
  
+
 // 计算网格所有三角片的重心
 template<typename T, typename DerivedV, typename DerivedI>
 bool trianglesBarycenter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& barys, const Eigen::PlainObjectBase<DerivedV>& vers, \
@@ -1232,7 +1266,6 @@ bool trianglesBarycenter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& barys
 
 	return true;
 }
-
 
 
 // 计算网格所有三角片的归一化法向量
@@ -1390,6 +1423,27 @@ bool adjMatrix(const Eigen::PlainObjectBase<DerivedI>& tris, Eigen::SparseMatrix
 	adjSM_eIdx.resize(versCount, versCount);
 	adjSM_eCount.setFromTriplets(smElems.begin(), smElems.end());										// 权重为该有向边重复的次数；
 	adjSM_eIdx.setFromTriplets(smElems_weighted.begin(), smElems_weighted.end());		// 权重为该有向边的索引；
+
+	return true;
+}
+
+
+// 边缘边：
+template<typename DerivedI>
+bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdryEdges, const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
+	adjMatrix(tris, adjSM_eCount, adjSM_eIdx);
+	Eigen::SparseMatrix<int> adjSM_tmp, adjSM_ueCount;
+	spMatTranspose(adjSM_tmp, adjSM_eCount);
+	adjSM_ueCount = adjSM_eCount + adjSM_tmp;
+	std::vector<std::pair<int, int>> edgesVec;
+	traverseSparseMatrix(adjSM_ueCount, [&](auto& iter)
+		{
+			if (1 == iter.value() && iter.row() > iter.col())
+				edgesVec.push_back({ iter.row(), iter.col() });
+		});
+	edges2mat(bdryEdges, edgesVec);
 
 	return true;
 }
@@ -1684,7 +1738,6 @@ bool triangleGrow(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectB
 }
  
 
-
 // triangleGrowSplitMesh()——区域生长将输入网格分为多个单连通网格：
 template <typename DerivedV>
 bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eigen::MatrixXi>& meshesTrisOut, \
@@ -1953,6 +2006,23 @@ bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eig
 	}
 
 	return true;
+}
+
+
+// 检测网格中是否有非法三角片（三个顶点索引中有两个相同的）
+template <typename DerivedI>
+bool checkSickTris(std::vector<unsigned>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	bool retFlag = false;
+	for (unsigned i = 0; i < tris.rows(); ++i)
+	{
+		if (tris(i, 0) == tris(i, 1) || tris(i, 0) == tris(i, 2) || tris(i, 1) == tris(i, 2))
+		{
+			sickIdxes.push_back(i);
+			retFlag = true;
+		}
+	}
+	return retFlag;
 }
 
 

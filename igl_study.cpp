@@ -1751,6 +1751,62 @@ namespace IGL_BASIC
 		std::cout << "appErr == " << appErr << std::endl;
 		std::cout << "finished." << std::endl;
 	}
+
+
+	// 网格清理：
+	void test8() 
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut, trisCopy;
+		Eigen::VectorXi selectedIdxes, oldNewIdxInfo;
+
+		igl::readOBJ("E:/材料/shrinkedMeshDirty.obj", vers, tris);
+		igl::writeOBJ("E:/meshInput.obj", vers, tris);
+
+		unsigned versCount = vers.rows();
+		unsigned trisCount = tris.rows();
+
+		// 去除duplicated vertices:
+		igl::remove_duplicate_vertices(vers, 0.001, versOut, selectedIdxes, oldNewIdxInfo);
+		objWriteVerticesMat("E:/versCleaned.obj", versOut);
+
+		trisCopy = tris;
+		int* ptr = trisCopy.data();
+		for (unsigned i = 0; i < 3*trisCount; ++i) 
+		{
+			int oldIdx = *ptr;
+			*ptr = oldNewIdxInfo(oldIdx);
+			ptr++;
+		}
+
+		// 去除非法三角片：
+		std::vector<unsigned> sickTriIdxes;
+		checkSickTris(sickTriIdxes, trisCopy);
+
+		std::vector<int> tmpVec;
+		tmpVec.resize(trisCount);
+		for (unsigned i = 0; i < trisCount; ++i)
+			tmpVec[i] = i;
+
+		for (const auto& index : sickTriIdxes)
+			tmpVec[index] = -1;
+
+		std::vector<int> selectedTriIdx;
+		selectedTriIdx.reserve(trisCount);
+		for (const auto& index : tmpVec)
+			if (index >= 0)
+				selectedTriIdx.push_back(index);
+
+		subFromIdxVec(trisOut, trisCopy, selectedTriIdx);
+
+		igl::writeOBJ("E:/meshOut.obj", versOut, trisOut);
+
+		Eigen::MatrixXi bdrys;
+		bdryEdges(bdrys, trisOut);
+		std::cout << "bdrysCount == " << bdrys.rows() << std::endl;
+
+		std::cout << "finished." << std::endl;
+	}
 }
 
 
@@ -2646,6 +2702,7 @@ namespace IGL_BASIC_PMP
 	}
 
 
+	// marchingCubes()——！！！还需要在最后去除重复顶点，太短的边。
 	template <typename DerivedS, typename DerivedGV, typename ScalarV, typename IndexF>
 	bool marchingCubes(Eigen::Matrix<ScalarV, Eigen::Dynamic, Eigen::Dynamic>& versResult, \
 		Eigen::Matrix<IndexF, Eigen::Dynamic, Eigen::Dynamic>& trisResult, \
@@ -2722,6 +2779,12 @@ namespace IGL_BASIC_PMP
 		versResult.conservativeResize(curVersCount, 3);
 		trisResult.conservativeResize(curTrisCount, 3);
 
+
+		// 3. 可能会有duplicated vertices:
+
+
+
+
 		return true;
 	}
  
@@ -2738,7 +2801,7 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXi boxTris;
 
 		// 0. 解析SDFGen.exe生成的.sdf距离场数据文件：
-		const char* sdfFilePath = "E:/jawMesh_noHP3.sdf";
+		const char* sdfFilePath = "E:/jawMeshUnionRepair1.sdf";
 		double SDFstep = IGL_BASIC::parseSDF(stepCounts, gridsOri, SDF, sdfFilePath);
 
 		// 1. 生成栅格：
@@ -2803,19 +2866,13 @@ namespace IGL_BASIC_PMP
 		tt.start();
 		marchingCubes(versResult_SDF, trisResult_SDF, SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF);
 		tt.endCout("Elapsed time of igl::marching_cubes() is ");
- 
 		igl::writeOBJ("E:/shrinkedMesh.obj", versResult_SDF, trisResult_SDF);
 
-		// 3. float版本的测试结果：
-		Eigen::MatrixXf versResult_SDF_float, gridCenters_float;
-		Eigen::VectorXf SDF_float;
-		Eigen::MatrixXi trisResult_SDF_float;
-		float selectedSDFfloat = static_cast<float>(selectedSDF);
-		gridCenters_float = gridCenters.array().cast<float>();
-		SDF_float = SDF.array().cast<float>();
-		marchingCubes(versResult_SDF_float, trisResult_SDF_float, SDF_float, 	gridCenters_float, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDFfloat);
-		
-		objWriteMeshMat("E:/shrinkedMesh_float.obj", versResult_SDF_float, trisResult_SDF_float);
+		// 原始的marching cubes
+		versResult_SDF.resize(0, 0);
+		trisResult_SDF.resize(0, 0);
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
+		igl::writeOBJ("E:/shrinkedMeshOri.obj", versResult_SDF, trisResult_SDF);
  
 
 		std::cout << "finished." << std::endl;

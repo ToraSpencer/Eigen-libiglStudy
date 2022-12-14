@@ -39,6 +39,7 @@
 #include <igl/remove_unreferenced.h>
 #include <igl/connect_boundary_to_infinity.h>
 #include <igl/is_edge_manifold.h>
+#include <igl/remove_duplicate_vertices.h>
 #include <igl/remove_unreferenced.h>
 
 #include <igl/avg_edge_length.h>
