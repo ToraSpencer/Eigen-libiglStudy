@@ -60,7 +60,7 @@ namespace SPARSEMAT
 		dispMat(sm1.toDense());
 
 		//					插入元素的方式生成稀疏矩阵——insert()
-		SparseMatrix<float> sm2(120, 100);
+		SparseMatrix<float> sm2(9, 10);
 		sm2.insert(1, 2) = 1;
 		sm2.insert(2, 3) = 2;
 		sm2.insert(8, 3) = 88;
@@ -137,16 +137,18 @@ namespace SPARSEMAT
 		std::cout << " sm2.coeffRef(3, 4) == " << sm2.coeffRef(3, 4) << std::endl;
 
 		//					使用InnerIterator访问稀疏矩阵的非零元素
+		dispMat(sm2.toDense());
 		std::cout << "sm2非零元素数：" << sm2.nonZeros() << std::endl;
 		int outerSize2 = sm2.outerSize();				// 默认的列优先存储矩阵，outerSize即列数；
-		for (int k = 0; k < outerSize2; ++k)
+		for (int colIdx = 0; colIdx < outerSize2; ++colIdx)
 		{
-			for (SparseMatrix<float>::InnerIterator it(sm2, k); it; ++it)			// 列优先存储时，InnerIterator即列内迭代器；
+			for (SparseMatrix<float>::InnerIterator it(sm2, colIdx); it; ++it)			// 列优先存储时，InnerIterator即列内迭代器；
 			{
 				std::cout << "value == " << it.value() << std::endl;					// 元素的值；
 				std::cout << "valueRef == " << it.valueRef() << std::endl;			// 元素的引用；
 				std::cout << "row == " << it.row() << std::endl;			 // row index
 				std::cout << "col == " << it.col() << std::endl;				 // col index (here it is equal to k)
+				std::cout << "index == " << it.index() << std::endl;
 				std::cout << std::endl;
 				//std::cout << "" << it.index() << std::endl;				// inner index, here it is equal to it.row()
 			}

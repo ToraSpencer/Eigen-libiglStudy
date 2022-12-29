@@ -41,6 +41,7 @@
 #include <igl/is_edge_manifold.h>
 #include <igl/remove_duplicate_vertices.h>
 #include <igl/remove_unreferenced.h>
+#include <igl/connected_components.h>
 
 #include <igl/avg_edge_length.h>
 #include <igl/barycenter.h>

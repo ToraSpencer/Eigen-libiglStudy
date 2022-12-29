@@ -457,7 +457,7 @@ namespace IGL_BASIC
 		std::vector<int> stepCounts(3);				// xyz三个维度上栅格数
 		Eigen::RowVector3d gridsOri;					// 栅格原点：
 		Eigen::VectorXd SDF;
-		const char* sdfFilePath = "E:/inputMesh.sdf";
+		const char* sdfFilePath = "E:/jawMeshUnionRepair1.sdf";
 		double SDFstep = parseSDF(stepCounts, gridsOri, SDF, sdfFilePath);
 
 		// 1. 生成栅格：
@@ -3010,6 +3010,88 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXd versOut;
 		subFromIdxVec(versOut, vers1, vec);
 		objWriteVerticesMat("E:/versOut.obj", versOut);
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// 测试网格单连通区域提取connected_components()
+	void test7() 
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		objReadMeshMat(vers, tris, "E:/材料/原型数据/originalMesh.obj");
+		unsigned versCount = vers.rows();
+		unsigned trisCount = tris.rows();
+
+		Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
+		adjMatrix(tris, adjSM_eCount, adjSM_eIdx);
+
+		Eigen::SparseMatrix<int> adjSM = adjSM_eCount;
+		traverseSparseMatrix(adjSM, [&](auto& iter) 
+			{
+				iter.valueRef() = 1;
+			});
+
+		Eigen::VectorXi connectedLabels, connectedCount;
+		int conCount = igl::connected_components(adjSM, connectedLabels, connectedCount);
+
+		std::vector<int> retVec1, retVec2;
+		retVec1 = vec2Vec(connectedLabels);
+		retVec2 = vec2Vec(connectedCount);
+
+		int mainLabel = 0;						// 包含最大联通顶点数的标签；
+		int mainLabelCount = 0;
+		for (int i = 0; i < conCount; ++i)
+		{
+			if (connectedCount(i) > mainLabelCount)
+			{
+				mainLabel = i;
+				mainLabelCount = connectedCount(i);
+			}
+		}
+
+		std::unordered_set<int> indexSet;
+		for (int i = 0; i < versCount; ++i) 
+		{
+			if (mainLabel == connectedLabels(i))
+				indexSet.insert(i);
+		}
+
+		std::vector<int> indexVec;
+		indexVec.insert(indexVec.end(), indexSet.begin(), indexSet.end());
+		Eigen::MatrixXd versOut;
+		subFromIdxVec(versOut, vers, indexVec);
+
+		std::vector<int> oldNewIdxInfo(versCount, -1);
+		for (int i = 0; i < indexVec.size(); ++i)
+		{
+			int oldIdx = indexVec[i];
+			oldNewIdxInfo[oldIdx] = i;
+		}
+
+		Eigen::MatrixXi trisCopy = tris;
+		int* intPtr = trisCopy.data();
+		for (int i = 0; i < trisCopy.size(); ++i)
+		{
+			int oldIdx = *intPtr;
+			*intPtr = oldNewIdxInfo[oldIdx];
+			intPtr++;
+		}
+
+		Eigen::MatrixXi trisOut = Eigen::MatrixXi::Zero(trisCount, 3);
+		int trisCountNew = 0;
+		for (int i = 0; i<trisCount; ++i) 
+		{
+			if (trisCopy(i, 0) >= 0 && trisCopy(i, 1) >= 0 && trisCopy(i, 2) >= 0)
+			{
+				trisOut.row(trisCountNew) = trisCopy.row(i);
+				trisCountNew++;
+			}
+		}
+
+		trisOut.conservativeResize(trisCountNew, 3);
+		objWriteMeshMat("E:/mainConnectedMesh.obj", versOut, trisOut);
 
 		std::cout << "finished." << std::endl;
 	}
