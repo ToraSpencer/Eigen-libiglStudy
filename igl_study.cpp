@@ -1934,17 +1934,21 @@ namespace IGL_GRAPH
 		MatrixXd vers;
 		MatrixXi tris;
 		igl::readOBJ("E:/材料/roundSurf.obj", vers, tris);
+		igl::writeOBJ("E:/meshInput.obj", vers, tris);
  
 		std::vector<std::vector<int>> adjList;
 		Eigen::SparseMatrix<int> adjSM;
 		igl::adjacency_list(tris, adjList);
 		igl::adjacency_matrix(tris, adjSM);
 
+		size_t startIdx = 165;			// 接近圆心的顶点；
+		Eigen::RowVector3d startVer = vers.row(startIdx);
+		objWriteVerticesMat("E:/startVer.obj", startVer);
+
 		// dfs:
 		Eigen::VectorXi disCoveredIdx, bfsTreeVec, dfsTreeVec, closedIdx;
-		size_t startIdx = 165;			// 接近圆心的顶点；
 		igl::dfs(adjList, startIdx, disCoveredIdx, dfsTreeVec, closedIdx);
-		objWriteTreePath("E:/dfsTree.obj", bfsTreeVec, vers);
+		objWriteTreePath("E:/dfsTree.obj", dfsTreeVec, vers);
 		Eigen::VectorXi retCrev = closedIdx.reverse();
 		auto cornerState = (retCrev == disCoveredIdx);
 
@@ -1957,9 +1961,10 @@ namespace IGL_GRAPH
 		igl::bfs(adjList, startIdx, disCoveredIdx, bfsTreeVec);
 		objWriteTreePath("E:/bfsTree.obj", bfsTreeVec, vers);
 
-		// myDfs:
+
+		// 自己写的DFS算法——目前有问题
 		std::vector<bool> visited(vers.rows(), false);
-		std::list<int> discoveredVersIdx;				// 已被访问的顶点：
+		std::list<int> discoveredVersIdx;						// 已被访问的顶点：
 		std::list<int> closedVersIdx;
 
 		std::function<void(const int, const int)> myDfs = [&](const int index, const int parentIdx)
@@ -1979,6 +1984,12 @@ namespace IGL_GRAPH
 			closedVersIdx.push_back(index);
 		};
 
+
+		myDfs(startIdx, startIdx);
+		std::vector<int> tmpVec;
+		tmpVec.insert(tmpVec.end(), closedVersIdx.begin(), closedVersIdx.end());
+		Eigen::VectorXi myDfsTreeVec = vec2Vec(tmpVec);
+		objWriteTreePath("E:/myDfsTree.obj", myDfsTreeVec, vers);
 
  
 		std::cout << "finished." << std::endl;
@@ -3024,18 +3035,22 @@ namespace IGL_BASIC_PMP
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
 
+
+		// 1. 生成邻接矩阵：
 		Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
 		adjMatrix(tris, adjSM_eCount, adjSM_eIdx);
 
 		Eigen::SparseMatrix<int> adjSM = adjSM_eCount;
-		traverseSparseMatrix(adjSM, [&](auto& iter) 
+		traverseSparseMatrix(adjSM, [&](auto& iter)
 			{
 				iter.valueRef() = 1;
 			});
 
+		// 2. 确定单连通区域——connected_components()
 		Eigen::VectorXi connectedLabels, connectedCount;
 		int conCount = igl::connected_components(adjSM, connectedLabels, connectedCount);
 
+		// 3. 提取最大的单连通区域中的顶点：
 		std::vector<int> retVec1, retVec2;
 		retVec1 = vec2Vec(connectedLabels);
 		retVec2 = vec2Vec(connectedCount);
@@ -3052,7 +3067,7 @@ namespace IGL_BASIC_PMP
 		}
 
 		std::unordered_set<int> indexSet;
-		for (int i = 0; i < versCount; ++i) 
+		for (int i = 0; i < versCount; ++i)
 		{
 			if (mainLabel == connectedLabels(i))
 				indexSet.insert(i);
@@ -3070,6 +3085,7 @@ namespace IGL_BASIC_PMP
 			oldNewIdxInfo[oldIdx] = i;
 		}
 
+		// 4. 提取最大单连通区域中的三角片：
 		Eigen::MatrixXi trisCopy = tris;
 		int* intPtr = trisCopy.data();
 		for (int i = 0; i < trisCopy.size(); ++i)
@@ -3081,7 +3097,7 @@ namespace IGL_BASIC_PMP
 
 		Eigen::MatrixXi trisOut = Eigen::MatrixXi::Zero(trisCount, 3);
 		int trisCountNew = 0;
-		for (int i = 0; i<trisCount; ++i) 
+		for (int i = 0; i < trisCount; ++i)
 		{
 			if (trisCopy(i, 0) >= 0 && trisCopy(i, 1) >= 0 && trisCopy(i, 2) >= 0)
 			{
@@ -3092,6 +3108,24 @@ namespace IGL_BASIC_PMP
 
 		trisOut.conservativeResize(trisCountNew, 3);
 		objWriteMeshMat("E:/mainConnectedMesh.obj", versOut, trisOut);
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// 自己实现的connected_conponents()
+	void test77()
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		objReadMeshMat(vers, tris, "E:/材料/原型数据/originalMesh.obj");
+		objWriteMeshMat("E:/meshInput.obj", vers, tris);
+
+		bool retFlag = simplyConnectedLargest(vers, tris, versOut, trisOut);
+		if (!retFlag)
+			std::cout << "function failed!!!" << std::endl;
+
+		objWriteMeshMat("E:/meshOut.obj", versOut, trisOut);
 
 		std::cout << "finished." << std::endl;
 	}

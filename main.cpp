@@ -151,9 +151,9 @@ int main()
 
 	// IGL_BASIC::test55();
 	// IGL_DIF_GEO::test0();
-	// IGL_GRAPH::test2();
+	// IGL_GRAPH::test1();
 	// IGL_SPACE_PARTITION::test0();
-	IGL_BASIC_PMP::test7();
+	IGL_BASIC_PMP::test77();
 
 	// SCIENTIFICCALC::test7();
 	// TEST_PMP::test3();

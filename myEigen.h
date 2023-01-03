@@ -3,9 +3,9 @@
 #include <tchar.h>
 #include <iostream>
 #include <fstream>
+#include <queue>
 #include <set>
 #include <unordered_set>
-#include <set>
 #include <unordered_map>
 #include <map>
 #include <algorithm>
@@ -2023,6 +2023,164 @@ bool checkSickTris(std::vector<unsigned>& sickIdxes, const Eigen::PlainObjectBas
 		}
 	}
 	return retFlag;
+}
+
+
+// 确定三角网格中的所有单连通区域
+template <typename Index>
+int simplyConnectedRegion(const Eigen::SparseMatrix<Index>& adjSM,
+	Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount)
+{
+	/*
+		int simplyConnectedRegion(									返回单连通区域的数量，出错时返回-1
+					const Eigen::SparseMatrix<Index>& adjSM,			三角网格的邻接矩阵
+					Eigen::VectorXi& connectedLabels,						同一连通区域内的顶点标签，依次为0, 1, 2,...；
+																						索引为i的顶点的标签为connectedLabels(i);
+					Eigen::VectorXi& connectedCount							每个标签对应的单连通区域内包含的顶点数
+																						标签为i的单连通区域包含的顶点数为connectedCount(i)
+					)
+	*/
+	if (adjSM.rows() == 0)
+		return -1;
+
+	if (adjSM.rows() != adjSM.cols())
+		return -1;
+
+	const unsigned versCount = adjSM.rows();
+
+	// 1. 初始化：
+	connectedLabels.setConstant(versCount, versCount);		// 最终结果中最大可能的标签为versCount-1;
+	connectedCount.setZero(versCount);
+
+	// 2. 遍历所有顶点，搜索与其联通的顶点：
+	int currentLabel = 0;
+	for (unsigned i = 0; i < versCount; ++i) 
+	{
+		// 2.1 若当前顶点已被访问过(label < versCount)，则continue:
+		if (connectedLabels(i) < versCount)
+			continue;
+
+		// 2.2 若当前顶点未被访问过，执行BFS收集其所有联通的顶点：
+		std::queue<Index> workingQueue;
+		workingQueue.push(i);
+		while (!workingQueue.empty())
+		{
+			const Index curVerIdx = workingQueue.front();
+			workingQueue.pop();
+			
+			if (connectedLabels(curVerIdx) < versCount)
+				continue;
+
+			// 2.2.1 队首顶点label赋值，label计数+1
+			connectedLabels(curVerIdx) = currentLabel;
+			connectedCount(currentLabel)++;
+
+			// 2.2.2 在邻接矩阵中搜索当前顶点邻接的顶点：
+			for (typename Eigen::SparseMatrix<Index>::InnerIterator iter(adjSM, curVerIdx); iter; ++iter)
+			{
+				const Index connectVerIdx = iter.row();					// 默认稀疏矩阵列优先存储；当前迭代器在第curVerIdx列；
+
+				if (connectedLabels(connectVerIdx) < versCount)
+					continue;
+
+				workingQueue.push(connectVerIdx);
+			}
+		}
+
+		// 2.3 上一个标签的顶点收集完毕，下一个循环收集下一个标签的顶点：
+		currentLabel++;
+	}
+
+	// 3. shrink_to_fit()
+	connectedCount.conservativeResize(currentLabel, 1);
+
+	return currentLabel;
+}
+
+
+// 提取三角网格中最大单连通区域
+template <typename DerivedV, typename DerivedI>
+bool simplyConnectedLargest(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, \
+	Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut)
+{
+	const unsigned versCount = vers.rows();
+	const unsigned trisCount = tris.rows();
+
+	// 1. 生成邻接矩阵：
+	Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx, adjSM;
+	adjMatrix(tris, adjSM_eCount, adjSM_eIdx);
+	adjSM = adjSM_eCount;
+	traverseSparseMatrix(adjSM, [&adjSM](auto& iter) 
+		{
+			if (iter.value() > 0)
+				iter.valueRef() = 1;
+		});
+
+	// 2. 确定网格中所有单连通区域：
+	Eigen::VectorXi connectedLabels, connectedCount;
+	int conCount = simplyConnectedRegion(adjSM, connectedLabels, connectedCount);
+	if (conCount < 0)
+		return false;
+
+	// 3. 确定最大单连通区域（顶点数最多）；
+	int mainLabel = 0;								// 最大单连通区域的标签；
+	int mainLabelCount = 0;
+	for (int i = 0; i < conCount; ++i)
+	{
+		if (connectedCount(i) > mainLabelCount)
+		{
+			mainLabel = i;
+			mainLabelCount = connectedCount(i);
+		}
+	}
+
+	// 4. 提取最大单连通区域的顶点：
+	std::vector<int> mainLabelIdxes;
+	mainLabelIdxes.reserve(versCount);
+	for (unsigned i = 0; i < versCount; ++i)
+		if (mainLabel == connectedLabels(i))
+			mainLabelIdxes.push_back(i);
+	mainLabelIdxes.shrink_to_fit();
+	subFromIdxVec(versOut, vers, mainLabelIdxes);
+
+
+	// 5. 提取最大单连通区域的三角片：
+
+	//		5.1 生成老-新索引映射表
+	std::vector<int> oldNewIdxInfo(versCount, -1);
+	for (int i = 0; i < mainLabelIdxes.size(); ++i)
+	{
+		int oldIdx = mainLabelIdxes[i];
+		oldNewIdxInfo[oldIdx] = i;
+	}
+
+	//		5.2 三角片数据中的顶点索引映射成新索引；
+	DerivedI trisCopy = tris;
+	int* intPtr = trisCopy.data();
+	for (int i = 0; i < trisCopy.size(); ++i)
+	{
+		int oldIdx = *intPtr;
+		*intPtr = oldNewIdxInfo[oldIdx];
+		intPtr++;
+	}
+
+	//		5.3 提取最大联通区域内的三角片：
+	trisOut.setZero(trisCount, 3);
+	int trisCountNew = 0;
+	for (int i = 0; i < trisCount; ++i)
+	{
+		if (trisCopy(i, 0) >= 0 && trisCopy(i, 1) >= 0 && trisCopy(i, 2) >= 0)
+		{
+			trisOut.row(trisCountNew) = trisCopy.row(i);
+			trisCountNew++;
+		}
+	}
+
+	//		5.4 shrink_to_fit();
+	trisOut.conservativeResize(trisCountNew, 3);
+
+
+	return true;
 }
 
 

@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <map>
 #include <unordered_map>
+#include <queue>
 #include <deque>
 #include <forward_list>
 #include <algorithm>
@@ -207,6 +208,7 @@ namespace IGL_BASIC_PMP
 	void test5();
 	void test6();
 	void test7();
+	void test77();
 	void test8();
 	void test9();
 	void test10();
