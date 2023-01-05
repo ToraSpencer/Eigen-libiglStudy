@@ -149,11 +149,11 @@ int main()
 	// DENSEMAT::test7();
 	// SPARSEMAT::test0();
 
-	// IGL_BASIC::test55();
+	IGL_BASIC::test8();
 	// IGL_DIF_GEO::test0();
 	// IGL_GRAPH::test1();
 	// IGL_SPACE_PARTITION::test0();
-	IGL_BASIC_PMP::test77();
+	// IGL_BASIC_PMP::test77();
 
 	// SCIENTIFICCALC::test7();
 	// TEST_PMP::test3();
@@ -163,6 +163,6 @@ int main()
 
 	// TEST_MYEIGEN::test2();
  
-
+  
 	std::cout << "main() finished." << std::endl;
 }

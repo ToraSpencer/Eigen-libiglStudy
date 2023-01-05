@@ -1428,22 +1428,81 @@ bool adjMatrix(const Eigen::PlainObjectBase<DerivedI>& tris, Eigen::SparseMatrix
 }
 
 
-// 边缘边：
+// 边缘有向边：
 template<typename DerivedI>
-bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdryEdges, const Eigen::PlainObjectBase<DerivedI>& tris)
+bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, const Eigen::PlainObjectBase<DerivedI>& tris)
 {
 	Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
 	adjMatrix(tris, adjSM_eCount, adjSM_eIdx);
 	Eigen::SparseMatrix<int> adjSM_tmp, adjSM_ueCount;
+
+	// 确定边缘无向边：
 	spMatTranspose(adjSM_tmp, adjSM_eCount);
 	adjSM_ueCount = adjSM_eCount + adjSM_tmp;
-	std::vector<std::pair<int, int>> edgesVec;
+	std::vector<std::pair<int, int>> bdryUeVec;
 	traverseSparseMatrix(adjSM_ueCount, [&](auto& iter)
 		{
 			if (1 == iter.value() && iter.row() > iter.col())
-				edgesVec.push_back({ iter.row(), iter.col() });
+				bdryUeVec.push_back({ iter.row(), iter.col() });
 		});
-	edges2mat(bdryEdges, edgesVec);
+
+	// 由边缘无向边确定边缘有向边：
+	std::vector<std::pair<int, int>> bdryVec;
+	bdryVec.reserve(bdryUeVec.size());
+	for (const auto& pair : bdryUeVec)
+	{
+		if (adjSM_eCount.coeff(pair.first, pair.second) > 0)
+			bdryVec.push_back({ pair.first, pair.second });
+		else
+			bdryVec.push_back({ pair.second, pair.first });
+	}
+	edges2mat(bdrys, bdryVec);
+
+	return true;
+}
+
+
+// 边缘有向边：
+template<typename DerivedI>
+bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, std::vector<int>& bdryTriIdxes, const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	if (!bdryEdges(bdrys, tris))
+		return false;
+
+	if (0 == bdrys.rows())
+		return true;
+
+	const unsigned trisCount = tris.rows();
+
+	// 确认边缘非流形边所在的三角片索引：
+	Eigen::MatrixXi edgeAs = Eigen::MatrixXi::Zero(trisCount, 2);
+	Eigen::MatrixXi edgeBs = Eigen::MatrixXi::Zero(trisCount, 2);
+	Eigen::MatrixXi edgeCs = Eigen::MatrixXi::Zero(trisCount, 2);
+	Eigen::MatrixXi vaIdxes = tris.col(0);
+	Eigen::MatrixXi vbIdxes = tris.col(1);
+	Eigen::MatrixXi vcIdxes = tris.col(2);
+
+	// 生成有向边编码-三角片字典：
+	std::unordered_multimap<std::int64_t, unsigned> edgesMap;
+	for (unsigned i = 0; i < trisCount; ++i) 
+	{
+		std::int64_t codeA = encodeEdge(vbIdxes(i), vcIdxes(i));
+		std::int64_t codeB = encodeEdge(vcIdxes(i), vaIdxes(i));
+		std::int64_t codeC = encodeEdge(vaIdxes(i), vbIdxes(i));
+		edgesMap.insert({ codeA, i});
+		edgesMap.insert({ codeB, i });
+		edgesMap.insert({ codeC, i });
+	}
+
+	// 在字典中查找所有边缘边所在的三角片索引：
+	for (unsigned i = 0; i < bdrys.rows(); ++i) 
+	{
+		std::int64_t code = encodeEdge(bdrys(i, 0), bdrys(i, 1));
+		auto iter = edgesMap.find(code);
+		unsigned codeCounts = edgesMap.count(code);
+		for (unsigned k = 0; k < codeCounts; ++k)
+			bdryTriIdxes.push_back((iter++)->second);
+	}
 
 	return true;
 }

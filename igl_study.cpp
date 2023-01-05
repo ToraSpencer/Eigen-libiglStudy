@@ -1760,13 +1760,33 @@ namespace IGL_BASIC
 		Eigen::MatrixXi tris, trisOut, trisCopy;
 		Eigen::VectorXi selectedIdxes, oldNewIdxInfo;
 
-		igl::readOBJ("E:/材料/shrinkedMeshDirty.obj", vers, tris);
-		igl::writeOBJ("E:/meshInput.obj", vers, tris);
+		igl::readOBJ("E:/arrangeResultMesh.obj", vers, tris);
 
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
+		igl::writeOBJ("E:/meshInput.obj", vers, tris);
 
-		// 去除duplicated vertices:
+		// 打印初始信息：
+		Eigen::MatrixXi bdrys, bdryTris;
+		std::vector<int> bdryTriIdxes;
+		bdryEdges(bdrys, bdryTriIdxes, tris);
+		subFromIdxVec(bdryTris, tris, bdryTriIdxes);
+		igl::writeOBJ("E:/bdryTris.obj", vers, bdryTris);
+		std::cout << "versCount == " << versCount << std::endl;
+		std::cout << "trisCount == " << trisCount << std::endl;
+		std::cout << "bdrysCount == " << bdrys.rows() << std::endl;
+
+		// for debug: 逐条打印边缘边的顶点：
+		char str[512];
+		for (unsigned i = 0; i<bdrys.rows(); ++i) 
+		{
+			Eigen::MatrixXd tmpVers;
+			subFromIdxVec(tmpVers, vers, std::vector<int>{bdrys(i, 0), bdrys(i, 1)});
+			sprintf_s(str, "E:/bdryVers%d.obj", i);
+			objWriteVerticesMat(str, tmpVers);
+		}
+		
+		// 1. 去除duplicated vertices:
 		igl::remove_duplicate_vertices(vers, 0.001, versOut, selectedIdxes, oldNewIdxInfo);
 		objWriteVerticesMat("E:/versCleaned.obj", versOut);
 
@@ -1779,7 +1799,7 @@ namespace IGL_BASIC
 			ptr++;
 		}
 
-		// 去除非法三角片：
+		// 2. 去除非法三角片：
 		std::vector<unsigned> sickTriIdxes;
 		checkSickTris(sickTriIdxes, trisCopy);
 
@@ -1798,12 +1818,17 @@ namespace IGL_BASIC
 				selectedTriIdx.push_back(index);
 
 		subFromIdxVec(trisOut, trisCopy, selectedTriIdx);
+		bdrys.resize(0, 0);
+		bdryEdges(bdrys, trisOut);
 
 		igl::writeOBJ("E:/meshOut.obj", versOut, trisOut);
 
-		Eigen::MatrixXi bdrys;
-		bdryEdges(bdrys, trisOut);
-		std::cout << "bdrysCount == " << bdrys.rows() << std::endl;
+		// 打印最终信息：
+		versCount = versOut.rows();
+		trisCount = trisOut.rows();
+		std::cout << "final versCount == " << versCount << std::endl;
+		std::cout << "final trisCount == " << trisCount << std::endl;
+		std::cout << "final bdrysCount == " << bdrys.rows() << std::endl;
 
 		std::cout << "finished." << std::endl;
 	}
