@@ -144,16 +144,40 @@ namespace DECIMATION
 } 
 
 
+namespace TEMP_TEST
+{
+	// 处理STL原型网格——转换为OBJ文件，网格重心移动到原点，然后底面移动到和XOY平面平行
+	void test1() 
+	{
+		Eigen::MatrixXd vers, normals;
+		Eigen::MatrixXi tris;
+
+		std::string fileName = "E:/肖晓663951L_20_2212161194";
+		std::ifstream fileIn((fileName + std::string{ ".stl" }).c_str(), std::ios::binary);			// stl文件是二进制文件；
+		igl::readSTL(fileIn, vers, tris, normals);
+		Eigen::RowVector3d bary = vers.colwise().mean();
+		vers = (vers.rowwise() - bary).eval();
+		Eigen::VectorXd zValues = vers.col(2);
+		double zmin = zValues.minCoeff();
+		vers = (vers.rowwise() - Eigen::RowVector3d(0, 0, zmin)).eval();
+		igl::writeOBJ(fileName + std::string{".obj"}, vers, tris);
+
+		std::cout << "finished." << std::endl;
+	}
+
+}
+
+
 int main()
 {
 	// DENSEMAT::test7();
 	// SPARSEMAT::test0();
 
-	IGL_BASIC::test8();
+	// IGL_BASIC::test55();
 	// IGL_DIF_GEO::test0();
 	// IGL_GRAPH::test1();
 	// IGL_SPACE_PARTITION::test0();
-	// IGL_BASIC_PMP::test77();
+	IGL_BASIC_PMP::test4();
 
 	// SCIENTIFICCALC::test7();
 	// TEST_PMP::test3();
@@ -162,6 +186,8 @@ int main()
 	// DECIMATION::test0();
 
 	// TEST_MYEIGEN::test2();
+
+	// TEMP_TEST::test1();
  
   
 	std::cout << "main() finished." << std::endl;

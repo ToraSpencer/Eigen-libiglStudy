@@ -1760,7 +1760,7 @@ namespace IGL_BASIC
 		Eigen::MatrixXi tris, trisOut, trisCopy;
 		Eigen::VectorXi selectedIdxes, oldNewIdxInfo;
 
-		igl::readOBJ("E:/arrangeResultMesh.obj", vers, tris);
+		igl::readOBJ("E:/meshInnerRev.obj", vers, tris);
 
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
@@ -1775,8 +1775,10 @@ namespace IGL_BASIC
 		std::cout << "versCount == " << versCount << std::endl;
 		std::cout << "trisCount == " << trisCount << std::endl;
 		std::cout << "bdrysCount == " << bdrys.rows() << std::endl;
+		std::cout << std::endl;
 
 		// for debug: 逐条打印边缘边的顶点：
+#if 0
 		char str[512];
 		for (unsigned i = 0; i<bdrys.rows(); ++i) 
 		{
@@ -1785,10 +1787,12 @@ namespace IGL_BASIC
 			sprintf_s(str, "E:/bdryVers%d.obj", i);
 			objWriteVerticesMat(str, tmpVers);
 		}
+#endif
 		
-		// 1. 去除duplicated vertices:
-		igl::remove_duplicate_vertices(vers, 0.001, versOut, selectedIdxes, oldNewIdxInfo);
+		// 1. 去除duplicated vertices——！！！当前有问题；
+		igl::remove_duplicate_vertices(vers, 0, versOut, selectedIdxes, oldNewIdxInfo);
 		objWriteVerticesMat("E:/versCleaned.obj", versOut);
+		std::cout << "重复顶点数：" << versCount - versOut.rows() << std::endl;
 
 		trisCopy = tris;
 		int* ptr = trisCopy.data();
@@ -1799,27 +1803,23 @@ namespace IGL_BASIC
 			ptr++;
 		}
 
-		// 2. 去除非法三角片：
+		//		去除非法三角片：
 		std::vector<unsigned> sickTriIdxes;
 		checkSickTris(sickTriIdxes, trisCopy);
+		trisOut = trisCopy;
+		removeTris(trisOut, trisCopy, sickTriIdxes);
 
-		std::vector<int> tmpVec;
-		tmpVec.resize(trisCount);
-		for (unsigned i = 0; i < trisCount; ++i)
-			tmpVec[i] = i;
-
-		for (const auto& index : sickTriIdxes)
-			tmpVec[index] = -1;
-
-		std::vector<int> selectedTriIdx;
-		selectedTriIdx.reserve(trisCount);
-		for (const auto& index : tmpVec)
-			if (index >= 0)
-				selectedTriIdx.push_back(index);
-
-		subFromIdxVec(trisOut, trisCopy, selectedTriIdx);
 		bdrys.resize(0, 0);
-		bdryEdges(bdrys, trisOut);
+		bdryTriIdxes.clear();
+		bdryEdges(bdrys, bdryTriIdxes, trisOut);
+		std::cout << "去除重复顶点后bdrysCount == " << bdrys.rows() << std::endl;
+		std::cout << std::endl;
+		igl::writeOBJ("E:/mesh去除重复顶点之后.obj", versOut, trisOut);
+
+		trisCopy = trisOut;
+		removeTris(trisOut, trisCopy, bdryTriIdxes);
+		bdrys.resize(0, 0);
+		bdryTriIdxes.clear();
 
 		igl::writeOBJ("E:/meshOut.obj", versOut, trisOut);
 
@@ -1838,7 +1838,6 @@ namespace IGL_BASIC
 // libigl中的微分几何相关
 namespace IGL_DIF_GEO 
 {
-
 	// 质量矩阵和LB算子
 	void test0() 
 	{
@@ -2639,6 +2638,7 @@ namespace IGL_BASIC_PMP
 	}
  
  
+	// marchingCubes算法中生成一个cube的三角片：
 	template <typename DerivedGV, typename Scalar, typename Index, typename ScalarV, typename IndexF>
 	void handleCube(const DerivedGV& gridCenters, const Eigen::Matrix<Scalar, 8, 1>& cornerSDF, \
 		const Eigen::Matrix<Index, 8, 1>& cornerIdx, const Scalar& isovalue, \
@@ -2662,6 +2662,17 @@ namespace IGL_BASIC_PMP
 		Eigen::Matrix<Index, 12, 1> isctVerIdxes;		// 立方体边上的交点的绝对索引——是在最终输出网格中的索引；
 		int cornerState = 0;											// 立方体顶点状态编码；256种情形；
 
+		// 生成无向边编码
+		const auto genMCedgeCode = [](int32_t vaIdx, int32_t vbIdx)
+		{
+			if (vaIdx > vbIdx)
+				std::swap(vaIdx, vbIdx);
+			std::int64_t edgeCode = 0;
+			edgeCode |= vaIdx;
+			edgeCode |= static_cast<std::int64_t>(vbIdx) << 32;
+			return edgeCode;
+		};
+
 		// 1. 计算当前立方体的顶点状态编码，即8个顶点在等值面的内外状态1；
 		for (int i = 0; i < 8; i++)
 			if (cornerSDF(i) > isovalue)
@@ -2671,7 +2682,6 @@ namespace IGL_BASIC_PMP
 		int edgeState = MC_TABLES::edgeStateCodes[cornerState];		// 立方体顶点状态编码映射为相交边编码；
 		if (edgeState == 0)
 			return;															// 表示当前立方体整体都在等值面外部或内部，没有交点；
-
 
 		// 3. 确定等值面和当前立方体的边的交点； Find the point of intersection of the surface with each edge. Then find the normal to the surface at those points
 		for (int i = 0; i < 12; i++)						// 对立方体所有边的遍历
@@ -2684,7 +2694,7 @@ namespace IGL_BASIC_PMP
 				// 生成边上的顶点：
 				int vaIdx = cornerIdx(vaIdxRela);				// 当前边两端点的绝对索引，是栅格中的顶点索引；
 				int vbIdx = cornerIdx(vbIdxRela);
-				std::int64_t edgeCode = encodeEdge(vaIdx, vbIdx);
+				std::int64_t edgeCode = genMCedgeCode(vaIdx, vbIdx);
 				const auto iter = edgeIsctMap.find(edgeCode);
 
 				if (iter == edgeIsctMap.end())								// 若当前边交点未生成；

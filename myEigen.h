@@ -386,14 +386,14 @@ bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBa
 }
  
 
-template <typename Derived>
-bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const std::vector<int>& vec)
+template <typename Derived, typename Index>
+bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const std::vector<Index>& vec)
 {
 	Derived& matOut = matBaseOut.derived();
 	matOut.resize(vec.size(), matBaseIn.cols());
 	for (unsigned i = 0; i < vec.size(); ++i)
 	{
-		const int& index = vec[i];
+		const Index& index = vec[i];
 		matOut.row(i) = matBaseIn.row(index);
 	}
 
@@ -2242,6 +2242,35 @@ bool simplyConnectedLargest(const Eigen::PlainObjectBase<DerivedV>& vers, const 
 	return true;
 }
 
+
+// 去除三角片：
+template <typename IndexT>
+bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, const std::vector<IndexT>& sickTriIdxes)
+{
+	const unsigned trisCount = tris.rows();
+	if (sickTriIdxes.size() == 0)
+		return false;
+
+	Eigen::VectorXi tmpVec = Eigen::VectorXi::Ones(trisCount);
+	for (const auto& index : sickTriIdxes)
+	{
+		if (index < IndexT(0) || index >= trisCount)
+			return false;
+		tmpVec(index) = -1;
+	}
+
+	std::vector<unsigned> selectedTriIdxes;
+	selectedTriIdxes.reserve(trisCount);
+	for (unsigned i = 0; i < trisCount; ++i)
+		if (tmpVec(i) > 0)
+			selectedTriIdxes.push_back(i);
+	selectedTriIdxes.shrink_to_fit();
+
+	trisOut.resize(0, 0);
+	subFromIdxVec(trisOut, tris, selectedTriIdxes);
+
+	return true;
+}
 
 // 自定义计时器，使用WINDOWS计时API
 class tiktok
