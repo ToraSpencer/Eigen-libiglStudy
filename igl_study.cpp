@@ -382,7 +382,17 @@ namespace IGL_BASIC
 	//		解析.sdf文本文件：
 	double parseSDF(std::vector<int>& stepCounts, Eigen::RowVector3d& gridsOri, Eigen::VectorXd& SDF, const char* filePath)
 	{
+		/*
+			double parseSDF(												返回距离场的采样步长；
+					std::vector<int>& stepCounts,					xyz三个方向上的步数
+					Eigen::RowVector3d& gridsOri,					距离场空间的原点
+					Eigen::VectorXd& SDF,								距离场数据
+					const char* filePath										SDF文件目录
+					)
+		
+		*/
 		double SDFstep = -1;
+		stepCounts.resize(3);
 		std::string readStr(1024, '\0');
 		std::ifstream sdfFile(filePath);
 		if (!sdfFile)
@@ -1752,86 +1762,6 @@ namespace IGL_BASIC
 		std::cout << "finished." << std::endl;
 	}
 
-
-	// 网格清理：
-	void test8() 
-	{
-		Eigen::MatrixXd vers, versOut;
-		Eigen::MatrixXi tris, trisOut, trisCopy;
-		Eigen::VectorXi selectedIdxes, oldNewIdxInfo;
-
-		igl::readOBJ("E:/meshInnerRev.obj", vers, tris);
-
-		unsigned versCount = vers.rows();
-		unsigned trisCount = tris.rows();
-		igl::writeOBJ("E:/meshInput.obj", vers, tris);
-
-		// 打印初始信息：
-		Eigen::MatrixXi bdrys, bdryTris;
-		std::vector<int> bdryTriIdxes;
-		bdryEdges(bdrys, bdryTriIdxes, tris);
-		subFromIdxVec(bdryTris, tris, bdryTriIdxes);
-		igl::writeOBJ("E:/bdryTris.obj", vers, bdryTris);
-		std::cout << "versCount == " << versCount << std::endl;
-		std::cout << "trisCount == " << trisCount << std::endl;
-		std::cout << "bdrysCount == " << bdrys.rows() << std::endl;
-		std::cout << std::endl;
-
-		// for debug: 逐条打印边缘边的顶点：
-#if 0
-		char str[512];
-		for (unsigned i = 0; i<bdrys.rows(); ++i) 
-		{
-			Eigen::MatrixXd tmpVers;
-			subFromIdxVec(tmpVers, vers, std::vector<int>{bdrys(i, 0), bdrys(i, 1)});
-			sprintf_s(str, "E:/bdryVers%d.obj", i);
-			objWriteVerticesMat(str, tmpVers);
-		}
-#endif
-		
-		// 1. 去除duplicated vertices——！！！当前有问题；
-		igl::remove_duplicate_vertices(vers, 0, versOut, selectedIdxes, oldNewIdxInfo);
-		objWriteVerticesMat("E:/versCleaned.obj", versOut);
-		std::cout << "重复顶点数：" << versCount - versOut.rows() << std::endl;
-
-		trisCopy = tris;
-		int* ptr = trisCopy.data();
-		for (unsigned i = 0; i < 3*trisCount; ++i) 
-		{
-			int oldIdx = *ptr;
-			*ptr = oldNewIdxInfo(oldIdx);
-			ptr++;
-		}
-
-		//		去除非法三角片：
-		std::vector<unsigned> sickTriIdxes;
-		checkSickTris(sickTriIdxes, trisCopy);
-		trisOut = trisCopy;
-		removeTris(trisOut, trisCopy, sickTriIdxes);
-
-		bdrys.resize(0, 0);
-		bdryTriIdxes.clear();
-		bdryEdges(bdrys, bdryTriIdxes, trisOut);
-		std::cout << "去除重复顶点后bdrysCount == " << bdrys.rows() << std::endl;
-		std::cout << std::endl;
-		igl::writeOBJ("E:/mesh去除重复顶点之后.obj", versOut, trisOut);
-
-		trisCopy = trisOut;
-		removeTris(trisOut, trisCopy, bdryTriIdxes);
-		bdrys.resize(0, 0);
-		bdryTriIdxes.clear();
-
-		igl::writeOBJ("E:/meshOut.obj", versOut, trisOut);
-
-		// 打印最终信息：
-		versCount = versOut.rows();
-		trisCount = trisOut.rows();
-		std::cout << "final versCount == " << versCount << std::endl;
-		std::cout << "final trisCount == " << trisCount << std::endl;
-		std::cout << "final bdrysCount == " << bdrys.rows() << std::endl;
-
-		std::cout << "finished." << std::endl;
-	}
 }
 
 
@@ -1853,6 +1783,15 @@ namespace IGL_DIF_GEO
 
 		std::cout << "finished." << std::endl;
 	}
+
+
+	// 网格的laplace光顺：
+	void test1() 
+	{
+
+
+	}
+
 
 }
 

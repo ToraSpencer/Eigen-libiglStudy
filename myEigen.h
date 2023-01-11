@@ -799,16 +799,16 @@ void objReadMeshMat(Eigen::Matrix<Scalar, Dynamic, Dynamic>& vers, Eigen::Matrix
 				break;
 
 			Eigen::Matrix<Scalar, 3, 1> ver;
-			// Vector3f ver;
-			ver(0) = (float)atof(tmpBuffer);
+
+			ver(0) = (Scalar)atof(tmpBuffer);
 			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
 			if (0 == nRet)
 				break;
-			ver(1) = (float)atof(tmpBuffer);
+			ver(1) = (Scalar)atof(tmpBuffer);
 			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
 			if (0 == nRet)
 				break;
-			ver(2) = (float)atof(tmpBuffer);
+			ver(2) = (Scalar)atof(tmpBuffer);
 
 			vers.conservativeResize(3, ++versCols);
 			vers.col(versCols - 1) = ver;
@@ -904,16 +904,16 @@ void objReadVerticesMat(Eigen::Matrix<Scalar, Dynamic, Dynamic>& vers, const cha
 				break;
 
 			Eigen::Matrix<Scalar, 3, 1> ver(Eigen::Matrix<Scalar, 3, 1>::Zero());
-			// Vector3f ver(Vector3f::Zero());
-			ver(0) = (float)atof(tmpBuffer);
+ 
+			ver(0) = (Scalar)atof(tmpBuffer);
 			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
 			if (0 == nRet)
 				break;
-			ver(1) = (float)atof(tmpBuffer);
+			ver(1) = (Scalar)atof(tmpBuffer);
 			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
 			if (0 == nRet)
 				break;
-			ver(2) = (float)atof(tmpBuffer);
+			ver(2) = (Scalar)atof(tmpBuffer);
 
 			vers.conservativeResize(3, ++cols);
 			vers.col(cols - 1) = ver;
@@ -1346,6 +1346,38 @@ bool trianglesPlane(Eigen::MatrixXd& planeCoeff, const Eigen::PlainObjectBase<De
 }
 
 
+// 计算三角网格每个三角片的面积：
+template<typename Scalar, typename DerivedI>
+bool trisArea(Eigen::VectorXd& trisAreaVec, const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+	const Eigen::MatrixBase<DerivedI>& tris)
+{
+	const unsigned versCount = vers.rows();
+	const unsigned trisCount = tris.rows();
+	Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> vas, vbs, vcs, arrows1, arrows2, arrows3;
+	Eigen::VectorXd lens1, lens2, lens3, s;
+	Eigen::VectorXi vaIdxes = tris.col(0);
+	Eigen::VectorXi vbIdxes = tris.col(1);
+	Eigen::VectorXi vcIdxes = tris.col(2);
+
+	subFromIdxVec(vas, vers, vaIdxes);
+	subFromIdxVec(vbs, vers, vbIdxes);
+	subFromIdxVec(vcs, vers, vcIdxes);
+	arrows1 = vbs - vas;
+	arrows2 = vcs - vas;
+	arrows3 = vbs - vcs;
+	lens1 = arrows1.rowwise().norm().cast<double>();
+	lens2 = arrows2.rowwise().norm().cast<double>();
+	lens3 = arrows3.rowwise().norm().cast<double>();
+	s = (lens1 + lens2 + lens3) / 2.0;				// 三角片周长的一半；
+
+	// 使用Heron公式计算三角片面积:
+	trisAreaVec = s.array() * (s - lens1).array() * (s - lens2).array() * (s - lens3).array();
+	trisAreaVec = trisAreaVec.cwiseSqrt();
+	
+	return true;
+}
+
+
 // 计算三角网格的体积：
 template<typename DerivedV, typename DerivedI>
 double meshVolume(const Eigen::MatrixBase<DerivedV>& V, const Eigen::MatrixBase<DerivedI>& T)
@@ -1428,7 +1460,7 @@ bool adjMatrix(const Eigen::PlainObjectBase<DerivedI>& tris, Eigen::SparseMatrix
 }
 
 
-// 边缘有向边：
+// 边缘有向边，重载1：
 template<typename DerivedI>
 bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, const Eigen::PlainObjectBase<DerivedI>& tris)
 {
@@ -1462,7 +1494,7 @@ bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, const Eigen::PlainObject
 }
 
 
-// 边缘有向边：
+// 边缘有向边， 重载2：
 template<typename DerivedI>
 bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, std::vector<int>& bdryTriIdxes, const Eigen::PlainObjectBase<DerivedI>& tris)
 {
@@ -1540,6 +1572,7 @@ bool nonManifoldEdges(const Eigen::PlainObjectBase<DerivedI>& tris, Eigen::Matri
 
 // buildAdjacency()——计算流形网格的三角片邻接信息：
 using ttTuple = std::tuple<std::vector<int>, std::vector<int>, std::vector<int>>;
+
 
 bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, \
 	std::vector<ttTuple>& ttAdj_nmnEdge, std::vector<ttTuple>& ttAdj_nmnOppEdge);
@@ -2271,6 +2304,9 @@ bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, const std
 
 	return true;
 }
+
+
+
 
 // 自定义计时器，使用WINDOWS计时API
 class tiktok

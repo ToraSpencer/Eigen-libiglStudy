@@ -821,4 +821,40 @@ namespace TEST_MYEIGEN
 
 		std::cout << "finished." << std::endl;
 	}
+
+
+	// 测试获取三角网格基础属性的接口：
+	void test3() 
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		bool retFlag = true;
+		objReadMeshMat(vers, tris, "E:/材料/jawCore.obj");
+
+		const unsigned versCount = vers.rows();
+		const unsigned trisCount = tris.rows();
+
+		// 计算网格每个三角片的面积：
+		Eigen::VectorXd trisAreaVec;
+		if (!trisArea(trisAreaVec, vers, tris))
+			return;
+
+		// 手动计算第一个三角片的面积：
+		Eigen::RowVector3d arrow1, arrow2, dir1, dir2, va, vb, vc;
+		va = vers.row(tris(0,0));
+		vb = vers.row(tris(0, 1));
+		vc = vers.row(tris(0, 2));
+		arrow1 = vb - va;
+		arrow2 = vc - va;
+		dir1 = arrow1.normalized();
+		dir2 = arrow2.normalized();
+		double cosTheta = dir1.dot(dir2);
+		double sinTheta = std::sqrt(1 - cosTheta*cosTheta);
+		double area0 = 0.5 * arrow1.norm() * arrow2.norm() * sinTheta;
+		std::cout << "area0 == " << area0 << std::endl;
+		dispVecSeg(trisAreaVec, 0, 9);
+
+		std::cout << "finished." << std::endl;
+	}
+
 }
