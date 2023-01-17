@@ -214,89 +214,6 @@ namespace IGL_BASIC
 	}
  
 
-	// lambda——键盘事件：使用laplacian光顺网格
-	bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod)
-	{
-		switch (key)
-		{
-		case 'r':
-
-		case 'R':			// 复位程序
-			newVers = vers;
-			break;
-
-		case ' ':				// 空格键，执行一次laplace光顺
-		{
-			// 重新计算质量矩阵
-			Eigen::SparseMatrix<double> mass;
-			igl::massmatrix(newVers, tris, igl::MASSMATRIX_TYPE_BARYCENTRIC, mass);
-
-			// 解线性方程组 (mass - delta*L) * newVers = mass * newVers
-			float delta = 0.001;
-			const auto& S = (mass - delta * L);
-			Eigen::SimplicialLLT<Eigen::SparseMatrix<double > > solver(S);
-			assert(solver.info() == Eigen::Success);
-			newVers = solver.solve(mass * newVers).eval();
- 
-			break;
-		}
-
-		default:
-			return false;
-		}
-
-		viewer.data().set_vertices(newVers);
-		viewer.data().compute_normals();
-		viewer.core().align_camera_center(newVers, tris);
-		return true;
-	};
-
-
-	// 使用Laplacian光顺网格
-	void test3() 
-	{
-		 igl::readOBJ( "./data/bunny.obj", vers, tris);
-		newVers = vers;
-
-		// 1.a 直接构造laplacian——Compute Laplace-Beltrami operator: 
-		igl::cotmatrix(vers, tris, L);
-
-		// 1.b 分步构造laplacian
-		{
-			SparseMatrix<double> Gradient, L2;
-
-			igl::grad(vers, tris, Gradient);      // 离散梯度
-
-			// Diagonal per-triangle "mass matrix"
-			VectorXd dblA;
-			igl::doublearea(vers, tris, dblA);             // 每个三角片面积的两倍
-
-			// Place areas along diagonal  #dim times
-			const auto& T = 1. * (dblA.replicate(3, 1) * 0.5).asDiagonal();
-
-			L2 = -Gradient.transpose() * T * Gradient;         // discrete Dirichelet energy Hessian 离散狄利克雷能量海塞矩阵
-			std::cout << "两种方法得到的laplacian的差的范数：" << std::endl;
-			cout << "(L2 - L).norm() == " << (L2 - L).norm() << endl;
-		}
-
-		// 2. 根据原始的法向量，使用伪色
-		MatrixXd norms;
-		igl::per_vertex_normals(vers, tris, norms);
-		MatrixXd colors = norms.rowwise().normalized().array() * 0.5 + 0.5;
-
-		// 3. viewr填充初始数据
-		newVers = vers;
-		viewer.data().set_mesh(newVers, tris);
-		viewer.data().set_colors(colors);
-		viewer.callback_key_down = key_down;
-
-		// 4. 运行
-		cout << "Press [space] to smooth." << endl;;
-		cout << "Press [r] to reset." << endl;;
-		viewer.launch();
-	}
-
-
 	// 生成三维空间中的栅格：
 	void test4() 
 	{
@@ -1768,7 +1685,14 @@ namespace IGL_BASIC
 // libigl中的微分几何相关
 namespace IGL_DIF_GEO 
 {
-	// 质量矩阵和LB算子
+	Eigen::MatrixXd vers, newVers, normals;
+	Eigen::MatrixXi tris;
+	Eigen::SparseMatrix<double> L;
+	float deltaLB;
+	unsigned smoothLoopCount = 0;
+
+
+	// test0: 质量矩阵和LB算子
 	void test0() 
 	{
 		Eigen::MatrixXd vers;
@@ -1783,13 +1707,111 @@ namespace IGL_DIF_GEO
 
 		std::cout << "finished." << std::endl;
 	}
+ 
 
-
-	// 网格的laplace光顺：
-	void test1() 
+	// test1: 使用Laplacian光顺网格
+	
+	// laplace光顺键盘事件：使用laplacian光顺网格
+	bool key_down_laplacian(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod)
 	{
+		std::string outputName;
+		outputName.resize(512);
+		switch (key)
+		{
+		case 'r':
+
+		case 'R':							// 复位程序
+			newVers = vers;
+			smoothLoopCount = 0;
+			break;
+
+		case 's':
+
+		case 'S':			
+			sprintf_s(&outputName[0], 512, "E:/meshSmoothLB_step%d.obj", smoothLoopCount);
+			igl::writeOBJ(outputName, newVers, tris);
+			std::cout << "step " << smoothLoopCount << " result saved." << std::endl;
+			break;
+
+		case ' ':								// 空格键，执行一次laplace光顺
+		{
+			// 1. 重新计算质量矩阵
+			Eigen::SparseMatrix<double> mass;
+			igl::massmatrix(newVers, tris, igl::MASSMATRIX_TYPE_BARYCENTRIC, mass);
+
+			// 2. 解线性方程组 (mass - delta*L) * newVers = mass * newVers
+			const auto& S = (mass - deltaLB * L);
+			Eigen::SimplicialLLT<Eigen::SparseMatrix<double > > solver(S);
+			assert(solver.info() == Eigen::Success);
+			newVers = solver.solve(mass * newVers).eval();
+
+			std::cout << "smoothLoopCount == " << (++smoothLoopCount) << std::endl;
+
+			break;
+		}
+
+		default:
+			return false;
+		}
+
+		viewer.data().set_vertices(newVers);
+		viewer.data().compute_normals();
+		viewer.core().align_camera_center(newVers, tris);
+		return true;
+	};
 
 
+	void test1()
+	{
+		Eigen::MatrixXd norms;
+		Eigen::MatrixXd colors;
+		
+		//igl::readOBJ("./data/bunny.obj", vers, tris);
+		//deltaLB = 0.001;
+
+		igl::readOBJ("E:/材料/乐芸予InnerSmoothed.obj", vers, tris);
+		deltaLB = 0.1;
+
+		newVers = vers;
+
+		const unsigned versCount = vers.rows();
+		const unsigned trisCount = tris.rows();
+
+		// 1.a 直接构造laplacian——Compute Laplace-Beltrami operator: 
+		igl::cotmatrix(vers, tris, L);
+
+		// 1.b 测试分步构造laplacian
+		{
+			SparseMatrix<double> Gradient, L2;
+			VectorXd dblA;									  // 每个三角片面积的两倍
+			igl::grad(vers, tris, Gradient);      // 离散梯度
+
+			// Diagonal per-triangle "mass matrix"			
+			igl::doublearea(vers, tris, dblA);           
+
+			// Place areas along diagonal  #dim times
+			const auto& T = 1. * (dblA.replicate(3, 1) * 0.5).asDiagonal();
+
+			L2 = -Gradient.transpose() * T * Gradient;         // discrete Dirichelet energy Hessian 离散狄利克雷能量海塞矩阵
+			std::cout << "两种方法得到的laplacian的差的范数：" << std::endl;
+			cout << "(L2 - L).norm() == " << (L2 - L).norm() << endl;
+		}
+
+		// 2. 根据原始的法向量，使用伪色
+		igl::per_vertex_normals(vers, tris, norms);
+		colors = norms.rowwise().normalized().array() * 0.5 + 0.5;
+
+		// 3. viewr填充初始数据
+		newVers = vers;
+		viewer.data().set_mesh(newVers, tris);
+		viewer.data().set_colors(colors);
+		viewer.callback_key_down = key_down_laplacian;
+
+		// 4. 运行
+		cout << "Press [space] to smooth." << endl;
+		cout << "Press [r] to reset." << endl;
+
+		viewer.launch();
 	}
 
 
