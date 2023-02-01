@@ -117,8 +117,28 @@ void dispElem(const Eigen::MatrixBase<Derived>& m)
 // 网格精简：
 namespace DECIMATION 
 {
+	// igl::qslim()
+	void test0() 
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		std::string fileName = "E:/材料/jawMeshDense.obj";
+		igl::readOBJ(fileName, vers, tris);
+
+		int trisCount = tris.rows();
+		int tarTrisCount = std::round(0.6397 * trisCount);
+		Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
+		Eigen::VectorXi newOldVersInfo;
+		igl::qslim(vers, tris, tarTrisCount, versOut, trisOut, newOldTrisInfo, newOldVersInfo);
+
+		igl::writeOBJ("E:/meshSimplified_qslim.obj", versOut, trisOut);
+ 
+
+		std::cout << "finished." << std::endl;
+	}
+
 	// 循环调用igl::qslim()精简一批网格：
-	void test0()
+	void test00()
 	{
 		const unsigned meshesCount = 40;
 		for (unsigned i = 0; i < meshesCount; ++i)
@@ -154,21 +174,29 @@ namespace MESH_REPAIR
 		Eigen::MatrixXd vers;
 		Eigen::MatrixXi tris;
 		bool retFlag = true;
-		objReadMeshMat(vers, tris, "E:/材料/乐芸予repaired.obj");
+		objReadMeshMat(vers, tris, "E:/meshOut.obj");
 
 		const unsigned versCount = vers.rows();
 		const unsigned trisCount = tris.rows();
 
-		// 检测边缘有向边：
-		Eigen::MatrixXi bdrys;
-		if (!bdryEdges(bdrys, tris))
+		// 1. 检测边缘有向边：
+		Eigen::MatrixXi bdrys, bdryTris;
+		std::vector<int> bdryTriIdxes;
+		if (!bdryEdges(bdrys, bdryTriIdxes, tris))
 			return;
 
 		if (bdrys.rows() > 0)
+		{
 			std::cout << "bdrys.rows() == " << bdrys.rows() << std::endl;
-		objWriteEdgesMat("E:/bdry.obj", bdrys, vers);
+			std::cout << "bdry data: " << std::endl;
+			dispMat(bdrys);
+			std::cout << std::endl;
+			subFromIdxVec(bdryTris, tris, bdryTriIdxes);
+			objWriteEdgesMat("E:/bdry.obj", bdrys, vers);
+			objWriteMeshMat("E:/bdryTris.obj", vers, bdryTris);
+		}
 
-		// 检测非流形有向边：
+		// 2. 检测非流形有向边：
 		Eigen::MatrixXi nmnEdges;
 		if (!nonManifoldEdges(tris, nmnEdges))
 			return;
@@ -177,7 +205,7 @@ namespace MESH_REPAIR
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 
 		
-		// 检测孤立顶点：
+		// 3. 检测孤立顶点：
 		Eigen::VectorXi verIdxVec = Eigen::VectorXi::LinSpaced(versCount, 0, versCount - 1);
 		Eigen::MatrixXd isoVers;
 		std::vector<unsigned> isoVerIdxes;
@@ -197,7 +225,7 @@ namespace MESH_REPAIR
 			objWriteVerticesMat("E:/isoVers.obj", isoVers);
 		}
 
-		// 检测退化三角片：
+		// 4. 检测退化三角片：
 		Eigen::VectorXd trisAreaVec;
 		std::vector<unsigned> degenTriIdxes;
 		const double eps = 10e-9;
@@ -207,9 +235,17 @@ namespace MESH_REPAIR
 			if (trisAreaVec(i) < eps)
 				degenTriIdxes.push_back(i);
 		if (!degenTriIdxes.empty())
+		{
 			std::cout << "degenTriIdxes.size() == " << degenTriIdxes.size() << std::endl;
 
-		// 提取所有单连通区域：
+			Eigen::MatrixXi deTris;
+			subFromIdxVec(deTris, tris, degenTriIdxes);
+			std::cout << "degenerate tris data: " << std::endl;
+			dispMat(deTris);
+			std::cout << std::endl;
+		}
+
+		// 5. 提取所有单连通区域：
 		Eigen::SparseMatrix<int> adjSM, adjSM_eCount, adjSM_eIdx;
 		Eigen::VectorXi connectedLabels, connectedCount;
 		adjMatrix(tris, adjSM_eCount, adjSM_eIdx);
@@ -236,7 +272,7 @@ namespace MESH_REPAIR
 		Eigen::MatrixXi tris, trisOut, trisCopy;
 		Eigen::VectorXi selectedIdxes, oldNewIdxInfo;
 
-		igl::readOBJ("E:/meshInnerRev.obj", vers, tris);
+		igl::readOBJ("E:/meshNoDeTris.obj", vers, tris);
 
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
@@ -267,7 +303,7 @@ namespace MESH_REPAIR
 			ptr++;
 		}
 
-		//		去除非法三角片：
+		//	2. 去除非法三角片：
 		std::vector<unsigned> sickTriIdxes;
 		checkSickTris(sickTriIdxes, trisCopy);
 		trisOut = trisCopy;
@@ -293,6 +329,166 @@ namespace MESH_REPAIR
 		std::cout << "final versCount == " << versCount << std::endl;
 		std::cout << "final trisCount == " << trisCount << std::endl;
 		std::cout << "final bdrysCount == " << bdrys.rows() << std::endl;
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// 去除退化三角片：
+	void test2() 
+	{
+		/*
+			退化三角形的三种情形：
+			A. 至少存在一条退化边，即三角形的两个或者三个顶点几乎重叠在一起；
+					在融合duplicate vertices过程中，可以消除此种三角形；
+			B. 不存在退化边，即三个顶点是接近共线的关系；		
+		*/
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		bool retFlag = true;
+		objReadMeshMat(vers, tris, "E:/材料/meshDegTris.obj");
+		objWriteMeshMat("E:/meshInput.obj", vers, tris);
+
+		const unsigned versCount = vers.rows();
+		const unsigned trisCount = tris.rows();
+
+		// 生成有向边编码-三角片字典：
+		Eigen::MatrixXi edgeAs = Eigen::MatrixXi::Zero(trisCount, 2);
+		Eigen::MatrixXi edgeBs = Eigen::MatrixXi::Zero(trisCount, 2);
+		Eigen::MatrixXi edgeCs = Eigen::MatrixXi::Zero(trisCount, 2);
+		Eigen::MatrixXi vaIdxes = tris.col(0);
+		Eigen::MatrixXi vbIdxes = tris.col(1);
+		Eigen::MatrixXi vcIdxes = tris.col(2);
+		std::unordered_multimap<std::int64_t, unsigned> edgesMap;
+		for (unsigned i = 0; i < trisCount; ++i)
+		{
+			std::int64_t codeA = encodeEdge(vbIdxes(i), vcIdxes(i));
+			std::int64_t codeB = encodeEdge(vcIdxes(i), vaIdxes(i));
+			std::int64_t codeC = encodeEdge(vaIdxes(i), vbIdxes(i));
+			edgesMap.insert({ codeA, i });
+			edgesMap.insert({ codeB, i });
+			edgesMap.insert({ codeC, i });
+		}
+
+
+		// 检测退化三角片：
+		Eigen::VectorXd trisAreaVec;
+		std::vector<unsigned> degenTriIdxes;
+		const double eps = 10e-9;								// 退化三角片面积阈值；
+		if (!trisArea(trisAreaVec, vers, tris))
+			return;
+		for (unsigned i = 0; i < trisCount; ++i)
+			if (trisAreaVec(i) < eps)
+				degenTriIdxes.push_back(i);
+		if (!degenTriIdxes.empty())
+			std::cout << "degenTriIdxes.size() == " << degenTriIdxes.size() << std::endl;
+		unsigned degCount = degenTriIdxes.size();
+  
+		// 打印退化三角片：
+		Eigen::MatrixXi deTris;
+		subFromIdxVec(deTris, tris, degenTriIdxes);
+		objWriteMeshMat("E:/deTris.obj", vers, deTris);
+
+		Eigen::MatrixXd vas, vbs, vcs, arrows1, arrows2, arrows3;
+		Eigen::MatrixXd deTrisEdgeLen;
+		vaIdxes = deTris.col(0);
+		vbIdxes = deTris.col(1);
+		vcIdxes = deTris.col(2);
+		subFromIdxVec(vas, vers, vaIdxes);
+		subFromIdxVec(vbs, vers, vbIdxes);
+		subFromIdxVec(vcs, vers, vcIdxes);
+		arrows1 = vbs - vas;
+		arrows2 = vcs - vbs;
+		arrows3 = vas - vcs;
+		deTrisEdgeLen.resize(deTris.rows(), 3);
+		deTrisEdgeLen.col(0) = arrows1.rowwise().norm();				// 边ab
+		deTrisEdgeLen.col(1) = arrows2.rowwise().norm();				// 边bc
+		deTrisEdgeLen.col(2) = arrows3.rowwise().norm();				// 边ca
+
+		std::cout << "degenerate tris data: " << std::endl;
+		dispMat(deTris);
+		std::cout << std::endl;
+
+		std::cout << "退化三角形的边长：" << std::endl;
+		dispMat(deTrisEdgeLen);
+		std::cout << std::endl;
+
+		// 假设当前已不存在A型退化三角形，只需要处理B型退化三角形：
+
+		// 1. 删除所有退化三角形：
+		Eigen::MatrixXi trisCopy = tris;
+		for (const auto& index : degenTriIdxes)
+			trisCopy.row(index) = -Eigen::RowVector3i::Ones();				// 退化三角形标记为(-1, -1, -1)
+
+		// 2. 提取退化三角形中最长的那条边关联的所有三角片：
+		std::vector<std::int64_t> longEdgeOppCodes(degCount);
+		std::vector<int> longEdgeOppVerIdx(degCount);
+		for (unsigned i = 0; i < degCount; ++i)
+		{
+			int vaIdx0 = deTris(i, 0);
+			int vbIdx0 = deTris(i, 1);
+			int vcIdx0 = deTris(i, 2);
+			if (deTrisEdgeLen(i, 1) >= deTrisEdgeLen(i, 0) && deTrisEdgeLen(i, 1) >= deTrisEdgeLen(i, 2))		// bc最长；
+			{
+				longEdgeOppCodes[i] = encodeEdge(vcIdx0, vbIdx0);
+				longEdgeOppVerIdx[i] = vaIdx0;
+			}
+			else if (deTrisEdgeLen(i, 2) >= deTrisEdgeLen(i, 0) && deTrisEdgeLen(i, 2) >= deTrisEdgeLen(i, 1))		// ca边最长；
+			{
+				longEdgeOppCodes[i] = encodeEdge(vaIdx0, vcIdx0);
+				longEdgeOppVerIdx[i] = vbIdx0;
+			}
+			else									      // ab边最长；
+			{				
+				longEdgeOppCodes[i] = encodeEdge(vbIdx0, vaIdx0);
+				longEdgeOppVerIdx[i] = vcIdx0;
+			}
+		}
+
+		// for debug
+		std::vector<int> oppTriIdxes;
+
+
+		// 3. 退化三角片ABC，若最长边是AB, 对边所在的三角片为BAX, 则BAX分解为BCX和CAX，
+		for (unsigned i = 0; i < degCount; ++i) 
+		{
+			unsigned oppTriIdx = edgesMap.find(longEdgeOppCodes[i])->second;		
+
+			// for debug
+			oppTriIdxes.push_back(oppTriIdx);
+
+			Eigen::RowVector3i oppTri = tris.row(oppTriIdx);
+			std::pair<int, int> retPair = decodeEdge(longEdgeOppCodes[i]);
+			int vbIdx = retPair.first;
+			int vaIdx = retPair.second;
+			int vcIdx = longEdgeOppVerIdx[i];
+			int vxIdx = 0;
+			for (unsigned k = 0; k < 3; ++k)
+			{
+				if (oppTri(k) != vaIdx && oppTri(k) != vbIdx)
+				{
+					vxIdx = oppTri(k);
+					break;
+				}
+			}
+			trisCopy.row(oppTriIdx) = Eigen::RowVector3i{vbIdx, vcIdx, vxIdx};
+			matInsertRows<int , 3>(trisCopy, Eigen::RowVector3i{vcIdx, vaIdx, vxIdx});
+		}
+
+		// for debug;
+		Eigen::MatrixXi oppTris;
+		subFromIdxVec(oppTris, tris, oppTriIdxes);
+		objWriteMeshMat("E:/tris2modify.obj", vers, oppTris);
+ 
+		// 4. 删除被标记的退化三角片：
+		tris.resize(trisCopy.rows(), 3);
+		unsigned index = 0;
+		for (unsigned i = 0; i < trisCopy.rows(); ++i) 
+			if (trisCopy(i, 0) >= 0)
+				tris.row(index++) = trisCopy.row(i);
+		tris.conservativeResize(index, 3);
+
+		objWriteMeshMat("E:/meshOut.obj", vers, tris);
 
 		std::cout << "finished." << std::endl;
 	}
@@ -329,7 +525,7 @@ int main()
 	// SPARSEMAT::test0();
 
 	// IGL_BASIC::test55();
-	IGL_DIF_GEO::test1();
+	// IGL_DIF_GEO::test1();
 	// IGL_GRAPH::test1();
 	// IGL_SPACE_PARTITION::test0();
 	// IGL_BASIC_PMP::test4();
@@ -344,7 +540,7 @@ int main()
 
 	// TEMP_TEST::test1();
 
-	// MESH_REPAIR::test0();
+	MESH_REPAIR::test0();
 
 
 
