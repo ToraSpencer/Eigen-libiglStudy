@@ -410,10 +410,8 @@ bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixB
 
 	int count = 0;
 	for (unsigned i = 0; i < vec.rows(); ++i)
-	{
 		if (vec(i) > 0)
 			matOut.row(count++) = matBaseIn.row(i);
-	}
 
 	return true;
 }
@@ -1212,7 +1210,7 @@ Matrix3f getRotationMat(const RowVector3f& originArrow, const RowVector3f& targe
 
 
 // 最小二乘法拟合（逼近）标准椭圆（长短轴和xy坐标轴对齐）
-VectorXd fittingStandardEllipse(const MatrixXf& sampleVers);
+VectorXd fittingStandardEllipse(const Eigen::MatrixXf& sampleVers);
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////// 三角网格处理：
@@ -1238,6 +1236,19 @@ void getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& ve
 	edges.block(trisCount * 2, 1, trisCount, 1) = vbIdxes;
 }
  
+
+// 得到坐标向量表示的有向边：
+template <typename DerivedV>
+void getEdgeArrows(Eigen::PlainObjectBase<DerivedV>& arrows, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
+{
+	DerivedV vas, vbs;
+	Eigen::VectorXi vaIdxes = edges.col(0);
+	Eigen::VectorXi vbIdxes = edges.col(1);
+	subFromIdxVec(vas, vers, vaIdxes);
+	subFromIdxVec(vbs, vers, vbIdxes);
+	arrows = vbs - vas;
+}
+
 
 // 计算网格所有三角片的重心
 template<typename T, typename DerivedV, typename DerivedI>
@@ -2306,6 +2317,91 @@ bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, const std
 }
 
 
+// 去除网格退化边（边长过短的边，将两个顶点融合）;
+template <typename DerivedV, typename DerivedI>
+int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::PlainObjectBase<DerivedI>& newTris, \
+	const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& edgeArrows, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, const double threshold = 1e-3)
+{
+	int degCount = 0;
+	Eigen::VectorXd edgesLen = edgeArrows.rowwise().norm();
+
+	unsigned versCount = vers.rows();
+	unsigned trisCount = tris.rows();
+	unsigned edgesCount = edges.rows();
+
+	// 暂时假设所有退化边都不互相邻接；
+	Eigen::VectorXi flags = (edgesLen.array() < threshold).select(Eigen::VectorXi::Ones(edgesCount), Eigen::VectorXi::Zero(edgesCount));
+	degCount = flags.sum();
+	Eigen::MatrixXi degEdges;
+	subFromFlagVec(degEdges, edges, flags);
+
+	// for debug:
+	Eigen::MatrixXd degEdgeVers;
+	std::unordered_set<int> tmpSet;
+	std::vector<int> degVerIdxes;
+
+	objWriteEdgesMat("E:/degEdges.obj", degEdges, vers);
+	for (unsigned i = 0; i < degCount; ++i)
+	{
+		tmpSet.insert(degEdges(i, 0));
+		tmpSet.insert(degEdges(i, 1));
+	}
+	degVerIdxes.insert(degVerIdxes.end(), tmpSet.begin(), tmpSet.end());
+	subFromIdxVec(degEdgeVers, vers, degVerIdxes);
+	objWriteVerticesMat("E:/degEdgeVers.obj", degEdgeVers);
+
+	// 所有退化边中，保留索引较小的顶点，索引大的顶点改写为索引小的顶点：
+	Eigen::MatrixXi revDegEdges = degEdges;
+	for (unsigned i = 0; i < degCount; ++i)
+	{
+		int vaIdx = degEdges(i, 0);
+		int vbIdx = degEdges(i, 1);
+		if (degEdges(i, 0) < degEdges(i, 1))
+			revDegEdges.row(i) = Eigen::RowVector2i(vbIdx, vaIdx);
+		else
+			degEdges.row(i) = Eigen::RowVector2i(vbIdx, vaIdx);
+	}
+
+	std::list<std::set<int>> clusters(degCount);
+	for (unsigned i = 0; i < degCount; ++i)
+	{
+		int vaIdx = degEdges(i, 0);
+		int vbIdx = degEdges(i, 1);
+		for (auto& clusterSet : clusters)
+		{
+			auto retIter1 = clusterSet.find(vaIdx);
+			auto retIter2 = clusterSet.find(vbIdx);
+			if (clusterSet.end() == retIter1 && clusterSet.end() == retIter2)
+				continue;
+			else       // 当前边的顶点与之前的簇中的顶点相同，插入到该簇中；
+			{
+				clusterSet.insert(vaIdx);
+				clusterSet.insert(vbIdx);
+				break;
+			}
+		}
+
+		// 生成新的簇；
+		std::set<int> tmpCluster;
+		tmpCluster.insert(vaIdx);
+		tmpCluster.insert(vbIdx);
+		clusters.push_back(tmpCluster);
+	}
+
+	// 生成顶点聚类的映射字典——一个簇中所有其他顶点都映射为索引最小的那个顶点：
+	std::map<int, int> clusterMap;
+	for (const auto clusterSet: clusters) 
+	{
+		auto iter = clusterSet.begin();
+		int headIdx = *iter;
+		iter++;
+		for (; iter != clusterSet.end(); ++iter)
+			clusterMap.insert({*iter, headIdx});
+	}
+
+	return degCount;
+}
 
 
 // 自定义计时器，使用WINDOWS计时API

@@ -204,7 +204,6 @@ namespace MESH_REPAIR
 			std::cout << "nmnEdges.rows() == " << nmnEdges.rows() << std::endl;
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 
-		
 		// 3. 检测孤立顶点：
 		Eigen::VectorXi verIdxVec = Eigen::VectorXi::LinSpaced(versCount, 0, versCount - 1);
 		Eigen::MatrixXd isoVers;
@@ -225,7 +224,10 @@ namespace MESH_REPAIR
 			objWriteVerticesMat("E:/isoVers.obj", isoVers);
 		}
 
-		// 4. 检测退化三角片：
+
+		// 4. 检测退化边。。。。
+
+		// 5. 检测退化三角片：
 		Eigen::VectorXd trisAreaVec;
 		std::vector<unsigned> degenTriIdxes;
 		const double eps = 10e-9;
@@ -245,7 +247,8 @@ namespace MESH_REPAIR
 			std::cout << std::endl;
 		}
 
-		// 5. 提取所有单连通区域：
+
+		// 6. 提取所有单连通区域：
 		Eigen::SparseMatrix<int> adjSM, adjSM_eCount, adjSM_eIdx;
 		Eigen::VectorXi connectedLabels, connectedCount;
 		adjMatrix(tris, adjSM_eCount, adjSM_eIdx);
@@ -329,6 +332,26 @@ namespace MESH_REPAIR
 		std::cout << "final versCount == " << versCount << std::endl;
 		std::cout << "final trisCount == " << trisCount << std::endl;
 		std::cout << "final bdrysCount == " << bdrys.rows() << std::endl;
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// 去除网格退化边（边长过短的边，将两个顶点融合）;
+	void test11() 
+	{
+		Eigen::MatrixXd vers, versOut, edgeArrows;
+		Eigen::MatrixXi tris, trisOut, edges;
+		Eigen::VectorXi selectedIdxes, oldNewIdxInfo;
+		igl::readOBJ("E:/材料/meshNoDegTris.obj", vers, tris);
+		getEdges(edges, vers, tris);
+		getEdgeArrows(edgeArrows, edges, vers);
+		
+		Eigen::VectorXd edgesLen = edgeArrows.rowwise().norm();
+		double minLen = edgesLen.minCoeff();
+
+
+		int ret1 = mergeDegEdges(versOut, trisOut, edges, edgeArrows, vers, tris);
 
 		std::cout << "finished." << std::endl;
 	}
@@ -540,7 +563,7 @@ int main()
 
 	// TEMP_TEST::test1();
 
-	MESH_REPAIR::test0();
+	MESH_REPAIR::test11();
 
 
 
