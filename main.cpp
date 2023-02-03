@@ -171,20 +171,27 @@ namespace MESH_REPAIR
 	// 检测网格边缘边、非流形边、孤立点、重复点等缺陷：
 	void test0() 
 	{
-		Eigen::MatrixXd vers;
-		Eigen::MatrixXi tris;
+		Eigen::MatrixXd vers, edgeArrows;
+		Eigen::MatrixXi tris, edges;
 		bool retFlag = true;
-		objReadMeshMat(vers, tris, "E:/meshOut.obj");
+		objReadMeshMat(vers, tris, "E:/meshInnerRev.obj");
+		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		const unsigned versCount = vers.rows();
 		const unsigned trisCount = tris.rows();
+ 
+		// 0. 计算边数据：
+		getEdges(edges, vers, tris);
+		getEdgeArrows(edgeArrows, edges, vers);
+		Eigen::VectorXd edgesLen = edgeArrows.rowwise().norm();
+		double minLen = edgesLen.minCoeff();
+		std::cout << "minimum edge len is " << minLen << std::endl;
 
 		// 1. 检测边缘有向边：
 		Eigen::MatrixXi bdrys, bdryTris;
 		std::vector<int> bdryTriIdxes;
 		if (!bdryEdges(bdrys, bdryTriIdxes, tris))
 			return;
-
 		if (bdrys.rows() > 0)
 		{
 			std::cout << "bdrys.rows() == " << bdrys.rows() << std::endl;
@@ -204,28 +211,25 @@ namespace MESH_REPAIR
 			std::cout << "nmnEdges.rows() == " << nmnEdges.rows() << std::endl;
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 
+
 		// 3. 检测孤立顶点：
-		Eigen::VectorXi verIdxVec = Eigen::VectorXi::LinSpaced(versCount, 0, versCount - 1);
-		Eigen::MatrixXd isoVers;
-		std::vector<unsigned> isoVerIdxes;
-		int* dataPtr = tris.data();
-		for (unsigned i = 0; i<tris.size(); ++i) 
-		{
-			verIdxVec(*dataPtr) = -1;
-			dataPtr++;
-		}
-		for (unsigned i = 0; i < versCount; ++i)
-			if (verIdxVec(i) >= 0)
-				isoVerIdxes.push_back(i);
+		std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, tris);
 		if (!isoVerIdxes.empty())
 		{
 			std::cout << "isoVerIdxes.size() == " << isoVerIdxes.size() << std::endl;
+			Eigen::MatrixXd isoVers;
 			subFromIdxVec(isoVers, vers, isoVerIdxes);
 			objWriteVerticesMat("E:/isoVers.obj", isoVers);
 		}
 
 
-		// 4. 检测退化边。。。。
+		// 4. 检测退化边
+		double degEdgeThreshold = 1e-3;
+		Eigen::VectorXi degEdgeFlags = checkDegEdges(edges, edgeArrows, vers, tris, degEdgeThreshold);
+		unsigned degEdgesCount = degEdgeFlags.sum();
+		if (degEdgesCount > 0)
+			std::cout << "degenerate edges count == " << degEdgesCount << std::endl;
+
 
 		// 5. 检测退化三角片：
 		Eigen::VectorXd trisAreaVec;
@@ -343,22 +347,74 @@ namespace MESH_REPAIR
 		Eigen::MatrixXd vers, versOut, edgeArrows;
 		Eigen::MatrixXi tris, trisOut, edges;
 		Eigen::VectorXi selectedIdxes, oldNewIdxInfo;
-		igl::readOBJ("E:/材料/meshNoDegTris.obj", vers, tris);
+		igl::readOBJ("E:/材料/meshDegTris.obj", vers, tris);
+		igl::writeOBJ("E:/meshInput.obj", vers, tris);
+ 
+		// 1. 计算边数据：
 		getEdges(edges, vers, tris);
-		getEdgeArrows(edgeArrows, edges, vers);
-		
+		getEdgeArrows(edgeArrows, edges, vers);		
 		Eigen::VectorXd edgesLen = edgeArrows.rowwise().norm();
 		double minLen = edgesLen.minCoeff();
+		std::cout << "minimum edge len is " << minLen << std::endl;
+
+		// 2. 检测退化边：
+		double degEdgeThreshold = 1e-3;			// 判定退化边的边长阈值；
+		Eigen::VectorXi degEdgeFlags = checkDegEdges(edges, edgeArrows, vers, tris, degEdgeThreshold);
+		int degEdgesCount = degEdgeFlags.sum();
+		std::cout << "degEdgesCount == " << degEdgesCount << std::endl;
+
+		// 3. 融合退化边——！！！若退化边阈值设置得太高，融合后的结果可能会有缺陷！！！
+		int repVersCount = mergeDegEdges(versOut, trisOut, edges, edgeArrows, vers, tris, degEdgeFlags);
+		std::cout << "repVersCount == " << repVersCount << std::endl;
+
+		// 4. 融合之后可能有单联通区域分裂，取最大单连通区域：
+		vers = versOut; 
+		tris = trisOut;
+		versOut.resize(0, 0);
+		trisOut.resize(0, 0);
+		simplyConnectedLargest(vers, tris, versOut, trisOut);
+		std::cout << "remove isolated mesh: versCount == " << vers.rows() - versOut.rows() << ", trisCount == "\
+			<< tris.rows() - trisOut.rows() << std::endl;
+
+		// 5. 融合之后的检测：
+		edges.resize(0, 0);
+		edgeArrows.resize(0, 0);
+		vers.resize(0, 0);
+		tris.resize(0, 0);
+		getEdges(edges, versOut, trisOut);
+		getEdgeArrows(edgeArrows, edges, versOut);
+		degEdgeFlags = checkDegEdges(edges, edgeArrows, versOut, trisOut, degEdgeThreshold);
+		degEdgesCount = degEdgeFlags.sum();
+		std::cout << "degenerate edges count == " << degEdgesCount << " after mergeDegEdges procedure." << std::endl;
+
+		objWriteMeshMat("E:/meshOut.obj", versOut, trisOut);
+
+		std::cout << "finished." << std::endl;
+	}
 
 
-		int ret1 = mergeDegEdges(versOut, trisOut, edges, edgeArrows, vers, tris);
+	// 检测、去除网格孤立顶点：
+	void test2() 
+	{
+		Eigen::MatrixXd vers, versOut, edgeArrows;
+		Eigen::MatrixXi tris, trisOut, edges;
+		Eigen::VectorXi selectedIdxes, oldNewIdxInfo;
+		igl::readOBJ("E:/材料/meshIsoVers.obj", vers, tris);
+		igl::writeOBJ("E:/meshInput.obj", vers, tris);
+
+		std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, tris);
+		if (isoVerIdxes.size() > 0)
+			std::cout << isoVerIdxes.size() << " isolated vertices detected." << std::endl;
+
+		removeIsoVers(versOut, trisOut, vers, tris, isoVerIdxes);
+		igl::writeOBJ("E:/meshOut.obj", versOut, trisOut);
 
 		std::cout << "finished." << std::endl;
 	}
 
 
 	// 去除退化三角片：
-	void test2() 
+	void test3() 
 	{
 		/*
 			退化三角形的三种情形：
@@ -563,7 +619,7 @@ int main()
 
 	// TEMP_TEST::test1();
 
-	MESH_REPAIR::test11();
+	MESH_REPAIR::test0();
 
 
 

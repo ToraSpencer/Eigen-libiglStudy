@@ -1479,17 +1479,17 @@ bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, const Eigen::PlainObject
 	adjMatrix(tris, adjSM_eCount, adjSM_eIdx);
 	Eigen::SparseMatrix<int> adjSM_tmp, adjSM_ueCount;
 
-	// 确定边缘无向边：
+	// 1. 确定边缘无向边：
 	spMatTranspose(adjSM_tmp, adjSM_eCount);
 	adjSM_ueCount = adjSM_eCount + adjSM_tmp;
-	std::vector<std::pair<int, int>> bdryUeVec;
+	std::vector<std::pair<int, int>> bdryUeVec;						// 所有边缘无向边；约定无向边表示为前大后小的索引对；
 	traverseSparseMatrix(adjSM_ueCount, [&](auto& iter)
 		{
 			if (1 == iter.value() && iter.row() > iter.col())
 				bdryUeVec.push_back({ iter.row(), iter.col() });
 		});
 
-	// 由边缘无向边确定边缘有向边：
+	// 2. 由边缘无向边确定边缘有向边：
 	std::vector<std::pair<int, int>> bdryVec;
 	bdryVec.reserve(bdryUeVec.size());
 	for (const auto& pair : bdryUeVec)
@@ -1509,6 +1509,7 @@ bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, const Eigen::PlainObject
 template<typename DerivedI>
 bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, std::vector<int>& bdryTriIdxes, const Eigen::PlainObjectBase<DerivedI>& tris)
 {
+	// 1. 查找网格的边缘有向边；
 	if (!bdryEdges(bdrys, tris))
 		return false;
 
@@ -1517,7 +1518,7 @@ bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, std::vector<int>& bdryTr
 
 	const unsigned trisCount = tris.rows();
 
-	// 确认边缘非流形边所在的三角片索引：
+	// 2. 确认边缘非流形边所在的三角片索引：
 	Eigen::MatrixXi edgeAs = Eigen::MatrixXi::Zero(trisCount, 2);
 	Eigen::MatrixXi edgeBs = Eigen::MatrixXi::Zero(trisCount, 2);
 	Eigen::MatrixXi edgeCs = Eigen::MatrixXi::Zero(trisCount, 2);
@@ -1525,8 +1526,8 @@ bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, std::vector<int>& bdryTr
 	Eigen::MatrixXi vbIdxes = tris.col(1);
 	Eigen::MatrixXi vcIdxes = tris.col(2);
 
-	// 生成有向边编码-三角片字典：
-	std::unordered_multimap<std::int64_t, unsigned> edgesMap;
+	// 3. 生成有向边编码-三角片字典：
+	std::unordered_multimap<std::int64_t, unsigned> edgesMap;			// 一条有向边正常情况下只关联一个三角片，若关联多个，则是非流形边；
 	for (unsigned i = 0; i < trisCount; ++i) 
 	{
 		std::int64_t codeA = encodeEdge(vbIdxes(i), vcIdxes(i));
@@ -1537,7 +1538,7 @@ bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, std::vector<int>& bdryTr
 		edgesMap.insert({ codeC, i });
 	}
 
-	// 在字典中查找所有边缘边所在的三角片索引：
+	// 4. 在字典中查找所有边缘边所在的三角片索引：
 	for (unsigned i = 0; i < bdrys.rows(); ++i) 
 	{
 		std::int64_t code = encodeEdge(bdrys(i, 0), bdrys(i, 1));
@@ -2317,39 +2318,154 @@ bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, const std
 }
 
 
-// 去除网格退化边（边长过短的边，将两个顶点融合）;
-template <typename DerivedV, typename DerivedI>
-int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::PlainObjectBase<DerivedI>& newTris, \
-	const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& edgeArrows, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, const double threshold = 1e-3)
+// 检测网格中的孤立顶点
+template <typename DerivedV>
+std::vector<unsigned> checkIsoVers(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 {
-	int degCount = 0;
-	Eigen::VectorXd edgesLen = edgeArrows.rowwise().norm();
+	unsigned versCount = vers.rows();
+	unsigned trisCount = tris.rows();
 
+	Eigen::VectorXi verIdxVec = Eigen::VectorXi::LinSpaced(versCount, 0, versCount - 1);
+	
+	std::vector<unsigned> isoVerIdxes;
+	const int* dataPtr = tris.data();
+	for (unsigned i = 0; i < tris.size(); ++i)
+	{
+		verIdxVec(*dataPtr) = -1;
+		dataPtr++;
+	}
+	for (unsigned i = 0; i < versCount; ++i)
+		if (verIdxVec(i) >= 0)
+			isoVerIdxes.push_back(i);
+
+	// for debug:
+	if (0) 
+	{
+		Eigen::MatrixXd isoVers;
+		if (!isoVerIdxes.empty())
+		{
+			std::cout << "isoVerIdxes.size() == " << isoVerIdxes.size() << std::endl;
+			subFromIdxVec(isoVers, vers, isoVerIdxes);
+			objWriteVerticesMat("E:/isoVers.obj", isoVers);
+		}
+	}
+ 
+	return isoVerIdxes;
+}
+
+
+// 去除网格中的孤立顶点：
+template <typename DerivedV>
+bool removeIsoVers(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::MatrixXi& trisOut, \
+		const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const std::vector<unsigned>& isoVerIdxes)
+{
+	unsigned versCount = vers.rows();
+	unsigned trisCount = tris.rows();
+	unsigned isoVersCount = isoVerIdxes.size();
+	unsigned versCountNew = versCount - isoVersCount;
+
+	std::vector<int> oldNewIdxInfo, newOldIdxInfo, tmpIdxVec;
+	tmpIdxVec.resize(versCount);
+	for (int i = 0; i < versCount; ++i)
+		tmpIdxVec[i] = i;
+	for (const auto& index : isoVerIdxes)
+		tmpIdxVec[index] = -1;
+
+	newOldIdxInfo.reserve(versCountNew);
+	for (const auto& index : tmpIdxVec)
+		if (index >= 0)
+			newOldIdxInfo.push_back(index);
+
+	int tmpIdx = 0;
+	oldNewIdxInfo = tmpIdxVec;
+	for (auto& index : oldNewIdxInfo)
+		if (index >= 0)
+			index = tmpIdx++;
+
+	// 输出点云：
+	subFromIdxVec(versOut, vers, newOldIdxInfo);
+
+	// 输出三角片：
+	trisOut = tris;
+	int* dataPtr = trisOut.data();
+	for (int i = 0; i < trisCount * 3; ++i)
+		*dataPtr++ = oldNewIdxInfo[*dataPtr];
+
+	return true;
+}
+
+
+// 检测退化边（边长过短的边）
+template <typename DerivedV>
+Eigen::VectorXi checkDegEdges(const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& edgeArrows, \
+		const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const double threshold = 1e-3)
+{
+	/*
+		Eigen::VectorXi checkDegEdges(														// 返回标记退化边的flag向量
+				const Eigen::MatrixXi& edges,												// 网格有向边
+				const Eigen::PlainObjectBase<DerivedV>& edgeArrows,		// 有向边的边向量数据
+				const Eigen::PlainObjectBase<DerivedV>& vers, 
+				const Eigen::MatrixXi& tris, 
+				const double threshold = 1e-3												// 判定退化边的边长阈值；
+				)
+	*/
+	Eigen::VectorXd edgesLen = edgeArrows.rowwise().norm();
 	unsigned versCount = vers.rows();
 	unsigned trisCount = tris.rows();
 	unsigned edgesCount = edges.rows();
 
-	// 暂时假设所有退化边都不互相邻接；
-	Eigen::VectorXi flags = (edgesLen.array() < threshold).select(Eigen::VectorXi::Ones(edgesCount), Eigen::VectorXi::Zero(edgesCount));
-	degCount = flags.sum();
+	Eigen::VectorXi flags = (edgesLen.array() <= threshold).select(Eigen::VectorXi::Ones(edgesCount), Eigen::VectorXi::Zero(edgesCount));
+	
+	return flags;
+}
+
+
+// 去除网格退化边（边长过短的边，将两个顶点融合）;
+template <typename DerivedV>
+int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::MatrixXi& newTris, \
+	const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& edgeArrows, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const Eigen::VectorXi& degEdgeFlags)
+{
+	/*
+		int mergeDegEdges(																				返回去除掉的顶点数，若失败则返回-1；
+				Eigen::PlainObjectBase<DerivedV>& newVers, 
+				Eigen::MatrixXi& newTris, 
+				const Eigen::MatrixXi& edges, 
+				const Eigen::PlainObjectBase<DerivedV>& edgeArrows, 
+				const Eigen::PlainObjectBase<DerivedV>& vers, 
+				const Eigen::MatrixXi& tris,	
+				const Eigen::VectorXi& degEdgeFlags								标记退化边的flag向量
+				)
+	
+	*/
+	int repVersCount = -1;
+	int* dataPtr = nullptr;
+	unsigned versCount = vers.rows();
+	unsigned trisCount = tris.rows();
+	unsigned edgesCount = edges.rows();
+
+	// 1. 提取退化有向边
+	int degCount = degEdgeFlags.sum();				// 退化有向边的数量
 	Eigen::MatrixXi degEdges;
-	subFromFlagVec(degEdges, edges, flags);
+	subFromFlagVec(degEdges, edges, degEdgeFlags);
 
 	// for debug:
-	Eigen::MatrixXd degEdgeVers;
-	std::unordered_set<int> tmpSet;
-	std::vector<int> degVerIdxes;
-
-	objWriteEdgesMat("E:/degEdges.obj", degEdges, vers);
-	for (unsigned i = 0; i < degCount; ++i)
+	if (1)
 	{
-		tmpSet.insert(degEdges(i, 0));
-		tmpSet.insert(degEdges(i, 1));
+		Eigen::MatrixXd degEdgeVers;
+		std::unordered_set<int> tmpSet;
+		std::vector<int> degVerIdxes;
+
+		objWriteEdgesMat("E:/degEdges.obj", degEdges, vers);
+		for (unsigned i = 0; i < degCount; ++i)
+		{
+			tmpSet.insert(degEdges(i, 0));
+			tmpSet.insert(degEdges(i, 1));
+		}
+		degVerIdxes.insert(degVerIdxes.end(), tmpSet.begin(), tmpSet.end());
+		subFromIdxVec(degEdgeVers, vers, degVerIdxes);
+		objWriteVerticesMat("E:/degEdgeVers.obj", degEdgeVers);
 	}
-	degVerIdxes.insert(degVerIdxes.end(), tmpSet.begin(), tmpSet.end());
-	subFromIdxVec(degEdgeVers, vers, degVerIdxes);
-	objWriteVerticesMat("E:/degEdgeVers.obj", degEdgeVers);
 
 	// 所有退化边中，保留索引较小的顶点，索引大的顶点改写为索引小的顶点：
 	Eigen::MatrixXi revDegEdges = degEdges;
@@ -2363,7 +2479,7 @@ int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::PlainObjectB
 			degEdges.row(i) = Eigen::RowVector2i(vbIdx, vaIdx);
 	}
 
-	std::list<std::set<int>> clusters(degCount);
+	std::list<std::set<int>> clusters;
 	for (unsigned i = 0; i < degCount; ++i)
 	{
 		int vaIdx = degEdges(i, 0);
@@ -2399,6 +2515,39 @@ int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::PlainObjectB
 		for (; iter != clusterSet.end(); ++iter)
 			clusterMap.insert({*iter, headIdx});
 	}
+
+	std::vector<int> repIdxes;							// 需要去除的顶点的索引；
+	repIdxes.reserve(degCount);
+	for (const auto& pair : clusterMap)
+		repIdxes.push_back(pair.second);
+	repIdxes.shrink_to_fit();
+	repVersCount = repIdxes.size();
+ 	
+	std::map<int, int> fullMap = clusterMap;
+	for (int i = 0; i < versCount; ++i)
+		fullMap.insert({i, i});
+
+	// 聚类映射：
+	Eigen::MatrixXi trisCopy = tris;
+	dataPtr = trisCopy.data();
+	for (unsigned i = 0;  i < 3 * trisCount; ++i ) 
+	{
+		int index = *dataPtr;
+		*dataPtr = fullMap[index];
+		dataPtr++;
+	}
+
+	// 删除非法三角片：
+	std::vector<unsigned> sickIdxes;
+	checkSickTris(sickIdxes, trisCopy);
+	removeTris(newTris, trisCopy, sickIdxes);
+ 
+	// 删除孤立顶点：
+	trisCopy = newTris;
+	std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, trisCopy);
+	newVers.resize(0, 0);
+	newTris.resize(0, 0);
+	removeIsoVers(newVers, newTris, vers, trisCopy, isoVerIdxes);
 
 	return degCount;
 }
