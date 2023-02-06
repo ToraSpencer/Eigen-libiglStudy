@@ -1391,11 +1391,9 @@ bool trisArea(Eigen::VectorXd& trisAreaVec, const Eigen::Matrix<Scalar, Eigen::D
 
 // 计算三角网格的体积：
 template<typename DerivedV, typename DerivedI>
-double meshVolume(const Eigen::MatrixBase<DerivedV>& V, const Eigen::MatrixBase<DerivedI>& T)
+double meshVolume(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris)
 {
 	double volume = -1.0;
-	const DerivedV& vers = V.derived();
-	const DerivedI& tris = T.derived();
 	unsigned versCount = vers.rows();
 	unsigned trisCount = tris.rows();
 	if (vers.cols() != 3 || tris.cols() != 3)

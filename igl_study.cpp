@@ -2599,7 +2599,7 @@ namespace IGL_BASIC_PMP
 	}
  
  
-	// marchingCubes算法中生成一个cube的三角片：
+	//		marchingCubes算法中生成一个cube的三角片：
 	template <typename DerivedGV, typename Scalar, typename Index, typename ScalarV, typename IndexF>
 	void handleCube(const DerivedGV& gridCenters, const Eigen::Matrix<Scalar, 8, 1>& cornerSDF, \
 		const Eigen::Matrix<Index, 8, 1>& cornerIdx, const Scalar& isovalue, \
@@ -2709,7 +2709,7 @@ namespace IGL_BASIC_PMP
 	}
 
 
-	// marchingCubes()——！！！还需要在最后去除重复顶点，太短的边。
+	//		marchingCubes()——！！！还需要在最后去除重复顶点，太短的边。
 	template <typename DerivedS, typename DerivedGV, typename ScalarV, typename IndexF>
 	bool marchingCubes(Eigen::Matrix<ScalarV, Eigen::Dynamic, Eigen::Dynamic>& versResult, \
 		Eigen::Matrix<IndexF, Eigen::Dynamic, Eigen::Dynamic>& trisResult, \
@@ -2806,9 +2806,10 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXd gridCenters;				//	 所有栅格中点坐标的矩阵，每行都是一个中点坐标；存储优先级是x, y, z
 		Eigen::MatrixXd	boxVers;				// 栅格对应的包围盒的顶点；
 		Eigen::MatrixXi boxTris;
+		double selectedSDF =0;
 
 		// 0. 解析SDFGen.exe生成的.sdf距离场数据文件：
-		const char* sdfFilePath = "E:/jawMeshUnionRepair1.sdf";
+		const char* sdfFilePath = "E:/材料/cube.sdf";
 		double SDFstep = IGL_BASIC::parseSDF(stepCounts, gridsOri, SDF, sdfFilePath);
 
 		// 1. 生成栅格：
@@ -2869,11 +2870,11 @@ namespace IGL_BASIC_PMP
 		tiktok& tt = tiktok::getInstance();
 		MatrixXd versResult_SDF, versResults_signs, versResult_origin;
 		MatrixXi trisResult_SDF, trisResults_signs, trisResult_origin;
-		double selectedSDF = -1.5;
 		tt.start();
 		marchingCubes(versResult_SDF, trisResult_SDF, SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF);
 		tt.endCout("Elapsed time of igl::marching_cubes() is ");
 		igl::writeOBJ("E:/shrinkedMesh.obj", versResult_SDF, trisResult_SDF);
+		std::cout << "output mesh volume is " << meshVolume(versResult_SDF, trisResult_SDF) << std::endl;
 
 		// 原始的marching cubes
 		versResult_SDF.resize(0, 0);
@@ -2881,7 +2882,6 @@ namespace IGL_BASIC_PMP
 		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
 		igl::writeOBJ("E:/shrinkedMeshOri.obj", versResult_SDF, trisResult_SDF);
  
-
 		std::cout << "finished." << std::endl;
 	}
 

@@ -3,8 +3,14 @@
 #include "scientific_calc.h"
 #include "igl_study.h"
 #include <iomanip>
+#include <winuser.h>
+ 
+#include<stdio.h>
+#include<assert.h>
 
 #define DATA_PATH "./data/"
+
+ 
 
 // 当前问题-easy
 /*
@@ -607,7 +613,7 @@ int main()
 	// IGL_DIF_GEO::test1();
 	// IGL_GRAPH::test1();
 	// IGL_SPACE_PARTITION::test0();
-	// IGL_BASIC_PMP::test4();
+	IGL_BASIC_PMP::test4();
 
 	// SCIENTIFICCALC::test7();
 	// TEST_PMP::test3();
@@ -619,9 +625,8 @@ int main()
 
 	// TEMP_TEST::test1();
 
-	MESH_REPAIR::test0();
-
-
+	// MESH_REPAIR::test0();
+ 
 
 	std::cout << "main() finished." << std::endl;
 }
