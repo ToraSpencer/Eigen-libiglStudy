@@ -610,10 +610,10 @@ int main()
 	// SPARSEMAT::test0();
 
 	// IGL_BASIC::test55();
-	// IGL_DIF_GEO::test1();
+	IGL_DIF_GEO::test1();
 	// IGL_GRAPH::test1();
 	// IGL_SPACE_PARTITION::test0();
-	IGL_BASIC_PMP::test4();
+	// IGL_BASIC_PMP::test4();
 
 	// SCIENTIFICCALC::test7();
 	// TEST_PMP::test3();

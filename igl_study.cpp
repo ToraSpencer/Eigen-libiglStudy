@@ -1769,7 +1769,7 @@ namespace IGL_DIF_GEO
 		//igl::readOBJ("./data/bunny.obj", vers, tris);
 		//deltaLB = 0.001;
 
-		igl::readOBJ("E:/²ÄÁÏ/ÀÖÜ¿ÓèInnerSmoothed.obj", vers, tris);
+		igl::readOBJ("E:/²ÄÁÏ/jawMesh.obj", vers, tris);
 		deltaLB = 0.1;
 
 		newVers = vers;
