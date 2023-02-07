@@ -2799,6 +2799,8 @@ namespace IGL_BASIC_PMP
 	// test4——测试生成栅格、marchingCubes算法：
 	void test4()
 	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
 		std::vector<int> stepCounts(3);				// xyz三个维度上栅格数
 		Eigen::RowVector3d gridsOri;					// 栅格原点：
 		Eigen::VectorXd SDF;
@@ -2806,65 +2808,72 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXd gridCenters;				//	 所有栅格中点坐标的矩阵，每行都是一个中点坐标；存储优先级是x, y, z
 		Eigen::MatrixXd	boxVers;				// 栅格对应的包围盒的顶点；
 		Eigen::MatrixXi boxTris;
-		double selectedSDF =0;
+		double selectedSDF =0;						// 提取的水平集对应的距离场值；
 
 		// 0. 解析SDFGen.exe生成的.sdf距离场数据文件：
-		const char* sdfFilePath = "E:/材料/cube.sdf";
-		double SDFstep = IGL_BASIC::parseSDF(stepCounts, gridsOri, SDF, sdfFilePath);
+		std::string fileName = "E:/材料/cube";
+		std::string sdfFilePath = fileName + std::string{".sdf"};
+		std::string objFilePath = fileName + std::string{".obj"};
+		double SDFstep = IGL_BASIC::parseSDF(stepCounts, gridsOri, SDF, sdfFilePath.c_str());
+		igl::readOBJ(objFilePath, vers, tris);
+		igl::writeOBJ("E:/meshInput.obj", vers, tris);
 
 		// 1. 生成栅格：
 		Eigen::RowVector3d minp = gridsOri;
-		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCounts[0], stepCounts[1], stepCounts[2]);
+		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCounts[0] - 1, stepCounts[1] - 1, stepCounts[2] - 1);
 		Eigen::AlignedBox<double, 3> box(minp, maxp);		// 栅格对应的包围盒；
 		genGrids(box, std::max({ stepCounts[0], stepCounts[1], stepCounts[2] }), 0, gridCenters, gridCounts);
 		genAABBmesh(box, boxVers, boxTris);
 		objWriteMeshMat("E:/AABB.obj", boxVers, boxTris);
 
-		// 栅格数据的分布：
-		/*
-			按索引增大排列的栅格中心点为：
-			gc(000), gc(100), gc(200), gc(300),...... gc(010), gc(110), gc(210), gc(310),...... gc(001), gc(101), gc(201).....
+		{
+			//			栅格数据的分布：
+			/*
+				按索引增大排列的栅格中心点为：
+				gc(000), gc(100), gc(200), gc(300),...... gc(010), gc(110), gc(210), gc(310),...... gc(001), gc(101), gc(201).....
 
 
-			x坐标：
-			x0, x1, x2, x3......x0, x1, x2, x3......x0, x1, x2, x3......
-			周期为xCount;
-			重复次数为(yCount * zCount)
+				x坐标：
+				x0, x1, x2, x3......x0, x1, x2, x3......x0, x1, x2, x3......
+				周期为xCount;
+				重复次数为(yCount * zCount)
 
-			y坐标：
-			y0, y0, y0...y1, y1, y1...y2, y2, y2.........y0, y0, y0...y1, y1, y1...
-			周期为(xCount * yCount);
-			重复次数为zCount;
-			单个元素重复次数为xCount
+				y坐标：
+				y0, y0, y0...y1, y1, y1...y2, y2, y2.........y0, y0, y0...y1, y1, y1...
+				周期为(xCount * yCount);
+				重复次数为zCount;
+				单个元素重复次数为xCount
 
-			z坐标：
-			z0, z0, z0......z1, z1, z1......z2, z2, z2......
-			单个元素重复次数为(xCount * yCount)
-		*/
-		Eigen::MatrixXd gridCenters0;				// for try——尝试自己生成栅格数据：
-		Eigen::RowVector3i gridCounts0{stepCounts[0], stepCounts[1], stepCounts[2]};
-		Eigen::VectorXd xPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(0), minp(0), maxp(0));
-		Eigen::VectorXd yPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(1), minp(1), maxp(1));
-		Eigen::VectorXd zPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(2), minp(2), maxp(2));
+				z坐标：
+				z0, z0, z0......z1, z1, z1......z2, z2, z2......
+				单个元素重复次数为(xCount * yCount)
+			*/
+			Eigen::MatrixXd gridCenters0;				// for try——尝试自己生成栅格数据：
+			Eigen::RowVector3i gridCounts0{ stepCounts[0], stepCounts[1], stepCounts[2] };
+			Eigen::VectorXd xPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(0), minp(0), maxp(0));
+			Eigen::VectorXd yPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(1), minp(1), maxp(1));
+			Eigen::VectorXd zPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(2), minp(2), maxp(2));
 
-		Eigen::MatrixXd tmpVec0, tmpVec1, tmpVec2;
-		kron(tmpVec0, VectorXd::Ones(gridCounts(1) * gridCounts(2)), xPeriod);
-		Eigen::VectorXd tmpVec11 = kron(yPeriod, VectorXi::Ones(gridCounts(0)));
-		kron(tmpVec1, VectorXi::Ones(gridCounts(2)), tmpVec11);
-		kron(tmpVec2, zPeriod, VectorXd::Ones(gridCounts(0) * gridCounts(1)));
-		gridCenters0.resize(stepCounts[0]* stepCounts[1] * stepCounts[2], 3);
-		gridCenters0.col(0) = tmpVec0;
-		gridCenters0.col(1) = tmpVec1;
-		gridCenters0.col(2) = tmpVec2;
+			Eigen::MatrixXd tmpVec0, tmpVec1, tmpVec2;
+			kron(tmpVec0, VectorXd::Ones(gridCounts(1) * gridCounts(2)), xPeriod);
+			Eigen::VectorXd tmpVec11 = kron(yPeriod, VectorXi::Ones(gridCounts(0)));
+			kron(tmpVec1, VectorXi::Ones(gridCounts(2)), tmpVec11);
+			kron(tmpVec2, zPeriod, VectorXd::Ones(gridCounts(0) * gridCounts(1)));
+			gridCenters0.resize(stepCounts[0] * stepCounts[1] * stepCounts[2], 3);
+			gridCenters0.col(0) = tmpVec0;
+			gridCenters0.col(1) = tmpVec1;
+			gridCenters0.col(2) = tmpVec2;
 
-		// 提取栅格中SDF值小于0的顶点：
-		Eigen::MatrixXd tmpVers(SDF.rows(), 3);
-		int index = 0;
-		for (int i = 0; i<SDF.rows(); ++i) 
-			if (SDF(i) <= 0)
-				tmpVers.row(index++) = gridCenters0.row(i);
-		tmpVers.conservativeResize(index, 3);
-		igl::writeOBJ("E:/tmpVers.obj", tmpVers, Eigen::MatrixXi{});
+			//				提取栅格中SDF值小于0的顶点：
+			Eigen::MatrixXd tmpVers(SDF.rows(), 3);
+			int index = 0;
+			for (int i = 0; i < SDF.rows(); ++i)
+				if (SDF(i) <= 0)
+					tmpVers.row(index++) = gridCenters0.row(i);
+			tmpVers.conservativeResize(index, 3);
+			igl::writeOBJ("E:/tmpVers.obj", tmpVers, Eigen::MatrixXi{});
+		}
+
 
 		// 2. marching cubes算法生成最终曲面：
 		tiktok& tt = tiktok::getInstance();
