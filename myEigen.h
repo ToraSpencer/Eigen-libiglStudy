@@ -2551,6 +2551,46 @@ int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::MatrixXi& ne
 }
 
 
+
+//////////////////////////////////////////////////////////////////////////////////////////////// 图像处理相关：
+
+// 矩阵的空域线性滤波——！！！注：滤波mask尺寸必须为奇数！！！
+template<typename T>
+bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOut, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matIn, \
+	const Eigen::MatrixXd& mask)
+{
+	unsigned rows = matIn.rows();
+	unsigned cols = matIn.cols();
+	matOut.resize(rows, cols);
+	matOut.setZero(rows, cols);
+
+	unsigned sizeMask = mask.rows();
+	unsigned im = (sizeMask + 1) / 2;					// 掩膜中心的下标；
+	unsigned km = im;
+	unsigned offset = (sizeMask - 1) / 2;
+
+	// 1. 生成拓展矩阵：
+	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> matExt = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>::Zero(rows + 2*offset, cols + 2 * offset);
+	matExt.block(offset, offset, rows, cols) = matIn;
+
+	// 2. 滑动领域操作：
+	PARALLEL_FOR(0, rows, [&](int i)
+		{
+			for (unsigned k = 0; k < cols; ++k)
+			{
+				unsigned ie = i + offset;					// 此时mask中心元素在matExt中的位置下标；
+				unsigned ke = k + offset;
+				Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> coveredElems = matExt.block(ie - offset, ke - offset, sizeMask, sizeMask);
+				Eigen::MatrixXd tmpMat = coveredElems.array().cast<double>().array() * mask.array();
+				matOut(i, k) = static_cast<T>(tmpMat.sum());
+			}
+		});
+ 
+
+	return true;
+}
+ 
+
 // 自定义计时器，使用WINDOWS计时API
 class tiktok
 {
@@ -2618,6 +2658,14 @@ namespace TEST_MYEIGEN
 	void test14();
 	void test15();
 	void test16();
+}
+
+
+// 数字图像处理
+namespace TEST_DIP 
+{
+	void test0();
+
 }
 
 

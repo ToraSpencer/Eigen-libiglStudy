@@ -180,7 +180,7 @@ namespace MESH_REPAIR
 		Eigen::MatrixXd vers, edgeArrows;
 		Eigen::MatrixXi tris, edges;
 		bool retFlag = true;
-		objReadMeshMat(vers, tris, "E:/meshInnerRev.obj");
+		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense_qslim_meshFixed.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		const unsigned versCount = vers.rows();
@@ -606,14 +606,14 @@ namespace TEMP_TEST
 
 int main()
 {
-	// DENSEMAT::test7();
+	// DENSEMAT::test8();
 	// SPARSEMAT::test0();
 
 	// IGL_BASIC::test55();
 	// IGL_DIF_GEO::test1();
 	// IGL_GRAPH::test1();
 	// IGL_SPACE_PARTITION::test0();
-	IGL_BASIC_PMP::test4();
+	// IGL_BASIC_PMP::test4();
 
 	// SCIENTIFICCALC::test7();
 	// TEST_PMP::test3();
@@ -625,8 +625,10 @@ int main()
 
 	// TEMP_TEST::test1();
 
-	// MESH_REPAIR::test0();
+	MESH_REPAIR::test0();
  
+
+	//TEST_DIP::test0();
 
 	std::cout << "main() finished." << std::endl;
 }

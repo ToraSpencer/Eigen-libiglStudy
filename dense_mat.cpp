@@ -600,17 +600,22 @@ namespace DENSEMAT
 	void test8()
 	{
 		// 矩阵的reshape——使用Eigen::Map类实现。
-		MatrixXf	m1(4, 4);
+		Eigen::MatrixXf	m1(4, 4);
 		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16;
 		m1.transposeInPlace();
-		Eigen::Map<MatrixXf>  m11(m1.data(), 8, 2);			// reshape时元素是按存储顺序获取的，默认即按列获取。
+		Eigen::Map<Eigen::MatrixXf>  m11(m1.data(), 8, 2);			// reshape时元素是按存储顺序获取的，默认即按列获取。
 		std::cout << "reshape之前：m1 == \n" << m1 << std::endl << std::endl;
 		std::cout << "reshape之后：m11 == \n" << m11 << std::endl << std::endl;
 		std::cout << "typeid(m11).name()  == " << typeid(m11).name() << std::endl;
 
-		Eigen::MatrixXf m111{ Eigen::Map<MatrixXf>(m1.data(), 1, 16) };
+		Eigen::MatrixXf m111{ Eigen::Map<Eigen::MatrixXf>(m1.data(), 1, 16) };
 		std::cout << "m111 == \n" << m111 << std::endl << std::endl;
 		std::cout << "typeid(m111).name()  == " << typeid(m111).name() << std::endl;
+
+		Eigen::VectorXf v1 = Eigen::Map<Eigen::VectorXf>(m1.data(), 16, 1);
+		dispVec(v1);
+
+		std::cout << "finished." << std::endl;
 	}
 
 
@@ -784,9 +789,7 @@ namespace DENSEMAT
 		mm1.setRandom();
 		std::cout << "mm1 == \n" << mm1 << std::endl;
 		for (const auto& num : intArr)
-		{
 			std::cout << num << ", ";
-		}
 		std::cout << std::endl << std::endl;
 
 		// 不希望改变原数组中的数据的话，可以映射成常数矩阵：

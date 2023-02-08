@@ -858,3 +858,25 @@ namespace TEST_MYEIGEN
 	}
 
 }
+
+
+namespace TEST_DIP
+{
+	void test0()
+	{
+		Eigen::MatrixXi mat1(9, 9);
+		mat1.setRandom();
+		
+		Eigen::MatrixXd mask(3, 3);
+		mask.setOnes();
+
+		Eigen::MatrixXi matOut;
+		linearSpatialFilter(matOut, mat1, mask);
+
+		dispMat(mat1);
+		dispMat(matOut);
+
+		std::cout << "finished." << std::endl;
+	}
+
+}

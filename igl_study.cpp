@@ -2799,6 +2799,7 @@ namespace IGL_BASIC_PMP
 	// test4——测试生成栅格、marchingCubes算法：
 	void test4()
 	{
+		tiktok& tt = tiktok::getInstance();
 		Eigen::MatrixXd vers;
 		Eigen::MatrixXi tris;
 		std::vector<int> stepCounts(3);				// xyz三个维度上栅格数
@@ -2808,15 +2809,35 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXd gridCenters;				//	 所有栅格中点坐标的矩阵，每行都是一个中点坐标；存储优先级是x, y, z
 		Eigen::MatrixXd	boxVers;				// 栅格对应的包围盒的顶点；
 		Eigen::MatrixXi boxTris;
-		double selectedSDF =0;						// 提取的水平集对应的距离场值；
+		double selectedSDF = 0.75;						// 提取的水平集对应的距离场值；
 
 		// 0. 解析SDFGen.exe生成的.sdf距离场数据文件：
-		std::string fileName = "E:/材料/cube";
-		std::string sdfFilePath = fileName + std::string{".sdf"};
-		std::string objFilePath = fileName + std::string{".obj"};
+		std::string fileName = "E:/材料/jawMesh6";
+		std::string sdfFilePath = fileName + std::string{ ".sdf" };
+		std::string objFilePath = fileName + std::string{ ".obj" };
 		double SDFstep = IGL_BASIC::parseSDF(stepCounts, gridsOri, SDF, sdfFilePath.c_str());
+		int xCount = stepCounts[0];
+		int yCount = stepCounts[1];
+		int zCount = stepCounts[2];
 		igl::readOBJ(objFilePath, vers, tris);
 		igl::writeOBJ("E:/meshInput.obj", vers, tris);
+
+		// 0. 距离场高斯滤波	：
+		tt.start();
+		Eigen::MatrixXd maskGauss(3, 3);
+		maskGauss << 0.0113, 0.0838, 0.0113, 0.0838, 0.6193, 0.0838, 0.0113, 0.0838, 0.0113;
+		int sliceSize = xCount * yCount;
+		/*PARALLEL_FOR(0, zCount, [&](int i)*/
+		for(int i = 0; i<zCount; ++i)
+			{
+				Eigen::VectorXd slice = SDF.segment(sliceSize * i, sliceSize);
+				Eigen::MatrixXd sliceMat = Eigen::Map<Eigen::MatrixXd>(slice.data(), xCount, yCount);
+				Eigen::MatrixXd filteredMat;
+				linearSpatialFilter(filteredMat, sliceMat, maskGauss);
+				slice = Eigen::Map<Eigen::VectorXd>(filteredMat.data(), sliceSize, 1);
+				SDF.segment(sliceSize * i, sliceSize) = slice;
+			}
+		tt.endCout("elapsed time of gaussian filtering is : ");
 
 		// 1. 生成栅格：
 		Eigen::RowVector3d minp = gridsOri;
@@ -2874,21 +2895,20 @@ namespace IGL_BASIC_PMP
 			igl::writeOBJ("E:/tmpVers.obj", tmpVers, Eigen::MatrixXi{});
 		}
 
-
 		// 2. marching cubes算法生成最终曲面：
-		tiktok& tt = tiktok::getInstance();
 		MatrixXd versResult_SDF, versResults_signs, versResult_origin;
 		MatrixXi trisResult_SDF, trisResults_signs, trisResult_origin;
 		tt.start();
 		marchingCubes(versResult_SDF, trisResult_SDF, SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF);
-		tt.endCout("Elapsed time of igl::marching_cubes() is ");
+		tt.endCout("Elapsed time of my marching_cubes() is ");
 		igl::writeOBJ("E:/shrinkedMesh.obj", versResult_SDF, trisResult_SDF);
-		std::cout << "output mesh volume is " << meshVolume(versResult_SDF, trisResult_SDF) << std::endl;
 
 		// 原始的marching cubes
 		versResult_SDF.resize(0, 0);
 		trisResult_SDF.resize(0, 0);
+		tt.start();
 		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
+		tt.endCout("Elapsed time of igl::marching_cubes() is ");
 		igl::writeOBJ("E:/shrinkedMeshOri.obj", versResult_SDF, trisResult_SDF);
  
 		std::cout << "finished." << std::endl;
