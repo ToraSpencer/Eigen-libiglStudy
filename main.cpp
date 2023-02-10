@@ -128,16 +128,19 @@ namespace DECIMATION
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
-		std::string fileName = "E:/材料/jawMeshDense.obj";
-		igl::readOBJ(fileName, vers, tris);
+		std::string filePath = "E:/材料/";
+		std::string fileName = "jawMeshDense2";
+		igl::readOBJ(filePath + fileName + std::string{".obj"}, vers, tris);
 
 		int trisCount = tris.rows();
-		int tarTrisCount = std::round(0.6397 * trisCount);
-		Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
+		int tarTrisCount = 50000;						// 精简目标三角片50000个；
+		Eigen::VectorXi newOldTrisInfo;				// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
 		Eigen::VectorXi newOldVersInfo;
-		igl::qslim(vers, tris, tarTrisCount, versOut, trisOut, newOldTrisInfo, newOldVersInfo);
+		if (!igl::qslim(vers, tris, tarTrisCount, versOut, trisOut, newOldTrisInfo, newOldVersInfo))
+			std::cout << "igl::qslim() failed!!!" << std::endl;
 
-		igl::writeOBJ("E:/meshSimplified_qslim.obj", versOut, trisOut);
+		std::string fileOutPath = "E:/";
+		igl::writeOBJ(fileOutPath + fileName + std::string{"_qslim_isct.obj"}, versOut, trisOut);
  
 
 		std::cout << "finished." << std::endl;
@@ -619,16 +622,15 @@ int main()
 	// TEST_PMP::test3();
 	// IGL_MATH::test1();
 
-	// DECIMATION::test0();
+	DECIMATION::test0();
 
 	// TEST_MYEIGEN::test3();
 
 	// TEMP_TEST::test1();
 
-	MESH_REPAIR::test0();
+	// MESH_REPAIR::test0();
  
-
-	//TEST_DIP::test0();
+	// TEST_DIP::test0();
 
 	std::cout << "main() finished." << std::endl;
 }

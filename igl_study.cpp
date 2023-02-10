@@ -2530,7 +2530,7 @@ namespace IGL_BASIC_PMP
 	}
 
 
-	//		输入AABB，生成栅格：
+	//		输入AABB，生成栅格；——from libigl
 	template <typename Scalar, typename DerivedV,	typename DerivedI>
 	bool genGrids(const Eigen::AlignedBox<Scalar, 3>& box, const int largestCount,	const int pad_count,\
 			Eigen::PlainObjectBase<DerivedV>& gridCenters, Eigen::PlainObjectBase<DerivedI>& gridCounts)
@@ -2558,10 +2558,8 @@ namespace IGL_BASIC_PMP
 		const Scalar largestCount0 = largestCount - 2 * pad_count;
 		gridCounts(maxCompIdx) = largestCount0;
 		for (int i = 0; i < 3; i++)
-		{
 			if (i != maxCompIdx)
 				gridCounts(i) = std::ceil(largestCount0 * (box.diagonal()(i)) / maxComp);
-		}
 		gridCounts.array() += 2 * pad_count;
 
 		// 3. 计算gridCenters;

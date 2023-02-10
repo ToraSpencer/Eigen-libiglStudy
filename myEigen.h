@@ -2551,6 +2551,68 @@ int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::MatrixXi& ne
 }
 
 
+// 生成栅格点云
+template<typename T>
+bool genGrids(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, const Eigen::Matrix<T, 1, 3>& origin, \
+		const float step, const std::vector<unsigned>& gridCounts)
+{
+	/*
+		bool genGrids(
+			Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& gridCenters,			// 输出的栅格点云
+			const Eigen::Matrix<T, 1, 3>& origin,														// 栅格原点，即三轴坐标最小的那个栅格点；
+			const float step,																						// 采样步长
+			const std::vector<unsigned>& gridCounts											// 三元数组，分别是XYZ三轴上的步数；
+			)	
+	*/
+
+	using VectorXT = Eigen::Matrix<T, Eigen::Dynamic, 1>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+
+	// 整个距离场的包围盒：
+	RowVector3T minp = origin;
+	RowVector3T maxp = origin + step * RowVector3T(gridCounts[0] - 1, gridCounts[1] - 1, gridCounts[2] - 1);
+
+	// 生成栅格：
+	/*
+		按索引增大排列的栅格中心点为：
+		gc(000), gc(100), gc(200), gc(300),...... gc(010), gc(110), gc(210), gc(310),...... gc(001), gc(101), gc(201).....
+
+		x坐标：
+		x0, x1, x2, x3......x0, x1, x2, x3......x0, x1, x2, x3......
+		周期为xCount;
+		重复次数为(yCount * zCount)
+
+		y坐标：
+		y0, y0, y0...y1, y1, y1...y2, y2, y2.........y0, y0, y0...y1, y1, y1...
+		周期为(xCount * yCount);
+		重复次数为zCount;
+		单个元素重复次数为xCount
+
+		z坐标：
+		z0, z0, z0......z1, z1, z1......z2, z2, z2......
+		单个元素重复次数为(xCount * yCount)
+	*/
+	VectorXT xPeriod = VectorXT::LinSpaced(gridCounts[0], minp(0), maxp(0));
+	VectorXT yPeriod = VectorXT::LinSpaced(gridCounts[1], minp(1), maxp(1));
+	VectorXT zPeriod = VectorXT::LinSpaced(gridCounts[2], minp(2), maxp(2));
+
+	MatrixXT tmpVec0, tmpVec1, tmpVec2, tmpVec11;
+	kron(tmpVec0, VectorXT::Ones(gridCounts[1] * gridCounts[2]), xPeriod);
+	kron(tmpVec11, yPeriod, VectorXT::Ones(gridCounts[0]));
+	kron(tmpVec1, VectorXT::Ones(gridCounts[2]), tmpVec11);
+	kron(tmpVec2, zPeriod, VectorXT::Ones(gridCounts[0] * gridCounts[1]));
+	gridCenters.resize(gridCounts[0] * gridCounts[1] * gridCounts[2], 3);
+	gridCenters.col(0) = tmpVec0;
+	gridCenters.col(1) = tmpVec1;
+	gridCenters.col(2) = tmpVec2;
+
+	return true;
+}
+
+
+
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////// 图像处理相关：
 

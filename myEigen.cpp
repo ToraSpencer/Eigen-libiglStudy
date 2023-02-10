@@ -561,69 +561,7 @@ bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, 
 			{
 				edgesIdx_MN_NB_opp.push_back(adjSM_weighted_opp.coeffRef(iter.row(), iter.col()));
 			});
-	}
-
-	// 2+.通过边计数来判断当前网格是否正常：
-	{
-#ifdef LOCAL_DEBUG
-		tt.start();
-
-		std::unordered_map<std::int64_t, unsigned> eCountMap;
-		std::unordered_map<std::int64_t, unsigned> ueCountMap;
-
-		// 遍历有向边计数邻接表：
-		traverseSparseMatrix(adjSM_eCount, [&](auto& iter)
-			{
-				std::int64_t edgeCode = encodeEdge(iter.row(), iter.col());
-				eCountMap.insert({ edgeCode, iter.value() });
-			});
-
-		// 遍历无向边计数邻接表：
-		traverseSparseMatrix(adjSM_ueCount, [&](auto& iter)
-			{
-				std::int64_t edgeCode = encodeEdge(iter.row(), iter.col());
-				ueCountMap.insert({ edgeCode, iter.value() });
-			});
-
-		// 查表:
-		std::vector<int> sickEdgeVerIdxes;
-		std::vector<std::pair<unsigned, unsigned>> sickCount;
-		sickEdgeVerIdxes.reserve(this->m_meshVers.size());
-		sickCount.reserve(this->m_meshVers.size());
-		for (const auto& pair : ueCountMap)
-		{
-			std::int64_t edgeCode = pair.first;
-			unsigned ueCount = pair.second;
-			unsigned eCount = eCountMap[edgeCode];
-			bool mnFlag = (eCount == 1 && ueCount == 2);						// 流形边
-			bool normalNMNflag = (eCount == 2 && ueCount == 4);		// 合理的非流形边；
-
-			if (!(mnFlag || normalNMNflag))			// 边缘边：(eCount == 1 && ueCount == 1), (eCount == 0, ueCount == 1)也视为不合理；
-			{
-				std::pair<int, int> sickVers = decodeEdge(edgeCode);
-				sickEdgeVerIdxes.push_back(sickVers.first);
-				sickEdgeVerIdxes.push_back(sickVers.second);
-				sickCount.push_back({ eCount, ueCount });
-			}
-		}
-		sickEdgeVerIdxes.shrink_to_fit();
-		sickCount.shrink_to_fit();
-
-		if (!sickEdgeVerIdxes.empty())
-		{
-			// 打印异常的边
-			Eigen::VectorXi sickEdgeVersVec = vec2Vec<int, -1>(sickEdgeVerIdxes);
-			Eigen::MatrixXi sickEdges = Eigen::Map<Eigen::MatrixXi>(sickEdgeVersVec.data(), 2, sickEdgeVersVec.size() / 2).transpose();
-			objWriteEdgesMat("E:/sickEdges.obj", sickEdges, this->m_meshVers);
-			std::cout << "unnormal edge detected!" << std::endl;
-			tt.endCout("Elapsed time of step 2+ is : ");
-			return false;
-		}
-
-		tt.endCout("Elapsed time of step 2+ is : ");
-#endif
-	}
-
+	} 
 
 	// 3. 流形边-三角片邻接关系，三角片邻接关系：
 	{
