@@ -82,6 +82,7 @@
 #include <igl/shortest_edge_and_midpoint.h>
 #include <igl/max_faces_stopping_condition.h>
 #include <igl/qslim_optimal_collapse_edge_callbacks.h>
+#include <igl/hausdorff.h>
 
 #include <igl/winding_number.h>
 

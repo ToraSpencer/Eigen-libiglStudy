@@ -1,7 +1,7 @@
 #include "scientific_calc.h"
 
 
-extern igl::opengl::glfw::Viewer viewer;				// libigl中的基于glfw的显示窗口；
+static igl::opengl::glfw::Viewer viewer;				// libigl中的基于glfw的显示窗口；
 
 namespace SCIENTIFICCALC
 {
