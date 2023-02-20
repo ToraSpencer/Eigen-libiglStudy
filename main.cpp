@@ -1422,7 +1422,7 @@ int main()
 	// DENSEMAT::test8();
 	// SPARSEMAT::test0();
 
-	DECIMATION::test0000();
+	// DECIMATION::test0000();
 
 
 	// IGL_DIF_GEO::test1();
@@ -1437,7 +1437,7 @@ int main()
 
 	// DECIMATION::test0();
 
-	// TEST_MYEIGEN::test3();
+	TEST_MYEIGEN::test4();
 
 	// TEMP_TEST::test1();
 

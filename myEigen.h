@@ -27,6 +27,56 @@ using namespace std;
 using namespace Eigen;
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////// basic math interface
+
+//		二维笛卡尔坐标系转换为极坐标系
+template <typename T>
+std::pair<double, double> cart2polar(const T x, const T y)
+{
+	// theta坐标范围为[0, 2*pi]；
+	double x0 = static_cast<double>(x);
+	double y0 = static_cast<double>(y);
+	const double pi = 3.14159;
+	double eps = 10e-9;
+
+	double radius = std::sqrt(x0 * x0 + y0 * y0);
+
+	if (std::abs(x0) < eps)
+	{
+		if (std::abs(y0) < eps)
+			return { radius, NAN };
+		else if (y > 0)
+			return { radius, pi / 2 };
+		else
+			return { radius, 3 * pi / 2 };
+	}
+
+	if (std::abs(y0) < eps)
+	{
+		if (x > 0)
+			return { radius, 0 };
+		else
+			return { radius, -pi };
+	}
+
+	// 若radius接近0， 将其对应的theta置0；
+	if (radius < eps)
+		return { 0, 0 };
+
+	double theta = std::acos(x / radius);
+	if (y < 0)
+		theta = 2 * pi - theta;
+
+	return { radius, theta };
+}
+
+
+template <typename T>
+std::pair<double, double> polar2cart(const T radius, const T theta)
+{
+	return { radius * cos(theta), radius * sin(theta) };
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////// 控制台打印接口
 
 // 并行for循环
@@ -190,6 +240,12 @@ auto disp = [](const T& arg)
 {
 	cout << arg << ", ";
 };
+
+template <typename T1, typename T2>
+void dispPair(const std::pair<T1, T2>& pair) 
+{
+	std::cout << "(" << pair.first << ", " << pair.second << ")" << std::endl;
+}
 
 
 template<typename T>

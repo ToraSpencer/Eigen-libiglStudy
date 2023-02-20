@@ -795,6 +795,15 @@ namespace TEST_MYEIGEN
 		std::cout << "finished." << std::endl;
 	}
 
+
+	// 测试基本数学接口
+	void test4()
+	{
+		dispPair(cart2polar(5.0, -5.0));
+		dispPair(polar2cart(20.0, 3.14159/3));
+
+		std::cout << "finished." << std::endl;
+	}
 }
 
 
