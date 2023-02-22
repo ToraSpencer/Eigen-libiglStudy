@@ -12,6 +12,7 @@
 
 static igl::opengl::glfw::Viewer viewer;				// 全局的网格查看器对象；
 static std::mutex g_mutex;						// 全局的互斥锁；
+static std::string g_debugPath;
 
 // 当前问题-easy
 /*
@@ -27,7 +28,6 @@ static std::mutex g_mutex;						// 全局的互斥锁；
 
 
 */
-
 
 
 // 项目信息
@@ -55,35 +55,9 @@ static std::mutex g_mutex;						// 全局的互斥锁；
 */
 
 
-// 测试并行for循环PARALLEL_FOR()
-void test0() 
-{
-	tiktok& tt = tiktok::getInstance();
-	const unsigned colsCount = 500000;
-	Eigen::MatrixXd m1{ Eigen::MatrixXd::Random(100, colsCount) };
-	Eigen::VectorXd sumVec(colsCount);
-	auto myPlus = [&](const unsigned colIdx)
-	{
-		Eigen::VectorXd colVec = m1.col(colIdx);
-		sumVec(colIdx) = colVec.sum();
-	};
 
-	tt.start();
-	for (unsigned i = 0; i < colsCount; ++i)
-	{
-		Eigen::VectorXd colVec = m1.col(i);
-		sumVec(i) = colVec.sum();
-	}
-	tt.endCout("regular for-loop time comsumed: ");
-
-	tt.start();
-	PARALLEL_FOR(0, colsCount, myPlus);
-	tt.endCout("PARALLEL_FOR loop time comsumed: ");
-
-	std::cout << "finished." << std::endl;
-}
-
-
+/// /////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
+ 
 template <typename T, int M, int N>
 void dispData(const Eigen::Matrix<T, M, N>& m)
 {
@@ -118,6 +92,32 @@ void dispElem(const Eigen::MatrixBase<Derived>& m)
 {
 	const Derived& mm = m.derived();
 	std::cout << mm(1, 1) << std::endl;
+}
+
+
+template<typename DerivedV>
+static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+{
+	char path[512] = { 0 };
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+	objWriteVerticesMat(path, vers);
+}
+
+
+template<typename T>
+static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const MatrixXi& tris)
+{
+	char path[512] = { 0 };
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+	objWriteMeshMat(path, vers, tris);
+}
+
+
+static void debugWriteMesh(const char* name, T_MESH::Basic_TMesh& mesh)
+{
+	char path[512] = { 0 };
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+	mesh.save(path);
 }
 
 
@@ -987,13 +987,13 @@ namespace DECIMATION
 // 网格缺陷的检测和修复：
 namespace MESH_REPAIR 
 {
-	// 检测网格边缘边、非流形边、孤立点、重复点等缺陷：
+	// 检测网格边缘边、非流形边、孤立点、重复点、洞等缺陷：
 	void test0() 
 	{
 		Eigen::MatrixXd vers, edgeArrows;
 		Eigen::MatrixXi tris, edges;
 		bool retFlag = true;
-		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense_qslim_meshFixed.obj");
+		objReadMeshMat(vers, tris, "E:/beforeHoleFilling.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		const unsigned versCount = vers.rows();
@@ -1020,6 +1020,9 @@ namespace MESH_REPAIR
 			subFromIdxVec(bdryTris, tris, bdryTriIdxes);
 			objWriteEdgesMat("E:/bdry.obj", bdrys, vers);
 			objWriteMeshMat("E:/bdryTris.obj", vers, bdryTris);
+
+			// 1.1 若存在边缘，找洞：
+
 		}
 
 		// 2. 检测非流形有向边：
@@ -1390,11 +1393,133 @@ namespace MESH_REPAIR
 
 		std::cout << "finished." << std::endl;
 	}
+
+
+	// MeshFix——不能输入非流形网格，否则修复阶段可能会死循环；
+	void test4()
+	{
+		T_MESH::TMesh::init();												// ？？？This is mandatory
+		T_MESH::Basic_TMesh mesh;
+		mesh.load("E:/材料/jawMeshDense_algSimp_60000.obj");				// 网格载入时会计算壳体数n_shell;
+		mesh.save("E:/meshFixInput.obj");
+
+		tiktok& tt = tiktok::getInstance();
+		unsigned versCount = mesh.V.numels();
+		unsigned trisCount = mesh.T.numels();
+
+		// 1. 提取最大单连通网格；
+		int removedCount = mesh.removeSmallestComponents();					// d_boundaries, d_handles, d_shells赋值
+		if (removedCount > 1)
+			std::cout << "！！！输入网格有" << removedCount << "个单连通区域。" << std::endl;
+
+		// 2. 补洞
+		int ret2 = mesh.boundaries();				// ？？？
+		int patchedCount = 0;
+		if (ret2)
+		{
+			T_MESH::TMesh::warning("Patching holes\n");
+			patchedCount = mesh.fillSmallBoundaries(0, true);
+		}
+
+		// 3. meshclean前计算环形边界数、环柄数；
+		int ret3 = mesh.boundaries();
+		if (ret3 > 0)
+			std::cout << "！！！输入网格环形边界数+环柄数 == " << ret3 << "。" << std::endl;
+
+		// 4. meshClean()——去除退化结构和三角片自交——默认max_iters == 10, inner_loops == 3；
+		bool ret4 = false;
+		int max_iters = 20;
+		int inner_loops = 6;					// 每次大循环中去除退化三角片、去除自交的迭代次数；
+		bool flagIsct, flagDeg;
+		T_MESH::Triangle* t;
+		T_MESH::Node* m;
+
+		//		4.1. 
+		mesh.deselectTriangles();
+		mesh.invertSelection();
+
+		//		4.2.修复流程的大循环 
+		for (int i = 0; i < max_iters; i++)
+		{
+			//		f1. 去除退化三角片；
+			flagDeg = mesh.strongDegeneracyRemoval(inner_loops);			// 全部清除成功返回true， 否则返回false
+
+			//		f2. 
+			mesh.deselectTriangles();
+			mesh.invertSelection();
+
+			//		f3. 去除自交三角片，补洞；
+			flagIsct = mesh.strongIntersectionRemoval(inner_loops);			// 自交全部清除返回true，否则返回false;
+
+			//		f4. 若前两项全部清除成功，进一步检查确认：
+			if (flagIsct && flagDeg)
+			{
+				// 遍历三角片检测是否有退化；
+				for (m = mesh.T.head(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL; m != NULL; m = m->next(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL)
+					if (t->isExactlyDegenerate())
+						flagIsct = false;
+
+				// 若进一步检查没有问题，退出大循环；
+				if (flagIsct)
+				{
+					ret4 = true;
+					break;
+				}
+			}
+		}
+
+#ifdef LOCAL_DEBUG
+		if (ret4)
+			std::cout << "meshclean() succeeded." << std::endl;
+		else
+			std::cout << "!!!meshclean() is not completed!!!" << std::endl;
+#endif
+
+		// 5. meshclean最后计算环形边界数、环柄数；
+		int ret5 = mesh.boundaries();
+
+		// 6. 输出：
+		mesh.save("E:/meshFixOutput.obj");
+
+
+		std::cout << "finished." << std::endl;
+	}
 }
 
 
+
+// 暂时无法分类的测试：
 namespace TEMP_TEST
 {
+	// 测试并行for循环PARALLEL_FOR()
+	void test0()
+	{
+		tiktok& tt = tiktok::getInstance();
+		const unsigned colsCount = 500000;
+		Eigen::MatrixXd m1{ Eigen::MatrixXd::Random(100, colsCount) };
+		Eigen::VectorXd sumVec(colsCount);
+		auto myPlus = [&](const unsigned colIdx)
+		{
+			Eigen::VectorXd colVec = m1.col(colIdx);
+			sumVec(colIdx) = colVec.sum();
+		};
+
+		tt.start();
+		for (unsigned i = 0; i < colsCount; ++i)
+		{
+			Eigen::VectorXd colVec = m1.col(i);
+			sumVec(i) = colVec.sum();
+		}
+		tt.endCout("regular for-loop time comsumed: ");
+
+		tt.start();
+		PARALLEL_FOR(0, colsCount, myPlus);
+		tt.endCout("PARALLEL_FOR loop time comsumed: ");
+
+		std::cout << "finished." << std::endl;
+	}
+
+
 	// 处理STL原型网格——转换为OBJ文件，网格重心移动到原点，然后底面移动到和XOY平面平行
 	void test1() 
 	{
@@ -1417,6 +1542,7 @@ namespace TEMP_TEST
 }
 
 
+
 int main()
 {
 	// DENSEMAT::test8();
@@ -1437,13 +1563,15 @@ int main()
 
 	// DECIMATION::test0();
 
-	TEST_MYEIGEN::test4();
+	// TEST_MYEIGEN::test4();
 
 	// TEMP_TEST::test1();
 
-	// MESH_REPAIR::test0();
+	// MESH_REPAIR::test4();
  
 	// TEST_DIP::test0();
+
+	TEST_TMESH::test2();
 
 	std::cout << "main() finished." << std::endl;
 }

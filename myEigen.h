@@ -22,6 +22,8 @@
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
 
+#include "tmesh.h"								// 拓扑网格类TMESH
+#include "detectIntersections.h"			// TMESHS的自相交检测功能；
 
 using namespace std;
 using namespace Eigen;
@@ -383,9 +385,7 @@ void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
 	std::cout << std::endl;
 }
 
-
-
-
+ 
 /////////////////////////////////////// 图形生成接口：
 bool interpolateToLine(MatrixXf& vers, const RowVector3f& start, const RowVector3f& end, const float SR, const bool SE);
 
@@ -2709,6 +2709,197 @@ bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOu
 }
  
 
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////TMESH相关接口：
+ 
+// 对TMESH顶点的只读遍历；
+template <typename F>
+void traverseVersList(const T_MESH::List& list, F f) 
+{
+	const T_MESH::Vertex* verPtr = nullptr;					// 底层const指针
+	const T_MESH::Node* nodePtr = nullptr;
+	const T_MESH::List* listPtr = &list;
+	for (nodePtr = listPtr->head(), verPtr = nodePtr ? ((const T_MESH::Vertex*)nodePtr->data) : nullptr; \
+		nodePtr != nullptr; nodePtr = nodePtr->next(), verPtr = (nodePtr) ? ((const T_MESH::Vertex*)nodePtr->data) : nullptr)
+	{
+		f(verPtr);
+	}
+}
+
+
+// 对TMESH顶点的非只读遍历；
+template <typename F>
+void traverseVersList(T_MESH::List& list, F f)
+{
+	T_MESH::Vertex* verPtr = nullptr;					 
+	T_MESH::Node* nodePtr = nullptr;
+	T_MESH::List* listPtr = &list;
+	for (nodePtr = listPtr->head(), verPtr = nodePtr ? ((T_MESH::Vertex*)nodePtr->data) : nullptr; \
+		nodePtr != nullptr; nodePtr = nodePtr->next(), verPtr = (nodePtr) ? ((T_MESH::Vertex*)nodePtr->data) : nullptr)
+	{
+		f(verPtr);
+	}
+}
+
+
+
+template <typename F>
+void traverseEdgesList(const T_MESH::List& list, F f)
+{
+	const T_MESH::Edge* ePtr = nullptr;
+	const T_MESH::Node* nodePtr = nullptr;
+	const T_MESH::List* listPtr = &list;
+	for (nodePtr = listPtr->head(), ePtr = nodePtr ? ((const T_MESH::Edge*)nodePtr->data) : nullptr; \
+		nodePtr != nullptr; nodePtr = nodePtr->next(), ePtr = (nodePtr) ? ((const T_MESH::Edge*)nodePtr->data) : nullptr)
+	{
+		f(ePtr);
+	}
+}
+
+template <typename F>
+void traverseEdgesList(T_MESH::List& list, F f)
+{
+	T_MESH::Edge* ePtr = nullptr;
+	T_MESH::Node* nodePtr = nullptr;
+	T_MESH::List* listPtr = &list;
+	for (nodePtr = listPtr->head(), ePtr = nodePtr ? ((T_MESH::Edge*)nodePtr->data) : nullptr; \
+		nodePtr != nullptr; nodePtr = nodePtr->next(), ePtr = (nodePtr) ? ((T_MESH::Edge*)nodePtr->data) : nullptr)
+	{
+		f(ePtr);
+	}
+}
+
+
+template <typename F>
+void traverseTrisList(const T_MESH::List& list, F f)
+{
+	const T_MESH::Triangle* triPtr = nullptr;
+	const T_MESH::Node* nodePtr = nullptr;
+	const T_MESH::List* listPtr = &list;
+	for (nodePtr = listPtr->head(), triPtr = nodePtr ? ((const T_MESH::Triangle*)nodePtr->data) : nullptr; \
+		nodePtr != nullptr; nodePtr = nodePtr->next(), triPtr = (nodePtr) ? ((const T_MESH::Triangle*)nodePtr->data) : nullptr)
+	{
+		f(triPtr);
+	}
+}
+
+
+template <typename F>
+void traverseTrisList(T_MESH::List& list, F f)
+{
+	T_MESH::Triangle* triPtr = nullptr;
+	T_MESH::Node* nodePtr = nullptr;
+	T_MESH::List* listPtr = &list;
+	for (nodePtr = listPtr->head(), triPtr = nodePtr ? ((T_MESH::Triangle*)nodePtr->data) : nullptr; \
+		nodePtr != nullptr; nodePtr = nodePtr->next(), triPtr = (nodePtr) ? ((T_MESH::Triangle*)nodePtr->data) : nullptr)
+	{
+		f(triPtr);
+	}
+}
+
+
+// TMESH网格转换为矩阵： 
+template <typename T>
+void TMesh2MeshMat(T_MESH::Basic_TMesh& mesh, Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris)
+{
+	const int versCount = mesh.V.numels();
+	const int trisCount = mesh.T.numels();
+	int index = 0;
+	vers.resize(versCount, 3);
+	tris.resize(trisCount, 3);
+
+	// 1. 生成顶点矩阵：
+	traverseVersList(mesh.V, [&](T_MESH::Vertex* verPtr)
+		{
+			vers(index, 0) = verPtr->x;
+			vers(index, 1) = verPtr->y;
+			vers(index, 2) = verPtr->z;
+			index++;
+		});
+
+	// 2. 顶点节点的x坐标暂存入xValues中，然后将其改写为顶点索引；
+	std::vector<double> xValues;
+	xValues.reserve(versCount);
+
+	index = 0;
+	traverseVersList(mesh.V, [&](T_MESH::Vertex* verPtr)
+		{
+			xValues.push_back(verPtr->x);
+			verPtr->x = static_cast<double>(index++);
+		});
+ 
+
+	// 3. 生成三角片数据，存入矩阵：
+	index = 0;
+	traverseTrisList(mesh.T, [&](T_MESH::Triangle* triPtr)
+		{
+			tris(index, 0) = static_cast<int>(triPtr->v1()->x);
+			tris(index, 1) = static_cast<int>(triPtr->v2()->x);
+			tris(index, 2) = static_cast<int>(triPtr->v3()->x);
+			index++;
+		});
+
+	// 4. 顶点节点中的x数据还原：
+	index = 0;
+	traverseVersList(mesh.V, [&](T_MESH::Vertex* verPtr)
+		{
+			verPtr->x = xValues[index++];
+		});
+}
+
+
+// 计算四个3D点围成的四面体的符号体积×6，或以v2,v3,v4围成的三角形为底面的棱柱的符号体积；返回正值：v1在三角形正侧；负值：v1在三角形负侧；0：四点共面；
+/*
+	Returns a positive value if the point d lies above the plane passing through a, b, and c, meaning that a, b,
+			and c appear in counterclockwise order when viewed from d.
+
+	Returns a negative value if d lies below the plane.
+
+	Returns zero if the points are coplanar.
+
+	The result is also an approximation of six times the signed volume of the tetrahedron defined by the four points.
+
+*/
+template <typename T>
+double orient3D(const Eigen::Matrix<T, 1, 3>& v1, const Eigen::Matrix<T, 1, 3>& v2, const Eigen::Matrix<T, 1, 3>& v3, const Eigen::Matrix<T, 1, 3>& v4)
+{
+	std::vector<double> p1{ v1(0), v1(1), v1(2) };
+	std::vector<double> p2{ v2(0), v2(1), v2(2) };
+	std::vector<double> p3{ v3(0), v3(1), v3(2) };
+	std::vector<double> p4{ v4(0), v4(1), v4(2) };
+	return orient3d(&p1[0], &p2[0], &p3[0], &p4[0]);
+}
+
+
+// 计算三个2D点围成三角形的符号面积×2，可三个点的位置关系——正数: 逆时针； 负数：顺时针； 0：共线； 
+/*
+	Returns a positive value if the points a, b, and c occur in counterclockwise order
+			(c lies to the left of the directed line defined by points a and b).
+
+	Returns a negative value if they occur in clockwise order (c lies to the right of the directed line ab).
+
+	Returns zero if they are collinear.
+
+	The result is also an approximation of twice the signed area of the triangle defined by the three points.
+*/
+template <typename T>
+double orient2D(const Eigen::Matrix<T, 1, 2>& v1, const Eigen::Matrix<T, 1, 2>& v2, const Eigen::Matrix<T, 1, 2>& v3)
+{
+	std::vector<double> p1{ v1(0), v1(1) };
+	std::vector<double> p2{ v2(0), v2(1) };
+	std::vector<double> p3{ v3(0), v3(1) };
+	return orient2d(&p1[0], &p2[0], &p3[0]);
+}
+
+
+// 生成cell对应的轴向包围盒网格；
+void genAABBmesh(const T_MESH::di_cell& cell, Eigen::MatrixXd& vers, Eigen::MatrixXi& tris);
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////// debug 接口：
+
 // 自定义计时器，使用WINDOWS计时API
 class tiktok
 {
@@ -2754,7 +2945,7 @@ public:
 	}
 };
 
-
+ 
 
 namespace TEST_MYEIGEN
 {
@@ -2784,6 +2975,29 @@ namespace TEST_DIP
 {
 	void test0();
 
+}
+
+
+// 测试拓扑网格类tmesh
+namespace TEST_TMESH
+{
+	void test0();
+	void test1();
+	void test2();
+	void test3();
+	void test4();
+	void test5();
+	void test6();
+	void test7();
+	void test8();
+	void test9();
+	void test10();
+	void test11();
+	void test12();
+	void test13();
+	void test14();
+	void test15();
+	void test16();
 }
 
 

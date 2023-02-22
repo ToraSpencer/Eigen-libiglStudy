@@ -18,6 +18,15 @@
     <Filter Include="Fu%27s HW\sourceFiles">
       <UniqueIdentifier>{5bce6556-e56a-4675-bf2c-78d95cc005a5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="TMESH">
+      <UniqueIdentifier>{c100b535-054f-417a-a74c-ec8409c38f2f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="TMESH\源文件">
+      <UniqueIdentifier>{f33b9a50-3f0c-4a03-81c9-6b9b63658d18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="TMESH\头文件">
+      <UniqueIdentifier>{1a0e59b5-1436-4b60-8261-b95bb27ab81c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -43,6 +52,63 @@
     </ClCompile>
     <ClCompile Include="HW2_curvature.cpp">
       <Filter>Fu%27s HW\sourceFiles</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Algorithms\checkAndRepair.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Algorithms\detectIntersections.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Algorithms\holeFilling.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Algorithms\marchIntersections.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Algorithms\subdivision.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\coordinates.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\graph.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\heap.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\jqsort.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\list.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\matrix.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\orientation.c">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\point.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\tmesh.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\TMesh\edge.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\TMesh\io.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\TMesh\tin.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\TMesh\triangle.cpp">
+      <Filter>TMESH\源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MeshFix-V2.1-master\src\TMesh\vertex.cpp">
+      <Filter>TMESH\源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -75,6 +141,54 @@
     </ClInclude>
     <ClInclude Include="MC_tables.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\tmesh.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\detectIntersections.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\edge.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\marchIntersections.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\tin.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\triangle.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\vertex.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\basics.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\coordinates.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\graph.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\heap.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\jqsort.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\list.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\matrix.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\point.h">
+      <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\tmesh_kernel.h">
+      <Filter>TMESH\头文件</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -669,11 +669,11 @@ namespace DENSEMAT
 
 
 		// AngleAxisf类——一个类对象表示一次绕着某轴进行一定角度的旋转，可用于构造旋转矩阵。
-		const float M_PI = 3.14159;
+		const float pi = 3.14159;
 		Matrix3f m;
-		m = AngleAxisf(0.25 * M_PI, Vector3f::UnitX())
-			* AngleAxisf(0.5 * M_PI, Vector3f::UnitY())
-			* AngleAxisf(0.33 * M_PI, Vector3f::UnitZ());				// 表示先后绕xyz三个轴旋转一定角度。
+		m = AngleAxisf(0.25 * pi, Vector3f::UnitX())
+			* AngleAxisf(0.5 * pi, Vector3f::UnitY())
+			* AngleAxisf(0.33 * pi, Vector3f::UnitZ());				// 表示先后绕xyz三个轴旋转一定角度。
 		cout << m << endl << "is unitary: " << m.isUnitary() << endl;
 
 		// 平移(translation)变换
