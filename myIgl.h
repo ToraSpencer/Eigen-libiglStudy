@@ -36,9 +36,9 @@
 
 // class——方向包围盒类OBB（本质上是中点在原点的AABB加上一个仿射变换）；
 template <typename _Scalar>
-class OBB : public AlignedBox<_Scalar, 3>
+class OBB : public Eigen::AlignedBox<_Scalar, 3>
 {
-	// 成员数据：注！！！继承自AlignedBox中的m_min, m_max是列向量，下面两个是行向量；
+	// 成员数据：注！！！继承自Eigen::AlignedBox中的m_min, m_max是列向量，下面两个是行向量；
 public:
 	Eigen::Matrix<_Scalar, 1, 3> m_dir;
 	Eigen::Matrix<_Scalar, 1, 3> m_center;
@@ -49,7 +49,7 @@ public:
 	inline OBB() :m_dir(0, 0, 1), m_center(Eigen::Matrix<_Scalar, 1, 3>::Zero(3)), m_rotation(Eigen::Matrix3d::Identity()) {}
 
 
-	inline OBB(const AlignedBox<_Scalar, 3>& aabb)
+	inline OBB(const Eigen::AlignedBox<_Scalar, 3>& aabb)
 	{
 		auto minp = aabb.m_min;
 		auto maxp = aabb.m_max;
@@ -62,7 +62,7 @@ public:
 	}
 
 
-	inline OBB(const AlignedBox<_Scalar, 3>& aabb, const Eigen::Matrix<_Scalar, 1, 3>& dir, \
+	inline OBB(const Eigen::AlignedBox<_Scalar, 3>& aabb, const Eigen::Matrix<_Scalar, 1, 3>& dir, \
 		const Eigen::Matrix<_Scalar, 1, 3>& center): m_dir(dir), m_center(center)
 	{
 		// 注：方向包围盒的方向取dir和-dir没有区别，所以控制dir和z轴正向夹角不大于pi/2;
@@ -100,7 +100,7 @@ public:
 	}
 
 
-	inline OBB(const AlignedBox<_Scalar, 3>& aabb, const Eigen::Matrix<_Scalar, 1, 3>& center, \
+	inline OBB(const Eigen::AlignedBox<_Scalar, 3>& aabb, const Eigen::Matrix<_Scalar, 1, 3>& center, \
 		const Eigen::Matrix3d& rotation) : m_center(center), m_rotation(rotation)
 	{
 		const double epsilon = 1e-6;
@@ -145,12 +145,12 @@ public:
 
 
 template <typename _Scalar>
-void genOBBmesh(const OBB<_Scalar>& obb, Eigen::Matrix<_Scalar, Dynamic, Dynamic>& vers, \
+void genOBBmesh(const OBB<_Scalar>& obb, Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
 	Eigen::MatrixXi& tris)
 {
-	Matrix<_Scalar, 3, 1> minp = obb.min();
-	Matrix<_Scalar, 3, 1> maxp = obb.max();
-	Matrix<_Scalar, 3, 1> sizeVec = maxp - minp;
+	Eigen::Matrix<_Scalar, 3, 1> minp = obb.min();
+	Eigen::Matrix<_Scalar, 3, 1> maxp = obb.max();
+	Eigen::Matrix<_Scalar, 3, 1> sizeVec = maxp - minp;
 
 	genCubeMesh(vers, tris);
 	vers.col(0) *= sizeVec(0);

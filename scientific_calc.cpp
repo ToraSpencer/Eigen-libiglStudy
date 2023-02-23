@@ -8,40 +8,40 @@ namespace SCIENTIFICCALC
 	// 齐次坐标表示下的坐标变换；
 	void test1()
 	{
-		MatrixXf vers;
-		MatrixXi tris;
+		Eigen::MatrixXf vers;
+		Eigen::MatrixXi tris;
 		objReadMeshMat(vers, tris, "./data/bunny.obj");
 
 		// 1. 顶点使用齐次坐标来表示——一个点是一个四元列向量(w*x, w*y, w*z, w)，w通常为1，为0时表示无穷远处的点。
-		MatrixXf versHomo;
+		Eigen::MatrixXf versHomo;
 		vers2homoVers(versHomo, vers);
 		dispMatBlock(vers, 0, 3, 0, 2);
 		dispMatBlock(versHomo, 0, 3, 0, 3);
 
 		// 2. 笛卡尔坐标下施加仿射变换——旋转、放缩，最后平移：
-		Matrix3f scale = Matrix3f::Identity();
+		Eigen::Matrix3f scale = Eigen::Matrix3f::Identity();
 		scale(1, 1) = 2;													// y方向上缩放因子为2；
-		Matrix3f rotation;
+		Eigen::Matrix3f rotation;
 		rotation << cos(pi / 6), 0, sin(pi / 6), 0, 1, 0, -sin(pi / 6), 0, cos(pi / 6);	// 绕z轴逆时针旋转pi/6度。
-		Vector3f moveVec(10, 0, 0);			// 朝着x正方向平移20mm;
-		MatrixXf versDesc = vers.transpose();
+		Eigen::Vector3f moveVec(10, 0, 0);			// 朝着x正方向平移20mm;
+		Eigen::MatrixXf versDesc = vers.transpose();
 		versDesc = (rotation * scale * versDesc).eval();
 		versDesc = (versDesc.colwise() + moveVec).eval();
 		objWriteMeshMat<float>("E:/笛卡尔坐标下仿射变换后的bunny.obj", versDesc.transpose(), tris);
 
 		// 3. 齐次坐标下施加仿射变换——旋转、放缩， 最后平移：
-		Matrix4f scaleHomo = Matrix4f::Identity();
+		Eigen::Matrix4f scaleHomo = Eigen::Matrix4f::Identity();
 		scaleHomo.block<3, 3>(0, 0) = scale;
-		Matrix4f rotationHomo = Matrix4f::Identity();
+		Eigen::Matrix4f rotationHomo = Eigen::Matrix4f::Identity();
 		rotationHomo.block<3, 3>(0, 0) = rotation;
-		Matrix4f moveMat = Matrix4f::Identity();
+		Eigen::Matrix4f moveMat = Eigen::Matrix4f::Identity();
 		moveMat.topRightCorner(3, 1) = moveVec;
 
-		MatrixXf finalVersHomo = moveMat * rotationHomo * scaleHomo * versHomo;
+		Eigen::MatrixXf finalVersHomo = moveMat * rotationHomo * scaleHomo * versHomo;
 		objWriteMeshMat("E:/齐次坐标下仿射变换后的bunny.obj", homoVers2vers(finalVersHomo), tris);
  
-		MatrixXf transMat = moveMat * rotationHomo * scaleHomo;
-		MatrixXf originVersHomo = transMat.inverse() * finalVersHomo;
+		Eigen::MatrixXf transMat = moveMat * rotationHomo * scaleHomo;
+		Eigen::MatrixXf originVersHomo = transMat.inverse() * finalVersHomo;
 		objWriteMeshMat("E:/齐次坐标下还原的bunny.obj", homoVers2vers(originVersHomo), tris);
 
 
@@ -91,7 +91,7 @@ namespace SCIENTIFICCALC
 		Eigen::MatrixXd result, m1, m2;
 		Eigen::VectorXd vec = Eigen::VectorXd::LinSpaced(100, 1, 100);
 
-		m1 = Eigen::Map<MatrixXd>(vec.data(), 10, 10);
+		m1 = Eigen::Map<Eigen::MatrixXd>(vec.data(), 10, 10);
 		m2.resize(2, 2);
 		m2 << 1, 1.1, 1, 1;
 		Eigen::Matrix2d m22;
@@ -141,7 +141,7 @@ namespace TEST_PMP
 		viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL);    // 设定可以三轴旋转
 
 		// 三角片法向指示线用边数据的形式渲染出来；
-		const RowVector3d red(0.8, 0.2, 0.2), blue(0.2, 0.2, 0.8);    // RGB色彩向量；
+		const Eigen::RowVector3d red(0.8, 0.2, 0.2), blue(0.2, 0.2, 0.8);    // RGB色彩向量；
 		double aveLen = edgesLen.mean();							// 所有边长的平均值；
 		viewer.data().add_edges(barycenters - aveLen * triNorms, barycenters + aveLen * triNorms, red);         // 最大曲率方向用红色指示线标识
 

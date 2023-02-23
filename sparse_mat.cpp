@@ -32,7 +32,7 @@ namespace SPARSEMAT
 		//	dispSpMat()——打印稀疏矩阵非零元素
 		dispSpMat(sm1);
  
-		Eigen::SparseMatrix<int, RowMajor> sm11 = m1.sparseView();
+		Eigen::SparseMatrix<int, Eigen::RowMajor> sm11 = m1.sparseView();
 		Eigen::SparseMatrix<int> sm2;
 		bool retFlag = spMatTranspose(sm2, sm1);
 		dispSpMat(sm2);
@@ -55,12 +55,12 @@ namespace SPARSEMAT
 		//   1. 生成稀疏矩阵：
 
 		//					使用三元数数组生成稀疏矩阵——setFromTriplets()
-		SparseMatrix<float> sm1(6, 7);
+		Eigen::SparseMatrix<float> sm1(6, 7);
 		sm1.setFromTriplets(tripList.begin(), tripList.end());
 		dispMat(sm1.toDense());
 
 		//					插入元素的方式生成稀疏矩阵——insert()
-		SparseMatrix<float> sm2(9, 10);
+		Eigen::SparseMatrix<float> sm2(9, 10);
 		sm2.insert(1, 2) = 1;
 		sm2.insert(2, 3) = 2;
 		sm2.insert(8, 3) = 88;
@@ -68,7 +68,7 @@ namespace SPARSEMAT
 		sm2.insert(4, 4) = 99;
 
 		//					生成一些特殊的稀疏矩阵：
-		SparseMatrix<float> sm3(4, 4);
+		Eigen::SparseMatrix<float> sm3(4, 4);
 
 		//			setIdentity()
 		sm3.setIdentity();
@@ -106,10 +106,10 @@ namespace SPARSEMAT
 		std::cout << std::endl;
 
 		// 注：貌似直接修改dataPtr指向的数据是危险的。如果要将某元素清零应该使用prune()方法；
-		SparseMatrix<float> sm11 = sm1;
+		Eigen::SparseMatrix<float> sm11 = sm1;
 
 		//		prune方法()——将不满足条件的元素清零；
-		sm1.prune([&](const Index& row, const Index& col, const float& value)->bool
+		sm1.prune([&](const Eigen::Index& row, const Eigen::Index& col, const float& value)->bool
 			{
 				if (value > 1.3)
 					return true;			// 返回true的元素被保留；
@@ -120,7 +120,7 @@ namespace SPARSEMAT
 		std::cout << "sm1.nonZeros() == " << sm1.nonZeros() << std::endl;
 		std::cout << "sm1.isCompressed() == " << sm1.isCompressed() << std::endl;
 
-		sm11.prune([&](const Index& row, const Index& col, const float& value)->bool
+		sm11.prune([&](const Eigen::Index& row, const Eigen::Index& col, const float& value)->bool
 			{
 				if (0 == row && 0 == col)
 					return false;
@@ -142,7 +142,7 @@ namespace SPARSEMAT
 		int outerSize2 = sm2.outerSize();				// 默认的列优先存储矩阵，outerSize即列数；
 		for (int colIdx = 0; colIdx < outerSize2; ++colIdx)
 		{
-			for (SparseMatrix<float>::InnerIterator it(sm2, colIdx); it; ++it)			// 列优先存储时，InnerIterator即列内迭代器；
+			for (Eigen::SparseMatrix<float>::InnerIterator it(sm2, colIdx); it; ++it)			// 列优先存储时，InnerIterator即列内迭代器；
 			{
 				std::cout << "value == " << it.value() << std::endl;					// 元素的值；
 				std::cout << "valueRef == " << it.valueRef() << std::endl;			// 元素的引用；
@@ -155,7 +155,7 @@ namespace SPARSEMAT
 		}
 
 		// 4.  稀疏矩阵和稠密矩阵的转换：
-		MatrixXf m1(3, 4);
+		Eigen::MatrixXf m1(3, 4);
 		m1 << 1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0;
 
 		//			sparseView()
@@ -164,7 +164,7 @@ namespace SPARSEMAT
 		std::cout << "sm1是否是压缩格式：" << sm1.isCompressed() << std::endl;
 
 		//			toDense();
-		MatrixXf m2 = sm1.toDense();
+		Eigen::MatrixXf m2 = sm1.toDense();
 		std::cout << "m2 == \n" << m2 << std::endl;
 	}
 
@@ -173,29 +173,29 @@ namespace SPARSEMAT
 	void test1()
 	{
 		// 求和——没有dense matrix里的.colwise().sum()和.rowwise().sum()操作，可以使用左/右乘向量来实现：
-		MatrixXf m1 = MatrixXf::Random(4, 5);
-		MatrixXf m2(4, 5);
+		Eigen::MatrixXf m1 = Eigen::MatrixXf::Random(4, 5);
+		Eigen::MatrixXf m2(4, 5);
 		m2 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20;
 		std::cout << "m1 == \n" << m1 << std::endl;
 
 		// sparseView()方法；
-		SparseMatrix<float> sm1 = m1.sparseView();
-		SparseMatrix<float> sm2 = m2.sparseView();
-		RowVectorXf colSum = RowVectorXf::Ones(4) * sm1;			// 左乘一个全1行向量，得到按列求和的结果。
-		VectorXf rowSum = sm1 * VectorXf::Ones(5);							// 右乘一个全1列向量，得到按行求和的结果。
+		Eigen::SparseMatrix<float> sm1 = m1.sparseView();
+		Eigen::SparseMatrix<float> sm2 = m2.sparseView();
+		Eigen::RowVectorXf colSum = Eigen::RowVectorXf::Ones(4) * sm1;			// 左乘一个全1行向量，得到按列求和的结果。
+		Eigen::VectorXf rowSum = sm1 * Eigen::VectorXf::Ones(5);							// 右乘一个全1列向量，得到按行求和的结果。
 		std::cout << "按列求和结果：\n" << colSum << std::endl;
 		std::cout << "按行求和结果：\n" << rowSum << std::endl << std::endl;
 
 		// 列优先存储稀疏矩阵的row()方法返回的引用是只读的，不可以被赋值。
 		std::cout << "遍历第i列：" << std::endl;
-		for (SparseMatrix<float>::InnerIterator it(sm1, 1); it; ++it)				// 内维度就是存储优先的维度，如这里使用默认的列优先存储，这里的it就是某一列的迭代器；
+		for (Eigen::SparseMatrix<float>::InnerIterator it(sm1, 1); it; ++it)				// 内维度就是存储优先的维度，如这里使用默认的列优先存储，这里的it就是某一列的迭代器；
 			std::cout << it.value() << ", ";
 		std::cout << std::endl;
 
-		RowVectorXf tempVec = sm1.row(1);
+		Eigen::RowVectorXf tempVec = sm1.row(1);
 		std::cout << "tempVec == \n" << tempVec << std::endl;
 
-		sm1.col(0) = SparseVector<float>(4);									// 某一列可以用稀疏向量赋值，不可以用dense向量赋值。
+		sm1.col(0) = Eigen::SparseVector<float>(4);									// 某一列可以用稀疏向量赋值，不可以用dense向量赋值。
 		std::cout << "sm1 == \n" << sm1 << std::endl;
 		sm1.makeCompressed();
 		std::cout << "sm1.nonZeros()  == " << sm1.nonZeros() << std::endl;
@@ -223,12 +223,12 @@ namespace SPARSEMAT
 	// 稀疏矩阵的拼接
 	void test2()
 	{
-		MatrixXf m1(2, 3), m2(2, 1), m3(1, 4), m4(3, 4);
+		Eigen::MatrixXf m1(2, 3), m2(2, 1), m3(1, 4), m4(3, 4);
 		m1 << 1, 2, 3, 4, 5, 6;
 		m2 << 0.1, 0.2;
 		m3 << 1, 2, 3, 4;
-		m4 = MatrixXf::Ones(3, 4);
-		SparseMatrix<float> sm1(2, 3), sm2(2, 1), sm3(1, 4), sm4(3, 4), sm(4, 4);
+		m4 = Eigen::MatrixXf::Ones(3, 4);
+		Eigen::SparseMatrix<float> sm1(2, 3), sm2(2, 1), sm3(1, 4), sm4(3, 4), sm(4, 4);
 		sm1 = m1.sparseView();
 		sm2 = m2.sparseView();
 		sm3 = m3.sparseView();
@@ -249,14 +249,14 @@ namespace SPARSEMAT
 		// 1. 直接法求解稀疏线性方程组
 
 		//				稀疏矩阵表示的线性方程组：Ax = b
-		SparseMatrix<float> A;
-		VectorXf b(2), x;
-		///SimplicialLLT<SparseMatrix<float>> solver;									//基于LLT分解的求解器，一般推荐使用此求解器。
-		//SparseLU<SparseMatrix<float> > solver;											// 基于LU分解的求解器。
-		SparseQR<SparseMatrix<float>, COLAMDOrdering<int> > solver;		// 基于QR分解的求解器，推荐最小方差问题使用。
+		Eigen::SparseMatrix<float> A;
+		Eigen::VectorXf b(2), x;
+		///SimplicialLLT<Eigen::SparseMatrix<float>> solver;									//基于LLT分解的求解器，一般推荐使用此求解器。
+		//SparseLU<Eigen::SparseMatrix<float> > solver;											// 基于LU分解的求解器。
+		Eigen::SparseQR<Eigen::SparseMatrix<float>, Eigen::COLAMDOrdering<int> > solver;		// 基于QR分解的求解器，推荐最小方差问题使用。
 
 		//				写入方程组数据：
-		MatrixXf Adense(2, 2);
+		Eigen::MatrixXf Adense(2, 2);
 		Adense << 1, 2, 1, -1;
 		b << 0, 3;
 		A = Adense.sparseView();
@@ -265,13 +265,13 @@ namespace SPARSEMAT
 		std::cout << "det(A) == " << Adense.determinant() << std::endl;
 
 		solver.compute(A);
-		if (solver.info() != Success)
+		if (solver.info() != Eigen::Success)
 		{
 			std::cout << " decomposition failed" << std::endl;
 			return;
 		}
 		x = solver.solve(b);
-		if (solver.info() != Success)
+		if (solver.info() != Eigen::Success)
 		{
 			std::cout << "solving failed" << std::endl;
 			return;
@@ -288,16 +288,16 @@ namespace SPARSEMAT
 				LeastSquaresConjugateGradient
 				BiCGSTAB						迭代双共轭梯度求解器。			要求矩阵为方阵。
 		*/
-		LeastSquaresConjugateGradient<Eigen::SparseMatrix<float> > IterSolver;
+		Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<float> > IterSolver;
 
 		// 设置迭代精度
 		IterSolver.setTolerance(0.00001);
 		IterSolver.compute(A);
-		if (IterSolver.info() != Success)
+		if (IterSolver.info() != Eigen::Success)
 			return;
 
 		x = IterSolver.solve(b);
-		if (IterSolver.info() != Success)
+		if (IterSolver.info() != Eigen::Success)
 			return;
 		std::cout << "x == \n" << x << std::endl;
 	}

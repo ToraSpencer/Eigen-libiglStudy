@@ -25,8 +25,15 @@
 #include "tmesh.h"								// 拓扑网格类TMESH
 #include "detectIntersections.h"			// TMESHS的自相交检测功能；
 
-using namespace std;
-using namespace Eigen;
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////// 前置声明
+template<typename T>
+bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat1);
+template<typename T, int N>
+bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, 1, N>& rowVec);
+
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// basic math interface
@@ -78,6 +85,8 @@ std::pair<double, double> polar2cart(const T radius, const T theta)
 {
 	return { radius * cos(theta), radius * sin(theta) };
 }
+
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 控制台打印接口
 
@@ -203,7 +212,7 @@ template<typename T, typename F>
 void traverseSTL(T& con, F f)
 {
 	std::for_each(con.begin(), con.end(), f);
-	cout << endl;
+	std::cout << std::endl;
 }
 
 
@@ -212,7 +221,7 @@ template<typename T, typename F>
 void revTraverseSTL(T& con, F f)
 {
 	std::for_each(con.rbegin(), con.rend(), f);
-	cout << endl;
+	std::cout << std::endl;
 }
 
 
@@ -236,12 +245,13 @@ void traverseSparseMatrix(spMat& sm, F f)
 }
 
 
-// lambda——打印cout支持的类型变量。
+// lambda——打印std::cout支持的类型变量。
 template <typename T>
 auto disp = [](const T& arg)
 {
-	cout << arg << ", ";
+	std::cout << arg << ", ";
 };
+
 
 template <typename T1, typename T2>
 void dispPair(const std::pair<T1, T2>& pair) 
@@ -251,7 +261,7 @@ void dispPair(const std::pair<T1, T2>& pair)
 
 
 template<typename T>
-void dispQuat(const Quaternion<T>& q)
+void dispQuat(const Eigen::Quaternion<T>& q)
 {
 	std::cout << q.w() << std::endl;
 	std::cout << q.vec() << std::endl;
@@ -330,31 +340,27 @@ void dispSpMat(const spMat& sm)
  
 
 template<typename T, int N>
-void dispVec(const Matrix<T, N, 1>& vec)
+void dispVec(const Eigen::Matrix<T, N, 1>& vec)
 {
 	std::cout << ": rows == " << vec.rows() << std::endl;
 	for (int i = 0; i < vec.rows(); ++i)
-	{
 		std::cout << i << "---\t" << vec(i) << std::endl;
-	}
 	std::cout << std::endl;
 }
 
 
 template<typename T, int N>
-void dispVec(const Matrix<T, 1, N>& vec)
+void dispVec(const Eigen::Matrix<T, 1, N>& vec)
 {
 	std::cout << ": cols == " << vec.cols() << std::endl;
 	for (int i = 0; i < vec.cols(); ++i)
-	{
 		std::cout << i << "---\t" << vec(i) << std::endl;
-	}
 	std::cout << std::endl;
 }
 
 
 template<typename T, int N>
-void dispVecSeg(const Matrix<T, N, 1>& vec, const int start, const int end)
+void dispVecSeg(const Eigen::Matrix<T, N, 1>& vec, const int start, const int end)
 {
 	if (start < 0 || start >= end)
 	{
@@ -371,7 +377,7 @@ void dispVecSeg(const Matrix<T, N, 1>& vec, const int start, const int end)
 
 
 template<typename T, int N>
-void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
+void dispVecSeg(const Eigen::Matrix<T, 1, N>& vec, const int start, const int end)
 {
 	if (start < 0  || start >= end)
 	{
@@ -385,14 +391,46 @@ void dispVecSeg(const Matrix<T, 1, N>& vec, const int start, const int end)
 	std::cout << std::endl;
 }
 
+
  
-/////////////////////////////////////// 图形生成接口：
-bool interpolateToLine(MatrixXf& vers, const RowVector3f& start, const RowVector3f& end, const float SR, const bool SE);
+///////////////////////////////////////////////////////////////////////////////////////////////////// 图形生成接口：
+ 
+// 输入起点、终点、空间采样率，插值生成一条直线点云；
+template <typename T>
+bool interpolateToLine(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::Matrix<T, 1, 3>& start, \
+			const Eigen::Matrix<T, 1, 3>& end, const float SR, const bool SE = true)
+{
+	if (vers.rows() > 0)
+		return false;
+
+	Eigen::Matrix<T, 1, 3> dir = end - start;
+	float length = dir.norm();
+	dir.normalize();
+
+	if (length <= SR)
+		return true;
+
+	if (SE)
+		matInsertRows<T, 3>(vers, start);
+
+	float lenth0 = 0;
+	for (unsigned i = 1; (length - lenth0) > 0.8 * SR; i++)			// 确保最后一个点距离终点不能太近。
+	{
+		Eigen::Matrix<T, 1, 3> temp = start + SR * i * dir;
+		matInsertRows<T, 3>(vers, temp);
+		lenth0 = SR * (i + 1);		// 下一个temp的长度。
+	}
+
+	if (SE)
+		matInsertRows<T, 3>(vers, end);
+
+	return true;
+};
 
 
 // 生成中心在原点，边长为1，三角片数为12的正方体网格；
 template	<typename DerivedV, typename DerivedI>
-void genCubeMesh(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, Eigen::Matrix<DerivedI, Dynamic, Dynamic>& tris)
+void genCubeMesh(Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::Matrix<DerivedI, Eigen::Dynamic, Eigen::Dynamic>& tris)
 {
 	vers.resize(8, 3);
 	vers << -0.5000000, -0.5000000, -0.5000000, -0.5000000, 0.5000000, -0.5000000, \
@@ -407,13 +445,13 @@ void genCubeMesh(Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers, Eigen::Matrix<
 
 // 生成轴向包围盒的三角网格；
 template <typename _Scalar, int _AmbientDim>
-void genAABBmesh(const Eigen::AlignedBox<_Scalar, _AmbientDim>& aabb, Eigen::Matrix<_Scalar, Dynamic, Dynamic>& vers, \
+void genAABBmesh(const Eigen::AlignedBox<_Scalar, _AmbientDim>& aabb, Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
 	Eigen::MatrixXi& tris)
 {
-	Matrix<_Scalar, _AmbientDim, 1> minp = aabb.min();
-	Matrix<_Scalar, _AmbientDim, 1> maxp = aabb.max();
-	Matrix<_Scalar, _AmbientDim, 1> newOri = (minp + maxp) / 2.0;
-	Matrix<_Scalar, _AmbientDim, 1> sizeVec = maxp - minp;
+	Eigen::Matrix<_Scalar, _AmbientDim, 1> minp = aabb.min();
+	Eigen::Matrix<_Scalar, _AmbientDim, 1> maxp = aabb.max();
+	Eigen::Matrix<_Scalar, _AmbientDim, 1> newOri = (minp + maxp) / 2.0;
+	Eigen::Matrix<_Scalar, _AmbientDim, 1> sizeVec = maxp - minp;
 
 	genCubeMesh(vers, tris);
 	vers.col(0) *= sizeVec(0);
@@ -449,7 +487,7 @@ bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBa
 	matOut.resize(vec.size(), matBaseIn.cols());
 	for (unsigned i = 0; i < vec.size(); ++i)
 	{
-		const Index& index = vec[i];
+		const Eigen::Index& index = vec[i];
 		matOut.row(i) = matBaseIn.row(index);
 	}
 
@@ -581,6 +619,8 @@ void findRepTris(std::vector<int>& repIdxes, const Eigen::PlainObjectBase<Derive
 }
 
 
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 矩阵的增删查改
 
 // 向量插入数据
@@ -627,7 +667,7 @@ bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const 
 
 
 //	矩阵末端插入行向量
-template<typename T, int N>
+template<typename T, int N>					// N为列数；
 bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, 1, N>& rowVec)
 {
 	unsigned cols = N;
@@ -694,6 +734,9 @@ void concatMeshMat(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBas
 };
 
 
+
+
+
 //////////////////////////////////////////////////////////////////////////////////////////// IO接口
 
 unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize);
@@ -721,7 +764,7 @@ void vecReadFromFile(std::vector<T>& vec, const char* fileName, const unsigned e
 
 
 template<typename T>
-bool matWriteToFile(const char* fileName, const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat)
+bool matWriteToFile(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat)
 {
 	std::ofstream file(fileName);
 	file << "row " << mat.rows() << std::endl;
@@ -739,7 +782,7 @@ bool matWriteToFile(const char* fileName, const Matrix<T, Eigen::Dynamic, Eigen:
 
 
 template<typename T>
-bool matReadFromFile(Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const char* fileName)
+bool matReadFromFile(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const char* fileName)
 {
 	std::ifstream file(fileName);
 	const unsigned LINE_LENGTH = 100;
@@ -760,9 +803,7 @@ bool matReadFromFile(Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const char*
 		row = std::stoi(str2);
 	}
 	else
-	{
 		return false;
-	}
 
 	file.getline(cstr, LINE_LENGTH);
 	str1 = cstr;
@@ -775,9 +816,7 @@ bool matReadFromFile(Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const char*
 		col = std::stoi(str2);
 	}
 	else
-	{
 		return false;
-	}
 
 	// 读矩阵元素
 	mat.resize(row, col);
@@ -787,32 +826,25 @@ bool matReadFromFile(Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const char*
 		file.getline(cstr, LINE_LENGTH);
 		str1 = cstr;
 		if (str1.size() == 0)
-		{
 			break;
-		}
 		std::string::iterator iter = str1.begin();
 		for (unsigned j = 0; j < 3; ++j)
 		{
 			if (iter == str1.end())
-			{
 				break;
-			}
 
 			if (*iter == ' ')						// 负号后面可能有空格，需要去除
-			{
 				iter = str1.erase(iter);
-			}
 			iter++;
 		}
 		*ptr++ = std::stoi(str1);
 	}
 	file.close();
-
 };
 
 
 template	<typename Scalar, typename Index>
-void objReadMeshMat(Eigen::Matrix<Scalar, Dynamic, Dynamic>& vers, Eigen::Matrix<Index, Dynamic, Dynamic>& tris, const char* fileName)
+void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::Matrix<Index, Eigen::Dynamic, Eigen::Dynamic>& tris, const char* fileName)
 {
 	char* pTmp = NULL;
 	std::ifstream ifs(fileName);		//cube bunny Eight
@@ -919,7 +951,7 @@ void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic
 
 
 template	<typename Scalar>
-void objReadVerticesMat(Eigen::Matrix<Scalar, Dynamic, Dynamic>& vers, const char* fileName)
+void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, const char* fileName)
 {
 	char* pTmp = NULL;
 	std::ifstream ifs(fileName);			// cube bunny Eight
@@ -990,11 +1022,11 @@ void objWriteVerticesMat(const char* fileName, const Eigen::PlainObjectBase<Deri
 };
 
 
-void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& dir);
+void printDirEigen(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& dir);
 
 
-void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& xdir, \
-	const RowVector3f& ydir, const RowVector3f& zdir);
+void printCoordinateEigen(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& xdir, \
+	const Eigen::RowVector3f& ydir, const Eigen::RowVector3f& zdir);
 
 
 // 边数据写入到OBJ文件中：
@@ -1018,13 +1050,13 @@ void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<Derived
 
 // objWritePath() 路径数据写入到OBJ文件中：
 template <typename DerivedV, typename	 DerivedI>
-void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers)
+void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers)
 {
 	if (path.size() <= 1)
 		return;
 
 	unsigned edgesCount = path.size() - 1;
-	Eigen::Matrix<DerivedI, Dynamic, Dynamic> pathEdges(edgesCount, 2);
+	Eigen::Matrix<DerivedI, Eigen::Dynamic, Eigen::Dynamic> pathEdges(edgesCount, 2);
 
 	for (unsigned i = 0; i < edgesCount; ++i)
 		pathEdges(i, 0) = path[i];
@@ -1036,7 +1068,7 @@ void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const
 
 // objWirteTreePath()——输入树向量或路径向量，写入到OBJ文件中：
 template <typename DerivedV>
-void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, const Eigen::Matrix<DerivedV, Dynamic, Dynamic>& vers)
+void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, const Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers)
 {
 	// 路径被视为树的特例；
 	
@@ -1066,18 +1098,22 @@ void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, cons
 
  
 
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 齐次坐标系相关接口
-void objReadVerticesHomoMat(MatrixXf& vers, const char* fileName);
+void objReadVerticesHomoMat(Eigen::MatrixXf& vers, const char* fileName);
 
-void objWriteVerticesHomoMat(const char* fileName, const MatrixXf& vers);
+void objWriteVerticesHomoMat(const char* fileName, const Eigen::MatrixXf& vers);
 
-void vers2homoVers(MatrixXf& homoVers, const MatrixXf& vers);
+void vers2homoVers(Eigen::MatrixXf& homoVers, const Eigen::MatrixXf& vers);
 
-MatrixXf vers2homoVers(const MatrixXf& vers);
+Eigen::MatrixXf vers2homoVers(const Eigen::MatrixXf& vers);
 
-void homoVers2vers(MatrixXf& vers, const MatrixXf& homoVers);
+void homoVers2vers(Eigen::MatrixXf& vers, const Eigen::MatrixXf& homoVers);
 
-MatrixXf homoVers2vers(const MatrixXf& homoVers);
+Eigen::MatrixXf homoVers2vers(const Eigen::MatrixXf& homoVers);
+
+
+
 
 
 //////////////////////////////////////////////////////////////////////////////////////////// 科学计算相关
@@ -1101,10 +1137,10 @@ bool spMatTranspose(Eigen::SparseMatrix<T>& smOut, const Eigen::SparseMatrix<T>&
 
 // 解恰定的稠密线性方程组Ax == b;
 template<typename T, int N>
-bool solveLinearEquation(Matrix<T, N, 1>& x, const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, const Matrix<T, N, 1>& b)
+bool solveLinearEquation(Eigen::Matrix<T, N, 1>& x, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, const Eigen::Matrix<T, N, 1>& b)
 {
 	// 解线性方程组Ax == b;
-	JacobiSVD<Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(A, ComputeThinU | ComputeThinV);
+	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	x = svd.solve(b);
 
 	return true;
@@ -1113,18 +1149,17 @@ bool solveLinearEquation(Matrix<T, N, 1>& x, const Matrix<T, Eigen::Dynamic, Eig
 
 // 解一系列恰定的稠密线性方程组AX == B;
 template <typename T>
-bool solveLinearEquations(Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, const Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& B)
+bool solveLinearEquations(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, \
+		const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& B)
 {
 	if (A.rows() != B.rows())
-	{
 		return false;
-	}
 
-	JacobiSVD<Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(A, ComputeThinU | ComputeThinV);
+	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	X.resize(A.cols(), B.cols());
 	for (int i = 0; i < B.cols(); ++i)
 	{
-		Matrix < T, Eigen::Dynamic, 1> x = svd.solve(B.col(i));
+		Eigen::Matrix < T, Eigen::Dynamic, 1> x = svd.solve(B.col(i));
 		X.col(i) = x;
 	}
 
@@ -1139,9 +1174,7 @@ float hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
 	// coeffs是{a0, a1, a2, ..., an}组成的(n+1)列向量，多项式为p == a0 + a1*x + a2*x^2 + ... + an* x^n; 
 	int n = coeffs.rows() - 1;
 	if (n < 0)
-	{
 		return NAN;
-	}
 
 	float result = coeffs(n);
 	for (int i = n; i - 1 >= 0; i--)
@@ -1161,23 +1194,16 @@ float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
 	// 多项式p == a0 + a1*x + a2*x^2 + ... + an* x^n 一阶微分为：p' == a1 + 2*a2*x + 3*a3*x^2 ... n*an*x^(n-1)
 	int coeffsCount = coeffs.rows() * coeffs.cols();
 	if (coeffsCount <= 0)
-	{
 		return NAN;
-	}
 
 	if (coeffsCount == 1)
-	{
 		return 1.0f;
-	}
 
-	VectorXf diffCoeffs(coeffsCount - 1);
+	Eigen::VectorXf diffCoeffs(coeffsCount - 1);
 	for (int i = 0; i < diffCoeffs.rows(); ++i)
-	{
 		diffCoeffs(i) = (i + 1) * coeffs(i + 1);
-	}
 
 	float result = hornersPoly(diffCoeffs, x);
-
 
 	return result;
 }
@@ -1258,15 +1284,18 @@ void leastSquarePolyFitting();
 
 
 // 岭回归多项式拟合曲线
-void ridgeRegressionPolyFitting(VectorXf& theta, const MatrixXf& vers);
+void ridgeRegressionPolyFitting(Eigen::VectorXf& theta, const Eigen::MatrixXf& vers);
 
 
-Matrix3f getRotationMat(const RowVector3f& originArrow, const RowVector3f& targetArrow);
+Eigen::Matrix3f getRotationMat(const Eigen::RowVector3f& originArrow, const Eigen::RowVector3f& targetArrow);
 
 
 
 // 最小二乘法拟合（逼近）标准椭圆（长短轴和xy坐标轴对齐）
-VectorXd fittingStandardEllipse(const Eigen::MatrixXf& sampleVers);
+Eigen::VectorXd fittingStandardEllipse(const Eigen::MatrixXf& sampleVers);
+
+
+
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////// 三角网格处理：
@@ -1350,7 +1379,7 @@ bool trianglesNorm(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& triNorms, c
 	for (int i = 0; i < trisCount; ++i)
 	{
 		int vaIdx, vbIdx, vcIdx;
-		RowVector3d va, vb, vc, arrow1, arrow2, norm;
+		Eigen::RowVector3d va, vb, vc, arrow1, arrow2, norm;
 		vaIdx = tris(i, 0);
 		vbIdx = tris(i, 1);
 		vcIdx = tris(i, 2);
@@ -1397,13 +1426,13 @@ bool trianglesPlane(Eigen::MatrixXd& planeCoeff, const Eigen::PlainObjectBase<De
 	planeCoeff.leftCols(3) = triNorms;
 	for (int i = 0; i < trisCount; ++i)
 	{
-		RowVector3d norm = triNorms.row(i);
+		Eigen::RowVector3d norm = triNorms.row(i);
 
 		// 若存在退化三角片，则平面系数都写为NAN:
 		if (std::isinf(norm(0)))
 			planeCoeff(i, 3) = INFINITY;
 
-		RowVector3d va = vers.row(tris(i, 0)).array().cast<double>();
+		Eigen::RowVector3d va = vers.row(tris(i, 0)).array().cast<double>();
 
 		// va点在平面上 → va点到平面的距离为0 → norm.dot(va) +d == 0; → d = -norm.dot(va);
 		planeCoeff(i, 3) = -norm.dot(va);
@@ -1860,8 +1889,8 @@ bool triangleGrow(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectB
 		finalVerIdx.insert(tris(static_cast<int>(index), 2));
 	}
 
-	VectorXi finalVerIdxVec(finalVerIdx.size());								// 输出顶点的索引，是原网格中的索引；
-	VectorXi oldNewIdxInfo = -VectorXi::Ones(vers.rows());		// 新老索引表——下标为老索引，元素值为新索引，不在新网格中的顶点写为-1
+	Eigen::VectorXi finalVerIdxVec(finalVerIdx.size());								// 输出顶点的索引，是原网格中的索引；
+	Eigen::VectorXi oldNewIdxInfo = -Eigen::VectorXi::Ones(vers.rows());		// 新老索引表——下标为老索引，元素值为新索引，不在新网格中的顶点写为-1
 	auto iter = finalVerIdx.begin();
 	for (int i = 0; i < finalVerIdx.size(); ++i)
 		finalVerIdxVec(i) = static_cast<int>(*iter++);
@@ -1872,7 +1901,7 @@ bool triangleGrow(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectB
 	subFromIdxVec(versOut, vers, finalVerIdxVec);
 
 	// 6. 原网格所有三角片中的顶点索引由老的换为新的。
-	MatrixXi tempMat = tris;
+	Eigen::MatrixXi tempMat = tris;
 	int* intPtr = tempMat.data();
 	for (int i = 0; i < tempMat.size(); ++i)
 	{
@@ -1886,7 +1915,7 @@ bool triangleGrow(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectB
 	int count = 0;
 	for (int i = 0; i < tris.rows(); ++i)
 	{
-		RowVector3i currentTri = tempMat.row(i);
+		Eigen::RowVector3i currentTri = tempMat.row(i);
 		if ((currentTri.array() >= 0).all())
 			trisOut.row(count++) = currentTri;
 	}

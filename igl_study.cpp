@@ -5,7 +5,7 @@ static igl::opengl::glfw::Viewer viewer;				// libigl中的基于glfw的显示窗口；
 static std::mutex g_mutex;
 
 
-// libigl基本功能
+////////////////////////////////////////////////////////////////////////////// libigl基本功能
 namespace IGL_BASIC
 {
 	Eigen::MatrixXd vers, newVers, normals;
@@ -185,17 +185,17 @@ namespace IGL_BASIC
 
 		igl::readOBJ("./data/rootTooth1.obj", vers, tris);
 
-		VectorXd U;
+		Eigen::VectorXd U;
 		igl::readDMAT("./data/cheburashka-scalar.dmat", U);		// 一系列的函数值
 
-		SparseMatrix<double> G;			// 梯度算子
+		Eigen::SparseMatrix<double> G;			// 梯度算子
 		igl::grad(vers, tris, G);
 
 		// 计算函数值U的梯度
-		MatrixXd GU = Map<const MatrixXd>((G * U).eval().data(), tris.rows(), 3);
+		Eigen::MatrixXd GU = Map<const Eigen::MatrixXd>((G * U).eval().data(), tris.rows(), 3);
 
 		// 函数值U的梯度GU的模长
-		const VectorXd GU_mag = GU.rowwise().norm();
+		const Eigen::VectorXd GU_mag = GU.rowwise().norm();
 
 		viewer.data().set_mesh(vers, tris);
 		viewer.data().set_data(U);
@@ -204,9 +204,9 @@ namespace IGL_BASIC
 		const double max_size = igl::avg_edge_length(vers, tris) / GU_mag.mean();
 
 		// 每个三角片重心上画一根指示线，方向为梯度方向。 
-		MatrixXd BC;
+		Eigen::MatrixXd BC;
 		igl::barycenter(vers, tris, BC);
-		const RowVector3d black(0, 0, 0);
+		const Eigen::RowVector3d black(0, 0, 0);
 		viewer.data().add_edges(BC, BC + max_size * GU, black);
 		viewer.data().show_lines = false;	  // 隐藏网格线
 
@@ -234,8 +234,8 @@ namespace IGL_BASIC
 	// test5. 计算符号距离场、marching cubes提取等值面网格；
 	void test5()
 	{
-		MatrixXi tris;
-		MatrixXd vers;
+		Eigen::MatrixXi tris;
+		Eigen::MatrixXd vers;
 		igl::readOBJ("E:/材料/jawMesh.obj", vers, tris);
 
 		tiktok& tt = tiktok::getInstance();
@@ -260,10 +260,10 @@ namespace IGL_BASIC
 
 
 		// ！！！注：libigl中的计算SDF接口igl::signed_distance生成的距离场貌似没有SDFgen中的好用，有时候会出错；
-		VectorXd SDF, signValues;
+		Eigen::VectorXd SDF, signValues;
 		{
-			VectorXi I;                     // useless
-			MatrixXd C, N;              // useless
+			Eigen::VectorXi I;                     // useless
+			Eigen::MatrixXd C, N;              // useless
 
 			// 2. 计算符号距离场
 			tt.start();
@@ -272,15 +272,15 @@ namespace IGL_BASIC
 
 			// 3. 符号距离场改写为符号场——网格内为-1，网格面上为0，外面为1：
 			signValues = SDF;
-			for_each(signValues.data(), signValues.data() + signValues.size(), [](double& b)\
+			std::for_each(signValues.data(), signValues.data() + signValues.size(), [](double& b)\
 			{
 				b = (b > 0 ? 1 : (b < 0 ? -1 : 0));
 			});
 		}
 
 		// 4. marching cubes算法生成最终曲面：
-		MatrixXd versResult_SDF, versResults_signs;
-		MatrixXi trisResult_SDF, trisResults_signs;
+		Eigen::MatrixXd versResult_SDF, versResults_signs;
+		Eigen::MatrixXi trisResult_SDF, trisResults_signs;
 		double selectedSDF = -1.;
 		tt.start();
 		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
@@ -296,7 +296,7 @@ namespace IGL_BASIC
 
 	// 读取SDFGen.exe生成的.sdf距离场数据，使用igl::marching_cubes()提取等值面网格：
 
-	//		解析.sdf文本文件：
+	//解析.sdf文本文件：
 	double parseSDF(std::vector<int>& stepCounts, Eigen::RowVector3d& gridsOri, Eigen::VectorXd& SDF, const char* filePath)
 	{
 		/*
@@ -397,8 +397,8 @@ namespace IGL_BASIC
 		
 		// 2. marching cubes算法生成最终曲面：
 		tiktok& tt = tiktok::getInstance();
-		MatrixXd versResult_SDF, versResults_signs;
-		MatrixXi trisResult_SDF, trisResults_signs;
+		Eigen::MatrixXd versResult_SDF, versResults_signs;
+		Eigen::MatrixXi trisResult_SDF, trisResults_signs;
 		double selectedSDF = -1.;
 		tt.start();
 		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
@@ -436,7 +436,7 @@ namespace IGL_BASIC
 		std::cout << "obb.contains(4, 2, 6) ? " << obb.contains(Eigen::RowVector3d(4, 2, 6)) << std::endl;
 		std::cout << "obb.contains(-5, -5, -5) ? " << obb.contains(Eigen::RowVector3d(-5, -5, -5)) << std::endl;
  
-		igl::writeOBJ("E:/426.obj", MatrixXd{ RowVector3d(4, 2, 6) }, MatrixXi{});
+		igl::writeOBJ("E:/426.obj", Eigen::MatrixXd{ Eigen::RowVector3d(4, 2, 6) }, Eigen::MatrixXi{});
 
 		std::cout << "finished." << std::endl;
 	}
@@ -444,7 +444,7 @@ namespace IGL_BASIC
 }
 
 
-// libigl中的微分几何相关
+////////////////////////////////////////////////////////////////////////////// libigl中的微分几何相关
 namespace IGL_DIF_GEO 
 {
 	Eigen::MatrixXd vers, newVers, normals;
@@ -544,8 +544,8 @@ namespace IGL_DIF_GEO
 
 		// 1.b 测试分步构造laplacian
 		{
-			SparseMatrix<double> Gradient, L2;
-			VectorXd dblA;									  // 每个三角片面积的两倍
+			Eigen::SparseMatrix<double> Gradient, L2;
+			Eigen::VectorXd dblA;									  // 每个三角片面积的两倍
 			igl::grad(vers, tris, Gradient);      // 离散梯度
 
 			// Diagonal per-triangle "mass matrix"			
@@ -556,7 +556,7 @@ namespace IGL_DIF_GEO
 
 			L2 = -Gradient.transpose() * T * Gradient;         // discrete Dirichelet energy Hessian 离散狄利克雷能量海塞矩阵
 			std::cout << "两种方法得到的laplacian的差的范数：" << std::endl;
-			cout << "(L2 - L).norm() == " << (L2 - L).norm() << endl;
+			std::cout << "(L2 - L).norm() == " << (L2 - L).norm() << std::endl;
 		}
 
 		// 2. 根据原始的法向量，使用伪色
@@ -570,8 +570,8 @@ namespace IGL_DIF_GEO
 		viewer.callback_key_down = key_down_laplacian;
 
 		// 4. 运行
-		cout << "Press [space] to smooth." << endl;
-		cout << "Press [r] to reset." << endl;
+		std::cout << "Press [space] to smooth." << std::endl;
+		std::cout << "Press [r] to reset." << std::endl;
 
 		viewer.launch();
 	}
@@ -580,14 +580,14 @@ namespace IGL_DIF_GEO
 }
 
 
-// 图算法
+/////////////////////////////////////////////////////////////////////////////// 图算法
 namespace IGL_GRAPH 
 {
 	// 图数据结构的转换：
 	void test0() 
 	{
-		MatrixXd vers;
-		MatrixXi tris;
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
 		igl::readOBJ("E:/材料/cube重复三角片.obj", vers, tris);
 
 		std::vector<std::vector<int>> adjList;
@@ -603,7 +603,7 @@ namespace IGL_GRAPH
 		unsigned edgesCount = 3 * trisCount;
 		Eigen::SparseMatrix<int> adjSM_eCount;				// 有向边邻接矩阵，权重为该有向边的数量；
 
-		MatrixXi edges = MatrixXi::Zero(edgesCount, 2);
+		Eigen::MatrixXi edges = Eigen::MatrixXi::Zero(edgesCount, 2);
 		edges.block(0, 0, trisCount, 1) = tris.col(0);
 		edges.block(0, 1, trisCount, 1) = tris.col(1);
 		edges.block(trisCount, 0, trisCount, 1) = tris.col(1);
@@ -678,8 +678,8 @@ namespace IGL_GRAPH
 	// 基本的图算法；
 	void test1() 
 	{
-		MatrixXd vers;
-		MatrixXi tris;
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
 		igl::readOBJ("E:/材料/roundSurf.obj", vers, tris);
 		igl::writeOBJ("E:/meshInput.obj", vers, tris);
  
@@ -747,8 +747,8 @@ namespace IGL_GRAPH
 	void test2() 
 	{
 		// dijkstra
-		MatrixXd vers;
-		MatrixXi tris;
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
 		igl::readOBJ("E:/材料/roundSurf.obj", vers, tris);
 
 		std::vector<std::vector<int>> adjList;
@@ -765,14 +765,13 @@ namespace IGL_GRAPH
 		std::cout << "retIdx == " << retIdx << std::endl;
 		objWriteTreePath("E:/mst.obj", mst, vers);
 
-
 		std::cout << "finished." << std::endl;
 	}
  
 }
 
 
-// 空间划分
+/////////////////////////////////////////////////////////////////////////////// 空间划分
 namespace IGL_SPACE_PARTITION
 {
 	// aabb树实现的BVH(层次包围体)
@@ -805,7 +804,7 @@ namespace IGL_SPACE_PARTITION
 }
 
 
-// IGL实现的基础三角网格处理算法；
+/////////////////////////////////////////////////////////////////////////////// IGL实现的基础三角网格处理算法；
 namespace IGL_BASIC_PMP 
 {
 	// 非流形网格中的边-三角片邻接关系：
@@ -1636,10 +1635,10 @@ namespace IGL_BASIC_PMP
 			Eigen::VectorXd zPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(2), minp(2), maxp(2));
 
 			Eigen::MatrixXd tmpVec0, tmpVec1, tmpVec2;
-			kron(tmpVec0, VectorXd::Ones(gridCounts(1) * gridCounts(2)), xPeriod);
-			Eigen::VectorXd tmpVec11 = kron(yPeriod, VectorXi::Ones(gridCounts(0)));
-			kron(tmpVec1, VectorXi::Ones(gridCounts(2)), tmpVec11);
-			kron(tmpVec2, zPeriod, VectorXd::Ones(gridCounts(0) * gridCounts(1)));
+			kron(tmpVec0, Eigen::VectorXd::Ones(gridCounts(1) * gridCounts(2)), xPeriod);
+			Eigen::VectorXd tmpVec11 = kron(yPeriod, Eigen::VectorXi::Ones(gridCounts(0)));
+			kron(tmpVec1, Eigen::VectorXi::Ones(gridCounts(2)), tmpVec11);
+			kron(tmpVec2, zPeriod, Eigen::VectorXd::Ones(gridCounts(0) * gridCounts(1)));
 			gridCenters0.resize(stepCounts[0] * stepCounts[1] * stepCounts[2], 3);
 			gridCenters0.col(0) = tmpVec0;
 			gridCenters0.col(1) = tmpVec1;
@@ -1656,8 +1655,8 @@ namespace IGL_BASIC_PMP
 		}
 
 		// 2. marching cubes算法生成最终曲面：
-		MatrixXd versResult_SDF, versResults_signs, versResult_origin;
-		MatrixXi trisResult_SDF, trisResults_signs, trisResult_origin;
+		Eigen::MatrixXd versResult_SDF, versResults_signs, versResult_origin;
+		Eigen::MatrixXi trisResult_SDF, trisResults_signs, trisResult_origin;
 		tt.start();
 		marchingCubes(versResult_SDF, trisResult_SDF, SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF);
 		tt.endCout("Elapsed time of my marching_cubes() is ");

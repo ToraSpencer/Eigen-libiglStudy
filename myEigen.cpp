@@ -1,8 +1,5 @@
 #include "myEigen.h"
  
-using namespace std;
-using namespace Eigen;
- 
  
 unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize) 
 {
@@ -36,7 +33,7 @@ unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const un
 
 
 // 读取点云OBJ文件中的数据，存储到齐次坐标系表示的点云矩阵中；注：顶点在矩阵中是列表示的，第四维的元素始终为1；
-void objReadVerticesHomoMat(MatrixXf& vers, const char* fileName)
+void objReadVerticesHomoMat(Eigen::MatrixXf& vers, const char* fileName)
 {
 	char* pTmp = NULL;
 	std::ifstream ifs(fileName);			// cube bunny Eight
@@ -78,7 +75,7 @@ void objReadVerticesHomoMat(MatrixXf& vers, const char* fileName)
 			if (0 == nRet)
 				break;
 
-			Vector4f ver(Vector4f::Ones());
+			Eigen::Vector4f ver(Eigen::Vector4f::Ones());
 			ver(0) = (float)atof(tmpBuffer);
 			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
 			if (0 == nRet)
@@ -101,7 +98,7 @@ void objReadVerticesHomoMat(MatrixXf& vers, const char* fileName)
 
 
 // 齐次坐标系点云数据写入到OBJ文件中；注：顶点在矩阵中是列表示的，第四维的元素始终为1；
-void objWriteVerticesHomoMat(const char* fileName, const MatrixXf& vers)
+void objWriteVerticesHomoMat(const char* fileName, const Eigen::MatrixXf& vers)
 {
 	std::ofstream dstFile(fileName);
 	for (int i = 0; i < vers.cols(); i++)
@@ -114,40 +111,40 @@ void objWriteVerticesHomoMat(const char* fileName, const MatrixXf& vers)
 
 
 //	普通点云矩阵转换为齐次坐标系下的点云矩阵：
-void vers2homoVers(MatrixXf& homoVers, const MatrixXf& vers)
+void vers2homoVers(Eigen::MatrixXf& homoVers, const Eigen::MatrixXf& vers)
 {
-	homoVers = MatrixXf::Ones(4, vers.rows());
+	homoVers = Eigen::MatrixXf::Ones(4, vers.rows());
 	homoVers.topRows(3) = vers.transpose();
 }
 
 
-MatrixXf vers2homoVers(const MatrixXf& vers)
+Eigen::MatrixXf vers2homoVers(const Eigen::MatrixXf& vers)
 {
-	MatrixXf homoVers = MatrixXf::Ones(4, vers.rows());
+	Eigen::MatrixXf homoVers = Eigen::MatrixXf::Ones(4, vers.rows());
 	homoVers.topRows(3) = vers.transpose();
 	return homoVers;
 }
 
 
 // 齐次坐标系下的点云矩阵变换为普通点云矩阵
-void homoVers2vers(MatrixXf& vers, const MatrixXf& homoVers)
+void homoVers2vers(Eigen::MatrixXf& vers, const Eigen::MatrixXf& homoVers)
 {
-	MatrixXf tempMat = homoVers.transpose();
+	Eigen::MatrixXf tempMat = homoVers.transpose();
 	vers = tempMat.leftCols(3);
 }
 
 
-MatrixXf homoVers2vers(const MatrixXf& homoVers)
+Eigen::MatrixXf homoVers2vers(const Eigen::MatrixXf& homoVers)
 {
-	MatrixXf tempMat = homoVers.transpose();
-	MatrixXf vers = tempMat.leftCols(3);
+	Eigen::MatrixXf tempMat = homoVers.transpose();
+	Eigen::MatrixXf vers = tempMat.leftCols(3);
 	return vers;
 }
 
 
-void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& dir)
+void printDirEigen(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& dir)
 {
-	MatrixXf line;
+	Eigen::MatrixXf line;
 
 	const float SR = 0.5;			// 空间采样率SR——相邻两个采样点的距离（单位mm）
 	const float length = 10;
@@ -155,35 +152,27 @@ void printDirEigen(const char* pathName, const RowVector3f& origin, const RowVec
 	line.resize(versCount + 1, 3);
 	line.row(0) = origin;
 	for (int i = 1; i <= versCount; i++)
-	{
 		line.row(i) = line.row(0) + SR * dir * i;
-	}
 
 	objWriteVerticesMat(pathName, line);
 };
 
 
-void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const RowVector3f& xdir, \
-	const RowVector3f& ydir, const RowVector3f& zdir)
+void printCoordinateEigen(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& xdir, \
+	const Eigen::RowVector3f& ydir, const Eigen::RowVector3f& zdir)
 {
 	const float SR = 0.5;			// 空间采样率SR——相邻两个采样点的距离（单位mm）
 	const float length = 10;
 	int versCount = std::round(length / SR);
-	MatrixXf line1(versCount, 3), line2(versCount, 3), line3(versCount, 3); 
+	Eigen::MatrixXf line1(versCount, 3), line2(versCount, 3), line3(versCount, 3);
 	for (int i = 0; i < versCount; i++)
-	{
 		line1.row(i) = origin + SR * xdir * (i + 1);
-	}
 	for (int i = 0; i < versCount; i++)
-	{
 		line2.row(i) = origin + SR * ydir * (i + 1);
-	}
 	for (int i = 0; i < versCount; i++)
-	{
 		line3.row(i) = origin + SR * zdir * (i + 1);
-	}
 
-	MatrixXf line = origin;
+	Eigen::MatrixXf line = origin;
 	matInsertRows<float>(line, line1);
 	matInsertRows<float>(line, line2);
 	matInsertRows<float>(line, line3);
@@ -192,23 +181,19 @@ void printCoordinateEigen(const char* pathName, const RowVector3f& origin, const
 
 
 // 布尔向量转化为索引向量；
-VectorXi flagVec2IdxVec(const VectorXi& flag)
+Eigen::VectorXi flagVec2IdxVec(const Eigen::VectorXi& flag)
 {
-	VectorXi idxVec;
+	Eigen::VectorXi idxVec;
 
 	for (unsigned i = 0; i < flag.rows(); ++i)
-	{
 		if (0 != flag(i) && 1 != flag(i))
 			return idxVec;
-	}
 
 	std::vector<int> tempVec;
 	tempVec.reserve(flag.rows());
 	for (unsigned i = 0; i< flag.rows(); ++i) 
-	{
 		if (flag(i) > 0)
 			tempVec.push_back(i);
-	}
 	idxVec = vec2Vec<int>(tempVec);
 	
 	return idxVec;
@@ -216,24 +201,20 @@ VectorXi flagVec2IdxVec(const VectorXi& flag)
 
 
 // 索引向量转化为布尔向量；
-VectorXi IdxVec2FlagVec(const VectorXi& idxVec, const unsigned size)
+Eigen::VectorXi IdxVec2FlagVec(const Eigen::VectorXi& idxVec, const unsigned size)
 {
-	VectorXi flag;
+	Eigen::VectorXi flag;
 
 	if (idxVec.rows() > size)
 		return flag;
 
 	for (unsigned i = 0; i < idxVec.rows(); ++i) 
-	{
 		if (idxVec(i) >= size)
 			return flag;
-	}
 
-	flag = VectorXi::Zero(size);
+	flag = Eigen::VectorXi::Zero(size);
 	for (unsigned i = 0; i < idxVec.rows(); ++i)
-	{
 		flag(idxVec(i)) = 1;
-	}
 
 	return flag;
 }
@@ -256,12 +237,12 @@ void leastSquarePolyFitting()
 
 
  // 岭回归多项式拟合曲线
-void ridgeRegressionPolyFitting(VectorXf& theta, const MatrixXf& vers)
+void ridgeRegressionPolyFitting(Eigen::VectorXf& theta, const Eigen::MatrixXf& vers)
 {
 	/*
 		void ridgeRegressionPolyFitting(
-					VectorXf & theta,				拟合的多项式函数
-					const MatrixXf & vers			离散样本点
+					Eigen::VectorXf & theta,				拟合的多项式函数
+					const Eigen::MatrixXf & vers			离散样本点
 					)
 	*/
 
@@ -270,13 +251,9 @@ void ridgeRegressionPolyFitting(VectorXf& theta, const MatrixXf& vers)
 
 	int n = vers.rows();
 	if (n == 0)
-	{
 		return;
-	}
 	if (m >= n)
-	{
 		m = n - 1;
-	}
 
 	Eigen::MatrixXf X(n, m);
 	for (int i = 0; i < n; ++i)
@@ -294,48 +271,20 @@ void ridgeRegressionPolyFitting(VectorXf& theta, const MatrixXf& vers)
 }
 
 
-// 输入起点、终点、空间采样率，插值生成一条直线点云；
-bool interpolateToLine(MatrixXf& vers, const RowVector3f& start, const RowVector3f& end, const float SR, const bool SE)
-{
-	if (vers.rows() > 0)
-		return false;
 
-	RowVector3f dir = end - start;
-	float length = dir.norm();
-	dir.normalize();
-
-	if (length <= SR)
-		return true;
-
-	if (SE)
-		matInsertRows<float>(vers, start);
-
-	float lenth0 = 0;
-	for (unsigned i = 1; (length - lenth0) > 0.8 * SR; i++)			// 确保最后一个点距离终点不能太近。
-	{
-		RowVector3f temp = start + SR * i * dir;
-		matInsertRows<float>(vers, temp);
-		lenth0 = SR * (i + 1);		// 下一个temp的长度。
-	}
-
-	if (SE)
-		matInsertRows<float>(vers, end);
-
-	return true;
-};
 
 
 // 得到将originArrow旋转到targetArrow的旋转矩阵
-Matrix3f getRotationMat(const RowVector3f& originArrow, const RowVector3f& targetArrow)
+Eigen::Matrix3f getRotationMat(const Eigen::RowVector3f& originArrow, const Eigen::RowVector3f& targetArrow)
 {
-	Matrix3f rotation = Matrix3f::Zero();
+	Eigen::Matrix3f rotation = Eigen::Matrix3f::Zero();
 	if (0 == originArrow.norm() || 0 == targetArrow.norm())
 		return rotation;
 
-	RowVector3f axisArrow = originArrow.cross(targetArrow);		// 旋转轴；
+	Eigen::RowVector3f axisArrow = originArrow.cross(targetArrow);		// 旋转轴；
 
 	if (0 == axisArrow.norm())
-		return Matrix3f::Identity();
+		return Eigen::Matrix3f::Identity();
 
 	axisArrow.normalize();
 	float x0 = axisArrow(0);
@@ -350,21 +299,21 @@ Matrix3f getRotationMat(const RowVector3f& originArrow, const RowVector3f& targe
 }
 
 
-VectorXd fittingStandardEllipse(const MatrixXf& sampleVers)
+Eigen::VectorXd fittingStandardEllipse(const Eigen::MatrixXf& sampleVers)
 {
 	/*
-		VectorXd fittingStandardEllipse(								// 返回列向量(a,c,d,e,f)，为标准椭圆方程的系数；
-					const MatrixXf& sampleVers					// 输入的样本点，必须是在XOY平面上的点；
+		Eigen::VectorXd fittingStandardEllipse(								// 返回列向量(a,c,d,e,f)，为标准椭圆方程的系数；
+					const Eigen::MatrixXf& sampleVers					// 输入的样本点，必须是在XOY平面上的点；
 		)
 	*/
 	const double epsilon = 1e-8;				// 浮点数绝对值小于此值时认为为0；
 
 	// 标准椭圆方程：a*x^2 + c*y^2 + d*x + e*y + f  = 0，其中a*c > 0
-	VectorXd x(VectorXd::Zero(5));
+	Eigen::VectorXd x(Eigen::VectorXd::Zero(5));
 
 	unsigned m = sampleVers.rows();				// sample count;
-	VectorXd x0(VectorXd::Zero(m));
-	VectorXd y0(VectorXd::Zero(m));
+	Eigen::VectorXd x0(Eigen::VectorXd::Zero(m));
+	Eigen::VectorXd y0(Eigen::VectorXd::Zero(m));
 	for (unsigned i = 0; i < m; ++i)
 	{
 		x0(i) = static_cast<double>(sampleVers(i, 0));
@@ -372,22 +321,22 @@ VectorXd fittingStandardEllipse(const MatrixXf& sampleVers)
 	}
 
 	// alpha = [x^2, y^2, x, y, 1]; 样本信息矩阵：A = [alpha1; alpha2; .... alpham]; 椭圆方程写为：A*x = 0;
-	MatrixXd A = MatrixXd::Ones(m, 5);
+	Eigen::MatrixXd A = Eigen::MatrixXd::Ones(m, 5);
 	A.col(0) = x0.array() * x0.array();
 	A.col(1) = y0.array() * y0.array();
 	A.col(2) = x0;
 	A.col(3) = y0;
 
-	MatrixXd ATA = A.transpose().eval() * A;
-	MatrixXd B(MatrixXd::Zero(5, 5));
+	Eigen::MatrixXd ATA = A.transpose().eval() * A;
+	Eigen::MatrixXd B(Eigen::MatrixXd::Zero(5, 5));
 	B(0, 1) = 1;
 	B(1, 0) = 1;
-	MatrixXd S = ATA.inverse() * B.transpose();
+	Eigen::MatrixXd S = ATA.inverse() * B.transpose();
 
 	// 求S的特征值，特征向量：
-	EigenSolver<MatrixXd> es(S);
-	MatrixXd D = es.pseudoEigenvalueMatrix();			// 对角线元素是特征值
-	MatrixXd V = es.pseudoEigenvectors();				// 每一个列向量都是特征向量。
+	Eigen::EigenSolver<Eigen::MatrixXd> es(S);
+	Eigen::MatrixXd D = es.pseudoEigenvalueMatrix();			// 对角线元素是特征值
+	Eigen::MatrixXd V = es.pseudoEigenvectors();					// 每一个列向量都是特征向量。
 
 	// 寻找特征值不为0，且满足约束条件的特征向量：
 	for (unsigned i = 0; i < V.cols(); ++i)
@@ -696,7 +645,7 @@ std::vector<int> decodeTrianagle(const std::uint64_t code)
 }
 
 
-// 生成cell对应的轴向包围盒网格；
+// 生成T_MESH::di_cell对应的轴向包围盒网格；
 void genAABBmesh(const T_MESH::di_cell& cell, Eigen::MatrixXd& vers, Eigen::MatrixXi& tris)
 {
 	vers.resize(0, 0);
@@ -714,7 +663,7 @@ void genAABBmesh(const T_MESH::di_cell& cell, Eigen::MatrixXd& vers, Eigen::Matr
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////DEBUG接口：
-static std::string g_debugPath;
+static std::string g_debugPath = "E:/";
 
 
 template<typename DerivedV>
@@ -735,7 +684,7 @@ static void debugWriteMesh(const char* name, T_MESH::Basic_TMesh& mesh)
 
 
 template<typename T>
-static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const MatrixXi& tris)
+static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
 {
 	char path[512] = { 0 };
 	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -744,6 +693,7 @@ static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynam
  
 
 
+// 测试myEigen中的接口
 namespace TEST_MYEIGEN 
 {
 	// 测试编码解码：
@@ -851,7 +801,19 @@ namespace TEST_MYEIGEN
 
 		std::cout << "finished." << std::endl;
 	}
+
+
+	// 测试生成基础图形的接口：
+	void test5() 
+	{
+		Eigen::MatrixXf line;
+		interpolateToLine(line, Eigen::RowVector3f{0, 0, 0}, Eigen::RowVector3f{1, 2, 5}, 0.5);
+
+		debugWriteVers("line", line);
+		std::cout << "finished." << std::endl;
+	}
 }
+
 
 
 // 测试图像处理：
@@ -877,6 +839,7 @@ namespace TEST_DIP
 }
 
  
+
 // 测试拓扑网格类tmesh
 namespace TEST_TMESH
 {
@@ -956,7 +919,7 @@ namespace TEST_TMESH
 		g_debugPath = "E:/";
 
 		T_MESH::TMesh::init();				// This is mandatory
-		T_MESH::Basic_TMesh tMesh, tMesh2;
+		T_MESH::Basic_TMesh tMesh;
 		tMesh.load("E:/材料/tooth.obj");
 		debugWriteMesh("meshInput", tMesh);
 
@@ -972,11 +935,7 @@ namespace TEST_TMESH
 
 		// 3. 删除所有选中三角片，及其包含的点和边；
 		tMesh.removeSelectedTriangles();
-
-		// 4. split()方法：
-		T_MESH::Basic_TMesh* meshPtr = tMesh2.split();
-		debugWriteMesh("meshSplited1", *meshPtr);
-		debugWriteMesh("meshSplited2", tMesh2);
+		debugWriteMesh("meshOut", tMesh);
 
 		std::cout << "finished." << std::endl;
 	}
