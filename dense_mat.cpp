@@ -564,6 +564,7 @@ namespace DENSEMAT
 		dispMat(m2);
 	}
 
+
 	// test7——flag矩阵
 	void test7()
 	{
@@ -667,12 +668,12 @@ namespace DENSEMAT
 		dispQuat(q3);
 
 
-		// AngleAxisf类——一个类对象表示一次绕着某轴进行一定角度的旋转，可用于构造旋转矩阵。
+		// Eigen::AngleAxisf类——一个类对象表示一次绕着某轴进行一定角度的旋转，可用于构造旋转矩阵。
 		const float pi = 3.14159;
 		Eigen::Matrix3f m;
-		m = AngleAxisf(0.25 * pi, Eigen::Vector3f::UnitX())
-			* AngleAxisf(0.5 * pi, Eigen::Vector3f::UnitY())
-			* AngleAxisf(0.33 * pi, Eigen::Vector3f::UnitZ());				// 表示先后绕xyz三个轴旋转一定角度。
+		m = Eigen::AngleAxisf(0.25 * pi, Eigen::Vector3f::UnitX())
+			* Eigen::AngleAxisf(0.5 * pi, Eigen::Vector3f::UnitY())
+			* Eigen::AngleAxisf(0.33 * pi, Eigen::Vector3f::UnitZ());				// 表示先后绕xyz三个轴旋转一定角度。
 		std::cout << m << std::endl << "is unitary: " << m.isUnitary() << std::endl;
 
 		// 平移(translation)变换
@@ -687,7 +688,6 @@ namespace DENSEMAT
 	void test10()
 	{
 		// 已知向量在旋转变换前后的坐标，求这个旋转变换的旋转矩阵：
-
 		Eigen::MatrixXf vers, gumline, axis;
 		Eigen::MatrixXi tris;
 

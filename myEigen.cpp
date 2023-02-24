@@ -274,31 +274,6 @@ void ridgeRegressionPolyFitting(Eigen::VectorXf& theta, const Eigen::MatrixXf& v
 
 
 
-// 得到将originArrow旋转到targetArrow的旋转矩阵
-Eigen::Matrix3f getRotationMat(const Eigen::RowVector3f& originArrow, const Eigen::RowVector3f& targetArrow)
-{
-	Eigen::Matrix3f rotation = Eigen::Matrix3f::Zero();
-	if (0 == originArrow.norm() || 0 == targetArrow.norm())
-		return rotation;
-
-	Eigen::RowVector3f axisArrow = originArrow.cross(targetArrow);		// 旋转轴；
-
-	if (0 == axisArrow.norm())
-		return Eigen::Matrix3f::Identity();
-
-	axisArrow.normalize();
-	float x0 = axisArrow(0);
-	float y0 = axisArrow(1);
-	float z0 = axisArrow(2);
-	float cosTheta = originArrow.dot(targetArrow) / (originArrow.norm() * targetArrow.norm());
-	float sinTheta = std::sqrt(1 - cosTheta*cosTheta);
-	rotation << cosTheta + (1 - cosTheta) * x0 * x0, (1 - cosTheta)* x0* y0 - sinTheta * z0, (1 - cosTheta)* x0* z0 + sinTheta * y0, \
-		(1 - cosTheta)* y0* x0 + sinTheta * z0, cosTheta + (1 - cosTheta) * y0 * y0, (1 - cosTheta)* y0* z0 - sinTheta * x0, \
-		(1 - cosTheta)* z0* x0 - sinTheta * y0, (1 - cosTheta)* z0* y0 + sinTheta * x0, cosTheta + (1 - cosTheta) * z0 * z0;
-	return rotation;
-}
-
-
 Eigen::VectorXd fittingStandardEllipse(const Eigen::MatrixXf& sampleVers)
 {
 	/*
@@ -811,7 +786,46 @@ namespace TEST_MYEIGEN
 
 		debugWriteVers("line", line);
 		std::cout << "finished." << std::endl;
+
+		// 生成柱体：
+		Eigen::MatrixXf cylinderVers;
+		Eigen::MatrixXi cylinderTris;
+		genCylinder(cylinderVers, cylinderTris, line, 10);
+
+
+		std::cout << "finished." << std::endl;
 	}
+
+	
+	// 测试空间变换相关的接口：
+	void test6()
+	{
+		Eigen::Matrix3d rotation;
+		Eigen::RowVector3d axisArrow;
+		Eigen::RowVector3d arrow1, arrow2, arrowRotted;
+		float theta = pi;
+
+		// 绕任意轴旋转：
+		theta = pi / 3;
+		axisArrow = Eigen::RowVector3d{20, 0, 0};
+		rotation = getRotationMat(axisArrow, theta);
+		arrowRotted = arrow1 * rotation.transpose();
+		dispVec<double, 3>(arrowRotted);
+
+		// 旋转到目标向量：
+		arrow1.setRandom();
+		arrow2.setRandom();
+		arrow1.normalize();
+		arrow2.normalize();
+		dispVec<double, 3>(arrow1);
+		dispVec<double, 3>(arrow2);
+		rotation = getRotationMat(arrow1, arrow2);
+		arrowRotted = arrow1 * rotation.transpose();
+		dispVec<double, 3>(arrowRotted);
+
+		std::cout << "finished." << std::endl;
+	}
+
 }
 
 

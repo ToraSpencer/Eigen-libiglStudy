@@ -25,14 +25,48 @@
 #include "tmesh.h"								// 拓扑网格类TMESH
 #include "detectIntersections.h"			// TMESHS的自相交检测功能；
 
-
+const double pi = 3.14159265359;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 前置声明
 template<typename T>
 bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat1);
 template<typename T, int N>
 bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, 1, N>& rowVec);
+template <typename T>
+void vecWriteToFile(const char* fileName, const std::vector<T>& vec);
+template<typename T>
+void vecReadFromFile(std::vector<T>& vec, const char* fileName, const unsigned elemCount);
+template<typename T>
+bool matWriteToFile(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat);
+template<typename T>
+bool matReadFromFile(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const char* fileName);
+template	<typename Scalar, typename Index>
+void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+	Eigen::Matrix<Index, Eigen::Dynamic, Eigen::Dynamic>& tris, const char* fileName);
+template	<typename T>
+void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
 
+
+template	<typename Scalar>
+void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, const char* fileName);
+
+
+template	<typename DerivedV>
+void objWriteVerticesMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers);
+;
+template	<typename DerivedV, typename DerivedI>
+void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<DerivedI>& edges, \
+	const Eigen::PlainObjectBase<DerivedV>& vers);
+;
+template <typename DerivedV, typename	 DerivedI>
+void objWritePath(const char* pathName, const std::vector<DerivedI>& path, \
+	const Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers);
+template <typename DerivedV>
+void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, \
+	const Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers);
+
+
+ 
 
 
 
@@ -392,7 +426,49 @@ void dispVecSeg(const Eigen::Matrix<T, 1, N>& vec, const int start, const int en
 }
 
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////// 空间变换接口：
+
+// 注！！！计算出的旋转矩阵全部默认为作用于列向量；若v,u为列向量，r,s为行向量：R * v == u; 等价于 r * R.transpose() == s;
+
+// getRotationMat() 重载1——输入旋转轴向量，旋转角度，返回旋转矩阵：
+template <typename T>
+Eigen::Matrix<T, 3, 3> getRotationMat(const Eigen::Matrix<T, 1, 3>& axisArrow, const float theta) 
+{
+	Eigen::Matrix<T, 3, 1> axis = axisArrow.transpose().normalized();
+	return Eigen::AngleAxis<T>(theta, axis).toRotationMatrix();
+}
+
+
+// getRotationMat() 重载2——得到将originArrow旋转到targetArrow的旋转矩阵
+template <typename T>
+Eigen::Matrix<T, 3, 3> getRotationMat(const Eigen::Matrix<T, 1, 3>& originArrow, const Eigen::Matrix<T, 1, 3>& targetArrow)
+{
+	Eigen::Matrix<T, 3, 3> rotation = Eigen::Matrix<T, 3, 3>::Zero();
+	if (0 == originArrow.norm() || 0 == targetArrow.norm())
+		return rotation;
+
+	Eigen::Matrix<T, 1, 3> axisArrow = originArrow.cross(targetArrow);		// 旋转轴；
+
+	if (0 == axisArrow.norm())
+		return Eigen::Matrix<T, 3, 3>::Identity();
+
+	axisArrow.normalize();
+	T x0 = axisArrow(0);
+	T y0 = axisArrow(1);
+	T z0 = axisArrow(2);
+	T cosTheta = originArrow.dot(targetArrow) / (originArrow.norm() * targetArrow.norm());
+	T sinTheta = std::sqrt(1 - cosTheta * cosTheta);
+
+	// 等价于Eigen::AngleAxis<T>(theta, axis).toRotationMatrix()，计算绕任意轴向量旋转theta角度；
+	rotation << cosTheta + (1 - cosTheta) * x0 * x0, (1 - cosTheta)* x0* y0 - sinTheta * z0, (1 - cosTheta)* x0* z0 + sinTheta * y0, \
+		(1 - cosTheta)* y0* x0 + sinTheta * z0, cosTheta + (1 - cosTheta) * y0 * y0, (1 - cosTheta)* y0* z0 - sinTheta * x0, \
+		(1 - cosTheta)* z0* x0 - sinTheta * y0, (1 - cosTheta)* z0* y0 + sinTheta * x0, cosTheta + (1 - cosTheta) * z0 * z0;
+	return rotation;
+}
  
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////// 图形生成接口：
  
 // 输入起点、终点、空间采样率，插值生成一条直线点云；
@@ -460,6 +536,91 @@ void genAABBmesh(const Eigen::AlignedBox<_Scalar, _AmbientDim>& aabb, Eigen::Mat
 	vers.rowwise() += newOri.transpose();
 }
 
+
+// genCylinder()重载1——生成（类）柱体：
+template <typename T>
+bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+		const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& btmVers, \
+		const bool isCovered = true)
+{
+	/*
+	bool genCylinder(
+		Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers,
+		Eigen::MatrixXi& tris, 
+		const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers,			轴线；
+		const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& btmVers,			横截面回路顶点，必须要在XOY平面内；
+		const bool isCovered																						是否封底
+		)
+	
+	
+	*/
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+	unsigned circVersCount = btmVers.rows();					// 横截面一圈的顶点数；
+	unsigned circCount = axisVers.rows();							// 圈数；
+	unsigned versCount = circVersCount * circCount;
+	std::vector<MatrixXT> circuits(circCount);									// 每个横截面的一圈顶点；
+	std::vector<RowVector3T> sectionNorms(circCount);					// 每个横截面的法向；
+
+	// 计算柱体circCount个横截面的法向、每个横截面的顶点；
+	for (unsigned i = 0; i < circCount - 1; ++i)
+	{
+		sectionNorms[i] = axisVers.row(i + 1) - axisVers.row(i);
+		sectionNorms[i].normalize();
+		Matrix3T rotation = getRotationMat(RowVector3T{0, 0, 1}, sectionNorms[i]);
+		circuits[i] = btmVers * rotation.transpose();
+		circuits[i].rowwise() += axisVers.row(i);
+	}
+
+	// 计算最后一圈顶点：
+	RowVector3T deltaNormAve{RowVector3T::Zero()};
+	for (unsigned i = 0; i < circCount - 2; ++i)
+		deltaNormAve += (sectionNorms[i + 1] - sectionNorms[i]);
+	deltaNormAve.array() /= (circCount - 2);
+	sectionNorms[circCount - 1] = sectionNorms[circCount - 2] + deltaNormAve;
+	Matrix3T rotation = getRotationMat(RowVector3T{ 0, 0, 1 }, sectionNorms[circCount - 1]);
+	circuits[circCount - 1] = btmVers * rotation.transpose();
+	circuits[circCount - 1].rowwise() += axisVers.row(circCount - 1);
+
+	// 生成柱体顶点：
+	vers.resize(versCount, 3);
+	for (unsigned i = 0; i < circCount; ++i)
+		vers.block(0 + circVersCount * i, 0, circVersCount, 3) = circuits[i];
+
+	objWriteVerticesMat("E:/cylinderVers.obj", vers);
+
+	return true;
+}
+
+
+// genCylinder()重载2——生成圆柱体网格
+template <typename T>
+bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const float radius, const bool isCovered = true)
+{
+	// 生成XOY平面上采样角度步长为的圆圈顶点：
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	double deltaTheta = 2 * pi / 30;
+	MatrixXT circuit(30, 3);
+	circuit.setZero();
+	for (unsigned i = 0; i < 30; ++i)
+	{
+		double theta = deltaTheta * i;
+		circuit(i, 0) = radius * cos(theta);
+		circuit(i, 1) = radius * sin(theta);
+	}
+
+	// for debug:
+	objWriteVerticesMat("E:/circuit.obj", circuit);
+
+	genCylinder(vers, tris, axisVers, circuit);
+
+	return true;
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////// 不同数据类型的变换
@@ -1285,9 +1446,6 @@ void leastSquarePolyFitting();
 
 // 岭回归多项式拟合曲线
 void ridgeRegressionPolyFitting(Eigen::VectorXf& theta, const Eigen::MatrixXf& vers);
-
-
-Eigen::Matrix3f getRotationMat(const Eigen::RowVector3f& originArrow, const Eigen::RowVector3f& targetArrow);
 
 
 
