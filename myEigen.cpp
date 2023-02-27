@@ -787,6 +787,13 @@ namespace TEST_MYEIGEN
 		debugWriteVers("line", line);
 		std::cout << "finished." << std::endl;
 
+		// 三角剖分：
+		Eigen::MatrixXd surfVers, circleVers;
+		Eigen::MatrixXi surfTris;
+		objReadVerticesMat(circleVers, "E:/材料/circleVers.obj");
+		circuit2mesh(surfVers, surfTris, circleVers);
+		debugWriteMesh("surfMesh", surfVers, surfTris);
+
 		// 生成柱体：
 		Eigen::MatrixXf cylinderVers;
 		Eigen::MatrixXi cylinderTris;

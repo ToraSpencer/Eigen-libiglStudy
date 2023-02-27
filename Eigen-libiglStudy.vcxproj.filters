@@ -110,6 +110,9 @@
     <ClCompile Include="..\MeshFix-V2.1-master\src\TMesh\vertex.cpp">
       <Filter>TMESH\源文件</Filter>
     </ClCompile>
+    <ClCompile Include="triangulate.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="myEigen.h">
@@ -189,6 +192,9 @@
     </ClInclude>
     <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\tmesh_kernel.h">
       <Filter>TMESH\头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="triangulate.h">
+      <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

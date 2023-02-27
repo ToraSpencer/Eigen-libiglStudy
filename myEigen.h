@@ -19,6 +19,11 @@
 #include <limits>
 #include <windows.h>
 
+#define ANSI_DECLARATORS
+#define REAL double
+#define VOID int
+#include "triangulate.h"
+
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
 
@@ -504,6 +509,28 @@ bool interpolateToLine(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, c
 };
 
 
+// 生成XOY平面内的圆圈点集：
+template <typename T>
+bool getCircleVers(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, const unsigned versCount = 20)
+{
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	double deltaTheta = 2 * pi / versCount;
+	vers.resize(versCount, 3);
+	vers.setZero();
+	for (unsigned i = 0; i < versCount; ++i)
+	{
+		double theta = deltaTheta * i;
+		vers(i, 0) = radius * cos(theta);
+		vers(i, 1) = radius * sin(theta);
+	}
+
+	return true;
+}
+
+
 // 生成中心在原点，边长为1，三角片数为12的正方体网格；
 template	<typename DerivedV, typename DerivedI>
 void genCubeMesh(Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::Matrix<DerivedI, Eigen::Dynamic, Eigen::Dynamic>& tris)
@@ -621,6 +648,125 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 
 	return true;
 }
+
+
+#if 1
+//			circuitToMesh()重载1：triangle库三角剖分——封闭边界线点集得到面网格，可以是平面也可以是曲面，三角片尺寸不可控，不会在网格内部插点。
+template <typename T>
+bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+		const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circVers)
+{
+	using VectorXT = Eigen::Matrix<T, Eigen::Dynamic, 1>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+
+	unsigned circCount = circVers.rows();
+	unsigned versCount = circVers.rows();
+
+	// 0. 边缘环路顶点坐标数据拷入到输出网格中。
+	vers = circVers;
+
+	// 输入triangulate()的点集是投影到XOY平面的二维点，原点集应该旋转到合适的角度再投影。
+
+	// 1. 取第一个点、1/3处的点、2/3处的点的所在平面的法向量作为原点集的法向量
+	RowVector3T vers1 = circVers.row(0);
+	RowVector3T vers2 = circVers.row(versCount / 3);
+	RowVector3T vers3 = circVers.row(2 * versCount / 3);
+	RowVector3T norm = (vers1 - vers2).cross(vers3 - vers2);
+	norm.normalize();
+
+	////  2. 旋转点集使得norm平行于z轴
+	//Matrix3T rotation = getRotationMat(norm, RowVector3T{0, 0, 1});
+	//vers = (vers * rotation.transpose()).eval();
+
+	// 3. 旋转后的点数据写入到triangulate()接口的输入结构体中。
+	Eigen::MatrixXd vers2D;
+	Eigen::MatrixXi edges2D;
+	vers2D = vers.transpose().topRows(2).cast<double>();
+	edges2D.resize(2, versCount);
+	for (unsigned i = 0; i < versCount; i++)
+	{
+		edges2D(0, i) = i + 1;
+		edges2D(1, i) = (i + 1) % versCount + 1;
+	}
+
+	triangulateio triIn, triOut;
+	triIn.numberofpoints = versCount;
+	triIn.pointlist = (double*)vers2D.data();
+	triIn.numberofpointattributes = 0;
+	triIn.pointattributelist = NULL;
+	triIn.pointmarkerlist = NULL;
+
+	triIn.numberofsegments = versCount;
+	triIn.segmentlist = (int*)edges2D.data();
+	triIn.segmentmarkerlist = NULL;
+
+	triIn.numberoftriangles = 0;
+	triIn.numberofcorners = 0;
+	triIn.numberoftriangleattributes = 0;
+
+	triIn.numberofholes = 0;
+	triIn.holelist = NULL;
+
+	triIn.numberofregions = 0;
+	triIn.regionlist = NULL;
+	memset(&triOut, 0, sizeof(triangulateio));
+
+	// for debug;
+	dispMat(vers2D);
+	dispMat(edges2D);
+
+	// 4. 执行二维三角剖分，得到输出网格三角片数据，不取顶点坐标数据，顶点坐标数据使用旋转操作前的。
+	char triStr[256] = "pY";
+	triangulate(triStr, &triIn, &triOut, NULL);
+	tris.resize(3, triOut.numberoftriangles);
+	MatrixXT norms(versCount, 3);
+	std::memcpy(tris.data(), triOut.trianglelist, sizeof(int) * 3 * triOut.numberoftriangles);
+	tris.transposeInPlace();
+
+	tris.array() -= 1;
+
+
+	//for (unsigned i = 0; i < (unsigned)triOut.numberoftriangles; i++)
+	//{
+	//	unsigned x = (unsigned)triOut.trianglelist[3 * i] - 1;
+	//	unsigned y = (unsigned)triOut.trianglelist[3 * i + 1] - 1;
+	//	unsigned z = (unsigned)triOut.trianglelist[3 * i + 2] - 1;
+	//	tris1[i].x = x;
+	//	tris1[i].y = y;
+	//	tris1[i].z = z;
+	//	VFVECTOR3 ver1, ver2, ver3;
+	//	ver1 = circuit.pData[x];
+	//	ver2 = circuit.pData[y];
+	//	ver3 = circuit.pData[z];
+	//	norms1[i] = (ver1 - ver2).Cross(ver3 - ver2);
+	//	norms1[i].Normalize();
+	//}
+
+	//// 5. 计算所有三角片的法向量的平均值，如果与norm角度相差非常大，则对输出网格做镜像处理
+	//VFVECTOR3 normAve = VFVECTOR3::ZERO;			// 输出网格所有三角片法向量平均值
+	//for (const auto& elem : norms1)
+	//	normAve = normAve + elem / (unsigned)triOut.numberoftriangles;
+
+	//if (normAve.Dot(norm) > 0)
+	//	out.vSurface = std::move(tris1);
+	//else
+	//{
+	//	for (unsigned i = 0; i < (unsigned)triOut.numberoftriangles; i++)
+	//	{
+	//		unsigned x = (unsigned)triOut.trianglelist[3 * i] - 1;
+	//		unsigned y = (unsigned)triOut.trianglelist[3 * i + 2] - 1;
+	//		unsigned z = (unsigned)triOut.trianglelist[3 * i + 1] - 1;
+	//		out.vSurface[i].x = x;
+	//		out.vSurface[i].y = y;
+	//		out.vSurface[i].z = z;
+	//	}
+	//}
+
+	return true;
+}
+#endif
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////// 不同数据类型的变换
