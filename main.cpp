@@ -1797,7 +1797,7 @@ namespace TEMP_TEST
 
 int main()
 {
-	// DENSEMAT::test8();
+	DENSEMAT::test7();
 	// SPARSEMAT::test0();
 
 	// DECIMATION::test0000();
@@ -1815,7 +1815,7 @@ int main()
 
 	// DECIMATION::test0();
 
-	TEST_MYEIGEN::test5();
+	// TEST_MYEIGEN::test5();
 
 	// TEMP_TEST::test1();
 

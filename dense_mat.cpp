@@ -581,10 +581,15 @@ namespace DENSEMAT
 		// rowInMat()——检查矩阵内是否包含某一行向量——返回一个索引列向量。
 		std::cout << "检查矩阵内是否包含某一行向量——返回一个索引列向量。" << std::endl;
 		Eigen::MatrixXi m2(5, 5);
-		m2 << 1, 2, 3, 4, 5, 3, 1, 2, 9, 0, 0, 0, 0, 0, 0, 1,2,3,4,5, 1,1,1,1,1;
+		Eigen::Matrix4i m3;
+		Eigen::MatrixXi m33;
+		Eigen::RowVectorXi v(5);
+		Eigen::RowVector4i vec;
+		m2 << 1, 2, 3, 4, 5, 3, 1, 2, 9, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 1,1,1,1,1;
+		m3 << 1, 2, 3, 4, 5, 3, 1, 2, 9, 0, 0, 0, 0, 0, 0, 4;
+		m33 = m3;
 		std::cout << "m2 == \n" << m2 << std::endl << std::endl;
 
-		RowVectorXi v(5);
 		v << 1, 2, 3, 4, 5;
 		std::cout << rowInMat(m2, v) << std::endl << std::endl;
 
@@ -593,6 +598,14 @@ namespace DENSEMAT
 
 		v << 2, 2, 8, 4, 4;
 		std::cout << rowInMat(m2, v) << std::endl << std::endl;
+
+		v.resize(4);
+		v << 1, 2, 3, 4;
+		vec = v;
+		std::cout << rowInMat(m3, v) << std::endl << std::endl;
+		std::cout << rowInMat(m33, v) << std::endl << std::endl;
+
+		std::cout << "finished." << std::endl;
 	}
 
 

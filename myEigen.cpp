@@ -781,10 +781,17 @@ namespace TEST_MYEIGEN
 	// 测试生成基础图形的接口：
 	void test5() 
 	{
-		Eigen::MatrixXf line;
-		interpolateToLine(line, Eigen::RowVector3f{0, 0, 0}, Eigen::RowVector3f{1, 2, 5}, 0.5);
-
-		debugWriteVers("line", line);
+		Eigen::MatrixXf axis(15, 3);
+		axis.setZero();
+		double deltaTheta = pi / 10;
+		for (unsigned i = 0; i < 15; ++i)
+		{
+			double theta = deltaTheta * i;
+			axis(i, 0) = 50 * cos(theta);
+			axis(i, 1) = 50 * sin(theta);
+		}
+ 
+		debugWriteVers("axis", axis);
 		std::cout << "finished." << std::endl;
 
 		// 三角剖分：
@@ -797,7 +804,13 @@ namespace TEST_MYEIGEN
 		// 生成柱体：
 		Eigen::MatrixXf cylinderVers;
 		Eigen::MatrixXi cylinderTris;
-		genCylinder(cylinderVers, cylinderTris, line, 10);
+		genCylinder(cylinderVers, cylinderTris, axis, 10);				// 生成圆柱
+		debugWriteMesh("cylinder", cylinderVers, cylinderTris);
+		cylinderVers.resize(0, 0);
+		cylinderTris.resize(0, 0);
+		genCylinder(cylinderVers, cylinderTris, axis, std::make_pair(10.0, 20.0));
+		debugWriteMesh("pillar", cylinderVers, cylinderTris);
+
 
 
 		std::cout << "finished." << std::endl;

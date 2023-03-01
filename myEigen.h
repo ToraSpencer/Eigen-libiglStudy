@@ -50,28 +50,43 @@ void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers,
 	Eigen::Matrix<Index, Eigen::Dynamic, Eigen::Dynamic>& tris, const char* fileName);
 template	<typename T>
 void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
-
-
 template	<typename Scalar>
 void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, const char* fileName);
-
-
 template	<typename DerivedV>
 void objWriteVerticesMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers);
-;
 template	<typename DerivedV, typename DerivedI>
 void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<DerivedI>& edges, \
 	const Eigen::PlainObjectBase<DerivedV>& vers);
-;
 template <typename DerivedV, typename	 DerivedI>
 void objWritePath(const char* pathName, const std::vector<DerivedI>& path, \
 	const Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers);
 template <typename DerivedV>
 void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, \
 	const Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers);
+template <typename T>
+bool interpolateToLine(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::Matrix<T, 1, 3>& start, \
+	const Eigen::Matrix<T, 1, 3>& end, const float SR, const bool SE);
+template <typename T>
+bool getCircleVers(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, const unsigned versCount);
+template	<typename DerivedV, typename DerivedI>
+void genCubeMesh(Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::Matrix<DerivedI, Eigen::Dynamic, Eigen::Dynamic>& tris);
+template <typename _Scalar, int _AmbientDim>
+void genAABBmesh(const Eigen::AlignedBox<_Scalar, _AmbientDim>& aabb, Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+	Eigen::MatrixXi& tris);
+template <typename T>
+bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& btmVers, \
+	const bool isCovered);
+template <typename T>
+bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const float radius, const double deltaTheta, const bool isCovered);
+template <typename T>
+bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const double SR, const bool isCovered);
 
-
- 
+template <typename T>
+bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circVers);
 
 
 
@@ -581,41 +596,87 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 	
 	
 	*/
+
+	// lambda——柱体侧面的三角片生长，会循环调用，调用一次生长一层；
+	auto growSurf = [](Eigen::MatrixXi& sideTris, const int circVersCount)->bool
+	{
+		// 会重复调用，tris容器不需要为空。
+		if (circVersCount < 3)
+			return false;
+
+		int currentTrisCount = sideTris.rows();
+		int currentVersCount = circVersCount + currentTrisCount / 2;
+		int startIdx = currentTrisCount / 2;							// 待生成表面的圆柱体底圈的第一个顶点的索引。
+		sideTris.conservativeResize(currentTrisCount + 2 * circVersCount, 3);
+
+		int triIdx = currentTrisCount;
+		sideTris.row(triIdx++) = Eigen::RowVector3i{ startIdx + circVersCount - 1, startIdx, startIdx + 2 * circVersCount - 1 };
+		sideTris.row(triIdx++) = Eigen::RowVector3i{ startIdx, startIdx + circVersCount, startIdx + 2 * circVersCount - 1 };
+		for (int i = startIdx + 1; i < startIdx + circVersCount; ++i)
+		{
+			sideTris.row(triIdx++) = Eigen::RowVector3i{ i - 1, i, i + circVersCount - 1 };
+			sideTris.row(triIdx++) = Eigen::RowVector3i{ i, i + circVersCount, i + circVersCount - 1 };
+		}
+
+		return true;
+	};
+
 	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
 	using Matrix3T = Eigen::Matrix<T, 3, 3>;
 	using RowVector3T = Eigen::Matrix<T, 1, 3>;
 	unsigned circVersCount = btmVers.rows();					// 横截面一圈的顶点数；
 	unsigned circCount = axisVers.rows();							// 圈数；
 	unsigned versCount = circVersCount * circCount;
-	std::vector<MatrixXT> circuits(circCount);									// 每个横截面的一圈顶点；
+	std::vector<MatrixXT> circuitsVec(circCount);									// 每个横截面的一圈顶点；
 	std::vector<RowVector3T> sectionNorms(circCount);					// 每个横截面的法向；
 
-	// 计算柱体circCount个横截面的法向、每个横截面的顶点；
+	// 1. 计算柱体circCount个横截面的法向、每个横截面的顶点；
 	for (unsigned i = 0; i < circCount - 1; ++i)
 	{
 		sectionNorms[i] = axisVers.row(i + 1) - axisVers.row(i);
 		sectionNorms[i].normalize();
 		Matrix3T rotation = getRotationMat(RowVector3T{0, 0, 1}, sectionNorms[i]);
-		circuits[i] = btmVers * rotation.transpose();
-		circuits[i].rowwise() += axisVers.row(i);
+		circuitsVec[i] = btmVers * rotation.transpose();
+		circuitsVec[i].rowwise() += axisVers.row(i);
 	}
 
-	// 计算最后一圈顶点：
+	// 2. 计算最后一圈顶点：
 	RowVector3T deltaNormAve{RowVector3T::Zero()};
 	for (unsigned i = 0; i < circCount - 2; ++i)
 		deltaNormAve += (sectionNorms[i + 1] - sectionNorms[i]);
 	deltaNormAve.array() /= (circCount - 2);
 	sectionNorms[circCount - 1] = sectionNorms[circCount - 2] + deltaNormAve;
 	Matrix3T rotation = getRotationMat(RowVector3T{ 0, 0, 1 }, sectionNorms[circCount - 1]);
-	circuits[circCount - 1] = btmVers * rotation.transpose();
-	circuits[circCount - 1].rowwise() += axisVers.row(circCount - 1);
+	circuitsVec[circCount - 1] = btmVers * rotation.transpose();
+	circuitsVec[circCount - 1].rowwise() += axisVers.row(circCount - 1);
 
-	// 生成柱体顶点：
+	// 3. 生成柱体顶点：
 	vers.resize(versCount, 3);
 	for (unsigned i = 0; i < circCount; ++i)
-		vers.block(0 + circVersCount * i, 0, circVersCount, 3) = circuits[i];
+		vers.block(0 + circVersCount * i, 0, circVersCount, 3) = circuitsVec[i];
 
-	objWriteVerticesMat("E:/cylinderVers.obj", vers);
+	// 4.生成侧面三角片：
+	for (unsigned i = 1; i <= circCount - 1; ++i)
+		growSurf(tris, circVersCount);
+
+	
+	// 5. 加盖：
+	if (isCovered)
+	{
+		MatrixXT capVers;
+		Eigen::MatrixXi capTris1, capTris2;
+		circuit2mesh(capVers, capTris1, btmVers);
+		capTris2 = capTris1;
+		for (int i = 0; i < capTris1.rows(); ++i)
+		{
+			int tmp = capTris1(i, 2);
+			capTris1(i, 2) = capTris1(i, 1);
+			capTris1(i, 1) = tmp;
+		}
+		capTris2.array() += versCount - circVersCount;
+		matInsertRows(tris, capTris1);
+		matInsertRows(tris, capTris2);
+	}
 
 	return true;
 }
@@ -624,14 +685,13 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 // genCylinder()重载2——生成圆柱体网格
 template <typename T>
 bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const float radius, const bool isCovered = true)
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const float radius, const double deltaTheta = 2 * pi / 30, const bool isCovered = true)
 {
 	// 生成XOY平面上采样角度步长为的圆圈顶点：
 	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
 	using Matrix3T = Eigen::Matrix<T, 3, 3>;
 	using RowVector3T = Eigen::Matrix<T, 1, 3>;
 
-	double deltaTheta = 2 * pi / 30;
 	MatrixXT circuit(30, 3);
 	circuit.setZero();
 	for (unsigned i = 0; i < 30; ++i)
@@ -641,16 +701,48 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 		circuit(i, 1) = radius * sin(theta);
 	}
 
-	// for debug:
-	objWriteVerticesMat("E:/circuit.obj", circuit);
-
 	genCylinder(vers, tris, axisVers, circuit);
 
 	return true;
 }
 
 
-#if 1
+// genCylinder()重载3——生成方柱体网格
+template <typename T>
+bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR = 0.5, \
+	const bool isCovered = true)
+{
+	// 生成XOY平面上采样角度步长为的圆圈顶点：
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	// 生成XOY平面内的方框顶点：
+	float length = sizePair.first;
+	float width = sizePair.second;
+	std::vector<RowVector3T> corners(4);
+	corners[0] = RowVector3T{ length / 2, width / 2, 0 };
+	corners[1] = RowVector3T{ -length / 2, width / 2, 0 };
+	corners[2] = RowVector3T{ -length / 2, -width / 2, 0 };
+	corners[3] = RowVector3T{ length / 2, -width / 2, 0 };
+
+	MatrixXT circuit, tmpVers1, tmpVers2, tmpVers3, tmpVers4;
+	interpolateToLine(tmpVers1, corners[0], corners[1], SR, true);
+	interpolateToLine(tmpVers2, corners[1], corners[2], SR, false);
+	interpolateToLine(tmpVers3, corners[2], corners[3], SR, true);
+	interpolateToLine(tmpVers4, corners[3], corners[0], SR, false);
+	matInsertRows(circuit, tmpVers1);
+	matInsertRows(circuit, tmpVers2);
+	matInsertRows(circuit, tmpVers3);
+	matInsertRows(circuit, tmpVers4);
+ 
+	genCylinder(vers, tris, axisVers, circuit);
+
+	return true;
+}
+
+
 //			circuitToMesh()重载1：triangle库三角剖分——封闭边界线点集得到面网格，可以是平面也可以是曲面，三角片尺寸不可控，不会在网格内部插点。
 template <typename T>
 bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
@@ -676,9 +768,9 @@ bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen:
 	RowVector3T norm = (vers1 - vers2).cross(vers3 - vers2);
 	norm.normalize();
 
-	////  2. 旋转点集使得norm平行于z轴
-	//Matrix3T rotation = getRotationMat(norm, RowVector3T{0, 0, 1});
-	//vers = (vers * rotation.transpose()).eval();
+	//  2. 旋转点集使得norm平行于z轴
+	Matrix3T rotation = getRotationMat(norm, RowVector3T{0, 0, 1});
+	vers = (vers * rotation.transpose()).eval();
 
 	// 3. 旋转后的点数据写入到triangulate()接口的输入结构体中。
 	Eigen::MatrixXd vers2D;
@@ -713,10 +805,6 @@ bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen:
 	triIn.regionlist = NULL;
 	memset(&triOut, 0, sizeof(triangulateio));
 
-	// for debug;
-	dispMat(vers2D);
-	dispMat(edges2D);
-
 	// 4. 执行二维三角剖分，得到输出网格三角片数据，不取顶点坐标数据，顶点坐标数据使用旋转操作前的。
 	char triStr[256] = "pY";
 	triangulate(triStr, &triIn, &triOut, NULL);
@@ -724,49 +812,11 @@ bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen:
 	MatrixXT norms(versCount, 3);
 	std::memcpy(tris.data(), triOut.trianglelist, sizeof(int) * 3 * triOut.numberoftriangles);
 	tris.transposeInPlace();
-
 	tris.array() -= 1;
-
-
-	//for (unsigned i = 0; i < (unsigned)triOut.numberoftriangles; i++)
-	//{
-	//	unsigned x = (unsigned)triOut.trianglelist[3 * i] - 1;
-	//	unsigned y = (unsigned)triOut.trianglelist[3 * i + 1] - 1;
-	//	unsigned z = (unsigned)triOut.trianglelist[3 * i + 2] - 1;
-	//	tris1[i].x = x;
-	//	tris1[i].y = y;
-	//	tris1[i].z = z;
-	//	VFVECTOR3 ver1, ver2, ver3;
-	//	ver1 = circuit.pData[x];
-	//	ver2 = circuit.pData[y];
-	//	ver3 = circuit.pData[z];
-	//	norms1[i] = (ver1 - ver2).Cross(ver3 - ver2);
-	//	norms1[i].Normalize();
-	//}
-
-	//// 5. 计算所有三角片的法向量的平均值，如果与norm角度相差非常大，则对输出网格做镜像处理
-	//VFVECTOR3 normAve = VFVECTOR3::ZERO;			// 输出网格所有三角片法向量平均值
-	//for (const auto& elem : norms1)
-	//	normAve = normAve + elem / (unsigned)triOut.numberoftriangles;
-
-	//if (normAve.Dot(norm) > 0)
-	//	out.vSurface = std::move(tris1);
-	//else
-	//{
-	//	for (unsigned i = 0; i < (unsigned)triOut.numberoftriangles; i++)
-	//	{
-	//		unsigned x = (unsigned)triOut.trianglelist[3 * i] - 1;
-	//		unsigned y = (unsigned)triOut.trianglelist[3 * i + 2] - 1;
-	//		unsigned z = (unsigned)triOut.trianglelist[3 * i + 1] - 1;
-	//		out.vSurface[i].x = x;
-	//		out.vSurface[i].y = y;
-	//		out.vSurface[i].z = z;
-	//	}
-	//}
-
+ 
 	return true;
 }
-#endif
+ 
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////// 不同数据类型的变换
@@ -1015,10 +1065,8 @@ Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eige
 	retVec = tempMat.col(0);
 
 	if (cols > 1)
-	{
 		for (int i = 1; i < cols; ++i)
 			retVec = retVec.array() * tempMat.col(i).array();			// 逐列相乘：
-	}
 
 	return retVec;
 }
