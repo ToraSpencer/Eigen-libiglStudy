@@ -929,6 +929,21 @@ std::int64_t encodeEdge(const Index vaIdx, const Index vbIdx)
 }
 
 
+// 生成无向边编码——边两个端点的索引对整理成前小后大的顺序，映射成一个64位整型数
+template <typename Index>
+std::int64_t encodeUedge(const Index vaIdx, const Index vbIdx)
+{
+	Index vaIdx0 = (vaIdx < vbIdx ? vaIdx : vbIdx);
+	Index vbIdx0 = (vaIdx < vbIdx ? vbIdx : vaIdx);
+	std::int64_t a = static_cast<std::int64_t>(vaIdx0);
+	std::int64_t b = static_cast<std::int64_t>(vbIdx0);
+	std::int64_t code = 0;
+	code |= (a << 32);
+	code |= b;
+	return code;
+}
+
+
 // 解码边编码；
 std::pair<int, int> decodeEdge(const std::int64_t code);
 
@@ -1524,14 +1539,14 @@ bool solveLinearEquations(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, c
 
 // 霍纳方法（秦九昭算法）求多项式的值
 template<typename T, int N>
-float hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
+double hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const double x)
 {
 	// coeffs是{a0, a1, a2, ..., an}组成的(n+1)列向量，多项式为p == a0 + a1*x + a2*x^2 + ... + an* x^n; 
 	int n = coeffs.rows() - 1;
 	if (n < 0)
 		return NAN;
 
-	float result = coeffs(n);
+	double result = coeffs(n);
 	for (int i = n; i - 1 >= 0; i--)
 	{
 		result *= x;
@@ -1639,7 +1654,35 @@ void leastSquarePolyFitting();
 
 
 // 岭回归多项式拟合曲线
-void ridgeRegressionPolyFitting(Eigen::VectorXf& theta, const Eigen::MatrixXf& vers);
+template <typename T>
+void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers)
+{
+	/*
+		void ridgeRegressionPolyFitting(
+					Eigen::VectorXd & theta,							拟合的多项式函数
+					const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers			离散样本点
+					)
+	*/
+
+	const double lambda = 0.1;
+	int m = 4;											// 多项式最多项数
+
+	int versCount = vers.rows();
+	if (versCount == 0)
+		return;
+	if (m >= versCount)
+		m = versCount - 1;
+
+	Eigen::MatrixXd X(versCount, m);
+	for (int i = 0; i < versCount; ++i)
+		for (int j = 0; j < m; ++j)
+			X(i, j) = std::powf(static_cast<double>(vers(i, 0)), j);
+
+	Eigen::VectorXd Y = vers.col(1).cast<double>();
+	Eigen::MatrixXd Id(m, m);
+	Id.setIdentity();
+	theta = (X.transpose() * X + Id * lambda).inverse() * X.transpose() * Y;
+}
 
 
 
@@ -2542,6 +2585,133 @@ bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eig
 			*verIdxPtr = oldNewIdxInfo[oldIdx];
 			verIdxPtr++;
 		}
+	}
+
+	return true;
+}
+
+
+// 无向边的区域生长，提取环路边；输入的边矩阵可以是有向边也可以是无向边；
+template <typename DerivedI>
+bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi >& segs, \
+	const Eigen::PlainObjectBase<DerivedI>& uEdges)
+{
+	std::list<std::list<std::pair<int, int>>> circList, segList;
+	Eigen::SparseMatrix<int> adjSM;										// 邻接矩阵；
+	std::vector<Eigen::Triplet<int>> smElems;
+
+	// 1. 建立无向边邻接矩阵：
+	int maxIdx = 0;
+	const int* idxPtr = uEdges.data();
+	for (int i = 0; i < uEdges.size(); i++, idxPtr++)
+		if (*idxPtr > maxIdx)
+			maxIdx = *idxPtr;
+	smElems.reserve(2 * uEdges.rows());
+	for (unsigned i = 0; i < uEdges.rows(); ++i)
+	{
+		smElems.push_back(Eigen::Triplet<int>{uEdges(i, 0), uEdges(i, 1), 1});
+		smElems.push_back(Eigen::Triplet<int>{uEdges(i, 1), uEdges(i, 0), 1});
+	}
+	adjSM.resize(maxIdx + 1, maxIdx + 1);
+	adjSM.setFromTriplets(smElems.begin(), smElems.end());
+	smElems.clear();
+	traverseSparseMatrix(adjSM, [&adjSM](auto& iter)
+		{
+			iter.valueRef() = 1;
+		});
+
+	// 2. 统计不重复的无向边数量；
+	std::unordered_set<std::int64_t> tmpSet;
+	for (unsigned i = 0; i < uEdges.rows(); ++i)
+		tmpSet.insert(encodeUedge(uEdges(i, 0), uEdges(i, 1)));
+	int remainCount = tmpSet.size();			// (3,4) (4,3)表示同一条无向边；
+	
+
+	// 3. 无向边生长的循环：
+	while (remainCount > 0)
+	{
+		std::list<std::pair<int, int>> currentSeg;
+	
+		// w1. 提取邻接表中第一个无向边：
+		bool breakFlag = false;
+		for (unsigned i = 0; !breakFlag & i < adjSM.outerSize(); ++i)
+		{
+			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM, i); !breakFlag & iter; ++iter)
+			{
+				if (iter.valueRef() > 0)
+				{
+					currentSeg.push_back({ iter.row(), iter.col() });
+					iter.valueRef() = -1;												// 表示删除该元素；
+					adjSM.coeffRef(iter.col(), iter.row()) = -1;
+					remainCount--;
+					breakFlag = true;
+				}
+			}
+		}
+
+		// w2. 搜索第一条无向边关联的边，直到搜索不到，或者形成环路为止。
+		int head = currentSeg.front().first;
+		int tail = currentSeg.front().second;
+		while (1)
+		{
+			int otherEnd = -1;
+			breakFlag = false;
+			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM, head); !breakFlag & iter; ++iter)	// 对第head列的遍历：
+			{
+				if (iter.valueRef() > 0)
+				{
+					otherEnd = iter.row();
+					currentSeg.push_back({ head, otherEnd });
+					iter.valueRef() = -1;												// 表示删除该元素；
+					adjSM.coeffRef(iter.col(), iter.row()) = -1;
+					remainCount--;
+					head = otherEnd;
+					breakFlag = true;
+				}
+			}
+
+			if (otherEnd == tail)
+			{
+				circList.push_back(currentSeg);
+				break;
+			}
+
+			if (otherEnd < 0)
+			{
+				segList.push_back(currentSeg);
+				break;
+			}
+		}
+	}
+
+	
+	// 4. 输出：
+	circs.reserve(circList.size());
+	segs.reserve(segList.size());
+	for (const auto& list : circList)
+	{
+		unsigned pairCount = list.size();
+		Eigen::MatrixXi circEdges(pairCount, 2);
+		auto iter = list.begin();
+		for (unsigned i = 0; i < pairCount; ++i, iter++)
+		{
+			circEdges(i, 0) = iter->first;
+			circEdges(i, 1) = iter->second;
+		}
+		circs.push_back(circEdges);
+	}
+
+	for (const auto& list : segList)
+	{
+		unsigned pairCount = list.size();
+		Eigen::MatrixXi segEdges(pairCount, 2);
+		auto iter = list.begin();
+		for (unsigned i = 0; i < pairCount; ++i, iter++)
+		{
+			segEdges(i, 0) = iter->first;
+			segEdges(i, 1) = iter->second;
+		}
+		segs.push_back(segEdges);
 	}
 
 	return true;

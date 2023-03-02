@@ -236,39 +236,7 @@ void leastSquarePolyFitting()
 {}
 
 
- // 岭回归多项式拟合曲线
-void ridgeRegressionPolyFitting(Eigen::VectorXf& theta, const Eigen::MatrixXf& vers)
-{
-	/*
-		void ridgeRegressionPolyFitting(
-					Eigen::VectorXf & theta,				拟合的多项式函数
-					const Eigen::MatrixXf & vers			离散样本点
-					)
-	*/
 
-	const float lambda = 0.1;
-	int m = 4;									// 多项式最多项数
-
-	int n = vers.rows();
-	if (n == 0)
-		return;
-	if (m >= n)
-		m = n - 1;
-
-	Eigen::MatrixXf X(n, m);
-	for (int i = 0; i < n; ++i)
-	{
-		for (int j = 0; j < m; ++j)
-		{
-			X(i, j) = std::powf(vers(i, 0), j);
-		}
-	}
-
-	Eigen::VectorXf Y = vers.col(1);
-	Eigen::MatrixXf I(m, m);
-	I.setIdentity();
-	theta = (X.transpose() * X + I * lambda).inverse() * X.transpose() * Y;
-}
 
 
 
