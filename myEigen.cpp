@@ -237,67 +237,6 @@ void leastSquarePolyFitting()
 
 
 
-
-
-
-
-
-Eigen::VectorXd fittingStandardEllipse(const Eigen::MatrixXf& sampleVers)
-{
-	/*
-		Eigen::VectorXd fittingStandardEllipse(								// 返回列向量(a,c,d,e,f)，为标准椭圆方程的系数；
-					const Eigen::MatrixXf& sampleVers					// 输入的样本点，必须是在XOY平面上的点；
-		)
-	*/
-	const double epsilon = 1e-8;				// 浮点数绝对值小于此值时认为为0；
-
-	// 标准椭圆方程：a*x^2 + c*y^2 + d*x + e*y + f  = 0，其中a*c > 0
-	Eigen::VectorXd x(Eigen::VectorXd::Zero(5));
-
-	unsigned m = sampleVers.rows();				// sample count;
-	Eigen::VectorXd x0(Eigen::VectorXd::Zero(m));
-	Eigen::VectorXd y0(Eigen::VectorXd::Zero(m));
-	for (unsigned i = 0; i < m; ++i)
-	{
-		x0(i) = static_cast<double>(sampleVers(i, 0));
-		y0(i) = static_cast<double>(sampleVers(i, 1));
-	}
-
-	// alpha = [x^2, y^2, x, y, 1]; 样本信息矩阵：A = [alpha1; alpha2; .... alpham]; 椭圆方程写为：A*x = 0;
-	Eigen::MatrixXd A = Eigen::MatrixXd::Ones(m, 5);
-	A.col(0) = x0.array() * x0.array();
-	A.col(1) = y0.array() * y0.array();
-	A.col(2) = x0;
-	A.col(3) = y0;
-
-	Eigen::MatrixXd ATA = A.transpose().eval() * A;
-	Eigen::MatrixXd B(Eigen::MatrixXd::Zero(5, 5));
-	B(0, 1) = 1;
-	B(1, 0) = 1;
-	Eigen::MatrixXd S = ATA.inverse() * B.transpose();
-
-	// 求S的特征值，特征向量：
-	Eigen::EigenSolver<Eigen::MatrixXd> es(S);
-	Eigen::MatrixXd D = es.pseudoEigenvalueMatrix();			// 对角线元素是特征值
-	Eigen::MatrixXd V = es.pseudoEigenvectors();					// 每一个列向量都是特征向量。
-
-	// 寻找特征值不为0，且满足约束条件的特征向量：
-	for (unsigned i = 0; i < V.cols(); ++i)
-	{
-		double eigenValue = D(i, i);
-		if (std::abs(eigenValue) < epsilon)
-			continue;
-		x = V.col(i);
-		double a = x(0);
-		double c = x(1);
-		if (a * c > 0)
-			break;
-	}
-
-	return x;
-}
-
-
 // 计算网格中边的三角片的邻接关系（非流形有向边关联的三角片最多只能为两个）：
 bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, \
 	std::vector<ttTuple>& ttAdj_nmnEdge, std::vector<ttTuple>& ttAdj_nmnOppEdge)
@@ -774,8 +713,13 @@ namespace TEST_MYEIGEN
 		Eigen::MatrixXi cylinderTris;
 		genCylinder(cylinderVers, cylinderTris, axis, 10);				// 生成圆柱
 		debugWriteMesh("cylinder", cylinderVers, cylinderTris);
+
+		
 		cylinderVers.resize(0, 0);
 		cylinderTris.resize(0, 0);
+		axis.resize(0, 0);
+		matInsertRows<float , 3>(axis, Eigen::RowVector3f{0, 0, 0});
+		matInsertRows<float , 3>(axis, Eigen::RowVector3f{ 0, 0, 1 });
 		genCylinder(cylinderVers, cylinderTris, axis, std::make_pair(10.0, 20.0));
 		debugWriteMesh("pillar", cylinderVers, cylinderTris);
 

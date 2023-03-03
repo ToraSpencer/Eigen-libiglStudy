@@ -2,6 +2,41 @@
 
 
 static igl::opengl::glfw::Viewer viewer;				// libigl中的基于glfw的显示窗口；
+static std::string g_debugPath = "E:/";
+
+/////////////////////////////////////////////////////////////////////////////////////////////////DEBUG接口：
+
+static void debugDisp(const char* str)
+{
+	std::cout << str << std::endl;
+}
+
+template<typename DerivedV>
+static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+{
+	char path[512] = { 0 };
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+	objWriteVerticesMat(path, vers);
+}
+
+
+static void debugWriteMesh(const char* name, T_MESH::Basic_TMesh& mesh)
+{
+	char path[512] = { 0 };
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+	mesh.save(path);
+}
+
+
+template<typename T>
+static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+{
+	char path[512] = { 0 };
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+	objWriteMeshMat(path, vers, tris);
+}
+
+
 
 namespace SCIENTIFICCALC
 {
@@ -39,7 +74,7 @@ namespace SCIENTIFICCALC
 
 		Eigen::MatrixXf finalVersHomo = moveMat * rotationHomo * scaleHomo * versHomo;
 		objWriteMeshMat("E:/齐次坐标下仿射变换后的bunny.obj", homoVers2vers(finalVersHomo), tris);
- 
+
 		Eigen::MatrixXf transMat = moveMat * rotationHomo * scaleHomo;
 		Eigen::MatrixXf originVersHomo = transMat.inverse() * finalVersHomo;
 		objWriteMeshMat("E:/齐次坐标下还原的bunny.obj", homoVers2vers(originVersHomo), tris);
@@ -63,14 +98,14 @@ namespace SCIENTIFICCALC
 
 
 	// 测试几种插值方法：
-	void test3() 
+	void test3()
 	{
 
 	}
 
 
 	// 测试几种函数拟合方法：
-	void test4() 
+	void test4()
 	{
 
 
@@ -78,7 +113,7 @@ namespace SCIENTIFICCALC
 
 
 	// 主成分分析：
-	void test5() 
+	void test5()
 	{
 
 
@@ -86,7 +121,7 @@ namespace SCIENTIFICCALC
 
 
 	// 测试计算克罗内克积(Kronecker product);
-	void test6() 
+	void test6()
 	{
 		Eigen::MatrixXd result, m1, m2;
 		Eigen::VectorXd vec = Eigen::VectorXd::LinSpaced(100, 1, 100);
@@ -104,12 +139,55 @@ namespace SCIENTIFICCALC
 		kron(result, m1, m22);
 		dispMat(result);
 
-		Eigen::Vector3f v1(1,2,3);
-		Eigen::Vector4f v2{Eigen::Vector4f::Ones()};
+		Eigen::Vector3f v1(1, 2, 3);
+		Eigen::Vector4f v2{ Eigen::Vector4f::Ones() };
 		kron(result, v1, v2);
 		dispMat(result);
 
 		std::cout << "finished." << std::endl;
+	}
+
+
+	// 测试拟合椭圆：
+	void test7()
+	{
+		// 1. 读取一圈牙齿网格：
+		const unsigned teethCount = 14;
+		std::vector<Eigen::MatrixXd> teethVers(teethCount);
+		std::vector<Eigen::MatrixXi> teethTris(teethCount);
+		Eigen::MatrixXd teethCenters(teethCount, 3);
+		for (unsigned i = 0; i<teethCount; ++i) 
+		{
+			char fileName[256];
+			sprintf_s(fileName, "E:/材料/teeth/compMesh%d.obj", i);
+			objReadMeshMat(teethVers[i], teethTris[i], fileName);
+			teethCenters.row(i) = teethVers[i].colwise().mean();
+		}
+
+		// 2. 牙齿中心点投影到XOY面上，作为样本点，拟合椭圆；
+		teethCenters.col(2).array() = 0;
+		Eigen::VectorXd coeffs = fittingStandardEllipse(teethCenters);
+		double a = coeffs(0);
+		double c = coeffs(1);
+		double d = coeffs(2);
+		double e = coeffs(3);
+		double f = coeffs(4);
+		double x0 = -d / (2 * a);		// 椭圆圆心，半长轴半短轴：
+		double y0 = -e / (2 * c);
+		double p = d * d / (4 * a) + e * e / (4 * c) - f;
+		double a0 = std::sqrt(p / a);
+		double b0 = std::sqrt(p / c);
+
+		// 3. 生成椭圆点集：
+		unsigned versCount = 361;
+		Eigen::VectorXd theta = Eigen::VectorXd::LinSpaced(versCount, 0, 2 * pi);
+		Eigen::MatrixXd elliVers(Eigen::MatrixXd::Zero(versCount, 3));
+		elliVers.col(0).array() = a0 * Eigen::cos(theta.array()) + x0;
+		elliVers.col(1).array() = b0 * Eigen::sin(theta.array()) + y0;
+
+		debugWriteVers("elliVers", elliVers);
+
+		debugDisp("finished.");
 	}
 }
 

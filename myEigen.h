@@ -19,8 +19,10 @@
 #include <limits>
 #include <windows.h>
 
+
+// 和algorithm工程一样，使用单精度；libigl库中封装的三角剖分使用的是双精度；
 #define ANSI_DECLARATORS
-#define REAL double
+#define REAL float
 #define VOID int
 #include "triangulate.h"
 
@@ -82,12 +84,10 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const float radius, const double deltaTheta, const bool isCovered);
 template <typename T>
 bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const double SR, const bool isCovered);
-
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, const bool isCovered);
 template <typename T>
 bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circVers);
-
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// basic math interface
@@ -772,10 +772,13 @@ bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen:
 	Matrix3T rotation = getRotationMat(norm, RowVector3T{0, 0, 1});
 	vers = (vers * rotation.transpose()).eval();
 
+	// for debug;
+	objWriteVerticesMat("E:/versafterrotation.obj", vers);
+
 	// 3. 旋转后的点数据写入到triangulate()接口的输入结构体中。
-	Eigen::MatrixXd vers2D;
+	Eigen::MatrixXf vers2D;
 	Eigen::MatrixXi edges2D;
-	vers2D = vers.transpose().topRows(2).cast<double>();
+	vers2D = vers.transpose().topRows(2).cast<float>();
 	edges2D.resize(2, versCount);
 	for (unsigned i = 0; i < versCount; i++)
 	{
@@ -785,7 +788,7 @@ bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen:
 
 	triangulateio triIn, triOut;
 	triIn.numberofpoints = versCount;
-	triIn.pointlist = (double*)vers2D.data();
+	triIn.pointlist = (float*)vers2D.data();
 	triIn.numberofpointattributes = 0;
 	triIn.pointattributelist = NULL;
 	triIn.pointmarkerlist = NULL;
@@ -1655,17 +1658,17 @@ void leastSquarePolyFitting();
 
 // 岭回归多项式拟合曲线
 template <typename T>
-void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers)
+void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, unsigned m = 4)
 {
 	/*
 		void ridgeRegressionPolyFitting(
 					Eigen::VectorXd & theta,							拟合的多项式函数
 					const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers			离散样本点
+					const unsigned m						拟合的多项式项数；
 					)
 	*/
 
 	const double lambda = 0.1;
-	int m = 4;											// 多项式最多项数
 
 	int versCount = vers.rows();
 	if (versCount == 0)
@@ -1687,7 +1690,64 @@ void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, const Eigen::Matrix<T, E
 
 
 // 最小二乘法拟合（逼近）标准椭圆（长短轴和xy坐标轴对齐）
-Eigen::VectorXd fittingStandardEllipse(const Eigen::MatrixXf& sampleVers);
+template<typename T>
+Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& sampleVers)
+{
+	/*
+		Eigen::VectorXd fittingStandardEllipse(								// 返回列向量(a,c,d,e,f)，为标准椭圆方程的系数；
+					const Eigen::MatrixXf& sampleVers					// 输入的样本点，必须是在XOY平面上的点；
+		)
+	*/
+	const double epsilon = 1e-8;							// 浮点数绝对值小于此值时认为为0；
+	using VectorXT = Eigen::Matrix<T, Eigen::Dynamic, 1>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+
+	// 标准椭圆方程：a*x^2 + c*y^2 + d*x + e*y + f  = 0，其中a*c > 0
+	Eigen::VectorXd x(Eigen::VectorXd::Zero(5));
+
+	unsigned m = sampleVers.rows();				// sample count;
+	Eigen::VectorXd x0(Eigen::VectorXd::Zero(m));
+	Eigen::VectorXd y0(Eigen::VectorXd::Zero(m));
+	for (unsigned i = 0; i < m; ++i)
+	{
+		x0(i) = static_cast<double>(sampleVers(i, 0));
+		y0(i) = static_cast<double>(sampleVers(i, 1));
+	}
+
+	// alpha = [x^2, y^2, x, y, 1]; 样本信息矩阵：A = [alpha1; alpha2; .... alpham]; 椭圆方程写为：A*x = 0;
+	Eigen::MatrixXd A = Eigen::MatrixXd::Ones(m, 5);
+	A.col(0) = x0.array() * x0.array();
+	A.col(1) = y0.array() * y0.array();
+	A.col(2) = x0;
+	A.col(3) = y0;
+
+	Eigen::MatrixXd ATA = A.transpose().eval() * A;
+	Eigen::MatrixXd B(Eigen::MatrixXd::Zero(5, 5));
+	B(0, 1) = 1;
+	B(1, 0) = 1;
+	Eigen::MatrixXd S = ATA.inverse() * B.transpose();
+
+	// 求S的特征值，特征向量：
+	Eigen::EigenSolver<Eigen::MatrixXd> es(S);
+	Eigen::MatrixXd D = es.pseudoEigenvalueMatrix();			// 对角线元素是特征值
+	Eigen::MatrixXd V = es.pseudoEigenvectors();					// 每一个列向量都是特征向量。
+
+	// 寻找特征值不为0，且满足约束条件的特征向量：
+	for (unsigned i = 0; i < V.cols(); ++i)
+	{
+		double eigenValue = D(i, i);
+		if (std::abs(eigenValue) < epsilon)
+			continue;
+		x = V.col(i);
+		double a = x(0);
+		double c = x(1);
+		if (a * c > 0)
+			break;
+	}
+
+	return x;
+}
 
 
 
