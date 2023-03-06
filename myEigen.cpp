@@ -789,6 +789,8 @@ namespace TEST_DIP
 // 测试拓扑网格类tmesh
 namespace TEST_TMESH
 {
+
+
 	// TMESH的IO，基本功能
 	void test0()
 	{
@@ -894,7 +896,7 @@ namespace TEST_TMESH
 
 		T_MESH::TMesh::init();				// This is mandatory
 		T_MESH::Basic_TMesh tMesh;
-		tMesh.load("E:/材料/meshArranged.obj");
+		tMesh.load("E:/meshInnerRevEdited.obj");
 		debugWriteMesh("meshInput", tMesh);
 
 		// 检测网格拓扑性质：

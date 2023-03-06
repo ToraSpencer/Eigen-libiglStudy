@@ -1245,7 +1245,7 @@ namespace MESH_REPAIR
 		Eigen::MatrixXd vers, edgeArrows;
 		Eigen::MatrixXi tris, edges;
 		bool retFlag = true;
-		objReadMeshMat(vers, tris, "E:/meshUnion.obj");
+		objReadMeshMat(vers, tris, "E:/meshInnerRevEdited.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		const unsigned versCount = vers.rows();
@@ -1281,8 +1281,12 @@ namespace MESH_REPAIR
 		Eigen::MatrixXi nmnEdges;
 		if (!nonManifoldEdges(tris, nmnEdges))
 			return;
-		if(nmnEdges.rows() > 0)
+		if (nmnEdges.rows() > 0)
+		{
 			std::cout << "nmnEdges.rows() == " << nmnEdges.rows() << std::endl;
+			std::cout << "非流形边：" << std::endl;
+			dispMat(nmnEdges);
+		}
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 
 
@@ -1652,7 +1656,7 @@ namespace MESH_REPAIR
 	{
 		T_MESH::TMesh::init();												// ？？？This is mandatory
 		T_MESH::Basic_TMesh mesh;
-		mesh.load("E:/材料/jawMeshDense_algSimp_60000.obj");				// 网格载入时会计算壳体数n_shell;
+		mesh.load("E:/meshInnerRevEdited.obj");				// 网格载入时会计算壳体数n_shell;
 		mesh.save("E:/meshFixInput.obj");
 
 		tiktok& tt = tiktok::getInstance();
@@ -1818,15 +1822,15 @@ int main()
 
 	// DECIMATION::test0();
 
-	TEST_MYEIGEN::test5();
+	// TEST_MYEIGEN::test5();
 
 	// TEMP_TEST::test1();
 
-	// MESH_REPAIR::test0();
+	MESH_REPAIR::test4();
  
 	// TEST_DIP::test0();
 
-	// TEST_TMESH::test2();
+	// TEST_TMESH::test3();
 
 	std::cout << "main() finished." << std::endl;
 }
