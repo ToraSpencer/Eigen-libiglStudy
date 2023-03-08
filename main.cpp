@@ -1242,16 +1242,26 @@ namespace MESH_REPAIR
 	// 检测网格边缘边、非流形边、孤立点、重复点、洞等缺陷：
 	void test0() 
 	{
-		Eigen::MatrixXd vers, edgeArrows;
+		Eigen::MatrixXd vers, edgeArrows, normals;
 		Eigen::MatrixXi tris, edges;
+
 		bool retFlag = true;
-		objReadMeshMat(vers, tris, "E:/meshInnerRevEdited.obj");
+		//std::ifstream fileIn("E:/何晓姗755244L_1_2303040505.stl", std::ios::binary);
+		//igl::readSTL(fileIn, vers, tris, normals);
+		objReadMeshMat(vers, tris, "E:/材料/meshCombined.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		const unsigned versCount = vers.rows();
 		const unsigned trisCount = tris.rows();
  
-		// 0. 计算边数据：
+		// 0. 去除重复三角片：
+		int retNum = removeSickDupTris(tris);
+		if (retNum > 0)
+			std::cout << "去除重复三角片：" << retNum << std::endl;
+
+		// ！！！to be optimized——检测原型网格时计算会出错，可能是下面的过程中内存开销太大了；
+
+		// 00. 计算边数据：
 		getEdges(edges, vers, tris);
 		getEdgeArrows(edgeArrows, edges, vers);
 		Eigen::VectorXd edgesLen = edgeArrows.rowwise().norm();
@@ -1266,9 +1276,9 @@ namespace MESH_REPAIR
 		if (bdrys.rows() > 0)
 		{
 			std::cout << "bdrys.rows() == " << bdrys.rows() << std::endl;
-			std::cout << "bdry data: " << std::endl;
-			dispMat(bdrys);
-			std::cout << std::endl;
+			//std::cout << "bdry data: " << std::endl;
+			//dispMat(bdrys);
+			//std::cout << std::endl;
 			subFromIdxVec(bdryTris, tris, bdryTriIdxes);
 			objWriteEdgesMat("E:/bdry.obj", bdrys, vers);
 			objWriteMeshMat("E:/bdryTris.obj", vers, bdryTris);
@@ -1334,6 +1344,7 @@ namespace MESH_REPAIR
 		Eigen::SparseMatrix<int> adjSM, adjSM_eCount, adjSM_eIdx;
 		Eigen::VectorXi connectedLabels, connectedCount;
 		adjMatrix(tris, adjSM_eCount, adjSM_eIdx);
+		unsigned nzCount = adjSM_eCount.nonZeros();
 		adjSM = adjSM_eCount;
 		traverseSparseMatrix(adjSM, [&adjSM](auto& iter) 
 			{
@@ -1822,11 +1833,11 @@ int main()
 
 	// DECIMATION::test0();
 
-	// TEST_MYEIGEN::test5();
+	// TEST_MYEIGEN::test0();
 
 	// TEMP_TEST::test1();
 
-	MESH_REPAIR::test4();
+	MESH_REPAIR::test0();
  
 	// TEST_DIP::test0();
 

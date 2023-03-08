@@ -955,20 +955,32 @@ std::pair<int, int> decodeEdge(const std::int64_t code);
 template <typename Index>
 std::uint64_t encodeTriangle(const Index vaIdx, const Index vbIdx, const Index vcIdx)
 {
-	// 不区分正反面，即(a, b, c)和(a, c, b)映射为同一个编码；
 	unsigned long triIdxLimit = 0x1FFFFF;								// 最多为21位全1, 0x1FFFFF ==  2097181, 两百多万三角片；
 	if (vaIdx > triIdxLimit || vbIdx > triIdxLimit || vcIdx > triIdxLimit)
 		return 0;			// 索引超出范围
 	if (vaIdx == vbIdx || vaIdx == vcIdx || vbIdx == vcIdx || vaIdx < 0 || vbIdx < 0 || vcIdx < 0)
 		return 0;			// 非法三角片
 
-	std::vector<std::uint64_t> vec{static_cast<std::uint64_t>(vaIdx), static_cast<std::uint64_t>(vbIdx), static_cast<std::uint64_t>(vcIdx)};
-	std::sort(vec.begin(), vec.end());
+	// 区分正反面——即(a, b, c)和(a, c, b)会映射成不同的编码；但是(a,b,c)(b,c,a)(c,a,b)映射成相同的编码；
+	Index A, B, C;
+	if (vaIdx < vbIdx && vaIdx < vcIdx)
+	{
+		A = vaIdx; B = vbIdx; C = vcIdx;			// abc
+	}						
+	else if (vbIdx < vaIdx && vbIdx < vcIdx)
+	{
+		A = vbIdx; B = vcIdx; C = vaIdx;						// bca
+	}
+	else
+	{
+		A = vcIdx; B = vaIdx; C = vbIdx;						// cab;
+	}
 	std::uint64_t code = 0;
-	code |= (vec[0] << 42);
-	code |= (vec[1] << 21);
-	code |= vec[2];
+	code |= (static_cast<std::uint64_t>(A) << 42);
+	code |= (static_cast<std::uint64_t>(B) << 21);
+	code |= static_cast<std::uint64_t>(C);
 	return code;
+	 
 }
 
 
@@ -3278,6 +3290,33 @@ bool genGrids(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, con
 }
 
 
+// 去除非法三角片，重复三角片：
+template<typename DerivedI>
+int removeSickDupTris(Eigen::PlainObjectBase<DerivedI>& tris) 
+{
+	unsigned trisCount = tris.rows();
+
+	Eigen::VectorXi flags{Eigen::VectorXi::Ones(trisCount)};
+	std::unordered_set<std::uint64_t> triCodeSet;
+	for (unsigned i = 0; i<trisCount; ++i) 
+	{
+		std::uint64_t code = encodeTriangle(tris(i, 0), tris(i, 1), tris(i, 2));
+		if (0 == code)
+		{
+			flags(i) = 0;
+			continue;
+		}
+		auto retPair = triCodeSet.insert(code);
+		if(!retPair.second)
+			flags(i) = 0;
+	}
+	DerivedI tmpMat;
+	subFromFlagVec(tmpMat, tris, flags);
+	tris = tmpMat;
+
+	int removeCount = trisCount - tris.rows();
+	return removeCount;
+}
 
 
 
