@@ -75,7 +75,7 @@ namespace SPARSEMAT
 		std::cout << "sm3 == \n" << sm3 << std::endl;
 
 
-		// 1+. 压缩：
+		// 1+. 压缩：It is worth noting that most of our wrappers to external libraries requires compressed matrices as inputs
 
 		//			isCompressed()方法——查看是否是压缩状态；插入元素之后若不手动压缩则是非压缩状态；
 		std::cout << "sm1.isCompressed() == " << sm1.isCompressed() << std::endl;

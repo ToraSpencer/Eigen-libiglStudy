@@ -377,6 +377,7 @@ bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, 
 		adjSM_MN_NB_opp = adjSM_MN_NB.transpose();
 	}
 
+
 	// 2. 确定非边缘流形有向边、及其对边的索引；
 	{
 		unsigned edgesCount_MN_NB = adjSM_MN_NB.sum();
@@ -599,7 +600,7 @@ namespace TEST_MYEIGEN
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
-		objReadMeshMat(vers, tris, "E:/材料/meshInnerRev.obj");
+		objReadMeshMat(vers, tris, "E:/材料/fatTeeth.obj");
 		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
 
 		std::vector<Eigen::MatrixXd> meshesVersOut;
@@ -609,12 +610,34 @@ namespace TEST_MYEIGEN
 		for (int i = 0; i<meshesVersOut.size(); ++i) 
 		{
 			char str[256];
-			sprintf_s(str, "E:/triangleGrowOut%d.obj", i);
+			sprintf_s(str, "E:/triangleGrowSplitOut%d.obj", i);
 			objWriteMeshMat(str, meshesVersOut[i], meshesTrisOut[i]);
 		}
 
-		//triangleGrow(versOut, trisOut, vers, tris, 0);
-		//objWriteMeshMat("E:/triangleGrowOut.obj", versOut, trisOut);
+		triangleGrow(versOut, trisOut, vers, tris, 0);
+		objWriteMeshMat("E:/triangleGrowOut0.obj", versOut, trisOut);
+
+		versOut.resize(0, 0);
+		trisOut.resize(0, 0);
+		triangleGrow(versOut, trisOut, vers, tris, 16666);
+		objWriteMeshMat("E:/triangleGrowOut16666.obj", versOut, trisOut);
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+	//		测试包含非流形边的三角片区域生长：
+	void test11() 
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		objReadMeshMat(vers, tris, "E:/材料/meshArrangeResult.obj");
+		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
+ 
+
+		triangleGrowOuterSurf(versOut, trisOut, vers, tris, 0);
+		debugWriteMesh("triangleGrowOuterSurf", versOut, trisOut);
+
 
 		std::cout << "finished." << std::endl;
 	}

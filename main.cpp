@@ -121,6 +121,14 @@ static void debugWriteMesh(const char* name, T_MESH::Basic_TMesh& mesh)
 }
 
 
+template<typename DerivedV>
+static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
+{
+	char path[512] = { 0 };
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+	objWriteEdgesMat(path, edges, vers);
+}
+
 
 ////////////////////////////////////////////////////////////////////////////// TEST: 网格精简：
 namespace DECIMATION 
@@ -1246,26 +1254,25 @@ namespace MESH_REPAIR
 		Eigen::MatrixXi tris, edges;
 
 		bool retFlag = true;
-		//std::ifstream fileIn("E:/何晓姗755244L_1_2303040505.stl", std::ios::binary);
-		//igl::readSTL(fileIn, vers, tris, normals);
-		objReadMeshMat(vers, tris, "E:/材料/meshCombined.obj");
+		//std::ifstream fileIn("E:/杨阳434165L_34_34b_2303012828.stl", std::ios::binary);
+		//retFlag = igl::readSTL(fileIn, vers, tris, normals);							// 貌似igl::readSTL读取的网格顶点数据不对；
+		objReadMeshMat(vers, tris, "E:/材料/jawMeshRaw.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
-		const unsigned versCount = vers.rows();
-		const unsigned trisCount = tris.rows();
- 
 		// 0. 去除重复三角片：
-		int retNum = removeSickDupTris(tris);
+		int retNum = removeSickDupTris(vers, tris);
 		if (retNum > 0)
 			std::cout << "去除重复三角片：" << retNum << std::endl;
 
-		// ！！！to be optimized——检测原型网格时计算会出错，可能是下面的过程中内存开销太大了；
+		const unsigned versCount = vers.rows();
+		const unsigned trisCount = tris.rows();
 
-		// 00. 计算边数据：
+		// 0.1. 计算边数据：
+		Eigen::Index minEdgeIdx = 0;
 		getEdges(edges, vers, tris);
 		getEdgeArrows(edgeArrows, edges, vers);
 		Eigen::VectorXd edgesLen = edgeArrows.rowwise().norm();
-		double minLen = edgesLen.minCoeff();
+		double minLen = edgesLen.minCoeff(&minEdgeIdx);
 		std::cout << "minimum edge len is " << minLen << std::endl;
 
 		// 1. 检测边缘有向边：
@@ -1293,9 +1300,9 @@ namespace MESH_REPAIR
 			return;
 		if (nmnEdges.rows() > 0)
 		{
-			std::cout << "nmnEdges.rows() == " << nmnEdges.rows() << std::endl;
-			std::cout << "非流形边：" << std::endl;
-			dispMat(nmnEdges);
+			std::cout << "！！！存在非流形边，nmnEdges.rows() == " << nmnEdges.rows() << std::endl;
+			//std::cout << "非流形边：" << std::endl;
+			//dispMat(nmnEdges);
 		}
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 
@@ -1343,7 +1350,7 @@ namespace MESH_REPAIR
 		// 6. 提取所有单连通区域：
 		Eigen::SparseMatrix<int> adjSM, adjSM_eCount, adjSM_eIdx;
 		Eigen::VectorXi connectedLabels, connectedCount;
-		adjMatrix(tris, adjSM_eCount, adjSM_eIdx);
+		adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
 		unsigned nzCount = adjSM_eCount.nonZeros();
 		adjSM = adjSM_eCount;
 		traverseSparseMatrix(adjSM, [&adjSM](auto& iter) 
@@ -1833,11 +1840,11 @@ int main()
 
 	// DECIMATION::test0();
 
-	// TEST_MYEIGEN::test0();
+	TEST_MYEIGEN::test11();
 
 	// TEMP_TEST::test1();
 
-	MESH_REPAIR::test0();
+	// MESH_REPAIR::test0();
  
 	// TEST_DIP::test0();
 

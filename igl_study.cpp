@@ -1822,7 +1822,7 @@ namespace IGL_BASIC_PMP
 
 		// 1. Éú³ÉÁÚ½Ó¾ØÕó£º
 		Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
-		adjMatrix(tris, adjSM_eCount, adjSM_eIdx);
+		adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
 
 		Eigen::SparseMatrix<int> adjSM = adjSM_eCount;
 		traverseSparseMatrix(adjSM, [&](auto& iter)
