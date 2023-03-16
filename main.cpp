@@ -2,17 +2,23 @@
 #include "sparse_mat.h"
 #include "scientific_calc.h"
 #include "igl_study.h"
-#include <iomanip>
-#include <winuser.h>
- 
+
 #include<stdio.h>
 #include<assert.h>
+#include <iomanip>
+#include <winuser.h>
+
+#include <windows.h>
+#include <atlstr.h>			// 包含CString类。属于microsoft ATL(活动模板库avtive template library)
+#include <atlconv.h>
+#include <io.h>
+
 
 #define DATA_PATH "./data/"
 
 static igl::opengl::glfw::Viewer viewer;				// 全局的网格查看器对象；
 static std::mutex g_mutex;						// 全局的互斥锁；
-static std::string g_debugPath;
+static std::string g_debugPath = "E:/";
 
 // 当前问题-easy
 /*
@@ -57,9 +63,14 @@ static std::string g_debugPath;
 
 
 /// /////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
+
+static void debugDisp(const char* str)
+{
+	std::cout << str << std::endl;
+}
  
 template <typename T, int M, int N>
-void dispData(const Eigen::Matrix<T, M, N>& m)
+static void dispData(const Eigen::Matrix<T, M, N>& m)
 {
 	auto dataPtr = m.data();
 	unsigned elemsCount = m.size();
@@ -72,7 +83,7 @@ void dispData(const Eigen::Matrix<T, M, N>& m)
 
 
 template <typename Derived>
-void dispData(const Eigen::PlainObjectBase<Derived>& m)
+static void dispData(const Eigen::PlainObjectBase<Derived>& m)
 {
 	int m0 = m.RowsAtCompileTime;
 	int n0 = m.ColsAtCompileTime;
@@ -88,7 +99,7 @@ void dispData(const Eigen::PlainObjectBase<Derived>& m)
 
 
 template <typename Derived>
-void dispElem(const Eigen::MatrixBase<Derived>& m)
+static void dispElem(const Eigen::MatrixBase<Derived>& m)
 {
 	const Derived& mm = m.derived();
 	std::cout << mm(1, 1) << std::endl;
@@ -1256,7 +1267,8 @@ namespace MESH_REPAIR
 		bool retFlag = true;
 		//std::ifstream fileIn("E:/杨阳434165L_34_34b_2303012828.stl", std::ios::binary);
 		//retFlag = igl::readSTL(fileIn, vers, tris, normals);							// 貌似igl::readSTL读取的网格顶点数据不对；
-		objReadMeshMat(vers, tris, "E:/材料/jawMeshRaw.obj");
+
+		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense_algSimp_60000.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		// 0. 去除重复三角片：
@@ -1269,7 +1281,7 @@ namespace MESH_REPAIR
 
 		// 0.1. 计算边数据：
 		Eigen::Index minEdgeIdx = 0;
-		getEdges(edges, vers, tris);
+		getEdges(edges, tris);
 		getEdgeArrows(edgeArrows, edges, vers);
 		Eigen::VectorXd edgesLen = edgeArrows.rowwise().norm();
 		double minLen = edgesLen.minCoeff(&minEdgeIdx);
@@ -1296,14 +1308,11 @@ namespace MESH_REPAIR
 
 		// 2. 检测非流形有向边：
 		Eigen::MatrixXi nmnEdges;
-		if (!nonManifoldEdges(tris, nmnEdges))
+		std::vector<std::pair<int, std::pair<int, int>>> nmnEdgeInfos;
+		if (!nonManifoldEdges(nmnEdges, nmnEdgeInfos, tris))
 			return;
 		if (nmnEdges.rows() > 0)
-		{
 			std::cout << "！！！存在非流形边，nmnEdges.rows() == " << nmnEdges.rows() << std::endl;
-			//std::cout << "非流形边：" << std::endl;
-			//dispMat(nmnEdges);
-		}
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 
 
@@ -1447,7 +1456,7 @@ namespace MESH_REPAIR
 		igl::writeOBJ("E:/meshInput.obj", vers, tris);
  
 		// 1. 计算边数据：
-		getEdges(edges, vers, tris);
+		getEdges(edges, tris);
 		getEdgeArrows(edgeArrows, edges, vers);		
 		Eigen::VectorXd edgesLen = edgeArrows.rowwise().norm();
 		double minLen = edgesLen.minCoeff();
@@ -1477,7 +1486,7 @@ namespace MESH_REPAIR
 		edgeArrows.resize(0, 0);
 		vers.resize(0, 0);
 		tris.resize(0, 0);
-		getEdges(edges, versOut, trisOut);
+		getEdges(edges, trisOut);
 		getEdgeArrows(edgeArrows, edges, versOut);
 		degEdgeFlags = checkDegEdges(edges, edgeArrows, versOut, trisOut, degEdgeThreshold);
 		degEdgesCount = degEdgeFlags.sum();
@@ -1825,13 +1834,11 @@ int main()
 
 	// DECIMATION::test0000();
 
-
 	// IGL_DIF_GEO::test1();
 	// IGL_GRAPH::test1();
 	// IGL_SPACE_PARTITION::test0();
 	// IGL_BASIC_PMP::test8();
  
-
 	// SCIENTIFICCALC::test7();
 	
 	// TEST_PMP::test3();

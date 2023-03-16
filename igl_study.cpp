@@ -900,7 +900,7 @@ namespace IGL_BASIC_PMP
 
 		//	 nonManifoldEdges()——输出非流形半边：
 		Eigen::MatrixXi  nmnEdges;
-		nonManifoldEdges(tris, nmnEdges);
+		nonManifoldEdges(nmnEdges, tris);
 		dispMatBlock(nmnEdges, 0, 10, 0, 1);
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 
@@ -935,16 +935,16 @@ namespace IGL_BASIC_PMP
 		unsigned trisCount = tris.rows();
 
 		Eigen::MatrixXi ttAdj_nmEdge;
-		std::vector<ttTuple> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
+		std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
 		bool retFlag = buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
 
 		// 输出包含非流形边的三角片：
 		std::vector<int> nmnTrisIdx;
-		for (const auto& tuple : ttAdj_nmnEdge)
+		for (const auto& vec : ttAdj_nmnEdge)
 		{
-			nmnTrisIdx.insert(nmnTrisIdx.end(), std::get<0>(tuple).begin(), std::get<0>(tuple).end());
-			nmnTrisIdx.insert(nmnTrisIdx.end(), std::get<1>(tuple).begin(), std::get<1>(tuple).end());
-			nmnTrisIdx.insert(nmnTrisIdx.end(), std::get<2>(tuple).begin(), std::get<2>(tuple).end());
+			nmnTrisIdx.insert(nmnTrisIdx.end(), vec[0].begin(), vec[0].end());
+			nmnTrisIdx.insert(nmnTrisIdx.end(), vec[1].begin(), vec[1].end());
+			nmnTrisIdx.insert(nmnTrisIdx.end(), vec[2].begin(), vec[2].end());
 		}
 		std::unique(nmnTrisIdx.begin(), nmnTrisIdx.end());
 		Eigen::MatrixXi nmnTris;
@@ -965,7 +965,7 @@ namespace IGL_BASIC_PMP
 		objWriteMeshMat("E:/mnTris.obj", vers, mnTris);
 
 		Eigen::MatrixXi nmnEdges;
-		nonManifoldEdges(tris, nmnEdges);
+		nonManifoldEdges(nmnEdges, tris);
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers); 
 
 		std::cout << "finished." << std::endl;
@@ -997,7 +997,7 @@ namespace IGL_BASIC_PMP
 
 		// 1. 计算三角片邻接关系
 		Eigen::MatrixXi ttAdj_nmEdge;
-		std::vector<ttTuple> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
+		std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
 		buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
 		unsigned trisCount = tris.rows();
 		std::vector<bool> visited(trisCount, false);			// 三角片是否被访问的标记；
@@ -1023,12 +1023,12 @@ namespace IGL_BASIC_PMP
 				if (-1 == nbrTriIdx)
 				{
 					std::vector<std::vector<int>*> vecPtr(3), tmpPtrVec(3);
-					vecPtr[0] = &std::get<0>(ttAdj_nmnEdge[currentTriIdx]);
-					vecPtr[1] = &std::get<1>(ttAdj_nmnEdge[currentTriIdx]);
-					vecPtr[2] = &std::get<2>(ttAdj_nmnEdge[currentTriIdx]);
-					tmpPtrVec[0] = &std::get<0>(ttAdj_nmnOppEdge[currentTriIdx]);
-					tmpPtrVec[1] = &std::get<1>(ttAdj_nmnOppEdge[currentTriIdx]);
-					tmpPtrVec[2] = &std::get<2>(ttAdj_nmnOppEdge[currentTriIdx]);
+					vecPtr[0] = &ttAdj_nmnEdge[currentTriIdx][0];
+					vecPtr[1] = &ttAdj_nmnEdge[currentTriIdx][1];
+					vecPtr[2] = &ttAdj_nmnEdge[currentTriIdx][2];
+					tmpPtrVec[0] = &ttAdj_nmnOppEdge[currentTriIdx][0];
+					tmpPtrVec[1] = &ttAdj_nmnOppEdge[currentTriIdx][1];
+					tmpPtrVec[2] = &ttAdj_nmnOppEdge[currentTriIdx][2];
 
 					const std::vector<int>& relaTrisIdx = *vecPtr[i];				// 当前非流形边所在的所有三角片（正常的话应该为两个）；
 					const std::vector<int>& relaOppTrisIdx = *tmpPtrVec[i];	// 当前非流形边的所有对面三角片（正常的话应该为两个）；
@@ -1226,16 +1226,16 @@ namespace IGL_BASIC_PMP
 		unsigned trisCount = tris.rows();
 
 		Eigen::MatrixXi ttAdj_nmEdge;
-		std::vector<ttTuple> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
+		std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
 		bool retFlag = buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
 
 		// 输出包含非流形边的三角片：
 		std::vector<int> nmnTrisIdx;
-		for (const auto& tuple : ttAdj_nmnEdge)
+		for (const auto& vec : ttAdj_nmnEdge)
 		{
-			nmnTrisIdx.insert(nmnTrisIdx.end(), std::get<0>(tuple).begin(), std::get<0>(tuple).end());
-			nmnTrisIdx.insert(nmnTrisIdx.end(), std::get<1>(tuple).begin(), std::get<1>(tuple).end());
-			nmnTrisIdx.insert(nmnTrisIdx.end(), std::get<2>(tuple).begin(), std::get<2>(tuple).end());
+			nmnTrisIdx.insert(nmnTrisIdx.end(), vec[0].begin(), vec[0].end());
+			nmnTrisIdx.insert(nmnTrisIdx.end(), vec[1].begin(), vec[1].end());
+			nmnTrisIdx.insert(nmnTrisIdx.end(), vec[2].begin(), vec[2].end()); 
 		}
 		std::unique(nmnTrisIdx.begin(), nmnTrisIdx.end());
 		Eigen::MatrixXi nmnTris;

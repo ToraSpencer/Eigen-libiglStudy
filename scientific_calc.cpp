@@ -201,7 +201,7 @@ namespace TEST_PMP
 		Eigen::MatrixXi tris, edges;
 		objReadMeshMat(vers, tris, "E:/²ÄÁÏ/tooth.obj");
 
-		getEdges(edges, vers, tris);
+		getEdges(edges, tris);
 		trianglesBarycenter(barycenters, vers, tris);
 		trianglesNorm(triNorms, vers, tris);
 		objWriteVerticesMat("E:/barycenters.obj", barycenters);
@@ -252,7 +252,7 @@ namespace TEST_PMP
 		Eigen::MatrixXi nmnEdges;
 
 		objReadMeshMat(vers, tris, "E:/²ÄÁÏ/jawMeshDense4.obj");
-		nonManifoldEdges(tris, nmnEdges);
+		nonManifoldEdges(nmnEdges, tris);
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 
 		std::cout << "trisCount == " << tris.rows() << std::endl;
@@ -267,7 +267,7 @@ namespace TEST_PMP
 			Eigen::MatrixXi tris;
 			Eigen::MatrixXi nmnEdges;
 			objReadMeshMat(vers, tris, str);
-			nonManifoldEdges(tris, nmnEdges);
+			nonManifoldEdges(nmnEdges, tris);
 
 			trisSum += tris.rows();
 			if (nmnEdges.rows() > 0) 
@@ -278,7 +278,7 @@ namespace TEST_PMP
 
 
 		objReadMeshMat(vers, tris, "E:/²ÄÁÏ/meshNmnEdges.obj");
-		nonManifoldEdges(tris, nmnEdges);
+		nonManifoldEdges(nmnEdges, tris);
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 	}
 
