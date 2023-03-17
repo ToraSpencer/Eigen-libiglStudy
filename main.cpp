@@ -1847,7 +1847,7 @@ int main()
 
 	// DECIMATION::test0();
 
-	TEST_MYEIGEN::test11();
+	TEST_MYEIGEN::test5();
 
 	// TEMP_TEST::test1();
 

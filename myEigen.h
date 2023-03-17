@@ -744,6 +744,123 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 }
 
 
+//		生成方柱，旋转分两次，以确保侧面和XOY平面平行或垂直；
+template <typename T>
+bool genAlignedCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, \
+	const bool isCovered = true)
+{
+	// 生成XOY平面上采样角度步长为的圆圈顶点：
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	// 生成XOY平面内的方框顶点：
+	float length = sizePair.first;
+	float width = sizePair.second;
+	std::vector<RowVector3T> corners(4);
+	corners[0] = RowVector3T{ length / 2, width / 2, 0 };
+	corners[1] = RowVector3T{ -length / 2, width / 2, 0 };
+	corners[2] = RowVector3T{ -length / 2, -width / 2, 0 };
+	corners[3] = RowVector3T{ length / 2, -width / 2, 0 };
+
+	MatrixXT circuit, tmpVers1, tmpVers2, tmpVers3, tmpVers4;
+	interpolateToLine(tmpVers1, corners[0], corners[1], SR, true);
+	interpolateToLine(tmpVers2, corners[1], corners[2], SR, false);
+	interpolateToLine(tmpVers3, corners[2], corners[3], SR, true);
+	interpolateToLine(tmpVers4, corners[3], corners[0], SR, false);
+	matInsertRows(circuit, tmpVers1);
+	matInsertRows(circuit, tmpVers2);
+	matInsertRows(circuit, tmpVers3);
+	matInsertRows(circuit, tmpVers4);
+
+	// lambda——柱体侧面的三角片生长，会循环调用，调用一次生长一层；
+	auto growSurf = [](Eigen::MatrixXi& sideTris, const int circVersCount)->bool
+	{
+		// 会重复调用，tris容器不需要为空。
+		if (circVersCount < 3)
+			return false;
+
+		int currentTrisCount = sideTris.rows();
+		int currentVersCount = circVersCount + currentTrisCount / 2;
+		int startIdx = currentTrisCount / 2;							// 待生成表面的圆柱体底圈的第一个顶点的索引。
+		sideTris.conservativeResize(currentTrisCount + 2 * circVersCount, 3);
+
+		int triIdx = currentTrisCount;
+		sideTris.row(triIdx++) = Eigen::RowVector3i{ startIdx + circVersCount - 1, startIdx, startIdx + 2 * circVersCount - 1 };
+		sideTris.row(triIdx++) = Eigen::RowVector3i{ startIdx, startIdx + circVersCount, startIdx + 2 * circVersCount - 1 };
+		for (int i = startIdx + 1; i < startIdx + circVersCount; ++i)
+		{
+			sideTris.row(triIdx++) = Eigen::RowVector3i{ i - 1, i, i + circVersCount - 1 };
+			sideTris.row(triIdx++) = Eigen::RowVector3i{ i, i + circVersCount, i + circVersCount - 1 };
+		}
+
+		return true;
+	};
+
+	unsigned circVersCount = circuit.rows();					// 横截面一圈的顶点数；
+	unsigned circCount = axisVers.rows();							// 圈数；
+	unsigned versCount = circVersCount * circCount;
+	std::vector<MatrixXT> circuitsVec(circCount);									// 每个横截面的一圈顶点；
+	std::vector<RowVector3T> sectionNorms(circCount);					// 每个横截面的法向；
+
+	// 1. 计算柱体circCount个横截面的法向、每个横截面的顶点；
+	for (unsigned i = 0; i < circCount - 1; ++i)
+	{
+		sectionNorms[i] = axisVers.row(i + 1) - axisVers.row(i);
+		sectionNorms[i].normalize();
+		Matrix3T rotation1 = getRotationMat(RowVector3T{ 0, 0, 1 }, RowVector3T{ 0, 1, 0 });
+		Matrix3T rotation2 = getRotationMat(RowVector3T{ 0, 1, 0 }, sectionNorms[i]);
+		Matrix3T rotation = rotation2 * rotation1;
+		circuitsVec[i] = circuit * rotation.transpose();
+		circuitsVec[i].rowwise() += axisVers.row(i);
+	}
+
+	// 2. 计算最后一圈顶点：
+	RowVector3T deltaNormAve{ RowVector3T::Zero() };
+	for (unsigned i = 0; i < circCount - 2; ++i)
+		deltaNormAve += (sectionNorms[i + 1] - sectionNorms[i]);
+	deltaNormAve.array() /= (circCount - 2);
+	sectionNorms[circCount - 1] = sectionNorms[circCount - 2] + deltaNormAve;
+	Matrix3T rotation1 = getRotationMat(RowVector3T{ 0, 0, 1 }, RowVector3T{ 0, 1, 0 });
+	Matrix3T rotation2 = getRotationMat(RowVector3T{ 0, 1, 0 }, sectionNorms[circCount - 1]);
+	Matrix3T rotation = rotation2 * rotation1;
+	circuitsVec[circCount - 1] = circuit * rotation.transpose();
+	circuitsVec[circCount - 1].rowwise() += axisVers.row(circCount - 1);
+
+	// 3. 生成柱体顶点：
+	vers.resize(versCount, 3);
+	for (unsigned i = 0; i < circCount; ++i)
+		vers.block(0 + circVersCount * i, 0, circVersCount, 3) = circuitsVec[i];
+
+	// 4.生成侧面三角片：
+	for (unsigned i = 1; i <= circCount - 1; ++i)
+		growSurf(tris, circVersCount);
+
+
+	// 5. 加盖：
+	if (isCovered)
+	{
+		MatrixXT capVers;
+		Eigen::MatrixXi capTris1, capTris2;
+		circuit2mesh(capVers, capTris1, circuit);
+		capTris2 = capTris1;
+		for (int i = 0; i < capTris1.rows(); ++i)
+		{
+			int tmp = capTris1(i, 2);
+			capTris1(i, 2) = capTris1(i, 1);
+			capTris1(i, 1) = tmp;
+		}
+		capTris2.array() += versCount - circVersCount;
+		matInsertRows(tris, capTris1);
+		matInsertRows(tris, capTris2);
+	}
+
+	return true;
+}
+
+
+
 //			circuitToMesh()重载1：triangle库三角剖分——封闭边界线点集得到面网格，可以是平面也可以是曲面，三角片尺寸不可控，不会在网格内部插点。
 template <typename T>
 bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
@@ -2836,7 +2953,7 @@ bool triangleGrowOuterSurf(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::Pla
 }
 
 
-// correctTriDirs()——矫正网格的三角片朝向
+// correctTriDirs()——矫正网格的三角片朝向，基于三角片区域生长的方法；使用前需要先处理网格中的重叠三角片；
 template <typename DerivedV, typename DerivedI>
 int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx, const double thetaThreshold = 0.99 * pi)
@@ -2943,6 +3060,151 @@ int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::Plain
 #endif
 
 	return corrCount;
+}
+
+
+// findOverlapTris()——寻找网格中的重叠三角片，基于三角片区域生长的方法；
+template <typename DerivedV, typename DerivedI>
+int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx = 0, const double thetaThreshold = 0.99 * pi)
+{
+	int olCount = 0;
+	const double dotThreshold1 = cos(thetaThreshold);					
+	const double dotThreshold2 = cos(pi - thetaThreshold);
+	const int versCount = vers.rows();
+	const int trisCount = tris.rows();
+	const int edgesCount = 3 * trisCount;
+	std::unordered_set<std::int64_t> opTriPairCodes;			// 一对重叠的三角片，索引值按前小后大排列，编码成std::int64_t
+
+#ifdef  LOCAL_DEBUG
+	std::set<int> olTriIdxes;
+#endif 
+
+	// 0. 求初始状态下网格所有三角片的法向：
+	Eigen::MatrixXd triNorms;
+	if (!getTriNorms(triNorms, vers, tris))				// 若含有退化三角片，会导致计算面片法向出错；
+		return false;
+
+	// 1. 求三角片邻接关系：
+	Eigen::MatrixXi ttAdj_nmEdge;
+	std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
+	if (!buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge))
+		return false;
+
+	// 2. 循环——队列中第一个三角片t出队 - t写入输出集合 - 求出t所有相邻三角片的索引然后入队
+	std::unordered_set<int> workingSet;								// 用于寻找相邻三角片的队列；
+	std::vector<int> triTags(trisCount, 0);								// 0 : 未访问，1: 已访问
+	workingSet.insert(static_cast<int>(triIdx));						// 队列插入第一个三角片； 
+	while (workingSet.size() > 0)
+	{
+		// 4.1 首个元素出队，插入到联通三角片集合中；
+		int cTriIdx = *workingSet.begin();									// 当前处理的三角片索引
+		std::vector<int> adjTriIdxes;												// 当前三角片的未被访问的相邻三角片的索引
+		Eigen::RowVector3d cTriNorm = triNorms.row(cTriIdx);
+		unsigned adjTrisCount = 0;
+		workingSet.erase(workingSet.begin());
+		triTags[cTriIdx] = 1;											// 当前三角片标记为已访问；
+
+		// 4.2 确定当前三角片的所有相邻三角片
+		for (int i = 0; i < 3; ++i)
+		{
+			int nbrTriIdx = ttAdj_nmEdge(cTriIdx, i);
+			if (nbrTriIdx >= 0)
+			{
+				// a. 当前边为流形边
+				if (0 == triTags[nbrTriIdx])
+					adjTriIdxes.push_back(nbrTriIdx);
+			}
+			else
+			{
+				// b. 当前边为非流形边；
+				auto& vec1 = ttAdj_nmnEdge[cTriIdx][i];						// 当前非流形边所在的所有三角片；
+				auto& vec2 = ttAdj_nmnOppEdge[cTriIdx][i];				// 当前非流形边的对边所在的所有三角片；
+				for (const auto& index : vec1)
+				{
+					if (index == cTriIdx)
+						continue;
+					else
+						if (0 == triTags[index])
+							adjTriIdxes.push_back(index);
+				}
+
+				for (const auto& index : vec2)
+					if (0 == triTags[index])
+						adjTriIdxes.push_back(index);
+			}
+		}
+
+		// 4.3 检验-判定当前三角片和周边三角片是否重叠；
+		adjTrisCount = adjTriIdxes.size();
+		if (0 == adjTrisCount)
+			continue;
+		for (unsigned k = 0; k < adjTrisCount; ++k)
+		{
+			int adjIdx = adjTriIdxes[k];
+			double dotValue = cTriNorm.dot(triNorms.row(adjIdx));
+			if (dotValue > dotThreshold2 || dotValue < dotThreshold1)			
+			{
+				// 若当前三角片和相邻三角片法向接近相同或相反，检测两个三角片投影到其法向平面上是否有重叠区域 → 检测投影后两个三角片两个不同的顶点是否在同一侧：
+				int A, B, C1, C2;
+				std::vector<int> ctv{ tris(cTriIdx, 0), tris(cTriIdx, 1), tris(cTriIdx, 2) };
+				std::vector<int> adjtv{ tris(adjIdx, 0), tris(adjIdx, 1), tris(adjIdx, 2) };
+
+				auto iterC = ctv.begin();
+				for (; iterC != ctv.end(); iterC++) 
+				{
+					int cIdx = *iterC;
+					if (cIdx != adjtv[0] && cIdx != adjtv[1] && cIdx != adjtv[2])
+					{
+						C1 = cIdx;
+						break;
+					}
+				}
+				for (const auto& aIdx : adjtv)
+				{
+					if (aIdx != ctv[0] && aIdx != ctv[1] && aIdx != ctv[2])
+					{
+						C2 = aIdx;
+						break;
+					}
+				}
+				ctv.erase(iterC);
+				A = ctv[0];
+				B = ctv[1];
+
+				Eigen::RowVector3d AB = vers.row(B).array().cast<double>() - vers.row(A).array().cast<double>();
+				Eigen::RowVector3d AC1 = vers.row(C1).array().cast<double>() - vers.row(A).array().cast<double>();
+				Eigen::RowVector3d AC2 = vers.row(C2).array().cast<double>() - vers.row(A).array().cast<double>();
+				Eigen::RowVector3d crossArrow1 = AB.cross(AC1);
+				Eigen::RowVector3d crossArrow2 = AB.cross(AC2);
+				if (crossArrow1.dot(cTriNorm) * crossArrow2.dot(cTriNorm) > 0)				// C1, C2在公共边AB的同一侧；
+				{
+					auto retPair = opTriPairCodes.insert(encodeUedge(cTriIdx, adjIdx));
+					if (retPair.second)
+					{
+						olCount++;								// 计数增加；
+#ifdef LOCAL_DEBUG
+						olTriIdxes.insert(cTriIdx);
+						olTriIdxes.insert(adjIdx);
+#endif
+					}
+				}							
+			}
+		}
+
+		// 4.3 工作队列中插入当前三角片未被访问的相邻三角片；
+		for (const auto& index : adjTriIdxes)
+			workingSet.insert(index);
+	}
+ 
+#ifdef LOCAL_DEBUG
+	Eigen::MatrixXd versCopy = vers.array().cast<double>();
+	Eigen::MatrixXi olTris;
+	subFromIdxCon(olTris, tris, olTriIdxes);
+	objWriteMeshMat("E:/overlapTris.obj", versCopy, olTris);
+#endif 
+
+	return olCount;
 }
 
 

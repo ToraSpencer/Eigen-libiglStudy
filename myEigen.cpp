@@ -653,8 +653,24 @@ namespace TEST_MYEIGEN
 	}
 
 
+	// 测试区域生长实现的重叠三角片检测：
+	void test11()
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense_algSimp_60000.obj");
+		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
+
+		std::vector<std::pair<int, int>> opTrisPairs;
+		int olCount = findOverLapTris(opTrisPairs, vers, tris);
+
+
+		debugDisp("finished.");
+	}
+
+
 	// 测试区域生长实现的网格三角片朝向矫正：
-	void test11() 
+	void test111() 
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
@@ -670,7 +686,7 @@ namespace TEST_MYEIGEN
 
 
 	//		测试包含非流形边的三角片区域生长：
-	void test111() 
+	void test1111() 
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
@@ -782,16 +798,19 @@ namespace TEST_MYEIGEN
 		genCylinder(cylinderVers, cylinderTris, axis, 10);				// 生成圆柱
 		debugWriteMesh("cylinder", cylinderVers, cylinderTris);
 
-		
 		cylinderVers.resize(0, 0);
 		cylinderTris.resize(0, 0);
 		axis.resize(0, 0);
 		matInsertRows<float , 3>(axis, Eigen::RowVector3f{0, 0, 0});
 		matInsertRows<float , 3>(axis, Eigen::RowVector3f{ 0, 0, 1 });
+
 		genCylinder(cylinderVers, cylinderTris, axis, std::make_pair(10.0, 20.0));
 		debugWriteMesh("pillar", cylinderVers, cylinderTris);
 
-
+		cylinderVers.resize(0, 0);
+		cylinderTris.resize(0, 0);
+		genAlignedCylinder(cylinderVers, cylinderTris, axis, std::make_pair(1.5, 1.5), 0.5); 
+		debugWriteMesh("AlignedPillar", cylinderVers, cylinderTris);
 
 		std::cout << "finished." << std::endl;
 	}
@@ -857,8 +876,6 @@ namespace TEST_DIP
 // 测试拓扑网格类tmesh
 namespace TEST_TMESH
 {
-
-
 	// TMESH的IO，基本功能
 	void test0()
 	{
@@ -974,4 +991,5 @@ namespace TEST_TMESH
 
 		std::cout << "finished." << std::endl;
 	}
+
 }
