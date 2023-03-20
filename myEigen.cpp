@@ -402,7 +402,7 @@ bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, 
 			});
 
 		//		若adjSM_eIdx(i, j)对应的是流形有向边，该权重值为该边的索引；若是非流形有向边，则该边对应两个边索引，权重为两个索引之和；
-		adjSM_eIdx_opp = adjSM_eIdx.transpose();
+		spMatTranspose(adjSM_eIdx_opp, adjSM_eIdx);
 
 		//	1.3 生成无向边邻接矩阵：
 		Eigen::SparseMatrix<int> tmpSm;
@@ -437,7 +437,7 @@ bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, 
 					return false;
 			});
 		adjSM_MN_NB /= 2;
-		adjSM_MN_NB_opp = adjSM_MN_NB.transpose();
+		spMatTranspose(adjSM_MN_NB_opp, adjSM_MN_NB);
 	}
 
 
@@ -601,8 +601,6 @@ void genAABBmesh(const T_MESH::di_cell& cell, Eigen::MatrixXd& vers, Eigen::Matr
 
 
 
-
-
 // 测试myEigen中的接口
 namespace TEST_MYEIGEN 
 {
@@ -690,8 +688,10 @@ namespace TEST_MYEIGEN
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
-		objReadMeshMat(vers, tris, "E:/材料/meshArrangeResult2.obj");
+		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense_qslim_150000_arranged.obj");
 		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
+		unsigned versCount = vers.rows();
+		unsigned trisCount = tris.rows();
 
 		Eigen::MatrixXi nmnEdges;
 		std::vector<std::pair<int, std::pair<int, int>>> nmnEdgeInfos;
@@ -699,6 +699,9 @@ namespace TEST_MYEIGEN
  
 		triangleGrowOuterSurf(versOut, trisOut, vers, tris, 0);
 		debugWriteMesh("triangleGrowOuterSurf", versOut, trisOut);
+
+		debugDisp("去除三角片个数：", trisCount - trisOut.rows());
+
 
 		std::cout << "finished." << std::endl;
 	}
@@ -893,7 +896,7 @@ namespace TEST_TMESH
 
 		Eigen::MatrixXd vers;
 		Eigen::MatrixXi tris;
-		TMesh2MeshMat(tmesh1, vers, tris);
+		TMesh2MeshMat(vers, tris, tmesh1);
 		debugWriteMesh("meshInputCopy", vers, tris);
 
 		// 顶点数据：
@@ -911,7 +914,12 @@ namespace TEST_TMESH
 		nodePtr = tmesh1.T.head();
 		T_MESH::Triangle* tPtr = reinterpret_cast<T_MESH::Triangle*>(nodePtr->data);
 		T_MESH::Triangle& t0 = *tPtr;
- 
+
+		// 表象转换：
+		T_MESH::Basic_TMesh tMesh2;
+		meshMat2tMesh(tMesh2, vers, tris);
+		debugWriteMesh("tMesh2", tmesh1);
+
 		std::cout << "finished." << std::endl;
 	}
 
@@ -981,7 +989,7 @@ namespace TEST_TMESH
 
 		T_MESH::TMesh::init();				// This is mandatory
 		T_MESH::Basic_TMesh tMesh;
-		tMesh.load("E:/meshInnerRevEdited.obj");
+		tMesh.load("E:/材料/tooth.obj");
 		debugWriteMesh("meshInput", tMesh);
 
 		// 检测网格拓扑性质：
@@ -990,6 +998,45 @@ namespace TEST_TMESH
 			std::cout << retStr << std::endl;
 
 		std::cout << "finished." << std::endl;
+	}
+
+
+	// 去除退化三角片：
+	void test4() 
+	{
+		int max_iters = 5;			
+		int inner_loops = 6;							// 每次大循环中去除退化三角片、去除自交的迭代次数；
+		int holesCount = 0;
+		bool flagIsct = false;
+		bool flagDeg = false;
+
+		T_MESH::TMesh::init();				 
+		T_MESH::Basic_TMesh tMesh;
+		tMesh.load("E:/材料/jawMeshDense_qslim_150000_noOpTris.obj");
+		debugWriteMesh("meshInput", tMesh);	
+
+		int removedCount = tMesh.removeSmallestComponents();						// d_boundaries, d_handles, d_shells赋值
+		if (removedCount > 1)
+			std::cout << "！！！输入网格有" << removedCount << "个单连通区域。" << std::endl;
+		
+		tMesh.deselectTriangles();
+		tMesh.invertSelection();
+
+		int loopCount = 1;
+		for(int i = 0; i < max_iters; ++i)
+		{
+			debugDisp("loopCount == ", loopCount++);
+			holesCount = tMesh.boundaries();
+			if (holesCount)
+				tMesh.fillSmallBoundaries(0, true);
+			flagDeg = tMesh.strongDegeneracyRemoval(inner_loops);			// 全部清除成功返回true， 否则返回false
+			holesCount = tMesh.boundaries();
+		}
+
+		debugWriteMesh("meshOut", tMesh);
+		debugDisp("holesCount == ", holesCount);
+		debugDisp("flagDeg == ", flagDeg);
+		debugDisp("finished.");
 	}
 
 }

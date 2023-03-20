@@ -5,6 +5,99 @@ static igl::opengl::glfw::Viewer viewer;				// libigl中的基于glfw的显示窗口；
 static std::mutex g_mutex;
 
 
+/// /////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
+
+static std::string g_debugPath = "E:/";
+
+static void debugDisp()			// 递归终止
+{						//		递归终止设为无参或者一个参数的情形都可以。
+	std::cout << std::endl;
+	return;
+}
+
+template <typename T, typename... Types>
+static void debugDisp(const T& firstArg, const Types&... args)
+{
+	std::cout << firstArg << " ";
+	debugDisp(args...);
+}
+
+
+template <typename T, int M, int N>
+static void dispData(const Eigen::Matrix<T, M, N>& m)
+{
+	auto dataPtr = m.data();
+	unsigned elemsCount = m.size();
+
+	for (unsigned i = 0; i < elemsCount; ++i)
+		std::cout << dataPtr[i] << ", ";
+
+	std::cout << std::endl;
+}
+
+
+template <typename Derived>
+static void dispData(const Eigen::PlainObjectBase<Derived>& m)
+{
+	int m0 = m.RowsAtCompileTime;
+	int n0 = m.ColsAtCompileTime;
+
+	auto dataPtr = m.data();
+	unsigned elemsCount = m.size();
+
+	for (unsigned i = 0; i < elemsCount; ++i)
+		std::cout << dataPtr[i] << ", ";
+
+	std::cout << std::endl;
+}
+
+
+template <typename Derived>
+static void dispElem(const Eigen::MatrixBase<Derived>& m)
+{
+	const Derived& mm = m.derived();
+	std::cout << mm(1, 1) << std::endl;
+}
+
+
+template<typename DerivedV>
+static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+{
+	char path[512] = { 0 };
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+	objWriteVerticesMat(path, vers);
+}
+
+
+template<typename T>
+static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+{
+	char path[512] = { 0 };
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+	objWriteMeshMat(path, vers, tris);
+}
+
+
+static void debugWriteMesh(const char* name, T_MESH::Basic_TMesh& mesh)
+{
+	char path[512] = { 0 };
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+	mesh.save(path);
+}
+
+
+template<typename DerivedV>
+static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
+{
+	char path[512] = { 0 };
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+	objWriteEdgesMat(path, edges, vers);
+}
+
+
+
+
+
 ////////////////////////////////////////////////////////////////////////////// libigl基本功能
 namespace IGL_BASIC
 {
@@ -1678,103 +1771,26 @@ namespace IGL_BASIC_PMP
 	void test5()
 	{
 		Eigen::MatrixXd vers;
-		Eigen::MatrixXi tris;
+		Eigen::MatrixXi tris, bdrys;
 		igl::readOBJ("E:/材料/holeMesh.obj", vers, tris);
-		igl::writeOBJ("E:/meshInput.obj", vers, tris);
+		igl::writeOBJ("E:/meshInput.obj", vers, tris);		
 
-		// 确定洞的边——只关联一个三角片的边：
-		const unsigned trisCount = tris.rows();
-		const unsigned edgesCount = 3 * trisCount;
-		const unsigned versCount = tris.maxCoeff() + 1;
-
-		Eigen::MatrixXi edges;
-		Eigen::SparseMatrix<int> adjSM_eCount;				// 有向边邻接矩阵，权重为该有向边重复的次数；
-		Eigen::SparseMatrix<int> adjSM_ueCount;				// 无向边邻接矩阵，权重为该边重复的次数；
-
-		edges = Eigen::MatrixXi::Zero(edgesCount, 2);
-		Eigen::MatrixXi vaIdxes = tris.col(0);
-		Eigen::MatrixXi vbIdxes = tris.col(1);
-		Eigen::MatrixXi vcIdxes = tris.col(2);
-		edges.block(0, 0, trisCount, 1) = vbIdxes;
-		edges.block(trisCount, 0, trisCount, 1) = vcIdxes;
-		edges.block(trisCount * 2, 0, trisCount, 1) = vaIdxes;
-		edges.block(0, 1, trisCount, 1) = vcIdxes;
-		edges.block(trisCount, 1, trisCount, 1) = vaIdxes;
-		edges.block(trisCount * 2, 1, trisCount, 1) = vbIdxes;
-
-		// 构建邻接矩阵：
-		std::vector<Eigen::Triplet<int>> smElems;
-		smElems.reserve(edgesCount);
-		for (int i = 0; i < edgesCount; ++i)
-			smElems.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), 1});
-
-		adjSM_eCount.resize(versCount, versCount);
-		adjSM_eCount.setFromTriplets(smElems.begin(), smElems.end());		// 有向边邻接矩阵，权重为该有向边重复的次数；
-		Eigen::SparseMatrix<int> tmpSp = adjSM_eCount.transpose();
-		adjSM_ueCount = adjSM_eCount + tmpSp;		// 无向边邻接矩阵，权重为该边重复的次数；
-
-		// 寻找边缘无向边：
-		std::unordered_set<std::int64_t> ueSet;
-		for (unsigned i = 0; i < adjSM_ueCount.outerSize(); ++i)
-			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM_ueCount, i); iter; ++iter)
-				if (1 == iter.value())
-					ueSet.insert(encodeEdge(iter.row(), iter.col()));
-
-		// 寻找边缘半边：
-		std::unordered_set<std::int64_t> bdryEdgeSet;
-		for (const auto& eCode : ueSet)
-		{
-			std::pair<int, int> retPair = decodeEdge(eCode);
-			int vaIdx = retPair.first;
-			int vbIdx = retPair.second;
-			std::int64_t eCodeOpp = encodeEdge(vbIdx, vaIdx);
-
-			if (adjSM_eCount.coeff(vaIdx, vbIdx) > 0)
-				bdryEdgeSet.insert(eCode);
-			if (adjSM_eCount.coeff(vbIdx, vaIdx) > 0)
-				bdryEdgeSet.insert(eCodeOpp);
-		}
-
-		Eigen::MatrixXi bdryEdges(bdryEdgeSet.size(), 2);
-		unsigned index = 0;
-		for (const auto& eCode : bdryEdgeSet)
-		{
-			auto retPair = decodeEdge(eCode);
-			bdryEdges(index, 0) = retPair.first;
-			bdryEdges(index, 1) = retPair.second;
-			index++;
-		}
-		objWriteEdgesMat("E:/bdryEdges.obj", bdryEdges, vers);
+		const unsigned versCount = vers.rows();
 
 		// 计算洞的有序顶点索引
-		std::vector<std::vector<int>> hole(1);
-		std::unordered_map<int, int> tmpMap;
-
-		for (unsigned i = 0; i < bdryEdges.rows(); ++i)
-			tmpMap.insert(std::make_pair(bdryEdges(i, 0), bdryEdges(i, 1)));
-
-		unsigned headIdx = tmpMap.begin()->first;
-		unsigned tailIdx = tmpMap.begin()->second;
-		tmpMap.erase(tmpMap.begin());
-		while (!tmpMap.empty())
-		{
-			hole[0].push_back(headIdx);
-			headIdx = tailIdx;
-			tailIdx = tmpMap[headIdx];
-			tmpMap.erase(headIdx);
-		}
-		hole[0].push_back(headIdx);
+		std::vector<std::vector<int>> holes;
+		findHoles(holes, vers, tris);
 
 		// 需要手动为原网格添加洞的中心点，而且貌似处理多个洞的情形会出错；
 		Eigen::MatrixXd holeVers;
-		subFromIdxVec(holeVers, vers, hole[0]);
+		subFromIdxVec(holeVers, vers, holes[0]);
 		Eigen::RowVector3d holeCenter = holeVers.colwise().mean();
 		Eigen::MatrixXd versOut(versCount + 1, 3);
 		versOut.topRows(versCount) = vers;
 		versOut.bottomRows(1) = holeCenter;
 
 		Eigen::MatrixXi trisOut;
-		igl::topological_hole_fill(tris, Eigen::VectorXi{}, hole, trisOut);
+		igl::topological_hole_fill(tris, Eigen::VectorXi{}, holes, trisOut);
 		igl::writeOBJ("E:/meshFilled.obj", versOut, trisOut);
 		std::cout << "finished." << std::endl;
 	}

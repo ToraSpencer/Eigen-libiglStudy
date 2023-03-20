@@ -991,8 +991,6 @@ bool subFromIdxCon(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBa
 }
  
 
-
-
 // 根据flag向量从源矩阵中提取元素生成输出矩阵。
 template <typename Derived>
 bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec)
@@ -3091,13 +3089,13 @@ int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::
 	if (!buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge))
 		return false;
 
-	// 2. 循环——队列中第一个三角片t出队 - t写入输出集合 - 求出t所有相邻三角片的索引然后入队
+	// 2. 三角片区域生长-寻找相邻的重叠三角片对的循环；
 	std::unordered_set<int> workingSet;								// 用于寻找相邻三角片的队列；
 	std::vector<int> triTags(trisCount, 0);								// 0 : 未访问，1: 已访问
 	workingSet.insert(static_cast<int>(triIdx));						// 队列插入第一个三角片； 
 	while (workingSet.size() > 0)
 	{
-		// 4.1 首个元素出队，插入到联通三角片集合中；
+		// 2.1 首个元素出队，插入到联通三角片集合中；
 		int cTriIdx = *workingSet.begin();									// 当前处理的三角片索引
 		std::vector<int> adjTriIdxes;												// 当前三角片的未被访问的相邻三角片的索引
 		Eigen::RowVector3d cTriNorm = triNorms.row(cTriIdx);
@@ -3105,7 +3103,7 @@ int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::
 		workingSet.erase(workingSet.begin());
 		triTags[cTriIdx] = 1;											// 当前三角片标记为已访问；
 
-		// 4.2 确定当前三角片的所有相邻三角片
+		// 2.2 确定当前三角片的所有相邻三角片
 		for (int i = 0; i < 3; ++i)
 		{
 			int nbrTriIdx = ttAdj_nmEdge(cTriIdx, i);
@@ -3135,7 +3133,7 @@ int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::
 			}
 		}
 
-		// 4.3 检验-判定当前三角片和周边三角片是否重叠；
+		// 2.3 检验-判定当前三角片和周边三角片是否重叠；
 		adjTrisCount = adjTriIdxes.size();
 		if (0 == adjTrisCount)
 			continue;
@@ -3145,11 +3143,10 @@ int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::
 			double dotValue = cTriNorm.dot(triNorms.row(adjIdx));
 			if (dotValue > dotThreshold2 || dotValue < dotThreshold1)			
 			{
-				// 若当前三角片和相邻三角片法向接近相同或相反，检测两个三角片投影到其法向平面上是否有重叠区域 → 检测投影后两个三角片两个不同的顶点是否在同一侧：
-				int A, B, C1, C2;
+				// 若当前三角片和相邻三角片法向接近相同或相反，检测两个三角片投影到其法向平面上是否有重叠区域 
+				int A, B, C1, C2;				// AB是这对相邻三角片共享的顶点，C1, C2是它们各自相异的顶点；
 				std::vector<int> ctv{ tris(cTriIdx, 0), tris(cTriIdx, 1), tris(cTriIdx, 2) };
 				std::vector<int> adjtv{ tris(adjIdx, 0), tris(adjIdx, 1), tris(adjIdx, 2) };
-
 				auto iterC = ctv.begin();
 				for (; iterC != ctv.end(); iterC++) 
 				{
@@ -3169,9 +3166,10 @@ int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::
 					}
 				}
 				ctv.erase(iterC);
-				A = ctv[0];
+				A = ctv[0];					
 				B = ctv[1];
 
+				// 判断C1, C2是否在同侧：
 				Eigen::RowVector3d AB = vers.row(B).array().cast<double>() - vers.row(A).array().cast<double>();
 				Eigen::RowVector3d AC1 = vers.row(C1).array().cast<double>() - vers.row(A).array().cast<double>();
 				Eigen::RowVector3d AC2 = vers.row(C2).array().cast<double>() - vers.row(A).array().cast<double>();
@@ -3182,6 +3180,7 @@ int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::
 					auto retPair = opTriPairCodes.insert(encodeUedge(cTriIdx, adjIdx));
 					if (retPair.second)
 					{
+						opTrisPairs.push_back(std::make_pair(cTriIdx, adjIdx));
 						olCount++;								// 计数增加；
 #ifdef LOCAL_DEBUG
 						olTriIdxes.insert(cTriIdx);
@@ -3192,7 +3191,7 @@ int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::
 			}
 		}
 
-		// 4.3 工作队列中插入当前三角片未被访问的相邻三角片；
+		// 2.3 工作队列中插入当前三角片未被访问的相邻三角片；
 		for (const auto& index : adjTriIdxes)
 			workingSet.insert(index);
 	}
@@ -3243,7 +3242,6 @@ bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi 
 		tmpSet.insert(encodeUedge(uEdges(i, 0), uEdges(i, 1)));
 	int remainCount = tmpSet.size();			// (3,4) (4,3)表示同一条无向边；
 	
-
 	// 3. 无向边生长的循环：
 	while (remainCount > 0)
 	{
@@ -3301,7 +3299,6 @@ bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi 
 		}
 	}
 
-	
 	// 4. 输出：
 	circs.reserve(circList.size());
 	segs.reserve(segList.size());
@@ -3333,6 +3330,78 @@ bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi 
 
 	return true;
 }
+
+
+template <typename DerivedV, typename DerivedI>
+int findHoles(std::vector<std::vector<int>>& holeVerIdxes, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	int holesCount = 0;
+
+	// 确定洞的边——只关联一个三角片的边：
+	const unsigned trisCount = tris.rows();
+	const unsigned edgesCount = 3 * trisCount;
+	const unsigned versCount = tris.maxCoeff() + 1;
+
+	Eigen::MatrixXi bdrys;
+	bdryEdges(bdrys, tris);
+
+#ifdef LOCAL_DEBUG
+	objWriteEdgesMat("E:/bdryEdges.obj", bdrys, vers);
+#endif
+
+	std::unordered_map<int, int> bdryMap;
+	for (int i = 0; i < bdrys.rows(); ++i)
+	{
+		auto iter = bdryMap.insert({ bdrys(i, 0), bdrys(i, 1) });
+		if (!iter.second)
+			return -1;							// 存在异常的边缘；
+	}
+
+	holeVerIdxes.resize(1);
+	while (!bdryMap.empty()) 
+	{
+		int cvIdx = bdryMap.begin()->first;						// current vertex
+		int nvIdx = -1;															// next vertex;
+		std::vector<int>& cLoop = *holeVerIdxes.rbegin();
+		std::unordered_set<int> tmpSet;
+		cLoop.push_back(cvIdx);
+		tmpSet.insert(cvIdx);
+
+		while (1)
+		{
+			auto mapIter = bdryMap.find(cvIdx);
+			if (bdryMap.end() == mapIter)
+				return -1;												// 存在异常的边缘；
+			nvIdx = mapIter->second;
+			bdryMap.erase(mapIter);
+			auto setIter = tmpSet.insert(nvIdx);
+			if (!setIter.second)
+				break;
+			cLoop.push_back(nvIdx);
+			cvIdx = nvIdx;
+		}
+
+		if (!bdryMap.empty())
+			holeVerIdxes.push_back(std::vector<int>{});
+	}
+
+
+#ifdef  LOCAL_DEBUG
+	Eigen::MatrixXd versCopy = vers;
+	for (unsigned i = 0; i<holeVerIdxes.size(); ++i)
+	{
+		char str[256];
+		sprintf_s(str, "E:/bdryLoop%d.obj", i);
+		Eigen::MatrixXd loopVers;
+		subFromIdxVec(loopVers, versCopy, holeVerIdxes[i]);
+		objWriteVerticesMat(str, loopVers);
+	}
+#endif  
+
+
+	return holesCount;
+}
+
 
 
 // 检测网格中是否有非法三角片（三个顶点索引中有两个相同的）
@@ -3950,7 +4019,6 @@ void traverseVersList(T_MESH::List& list, F f)
 }
 
 
-
 template <typename F>
 void traverseEdgesList(const T_MESH::List& list, F f)
 {
@@ -4008,7 +4076,7 @@ void traverseTrisList(T_MESH::List& list, F f)
 
 // TMESH网格转换为矩阵： 
 template <typename T>
-void TMesh2MeshMat(T_MESH::Basic_TMesh& mesh, Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris)
+void TMesh2MeshMat( Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, T_MESH::Basic_TMesh& mesh)
 {
 	const int versCount = mesh.V.numels();
 	const int trisCount = mesh.T.numels();
@@ -4053,6 +4121,33 @@ void TMesh2MeshMat(T_MESH::Basic_TMesh& mesh, Eigen::Matrix<T, Eigen::Dynamic, E
 		{
 			verPtr->x = xValues[index++];
 		});
+}
+
+
+template <typename T>
+void meshMat2tMesh(T_MESH::Basic_TMesh& mesh, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+	const Eigen::MatrixXi& tris)
+{
+	const unsigned versCount = vers.rows();
+	const unsigned trisCount = tris.rows();
+
+	for(unsigned i = 0; i<versCount; ++i)
+		mesh.V.appendTail(mesh.newVertex(vers(i, 0), vers(i, 1), vers(i, 2)));
+
+	T_MESH::Vertex* vPtr = nullptr;
+	T_MESH::Node* nodePtr = nullptr;
+	T_MESH::ExtVertex** var = (T_MESH::ExtVertex**)malloc(sizeof(T_MESH::ExtVertex*) * versCount);
+
+	unsigned index = 0;
+	traverseVersList(mesh.V, [&](T_MESH::Vertex* vPtr)
+		{
+			var[index++] = new T_MESH::ExtVertex(vPtr);
+		});
+ 
+	for(unsigned i = 0; i < trisCount; ++i)
+		mesh.CreateIndexedTriangle(var, tris(i, 0), tris(i, 1), tris(i, 2));
+
+	mesh.fixConnectivity();
 }
 
 
@@ -4159,6 +4254,9 @@ namespace TEST_MYEIGEN
 	const double pi = 3.14159;
 	void test0();
 	void test1();
+	void test11();
+	void test111();
+	void test1111();
 	void test2();
 	void test3();
 	void test4();
@@ -4168,7 +4266,7 @@ namespace TEST_MYEIGEN
 	void test8();
 	void test9();
 	void test10();
-	void test11();
+
 	void test12();
 	void test13();
 	void test14();

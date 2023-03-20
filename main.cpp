@@ -64,9 +64,17 @@ static std::string g_debugPath = "E:/";
 
 /// /////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
 
-static void debugDisp(const char* str)
+static void debugDisp()			// 递归终止
+{						//		递归终止设为无参或者一个参数的情形都可以。
+	std::cout << std::endl;
+	return;
+}
+
+template <typename T, typename... Types>
+static void debugDisp(const T& firstArg, const Types&... args)
 {
-	std::cout << str << std::endl;
+	std::cout << firstArg << " ";
+	debugDisp(args...);
 }
  
 template <typename T, int M, int N>
@@ -1268,7 +1276,7 @@ namespace MESH_REPAIR
 		//std::ifstream fileIn("E:/杨阳434165L_34_34b_2303012828.stl", std::ios::binary);
 		//retFlag = igl::readSTL(fileIn, vers, tris, normals);							// 貌似igl::readSTL读取的网格顶点数据不对；
 
-		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense_algSimp_60000.obj");
+		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense_qslim_150000_arranged.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		// 0. 去除重复三角片：
@@ -1683,7 +1691,7 @@ namespace MESH_REPAIR
 	{
 		T_MESH::TMesh::init();												// ？？？This is mandatory
 		T_MESH::Basic_TMesh mesh;
-		mesh.load("E:/meshInnerRevEdited.obj");				// 网格载入时会计算壳体数n_shell;
+		mesh.load("E:/材料/jawMeshDense_qslim_150000_noOpTris.obj");				// 网格载入时会计算壳体数n_shell;
 		mesh.save("E:/meshFixInput.obj");
 
 		tiktok& tt = tiktok::getInstance();
@@ -1696,21 +1704,22 @@ namespace MESH_REPAIR
 			std::cout << "！！！输入网格有" << removedCount << "个单连通区域。" << std::endl;
 
 		// 2. 补洞
-		int ret2 = mesh.boundaries();				// ？？？
+		int holesCount = mesh.boundaries();				// ？？？
 		int patchedCount = 0;
-		if (ret2)
+		if (holesCount)
 		{
+			std::cout << "！！！输入网格环形边界数+环柄数 == " << holesCount << "。" << std::endl;
 			T_MESH::TMesh::warning("Patching holes\n");
 			patchedCount = mesh.fillSmallBoundaries(0, true);
 		}
 
 		// 3. meshclean前计算环形边界数、环柄数；
-		int ret3 = mesh.boundaries();
-		if (ret3 > 0)
-			std::cout << "！！！输入网格环形边界数+环柄数 == " << ret3 << "。" << std::endl;
+		holesCount = mesh.boundaries();
+		if (holesCount > 0)
+			std::cout << "网格补洞后边界数+环柄数 == " << holesCount << "。" << std::endl;
 
 		// 4. meshClean()——去除退化结构和三角片自交——默认max_iters == 10, inner_loops == 3；
-		bool ret4 = false;
+		bool flagClean = false;
 		int max_iters = 20;
 		int inner_loops = 6;					// 每次大循环中去除退化三角片、去除自交的迭代次数；
 		bool flagIsct, flagDeg;
@@ -1745,27 +1754,100 @@ namespace MESH_REPAIR
 				// 若进一步检查没有问题，退出大循环；
 				if (flagIsct)
 				{
-					ret4 = true;
+					flagClean = true;
 					break;
 				}
 			}
 		}
 
 #ifdef LOCAL_DEBUG
-		if (ret4)
+		if (flagClean)
 			std::cout << "meshclean() succeeded." << std::endl;
 		else
 			std::cout << "!!!meshclean() is not completed!!!" << std::endl;
 #endif
 
 		// 5. meshclean最后计算环形边界数、环柄数；
-		int ret5 = mesh.boundaries();
+		holesCount = mesh.boundaries();
+		if (holesCount > 0)
+			std::cout << "输出网格边界数+环柄数 == " << holesCount << "。" << std::endl;
 
 		// 6. 输出：
 		mesh.save("E:/meshFixOutput.obj");
 
 
 		std::cout << "finished." << std::endl;
+	}
+
+
+	// 修复边折叠精简之后的网格——去除重叠三角片，补洞；
+	void test5() 
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		bool retFlag = false;
+		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense_qslim_150000_meshFixed.obj");
+		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
+
+		// 1. 搜索重叠三角片：
+		std::vector<std::pair<int, int>> opTrisPairs;
+		std::vector<int> opTriIdxes;
+		Eigen::MatrixXi opTris;
+		int olCount = findOverLapTris(opTrisPairs, vers, tris);
+		for (const auto& pair : opTrisPairs)
+		{
+			opTriIdxes.push_back(pair.first);
+			opTriIdxes.push_back(pair.second);
+		}
+		subFromIdxVec(opTris, tris, opTriIdxes);
+		debugWriteMesh("opTris", vers, opTris);
+
+		// 2. 去除重叠三角片：
+		removeTris(trisOut, tris, opTriIdxes);
+		tris = trisOut;
+		debugDisp("去除重叠三角片数：", opTriIdxes.size());
+
+		// 3. 去除孤立顶点：
+		std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, tris);
+		if (isoVerIdxes.size() > 0) 
+		{
+			removeIsoVers(versOut, trisOut, vers, tris, isoVerIdxes);
+			vers = versOut;
+			tris = trisOut;
+			debugDisp("去除孤立顶点数：", isoVerIdxes.size());
+		}
+
+		// 4. 提取最大单连通区域：
+		if (!simplyConnectedLargest(vers, tris, versOut, trisOut))
+			debugDisp("！！！simplyConnectedLargest() failed!");
+		vers = versOut;
+		tris = trisOut;
+		debugWriteMesh("noOpTris", vers, tris);
+ 
+		// 4. 补洞：
+		T_MESH::Basic_TMesh tMesh;
+		meshMat2tMesh(tMesh, vers, tris);
+		int removedCount = tMesh.removeSmallestComponents();					// d_boundaries, d_handles, d_shells赋值
+		if (removedCount > 1)
+			std::cout << "！！！输入网格有" << removedCount << "个单连通区域。" << std::endl;
+
+		int holesCount = tMesh.boundaries();			 
+		int patchedCount = 0;
+		if (holesCount)
+		{
+			std::cout << "！！！输入网格环形边界数+环柄数 == " << holesCount << "。" << std::endl;
+			T_MESH::TMesh::warning("Patching holes\n");
+			patchedCount = tMesh.fillSmallBoundaries(0, true);
+		}
+
+		// 3. meshclean前计算环形边界数、环柄数；
+		holesCount = tMesh.boundaries();
+		if (holesCount > 0)
+			std::cout << "网格补洞后边界数+环柄数 == " << holesCount << "。" << std::endl;
+
+		debugWriteMesh("meshHoleFilled", tMesh);
+
+		debugDisp("finished.");
 	}
 }
 
@@ -1837,7 +1919,7 @@ int main()
 	// IGL_DIF_GEO::test1();
 	// IGL_GRAPH::test1();
 	// IGL_SPACE_PARTITION::test0();
-	// IGL_BASIC_PMP::test8();
+	// IGL_BASIC_PMP::test5();
  
 	// SCIENTIFICCALC::test7();
 	
@@ -1847,15 +1929,15 @@ int main()
 
 	// DECIMATION::test0();
 
-	TEST_MYEIGEN::test5();
+	TEST_MYEIGEN::test1111();
 
 	// TEMP_TEST::test1();
 
-	// MESH_REPAIR::test0();
+	// MESH_REPAIR::test5();
  
 	// TEST_DIP::test0();
 
-	// TEST_TMESH::test3();
+	// TEST_TMESH::test4();
 
 	std::cout << "main() finished." << std::endl;
 }
