@@ -1276,7 +1276,7 @@ namespace MESH_REPAIR
 		//std::ifstream fileIn("E:/杨阳434165L_34_34b_2303012828.stl", std::ios::binary);
 		//retFlag = igl::readSTL(fileIn, vers, tris, normals);							// 貌似igl::readSTL读取的网格顶点数据不对；
 
-		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense_qslim_150000_arranged.obj");
+		objReadMeshMat(vers, tris, "E:/材料/meshRepairInput_e_outerSurf.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		// 0. 去除重复三角片：
@@ -1317,7 +1317,7 @@ namespace MESH_REPAIR
 		// 2. 检测非流形有向边：
 		Eigen::MatrixXi nmnEdges;
 		std::vector<std::pair<int, std::pair<int, int>>> nmnEdgeInfos;
-		if (!nonManifoldEdges(nmnEdges, nmnEdgeInfos, tris))
+		if (nonManifoldEdges(nmnEdges, nmnEdgeInfos, tris) < 0)
 			return;
 		if (nmnEdges.rows() > 0)
 			std::cout << "！！！存在非流形边，nmnEdges.rows() == " << nmnEdges.rows() << std::endl;
@@ -1366,7 +1366,7 @@ namespace MESH_REPAIR
 
 		// 6. 提取所有单连通区域：
 		Eigen::SparseMatrix<int> adjSM, adjSM_eCount, adjSM_eIdx;
-		Eigen::VectorXi connectedLabels, connectedCount;
+		Eigen::VectorXi connectedLabels, connectedCount, connectedTriLabels, connectedTriCount;
 		adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
 		unsigned nzCount = adjSM_eCount.nonZeros();
 		adjSM = adjSM_eCount;
@@ -1376,11 +1376,17 @@ namespace MESH_REPAIR
 					iter.valueRef() = 1;
 			});
 		int scCount = simplyConnectedRegion(adjSM, connectedLabels, connectedCount);
-		if (scCount < 0)
-			return;
-		if (scCount > 1)
-			std::cout << "scCount == " << scCount << std::endl;
-		
+		int sctCount = simplyTrisConnectedRegion(connectedLabels, connectedCount, tris);
+		if (scCount > 1 || sctCount > 1)
+		{
+			if (scCount != sctCount)
+			{
+				debugDisp("存在奇异点。");
+				debugDisp("scCount == ", scCount);
+			}
+			debugDisp("sctCount == ", sctCount);
+		}
+
 		std::cout << "finished." << std::endl;
 	}
 
@@ -1780,72 +1786,49 @@ namespace MESH_REPAIR
 	}
 
 
-	// 修复边折叠精简之后的网格——去除重叠三角片，补洞；
+	// 修复边折叠精简之后的网格——寻找重叠三角片 
 	void test5() 
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
 		bool retFlag = false;
-		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense_qslim_150000_meshFixed.obj");
-		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
+		objReadMeshMat(vers, tris, "E:/材料/meshRepairInput_c_noOpTris.obj");
+		objWriteMeshMat("E:/meshInput.obj", vers, tris);
+		unsigned trisCount = tris.rows();
 
 		// 1. 搜索重叠三角片：
 		std::vector<std::pair<int, int>> opTrisPairs;
 		std::vector<int> opTriIdxes;
 		Eigen::MatrixXi opTris;
 		int olCount = findOverLapTris(opTrisPairs, vers, tris);
-		for (const auto& pair : opTrisPairs)
-		{
-			opTriIdxes.push_back(pair.first);
-			opTriIdxes.push_back(pair.second);
-		}
-		subFromIdxVec(opTris, tris, opTriIdxes);
-		debugWriteMesh("opTris", vers, opTris);
 
-		// 2. 去除重叠三角片：
-		removeTris(trisOut, tris, opTriIdxes);
-		tris = trisOut;
-		debugDisp("去除重叠三角片数：", opTriIdxes.size());
-
-		// 3. 去除孤立顶点：
-		std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, tris);
-		if (isoVerIdxes.size() > 0) 
+		if (olCount > 0) 
 		{
-			removeIsoVers(versOut, trisOut, vers, tris, isoVerIdxes);
-			vers = versOut;
+			debugDisp("重叠三角片对数：", olCount);
+			for (const auto& pair : opTrisPairs)
+			{
+				opTriIdxes.push_back(pair.first);
+				opTriIdxes.push_back(pair.second);
+			}
+			subFromIdxVec(opTris, tris, opTriIdxes);
+			debugWriteMesh("opTris", vers, opTris);
+
+			// 2. 处理重叠三角片——删掉面积小的，保留面积大的：
+			Eigen::VectorXi triFlags{ Eigen::VectorXi::Ones(trisCount) };
+			for (const auto& pair : opTrisPairs)
+			{
+				Eigen::MatrixXi opTris(2, 3);
+				Eigen::VectorXd areas;
+				opTris.row(0) = tris.row(pair.first);
+				opTris.row(1) = tris.row(pair.second);
+				trisArea(areas, vers, opTris);
+				int smallIdx = areas(0) < areas(1) ? pair.first : pair.second;
+				triFlags(smallIdx) = 0;
+			}
+			subFromFlagVec(trisOut, tris, triFlags);
 			tris = trisOut;
-			debugDisp("去除孤立顶点数：", isoVerIdxes.size());
+			debugWriteMesh("noOpTris", vers, tris);
 		}
-
-		// 4. 提取最大单连通区域：
-		if (!simplyConnectedLargest(vers, tris, versOut, trisOut))
-			debugDisp("！！！simplyConnectedLargest() failed!");
-		vers = versOut;
-		tris = trisOut;
-		debugWriteMesh("noOpTris", vers, tris);
- 
-		// 4. 补洞：
-		T_MESH::Basic_TMesh tMesh;
-		meshMat2tMesh(tMesh, vers, tris);
-		int removedCount = tMesh.removeSmallestComponents();					// d_boundaries, d_handles, d_shells赋值
-		if (removedCount > 1)
-			std::cout << "！！！输入网格有" << removedCount << "个单连通区域。" << std::endl;
-
-		int holesCount = tMesh.boundaries();			 
-		int patchedCount = 0;
-		if (holesCount)
-		{
-			std::cout << "！！！输入网格环形边界数+环柄数 == " << holesCount << "。" << std::endl;
-			T_MESH::TMesh::warning("Patching holes\n");
-			patchedCount = tMesh.fillSmallBoundaries(0, true);
-		}
-
-		// 3. meshclean前计算环形边界数、环柄数；
-		holesCount = tMesh.boundaries();
-		if (holesCount > 0)
-			std::cout << "网格补洞后边界数+环柄数 == " << holesCount << "。" << std::endl;
-
-		debugWriteMesh("meshHoleFilled", tMesh);
 
 		debugDisp("finished.");
 	}
@@ -1919,7 +1902,7 @@ int main()
 	// IGL_DIF_GEO::test1();
 	// IGL_GRAPH::test1();
 	// IGL_SPACE_PARTITION::test0();
-	// IGL_BASIC_PMP::test5();
+	// IGL_BASIC_PMP::test33();
  
 	// SCIENTIFICCALC::test7();
 	
@@ -1933,7 +1916,7 @@ int main()
 
 	// TEMP_TEST::test1();
 
-	// MESH_REPAIR::test5();
+	// MESH_REPAIR::test0();
  
 	// TEST_DIP::test0();
 

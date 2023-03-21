@@ -328,243 +328,6 @@ void leastSquarePolyFitting()
 {}
 
 
-
-// 计算网格中边的三角片的邻接关系（非流形有向边关联的三角片最多只能为两个）：
-bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, \
-	std::vector<tVec>& ttAdj_nmnEdge, std::vector<tVec>& ttAdj_nmnOppEdge)
-{
-	/*
-		bool buildAdjacency(
-					const Eigen::MatrixXi& tris,									输入的三角片数据
-
-					Eigen::MatrixXi& ttAdj_nmEdge,							三角片的非边缘流形有向边邻接的三角片索引；
-																									trisCount * 3
-																									(i, 0)为索引为i的三角片的非边缘流形有向边(vb, vc)邻接的三角片的索引；
-
-					std::vector<ttTuple>& ttAdj_nmnEdge,				三角片的非流形有向边所在的三角片索引；
-																									size == trisCount;
-																									每个ttTuple元素包含三个int向量；
-																									索引为i的元素的第0个向量，为索引为i的三角片的非流形有向边(vb, vc)所在的所有三角片索引；
-
-
-					std::vector<ttTuple>& ttAdj_nmnOppEdge		三角片的非流形有向边邻接的三角片索引（即对边所在的三角片的索引）；
-																									size == trisCount;
-																									索引为i的元素的第0个向量，为索引为i的三角片的非流形有向边(vb, vc)邻接的所有三角片索引；
-					)
-
-	*/
-	const unsigned trisCount = tris.rows();
-	const unsigned edgesCount = 3 * trisCount;
-	const unsigned versCount = tris.maxCoeff() + 1;
-
-	Eigen::MatrixXi edges;							// 有向边数据；
-	Eigen::MatrixXi nmnEdges;					// 非流形有向边
-
-
-	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的triplet数据；
-
-	std::unordered_multimap<std::int64_t, int> edgeMap;			// 边编码——64位整型数数表示的边数据（两个端点索引）；
-
-
-	// 1. 求基本的边信息、邻接矩阵：
-	Eigen::SparseMatrix<int> adjSM;								// 邻接矩阵；
-	Eigen::SparseMatrix<int> adjSM_eCount;					// 邻接矩阵，索引为该有向边重复的次数；
-	Eigen::SparseMatrix<int> adjSM_eIdx;				// 邻接矩阵，元素若对应流形边则为该边索引，若对应非流形边则为该边所有索引的和；
-	Eigen::SparseMatrix<int> adjSM_eIdx_opp;		// adjSM_eIdx的转置，表示对边的信息；
-	Eigen::SparseMatrix<int> adjSM_ueCount;				// 权重为无向边ij关联的三角片数量；
-	Eigen::SparseMatrix<int> adjSM_ueMN_NB;
-	Eigen::SparseMatrix<int> adjSM_MN_NB;
-	Eigen::SparseMatrix<int> adjSM_MN_NB_opp;
-	{
-
-		// edges == [ea; eb; ec] == [vbIdxes, vcIdxes; vcIdxes, vaIdxes; vaIdxes, vbIdxes];
-		/*
-			若网格是流形网格，则edges列表里每条边都是unique的；
-			若存在非流形边，则非流形边在edges里会重复存储，实际边数量也会少于edges行数；
-			可以说使用这种representation的话，非流形边有不止一个索引，取决包含该非流形边的三角片数量；
-		*/
-
-		// 三角片三条边的索引：teIdx == [eaIdx, ebIdx, ecIdx] == [(0: trisCount-1)', (trisCount: 2*trisCount-1)', (2*trisCount, 3*trisCount-1)'];
-		/*
-			teIdx(i, j) = trisCount *j + i;
-		*/
-
-		// 1.1 生成有向边数据
-		getEdges(edges, tris);
-
-		// 1.2 生成三种有向边邻接矩阵：adjSM, adjSM_eCount, adjSM_eCount;
-		adjMatrix(adjSM_eCount, adjSM_eIdx, tris, edges);
-		adjSM = adjSM_eCount;																		// 有向边邻接矩阵；
-		traverseSparseMatrix(adjSM, [&adjSM](auto& iter)
-			{
-				if (iter.value() > 0)
-					iter.valueRef() = 1;
-			});
-
-		//		若adjSM_eIdx(i, j)对应的是流形有向边，该权重值为该边的索引；若是非流形有向边，则该边对应两个边索引，权重为两个索引之和；
-		spMatTranspose(adjSM_eIdx_opp, adjSM_eIdx);
-
-		//	1.3 生成无向边邻接矩阵：
-		Eigen::SparseMatrix<int> tmpSm;
-		spMatTranspose(tmpSm, adjSM_eCount);
-		adjSM_ueCount = adjSM_eCount + tmpSm;					// 无向边邻接矩阵；
-		std::vector<int> tmpVec;
-		tmpVec.reserve(adjSM_ueCount.nonZeros());
-		traverseSparseMatrix(adjSM_ueCount, [&](auto& iter)
-			{
-				tmpVec.push_back(iter.value());
-			});
-
-		//	1.4 生成非边缘流形无向边邻接矩阵：
-		smElems.clear();
-		smElems.reserve(adjSM_ueCount.nonZeros());
-		traverseSparseMatrix(adjSM_ueCount, [&](auto& iter)
-			{
-				if (2 == iter.value())
-					smElems.push_back(Eigen::Triplet<int>(iter.row(), iter.col(), 1));
-			});
-		adjSM_ueMN_NB.resize(versCount, versCount);
-		adjSM_ueMN_NB.setFromTriplets(smElems.begin(), smElems.end());
-		smElems.clear();
-
-		//	1.5 生成非边缘流形有向边、及其对边的邻接矩阵
-		adjSM_MN_NB = adjSM + adjSM_ueMN_NB;					// adjSM & adjSM_ueMN_NB
-		adjSM_MN_NB.prune([](const Eigen::Index& row, const Eigen::Index& col, const int& value)->bool
-			{
-				if (2 == value)			// 删除非流形边
-					return true;
-				else
-					return false;
-			});
-		adjSM_MN_NB /= 2;
-		spMatTranspose(adjSM_MN_NB_opp, adjSM_MN_NB);
-	}
-
-
-	// 2. 确定非边缘流形有向边、及其对边的索引；
-	std::vector<int> edgesIdx_MN_NB;							// 非边缘流形有向边的索引；
-	std::vector<int> edgesIdx_MN_NB_opp;					// 非边缘流形有向边的对边的索引；
-	{
-		unsigned edgesCount_MN_NB = adjSM_MN_NB.sum();
-		edgesIdx_MN_NB.reserve(edgesCount_MN_NB);					// 非边缘流形有向边索引；
-		edgesIdx_MN_NB_opp.reserve(edgesCount_MN_NB);			// 非边缘流形有向边的对边的索引；
-
-		traverseSparseMatrix(adjSM_MN_NB, [&](auto& iter)
-			{
-				edgesIdx_MN_NB.push_back(adjSM_eIdx.coeffRef(iter.row(), iter.col()));
-			});
-
-		traverseSparseMatrix(adjSM_MN_NB, [&](auto& iter)
-			{
-				edgesIdx_MN_NB_opp.push_back(adjSM_eIdx_opp.coeffRef(iter.row(), iter.col()));
-			});
-	} 
-
-
-	// 3. 流形边-三角片邻接关系，三角片邻接关系：
-	std::vector<int> etInfo;						// 边索引 - 三角片索引映射表；etInfo(i)是索引为i的边所在的三角片的索引；
-	Eigen::VectorXi etAdj_mnEdge;							// 边所在三角片的索引，非流形边或边缘边写-1；
-	{
-		// 3.1 生成边索引 - 三角片索引映射表etInfo;
-		etInfo.resize(edgesCount);							// etInfo(i)是索引为i的边所在的三角片的索引；
-		for (int i = 0; i < edgesCount; ++i)
-			etInfo[i] = i % trisCount;
-
-		// 3.2 求边所在三角片的索引；
-		etAdj_mnEdge = -Eigen::VectorXi::Ones(edgesCount);					// 边所在三角片的索引，非流形边或边缘边写-1；
-		for (unsigned i = 0; i < edgesIdx_MN_NB.size(); ++i)
-		{
-			const int& edgeIdx = edgesIdx_MN_NB[i];
-			const int& edgesIdxOpp = edgesIdx_MN_NB_opp[i];
-			etAdj_mnEdge(edgeIdx) = etInfo[edgesIdxOpp];
-		}
-
-		//	3.3 求三角片邻接矩阵；ttAdj_mnEdge(i, :)是索引为i的三角片三条边邻接的三个三角片，若其中有非流形边或边缘边则写为-1；
-		ttAdj_nmEdge = Eigen::Map<Eigen::MatrixXi>(etAdj_mnEdge.data(), trisCount, 3);
-	}
-
-
-	// 4. 计算非流形边（关联两个三角片的有向边）信息
-	std::unordered_map<int, std::vector<int>> edgeIdx_nmn_map;				// 非流形有向边的索引 - 该边对应的所有索引；
-	std::unordered_map<int, std::vector<int>> edgeIdx_nmn_opp_map;		// 非流形有向边的索引 - 该边的对边对应的所有索引；
-	{
-		//	4.1 遍历邻接矩阵找出所有非流形边（关联两个三角片的有向边）；
-		std::vector<int> edgeIdx_nmn;						// 非流形有向边索引；
-		edgeIdx_nmn.reserve(edgesCount);
-		for (int i = 0; i < edgesCount; ++i)
-			if (2 == adjSM_eCount.coeffRef(edges(i, 0), edges(i, 1)))
-				edgeIdx_nmn.push_back(i);
-		edgeIdx_nmn.shrink_to_fit();
-
-		int neCount = edgeIdx_nmn.size();
-		subFromIdxVec(nmnEdges, edges, edgeIdx_nmn);
-
-		// 4.2 建立边编码-边索引的哈希表；
-		for (int i = 0; i < edges.rows(); ++i)
-		{
-			std::int64_t eCode = encodeEdge(edges(i, 0), edges(i, 1));
-			edgeMap.insert({ eCode, i });
-		}
-
-		// 4.3 在哈希表中搜索所有非流形边，建立非流形边及其对边的（边——边索引）映射关系；
-		for (int i = 0; i < neCount; ++i)
-		{
-			int neIdx = edgeIdx_nmn[i];		// 当前非流形边索引；
-			int vaIdx = nmnEdges(i, 0);
-			int vbIdx = nmnEdges(i, 1);
-			std::int64_t eCode = encodeEdge(vaIdx, vbIdx);
-			std::int64_t oppEcode = encodeEdge(vbIdx, vaIdx);
-			auto iter = edgeMap.find(eCode);
-			auto oppIter = edgeMap.find(oppEcode);
-			int otherIdx = (iter->second == neIdx) ? ((++iter)->second) : (iter->second);
-			int oppIdx1 = oppIter->second;
-			int oppIdx2 = (++oppIter)->second;
-			edgeIdx_nmn_map.insert({ neIdx, std::vector<int>{neIdx, otherIdx} });
-			edgeIdx_nmn_opp_map.insert({ neIdx, std::vector<int>{oppIdx1, oppIdx2} });
-		}
-	}
-
-
-	// 5. 求含有非流形边的三角片的邻接关系：
-	{
-		ttAdj_nmnEdge.resize(trisCount);
-		for (auto& vec : ttAdj_nmnEdge)
-			vec.resize(3);
-
-		for (const auto& pair : edgeIdx_nmn_map)
-		{
-			int eIdx = pair.first;
-			int row = eIdx % trisCount;
-			int col = eIdx / trisCount;
-
-			std::vector<int> trisIdx_nmn = pair.second;
-			for (auto& index : trisIdx_nmn)
-				index = etInfo[index];
-
-			ttAdj_nmnEdge[row][col] = trisIdx_nmn;
-		}
-
-		ttAdj_nmnOppEdge.resize(trisCount);
-		for (auto& vec : ttAdj_nmnOppEdge)
-			vec.resize(3);
-		for (const auto& pair : edgeIdx_nmn_opp_map)
-		{
-			int eIdx = pair.first;
-			int row = eIdx % trisCount;
-			int col = eIdx / trisCount;
-
-			std::vector<int> trisIdx_nmn_opp = pair.second;
-			for (auto& index : trisIdx_nmn_opp)
-				index = etInfo[index];
-
-			ttAdj_nmnOppEdge[row][col] = trisIdx_nmn_opp;
-		}
-	}
-
-	return true;
-}
-
-
 std::pair<int, int> decodeEdge(const std::int64_t code)
 {
 	int a = static_cast<int>(code >> 32);
@@ -688,19 +451,27 @@ namespace TEST_MYEIGEN
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
-		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense_qslim_150000_arranged.obj");
+		objReadMeshMat(vers, tris, "E:/材料/meshRepairInput_d_meshArranged.obj");
 		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
 
 		Eigen::MatrixXi nmnEdges;
-		std::vector<std::pair<int, std::pair<int, int>>> nmnEdgeInfos;
-		nonManifoldEdges(nmnEdges, nmnEdgeInfos, tris);
+		std::vector<std::pair<int, std::pair<int, int>>> nmnInfos;
+		if (nonManifoldEdges(nmnEdges, nmnInfos, tris) > 0)
+			debugWriteEdges("nmnEdgesOrigin", nmnEdges, vers);
  
-		triangleGrowOuterSurf(versOut, trisOut, vers, tris, 0);
+		if (!triangleGrowOuterSurf(versOut, trisOut, vers, tris, 0))
+			debugDisp("triangleGrowOuterSurf() failed!");
 		debugWriteMesh("triangleGrowOuterSurf", versOut, trisOut);
-
 		debugDisp("去除三角片个数：", trisCount - trisOut.rows());
+
+
+		// 检查输出网格中是否有非流形边：
+		nmnEdges.resize(0, 0);
+		nmnInfos.clear();
+		if (nonManifoldEdges(nmnEdges, nmnInfos, trisOut) > 0)
+			debugWriteEdges("nmnEdges", nmnEdges, versOut);
 
 
 		std::cout << "finished." << std::endl;
@@ -848,6 +619,22 @@ namespace TEST_MYEIGEN
 		std::cout << "finished." << std::endl;
 	}
 
+
+	// 查找洞和边缘曲线：
+	void test7() 
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		std::vector<std::vector<int>> holes, bdrySegs;
+
+		objReadMeshMat(vers, tris, "E:/材料/meshRepairInput_c_noOpTris.obj");
+		debugWriteMesh("meshInput", vers, tris);
+
+		findHolesBdrySegs(holes, bdrySegs, vers, tris);
+
+
+		debugDisp("finished.");
+	}
 }
 
 
@@ -1001,8 +788,39 @@ namespace TEST_TMESH
 	}
 
 
-	// 去除退化三角片：
-	void test4() 
+	// 去除退化三角片；
+	void test4()
+	{
+		int max_iters = 5;
+		int inner_loops = 6;							// 每次大循环中去除退化三角片、去除自交的迭代次数；
+		int holesCount = 0;
+		bool flagIsct = false;
+		bool flagDeg = false;
+
+		T_MESH::TMesh::init();
+		T_MESH::Basic_TMesh tMesh;
+		tMesh.load("E:/材料/meshRepairInput.obj");
+		debugWriteMesh("meshInput", tMesh);
+
+		int removedCount = tMesh.removeSmallestComponents();						// d_boundaries, d_handles, d_shells赋值
+		if (removedCount > 0)
+			std::cout << "！！！输入网格有" << removedCount + 1 << "个单连通区域。" << std::endl;
+
+		tMesh.deselectTriangles();
+		tMesh.invertSelection();
+
+		flagDeg = tMesh.strongDegeneracyRemoval(inner_loops);			// 全部清除成功返回true， 否则返回false
+
+		debugWriteMesh("meshOut", tMesh);
+		if(!flagDeg)
+			debugDisp("！！！退化三角片没有全部清除成功。");
+		
+		debugDisp("finished.");
+	}
+
+
+	// 循环调用去除退化三角片，补洞
+	void test44() 
 	{
 		int max_iters = 5;			
 		int inner_loops = 6;							// 每次大循环中去除退化三角片、去除自交的迭代次数；
@@ -1012,7 +830,7 @@ namespace TEST_TMESH
 
 		T_MESH::TMesh::init();				 
 		T_MESH::Basic_TMesh tMesh;
-		tMesh.load("E:/材料/jawMeshDense_qslim_150000_noOpTris.obj");
+		tMesh.load("E:/材料/jawMeshDense_qslim_150000_noDegOpTris.obj");
 		debugWriteMesh("meshInput", tMesh);	
 
 		int removedCount = tMesh.removeSmallestComponents();						// d_boundaries, d_handles, d_shells赋值

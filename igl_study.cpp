@@ -1029,7 +1029,7 @@ namespace IGL_BASIC_PMP
 
 		Eigen::MatrixXi ttAdj_nmEdge;
 		std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
-		bool retFlag = buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
+		bool retFlag = buildAdjacency(ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris);
 
 		// 输出包含非流形边的三角片：
 		std::vector<int> nmnTrisIdx;
@@ -1091,7 +1091,7 @@ namespace IGL_BASIC_PMP
 		// 1. 计算三角片邻接关系
 		Eigen::MatrixXi ttAdj_nmEdge;
 		std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
-		buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
+		buildAdjacency(ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris);
 		unsigned trisCount = tris.rows();
 		std::vector<bool> visited(trisCount, false);			// 三角片是否被访问的标记；
 
@@ -1311,16 +1311,15 @@ namespace IGL_BASIC_PMP
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
-		igl::readOBJ("E:/材料/jawMeshArranged.obj", vers, tris);
+		igl::readOBJ("E:/材料/meshArrangeResult.obj", vers, tris);
 		igl::writeOBJ("E:/meshInput.obj", vers, tris);
-		igl::writeOBJ("E:/triNMN0.obj", vers, Eigen::MatrixXi{ tris.row(4431) });
 
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
 
 		Eigen::MatrixXi ttAdj_nmEdge;
 		std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
-		bool retFlag = buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge);
+		bool retFlag = buildAdjacency(ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris);
 
 		// 输出包含非流形边的三角片：
 		std::vector<int> nmnTrisIdx;
@@ -1778,8 +1777,8 @@ namespace IGL_BASIC_PMP
 		const unsigned versCount = vers.rows();
 
 		// 计算洞的有序顶点索引
-		std::vector<std::vector<int>> holes;
-		findHoles(holes, vers, tris);
+		std::vector<std::vector<int>> holes, bdrySegs;
+		findHolesBdrySegs(holes, bdrySegs, vers, tris);
 
 		// 需要手动为原网格添加洞的中心点，而且貌似处理多个洞的情形会出错；
 		Eigen::MatrixXd holeVers;

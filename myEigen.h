@@ -35,36 +35,53 @@
 const double pi = 3.14159265359;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 前置声明
-template<typename T>
-bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat1);
-template<typename T, int N>
-bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, 1, N>& rowVec);
+
 template <typename T>
-void vecWriteToFile(const char* fileName, const std::vector<T>& vec);
+std::pair<double, double> cart2polar(const T x, const T y);
+template <typename T>
+std::pair<double, double> polar2cart(const T radius, const T theta);
+template<typename Func>
+void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, const unsigned int serial_if_less_than);
+template<typename Func, typename paramTuple>
+void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, const paramTuple& pt, const unsigned int serial_if_less_than);
+template<typename T, typename F>
+void traverseSTL(T& con, F f);
+template<typename T, typename F>
+void revTraverseSTL(T& con, F f);
+template <typename Derived, typename F>
+void traverseMatrix(Eigen::PlainObjectBase<Derived>& m, F f);
+template<typename spMat, typename F>
+void traverseSparseMatrix(spMat& sm, F f);
+
+template <typename T1, typename T2>
+void dispPair(const std::pair<T1, T2>& pair);
 template<typename T>
-void vecReadFromFile(std::vector<T>& vec, const char* fileName, const unsigned elemCount);
-template<typename T>
-bool matWriteToFile(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat);
-template<typename T>
-bool matReadFromFile(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const char* fileName);
-template	<typename Scalar, typename Index>
-void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
-	Eigen::Matrix<Index, Eigen::Dynamic, Eigen::Dynamic>& tris, const char* fileName);
-template	<typename T>
-void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
-template	<typename Scalar>
-void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, const char* fileName);
-template	<typename DerivedV>
-void objWriteVerticesMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers);
-template	<typename DerivedV, typename DerivedI>
-void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<DerivedI>& edges, \
-	const Eigen::PlainObjectBase<DerivedV>& vers);
-template <typename DerivedV, typename	 DerivedI>
-void objWritePath(const char* pathName, const std::vector<DerivedI>& path, \
-	const Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers);
-template <typename DerivedV>
-void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, \
-	const Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers);
+void dispQuat(const Eigen::Quaternion<T>& q);
+template <typename Derived>
+void dispMat(const Eigen::PlainObjectBase<Derived>& mat);
+template <typename Derived>
+void dispMatBlock(const Eigen::PlainObjectBase<Derived>& mat, const int rowStart, const int rowEnd, const int colStart, const int colEnd);
+
+template<typename spMat>				// 如果模板参数为T, 函数参数为Eigen::SparseMatrix<T>，编译会报错，不知道什么缘故；
+void dispSpMat(const spMat& sm, const unsigned startCol, const unsigned endCol);
+template<typename spMat>
+void dispSpMat(const spMat& sm, const unsigned startCol, const unsigned endCol, const unsigned showElemsCount);
+template<typename spMat>
+void dispSpMat(const spMat& sm);
+
+template<typename T, int N>
+void dispVec(const Eigen::Matrix<T, N, 1>& vec);
+template<typename T, int N>
+void dispVec(const Eigen::Matrix<T, 1, N>& vec);
+template<typename T, int N>
+void dispVecSeg(const Eigen::Matrix<T, N, 1>& vec, const int start, const int end);
+template<typename T, int N>
+void dispVecSeg(const Eigen::Matrix<T, 1, N>& vec, const int start, const int end);
+template <typename T>
+Eigen::Matrix<T, 3, 3> getRotationMat(const Eigen::Matrix<T, 1, 3>& axisArrow, const float theta);
+template <typename T>
+Eigen::Matrix<T, 3, 3> getRotationMat(const Eigen::Matrix<T, 1, 3>& originArrow, const Eigen::Matrix<T, 1, 3>& targetArrow);
+
 template <typename T>
 bool interpolateToLine(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::Matrix<T, 1, 3>& start, \
 	const Eigen::Matrix<T, 1, 3>& end, const float SR, const bool SE);
@@ -82,14 +99,244 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 template <typename T>
 bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const float radius, const double deltaTheta, const bool isCovered);
+
 template <typename T>
 bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, const bool isCovered);
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, \
+	const bool isCovered);
+template <typename T>
+bool genAlignedCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, \
+	const bool isCovered);
 template <typename T>
 bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circVers);
 
- 
+template <typename Derived>
+bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
+template <typename Derived, typename Index>
+bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const std::vector<Index>& vec);
+template <typename Derived, typename IndexContainer>
+bool subFromIdxCon(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const IndexContainer& con);
+template <typename Derived>
+bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
+template<typename T, int N>
+std::vector<T>  vec2Vec(const Eigen::Matrix<T, N, 1>& vIn);
+template<typename T, int N>
+Eigen::Matrix<T, N, 1> vec2Vec(const std::vector<T>& vIn);
+template<typename T>
+Eigen::Matrix<T, Eigen::Dynamic, 1> vec2Vec(const std::vector<T>& vIn);
+template <typename DerivedI>
+void edges2mat(Eigen::PlainObjectBase<DerivedI>& mat, const std::vector<std::pair<int, int>>& edges);
+template <typename Index>
+std::int64_t encodeEdge(const Index vaIdx, const Index vbIdx);
+template <typename Index>
+std::int64_t encodeUedge(const Index vaIdx, const Index vbIdx);
+std::pair<int, int> decodeEdge(const std::int64_t code);
+template <typename Index>
+std::uint64_t encodeTriangle(const Index vaIdx, const Index vbIdx, const Index vcIdx);
+std::vector<int> decodeTrianagle(const std::uint64_t code);
+
+
+template <typename DerivedI>
+void findRepTris(std::vector<int>& repIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
+
+template<typename T>
+bool vecInsertNum(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec, const T num);
+template<typename T>
+bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix<T, Eigen::Dynamic, 1>& vec2);
+template<typename T>
+bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat1);
+template<typename T, int N>					// N为列数；
+bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, 1, N>& rowVec);
+template <typename Derived1, typename Derived2>
+Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& rowVec);
+template <typename DerivedV, typename DerivedI>
+void concatMeshMat(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBase<DerivedI>& tris, \
+	const Eigen::PlainObjectBase<DerivedV>& vers1, const Eigen::PlainObjectBase<DerivedI>& tris1);
+
+unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize);
+template <typename T>
+void vecWriteToFile(const char* fileName, const std::vector<T>& vec);
+template<typename T>
+void vecReadFromFile(std::vector<T>& vec, const char* fileName, const unsigned elemCount);
+template<typename T>
+bool matWriteToFile(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat);
+template<typename T>
+bool matReadFromFile(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const char* fileName);
+template	<typename Scalar, typename Index>
+void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::Matrix<Index, Eigen::Dynamic, \
+	Eigen::Dynamic>& tris, const char* fileName);
+template	<typename T>
+void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
+template	<typename Scalar>
+void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, const char* fileName);
+template	<typename DerivedV>
+void objWriteVerticesMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers);
+void printDirEigen(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& dir);
+void printCoordinateEigen(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& xdir, \
+	const Eigen::RowVector3f& ydir, const Eigen::RowVector3f& zdir);
+template	<typename DerivedV, typename DerivedI>
+void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<DerivedI>& edges, \
+	const Eigen::PlainObjectBase<DerivedV>& vers);
+template <typename DerivedV, typename	 DerivedI>
+void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers);
+template <typename DerivedV>
+void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, const Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers);
+void objReadVerticesHomoMat(Eigen::MatrixXf& vers, const char* fileName);
+
+void objWriteVerticesHomoMat(const char* fileName, const Eigen::MatrixXf& vers);
+
+void vers2homoVers(Eigen::MatrixXf& homoVers, const Eigen::MatrixXf& vers);
+
+Eigen::MatrixXf vers2homoVers(const Eigen::MatrixXf& vers);
+
+void homoVers2vers(Eigen::MatrixXf& vers, const Eigen::MatrixXf& homoVers);
+
+Eigen::MatrixXf homoVers2vers(const Eigen::MatrixXf& homoVers);
+template<typename T>
+bool spMatTranspose(Eigen::SparseMatrix<T>& smOut, const Eigen::SparseMatrix<T>& smIn);
+template<typename T, int N>
+bool solveLinearEquation(Eigen::Matrix<T, N, 1>& x, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, const Eigen::Matrix<T, N, 1>& b);
+template <typename T>
+bool solveLinearEquations(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& B);
+template<typename T, int N>
+double hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const double x);
+template<typename T, int N>
+float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x);
+template <typename T, typename Derived1, typename Derived2>
+void kron(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& result, \
+	const Eigen::MatrixBase<Derived1>& mm1, \
+	const Eigen::MatrixBase<Derived2>& mm2);
+template <typename Derived1, typename Derived2>
+Eigen::MatrixXd kron(const Eigen::MatrixBase<Derived1>& mm1, \
+	const Eigen::MatrixBase<Derived2>& mm2);
+void polyInterpolation();
+void gaussInterpolation();
+void leastSquarePolyFitting();
+template <typename T>
+void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, unsigned);
+template<typename T>
+Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& sampleVers);
+template <typename DerivedI>
+void getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedI>& tris);
+template <typename DerivedV, typename DerivedF, typename DerivedN>
+bool getTriNorms(Eigen::PlainObjectBase<DerivedN>& triNorms, const Eigen::MatrixBase<DerivedV>& vers, \
+	const Eigen::MatrixBase<DerivedF>& tris);
+template <typename DerivedV>
+void getEdgeArrows(Eigen::PlainObjectBase<DerivedV>& arrows, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers);
+template<typename T, typename DerivedV, typename DerivedI>
+bool trianglesBarycenter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& barys, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris);
+template<typename T, typename DerivedV, typename DerivedI>
+bool trianglesNorm(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& triNorms, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris);
+template<typename DerivedV, typename DerivedI>
+bool trianglesPlane(Eigen::MatrixXd& planeCoeff, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris);
+template<typename Scalar, typename DerivedI>
+bool trisArea(Eigen::VectorXd& trisAreaVec, const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+	const Eigen::MatrixBase<DerivedI>& tris);
+template<typename DerivedV, typename DerivedI>
+double meshVolume(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris);
+template<typename Index>
+bool adjMatrix(Eigen::SparseMatrix<Index>& adjSM_eCount, \
+	Eigen::SparseMatrix<Index>& adjSM_eIdx, const Eigen::MatrixXi& tris, const Eigen::MatrixXi& edges0);
+template<typename DerivedI>
+bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, const Eigen::PlainObjectBase<DerivedI>& tris);
+template<typename DerivedI>
+bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, std::vector<int>& bdryTriIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
+template<typename DerivedI>
+bool nonManifoldEdges(Eigen::MatrixXi& nmnEdges, const Eigen::PlainObjectBase<DerivedI>& tris);
+template<typename DerivedI>
+int nonManifoldEdges(Eigen::MatrixXi& nmnEdges, std::vector<std::pair<int, std::pair<int, int>>>& nmnEdgeInfos, \
+	const Eigen::PlainObjectBase<DerivedI>& tris);
+using tVec = std::vector<std::vector<int>>;
+template <typename DerivedI>
+bool buildAdjacency(Eigen::MatrixXi& ttAdj_nmEdge, std::vector<tVec>& ttAdj_nmnEdge, std::vector<tVec>& ttAdj_nmnOppEdge, \
+	const Eigen::PlainObjectBase<DerivedI>& tris);
+template <typename DerivedV, typename DerivedI>
+bool triangleGrow(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx);
+template <typename DerivedV>
+bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eigen::MatrixXi>& meshesTrisOut, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
+template <typename DerivedV, typename DerivedI>
+bool triangleGrowOuterSurf(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx);
+template <typename DerivedV, typename DerivedI>
+int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx, const double thetaThreshold);
+template <typename DerivedV, typename DerivedI>
+int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx, const double thetaThreshold);
+template <typename DerivedI>
+bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi >& segs, \
+	const Eigen::PlainObjectBase<DerivedI>& uEdges);
+template <typename DerivedV, typename DerivedI>
+int findHolesBdrySegs(std::vector<std::vector<int>>& holes, std::vector<std::vector<int>>& bdrySegs, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris);
+template <typename DerivedI>
+bool checkSickTris(std::vector<unsigned>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
+template <typename Index>
+int simplyConnectedRegion(const Eigen::SparseMatrix<Index>& adjSM,
+	Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount);
+template <typename DerivedI>
+int simplyTrisConnectedRegion(Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount, \
+	const Eigen::PlainObjectBase<DerivedI>& tris);
+template <typename DerivedV, typename DerivedI>
+bool simplyConnectedLargest(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, \
+	Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut);
+template <typename IndexT>
+bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, const std::vector<IndexT>& sickTriIdxes);
+template <typename DerivedV>
+std::vector<unsigned> checkIsoVers(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
+template <typename DerivedV>
+bool removeIsoVers(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::MatrixXi& trisOut, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const std::vector<unsigned>& isoVerIdxes);
+template <typename DerivedV>
+Eigen::VectorXi checkDegEdges(const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& edgeArrows, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const double threshold);
+template <typename DerivedV>
+int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::MatrixXi& newTris, \
+	const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& edgeArrows, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const Eigen::VectorXi& degEdgeFlags);
+template<typename T>
+bool genGrids(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, const Eigen::Matrix<T, 1, 3>& origin, \
+	const float step, const std::vector<unsigned>& gridCounts);
+template<typename DerivedV, typename DerivedI>
+int removeSickDupTris(const Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBase<DerivedI>& tris);
+template<typename T>
+bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOut, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matIn, \
+	const Eigen::MatrixXd& mask);
+template <typename F>
+void traverseVersList(const T_MESH::List& list, F f);
+template <typename F>
+void traverseVersList(T_MESH::List& list, F f);
+template <typename F>
+void traverseEdgesList(const T_MESH::List& list, F f);
+template <typename F>
+void traverseEdgesList(T_MESH::List& list, F f);
+template <typename F>
+void traverseTrisList(const T_MESH::List& list, F f);
+template <typename F>
+void traverseTrisList(T_MESH::List& list, F f);
+template <typename T>
+void TMesh2MeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, T_MESH::Basic_TMesh& mesh);
+template <typename T>
+void meshMat2tMesh(T_MESH::Basic_TMesh& mesh, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+	const Eigen::MatrixXi& tris);
+template <typename T>
+double orient3D(const Eigen::Matrix<T, 1, 3>& v1, const Eigen::Matrix<T, 1, 3>& v2, const Eigen::Matrix<T, 1, 3>& v3, \
+	const Eigen::Matrix<T, 1, 3>& v4);
+template <typename T>
+double orient2D(const Eigen::Matrix<T, 1, 2>& v1, const Eigen::Matrix<T, 1, 2>& v2, const Eigen::Matrix<T, 1, 2>& v3);
+void genAABBmesh(const T_MESH::di_cell& cell, Eigen::MatrixXd& vers, Eigen::MatrixXi& tris);
+
+
+
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// basic math interface
 
@@ -2308,7 +2555,7 @@ bool nonManifoldEdges(Eigen::MatrixXi& nmnEdges, const Eigen::PlainObjectBase<De
  
 // 求三角网格中的非流形半边，重载2——输出非流形边的详细信息：
 template<typename DerivedI>
-bool nonManifoldEdges(Eigen::MatrixXi& nmnEdges, std::vector<std::pair<int, std::pair<int, int>>>& nmnEdgeInfos, const Eigen::PlainObjectBase<DerivedI>& tris)
+int nonManifoldEdges(Eigen::MatrixXi& nmnEdges, std::vector<std::pair<int, std::pair<int, int>>>& nmnEdgeInfos, const Eigen::PlainObjectBase<DerivedI>& tris)
 {
 	Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
 	adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
@@ -2337,15 +2584,254 @@ bool nonManifoldEdges(Eigen::MatrixXi& nmnEdges, std::vector<std::pair<int, std:
 			}
 		});
 
-	return true;
+	return nmnEdgesCount;
 }
  
 
-
 // buildAdjacency()——计算网格的三角片邻接信息：
 using tVec = std::vector<std::vector<int>>;
-bool buildAdjacency(const Eigen::MatrixXi& tris, Eigen::MatrixXi& ttAdj_nmEdge, \
-	std::vector<tVec>& ttAdj_nmnEdge, std::vector<tVec>& ttAdj_nmnOppEdge);
+template <typename DerivedI>
+bool buildAdjacency(Eigen::MatrixXi& ttAdj_nmEdge, std::vector<tVec>& ttAdj_nmnEdge, std::vector<tVec>& ttAdj_nmnOppEdge, \
+		const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	/*
+		bool buildAdjacency(
+					const Eigen::MatrixXi& tris,									输入的三角片数据
+
+					Eigen::MatrixXi& ttAdj_nmEdge,							三角片的非边缘流形有向边邻接的三角片索引；
+																									trisCount * 3
+																									(i, 0)为索引为i的三角片的非边缘流形有向边(vb, vc)邻接的三角片的索引；
+
+					std::vector<ttTuple>& ttAdj_nmnEdge,				三角片的非流形有向边所在的三角片索引；
+																									size == trisCount;
+																									每个ttTuple元素包含三个int向量；
+																									索引为i的元素的第0个向量，为索引为i的三角片的非流形有向边(vb, vc)所在的所有三角片索引；
+
+
+					std::vector<ttTuple>& ttAdj_nmnOppEdge		三角片的非流形有向边邻接的三角片索引（即对边所在的三角片的索引）；
+																									size == trisCount;
+																									索引为i的元素的第0个向量，为索引为i的三角片的非流形有向边(vb, vc)邻接的所有三角片索引；
+					)
+
+	*/
+	const unsigned trisCount = tris.rows();
+	const unsigned edgesCount = 3 * trisCount;
+	const unsigned versCount = tris.maxCoeff() + 1;
+
+	Eigen::MatrixXi edges;							// 有向边数据；
+	Eigen::MatrixXi nmnEdges;					// 非流形有向边
+
+
+	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的triplet数据；
+
+	std::unordered_multimap<std::int64_t, int> edgeMap;			// 边编码——64位整型数数表示的边数据（两个端点索引）；
+
+
+	// 1. 求基本的边信息、邻接矩阵：
+	Eigen::SparseMatrix<int> adjSM;								// 邻接矩阵；
+	Eigen::SparseMatrix<int> adjSM_eCount;					// 邻接矩阵，索引为该有向边重复的次数；
+	Eigen::SparseMatrix<int> adjSM_eIdx;				// 邻接矩阵，元素若对应流形边则为该边索引，若对应非流形边则为该边所有索引的和；
+	Eigen::SparseMatrix<int> adjSM_eIdx_opp;		// adjSM_eIdx的转置，表示对边的信息；
+	Eigen::SparseMatrix<int> adjSM_ueCount;				// 权重为无向边ij关联的三角片数量；
+	Eigen::SparseMatrix<int> adjSM_ueMN_NB;
+	Eigen::SparseMatrix<int> adjSM_MN_NB;
+	Eigen::SparseMatrix<int> adjSM_MN_NB_opp;
+	{
+
+		// edges == [ea; eb; ec] == [vbIdxes, vcIdxes; vcIdxes, vaIdxes; vaIdxes, vbIdxes];
+		/*
+			若网格是流形网格，则edges列表里每条边都是unique的；
+			若存在非流形边，则非流形边在edges里会重复存储，实际边数量也会少于edges行数；
+			可以说使用这种representation的话，非流形边有不止一个索引，取决包含该非流形边的三角片数量；
+		*/
+
+		// 三角片三条边的索引：teIdx == [eaIdx, ebIdx, ecIdx] == [(0: trisCount-1)', (trisCount: 2*trisCount-1)', (2*trisCount, 3*trisCount-1)'];
+		/*
+			teIdx(i, j) = trisCount *j + i;
+		*/
+
+		// 1.1 生成有向边数据
+		getEdges(edges, tris);
+
+		// 1.2 生成三种有向边邻接矩阵：adjSM, adjSM_eCount, adjSM_eCount;
+		adjMatrix(adjSM_eCount, adjSM_eIdx, tris, edges);
+		adjSM = adjSM_eCount;																		// 有向边邻接矩阵；
+		traverseSparseMatrix(adjSM, [&adjSM](auto& iter)
+			{
+				if (iter.value() > 0)
+					iter.valueRef() = 1;
+			});
+
+		//		若adjSM_eIdx(i, j)对应的是流形有向边，该权重值为该边的索引；若是非流形有向边，则该边对应两个边索引，权重为两个索引之和；
+		spMatTranspose(adjSM_eIdx_opp, adjSM_eIdx);
+
+		//	1.3 生成无向边邻接矩阵：
+		Eigen::SparseMatrix<int> tmpSm;
+		spMatTranspose(tmpSm, adjSM_eCount);
+		adjSM_ueCount = adjSM_eCount + tmpSm;					// 无向边邻接矩阵；
+		std::vector<int> tmpVec;
+		tmpVec.reserve(adjSM_ueCount.nonZeros());
+		traverseSparseMatrix(adjSM_ueCount, [&](auto& iter)
+			{
+				tmpVec.push_back(iter.value());
+			});
+
+		//	1.4 生成非边缘流形无向边邻接矩阵：
+		smElems.clear();
+		smElems.reserve(adjSM_ueCount.nonZeros());
+		traverseSparseMatrix(adjSM_ueCount, [&](auto& iter)
+			{
+				if (2 == iter.value())
+					smElems.push_back(Eigen::Triplet<int>(iter.row(), iter.col(), 1));
+			});
+		adjSM_ueMN_NB.resize(versCount, versCount);
+		adjSM_ueMN_NB.setFromTriplets(smElems.begin(), smElems.end());
+		smElems.clear();
+
+		//	1.5 生成非边缘流形有向边、及其对边的邻接矩阵
+		adjSM_MN_NB = adjSM + adjSM_ueMN_NB;					// adjSM & adjSM_ueMN_NB
+		adjSM_MN_NB.prune([](const Eigen::Index& row, const Eigen::Index& col, const int& value)->bool
+			{
+				if (2 == value)			// 删除非流形边
+					return true;
+				else
+					return false;
+			});
+		adjSM_MN_NB /= 2;
+		spMatTranspose(adjSM_MN_NB_opp, adjSM_MN_NB);
+	}
+
+
+	// 2. 确定非边缘流形有向边、及其对边的索引；
+	std::vector<int> edgesIdx_MN_NB;							// 非边缘流形有向边的索引；
+	std::vector<int> edgesIdx_MN_NB_opp;					// 非边缘流形有向边的对边的索引；
+	{
+		unsigned edgesCount_MN_NB = adjSM_MN_NB.sum();
+		edgesIdx_MN_NB.reserve(edgesCount_MN_NB);					// 非边缘流形有向边索引；
+		edgesIdx_MN_NB_opp.reserve(edgesCount_MN_NB);			// 非边缘流形有向边的对边的索引；
+
+		traverseSparseMatrix(adjSM_MN_NB, [&](auto& iter)
+			{
+				edgesIdx_MN_NB.push_back(adjSM_eIdx.coeffRef(iter.row(), iter.col()));
+			});
+
+		traverseSparseMatrix(adjSM_MN_NB, [&](auto& iter)
+			{
+				edgesIdx_MN_NB_opp.push_back(adjSM_eIdx_opp.coeffRef(iter.row(), iter.col()));
+			});
+	}
+
+
+	// 3. 流形边-三角片邻接关系，三角片邻接关系：
+	std::vector<int> etInfo;						// 边索引 - 三角片索引映射表；etInfo(i)是索引为i的边所在的三角片的索引；
+	Eigen::VectorXi etAdj_mnEdge;							// 边所在三角片的索引，非流形边或边缘边写-1；
+	{
+		// 3.1 生成边索引 - 三角片索引映射表etInfo;
+		etInfo.resize(edgesCount);							// etInfo(i)是索引为i的边所在的三角片的索引；
+		for (int i = 0; i < edgesCount; ++i)
+			etInfo[i] = i % trisCount;
+
+		// 3.2 求边所在三角片的索引；
+		etAdj_mnEdge = -Eigen::VectorXi::Ones(edgesCount);					// 边所在三角片的索引，非流形边或边缘边写-1；
+		for (unsigned i = 0; i < edgesIdx_MN_NB.size(); ++i)
+		{
+			const int& edgeIdx = edgesIdx_MN_NB[i];
+			const int& edgesIdxOpp = edgesIdx_MN_NB_opp[i];
+			etAdj_mnEdge(edgeIdx) = etInfo[edgesIdxOpp];
+		}
+
+		//	3.3 求三角片邻接矩阵；ttAdj_mnEdge(i, :)是索引为i的三角片三条边邻接的三个三角片，若其中有非流形边或边缘边则写为-1；
+		ttAdj_nmEdge = Eigen::Map<Eigen::MatrixXi>(etAdj_mnEdge.data(), trisCount, 3);
+	}
+
+
+	// 4. 计算非流形边（关联两个三角片的有向边）信息
+	std::unordered_map<int, std::vector<int>> edgeIdx_nmn_map;				// 非流形有向边的索引 - 该边对应的所有索引；
+	std::unordered_map<int, std::vector<int>> edgeIdx_nmn_opp_map;		// 非流形有向边的索引 - 该边的对边对应的所有索引；
+	{
+		//	4.1 遍历邻接矩阵找出所有非流形边（关联两个三角片的有向边）；
+		std::vector<int> edgeIdx_nmn;						// 非流形有向边索引；
+		edgeIdx_nmn.reserve(edgesCount);
+		for (int i = 0; i < edgesCount; ++i)
+			if (adjSM_eCount.coeffRef(edges(i, 0), edges(i, 1)) > 1)
+				edgeIdx_nmn.push_back(i);
+		edgeIdx_nmn.shrink_to_fit();
+
+		int neCount = edgeIdx_nmn.size();						// 非流形有向边个数；
+		subFromIdxVec(nmnEdges, edges, edgeIdx_nmn);
+
+		// 4.2 建立边编码-边索引的哈希表；
+		for (int i = 0; i < edges.rows(); ++i)
+		{
+			std::int64_t eCode = encodeEdge(edges(i, 0), edges(i, 1));
+			edgeMap.insert({ eCode, i });
+		}
+
+		// 4.3 在哈希表中搜索所有非流形边，建立非流形边及其对边的（边——边索引）映射关系；
+		for (int i = 0; i < neCount; ++i)
+		{
+			// 注意！！存在两种以外情况： a. 当前边是非流形边，对边是流形边；	b. 当前边是非流形边，对边不存在；
+			int neIdx = edgeIdx_nmn[i];		// 当前非流形边索引；
+			int vaIdx = nmnEdges(i, 0);
+			int vbIdx = nmnEdges(i, 1);
+			std::int64_t eCode = encodeEdge(vaIdx, vbIdx);
+			std::int64_t oppEcode = encodeEdge(vbIdx, vaIdx);
+			auto iter = edgeMap.find(eCode);
+			auto oppIter = edgeMap.find(oppEcode);
+
+			int otherIdx = (iter->second == neIdx) ? ((++iter)->second) : (iter->second);
+			edgeIdx_nmn_map.insert({ neIdx, std::vector<int>{neIdx, otherIdx} });
+
+			if (edgeMap.end() == oppIter)			// 当前边是非流形边，对边不存在；
+			{
+				edgeIdx_nmn_opp_map.insert({ neIdx, std::vector<int>{} });
+				continue;
+			}
+			int oppIdx1 = oppIter->second;
+			int oppIdx2 = (++oppIter)->second;
+			edgeIdx_nmn_opp_map.insert({ neIdx, std::vector<int>{oppIdx1, oppIdx2} });
+		}
+	}
+
+
+	// 5. 求含有非流形边的三角片的邻接关系：
+	{
+		ttAdj_nmnEdge.resize(trisCount);
+		for (auto& vec : ttAdj_nmnEdge)
+			vec.resize(3);
+
+		for (const auto& pair : edgeIdx_nmn_map)
+		{
+			int eIdx = pair.first;
+			int row = eIdx % trisCount;
+			int col = eIdx / trisCount;
+
+			std::vector<int> trisIdx_nmn = pair.second;
+			for (auto& index : trisIdx_nmn)
+				index = etInfo[index];
+
+			ttAdj_nmnEdge[row][col] = trisIdx_nmn;
+		}
+
+		ttAdj_nmnOppEdge.resize(trisCount);
+		for (auto& vec : ttAdj_nmnOppEdge)
+			vec.resize(3);
+		for (const auto& pair : edgeIdx_nmn_opp_map)
+		{
+			int eIdx = pair.first;
+			int row = eIdx % trisCount;
+			int col = eIdx / trisCount;
+
+			std::vector<int> trisIdx_nmn_opp = pair.second;
+			for (auto& index : trisIdx_nmn_opp)
+				index = etInfo[index];
+
+			ttAdj_nmnOppEdge[row][col] = trisIdx_nmn_opp;
+		}
+	}
+
+	return true;
+}
 
 
 // triangleGrow()——从指定三角片开始区域生长；输入网格不可以有非流形边
@@ -2793,13 +3279,14 @@ template <typename DerivedV, typename DerivedI>
 bool triangleGrowOuterSurf(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
 	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx)
 {
-	// ！！！目前假定输入网格的所有三角片朝向正确
+	// ！！！目前假定输入网格的所有三角片朝向正确，且没有退化三角片；
 
 	int versCount = vers.rows();
 	int trisCount = tris.rows();
 	int edgesCount = 3 * trisCount;
 	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的triplet数据；	
 
+	// 0. 计算所有三角片法向：
 	Eigen::MatrixXd triNorms;
 	if (!getTriNorms(triNorms, vers, tris))				// 若含有退化三角片，会导致计算面片法向出错；
 		return false;
@@ -2807,43 +3294,37 @@ bool triangleGrowOuterSurf(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::Pla
 	// 1. 求三角片邻接关系：
 	Eigen::MatrixXi ttAdj_nmEdge;
 	std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
-	if (!buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge))
+	if (!buildAdjacency(ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris))
 		return false;
 
 	// 2. 循环——队列中第一个三角片t出队 - t写入输出集合 - 求出t所有相邻三角片的索引然后入队
-	std::unordered_set<int> finalTriIdxes;								// 最终保留的三角片索引集合；
-	std::unordered_set<int> workingSet;								// 用于寻找相邻三角片的队列；
-	std::vector<int> triTags(trisCount, 0);						// 0 : 未访问，1: 已收录， -1: 已删除；
-	workingSet.insert(static_cast<int>(triIdx));							// 队列插入第一个三角片；
-
 #ifdef LOCAL_DEBUG
 	std::unordered_set<int> deleTriIdxes, seleTriIdxes;
 #endif
+	std::unordered_set<int> finalTriIdxes;							// 最终保留的三角片索引集合；
+	std::unordered_set<int> workingSet;								// 用于寻找相邻三角片的队列；
+	std::vector<int> triTags(trisCount, 0);								// 0 : 未访问，1: 已收录， -1: 已删除；
+
+	workingSet.insert(static_cast<int>(triIdx));						// 队列插入第一个三角片；
 	while (workingSet.size() > 0)
 	{
-		// 4.1 首个元素出队，插入到联通三角片集合中；
+		// w.1 首个元素出队，插入到联通三角片集合中；
 		int cTriIdx = *workingSet.begin();									// 当前处理的三角片索引
-		std::vector<int> adjTriIdx;												// 当前三角片相邻三角片的索引
 		workingSet.erase(workingSet.begin());
-
-		if (triTags[cTriIdx] < 0)
-			continue;
-
 		finalTriIdxes.insert(cTriIdx);
 		triTags[cTriIdx] = 1;
 
-		// 4.2 确定当前三角片的流形边关联的相邻三角片
+		// w.2 确定当前三角片相邻的所有三角片，根据情况保留和删除
+		std::vector<int> adjTriIdx;												// 当前三角片相邻三角片的索引
 		for (int i = 0; i < 3; ++i)
 		{
 			if (ttAdj_nmEdge(cTriIdx, i) >= 0)
-				adjTriIdx.push_back(ttAdj_nmEdge(cTriIdx, i));
+				adjTriIdx.push_back(ttAdj_nmEdge(cTriIdx, i));		// wf.a. 流形边关联的相邻三角片都保留；
 			else
 			{
-				// 若当前边不是流形边——选取同侧的，
-				auto& vec1 = ttAdj_nmnEdge[cTriIdx][i];						// 包括当前三角片自身；
-				auto& vec2 = ttAdj_nmnOppEdge[cTriIdx][i];
-
-				for (const auto& index : vec1)				// 当前非流形边所在三角片
+				// wf.b.1. 删除当前非流形边关联的其他三角片：
+				auto& vec1 = ttAdj_nmnEdge[cTriIdx][i];				// 包括当前三角片自身；
+				for (const auto& index : vec1)
 				{
 					if (index == cTriIdx)
 						continue;
@@ -2855,43 +3336,58 @@ bool triangleGrowOuterSurf(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::Pla
 #endif
 					}
 				}
-					
-				unsigned nopTrisCount = vec2.size();
-				Eigen::RowVector3d cTriNorm = triNorms.row(cTriIdx);
-				Eigen::MatrixXd nopTriNorms;
-				Eigen::VectorXd dotValues(nopTrisCount);
-				subFromIdxVec(nopTriNorms, triNorms, vec2);
-				for (unsigned k = 0; k < nopTrisCount; ++k) 
-					dotValues(k) = cTriNorm.dot(nopTriNorms.row(k));
-				Eigen::Index minIdx;
-				dotValues.minCoeff(&minIdx);
-				int selTriIdx = vec2[minIdx];
 
-				if (0 == triTags[selTriIdx])
-					workingSet.insert(selTriIdx);
-
-				for (const auto& index : vec2)
+				// wf.b.2. 当前非流形边的对边所在的三角片中，选取法向夹角最大(即dot值最小)的那个；
+				auto& vec2 = ttAdj_nmnOppEdge[cTriIdx][i];
+				if (vec2.empty())
+					continue;
+				else if (1 == vec2.size())
 				{
-					if (selTriIdx != index)
+					if(0 == triTags[vec2[0]])
+						workingSet.insert(vec2[0]);
+				}
+				else
+				{
+					unsigned nopTrisCount = vec2.size();
+					Eigen::RowVector3d cTriNorm = triNorms.row(cTriIdx);
+					Eigen::MatrixXd nopTriNorms;
+					Eigen::VectorXd dotValues(nopTrisCount);
+					subFromIdxVec(nopTriNorms, triNorms, vec2);
+					for (unsigned k = 0; k < nopTrisCount; ++k)
+						dotValues(k) = cTriNorm.dot(nopTriNorms.row(k));
+					Eigen::Index minIdx;
+					dotValues.minCoeff(&minIdx);
+					int selTriIdx = vec2[minIdx];
+
+					if (0 == triTags[selTriIdx])
+						workingSet.insert(selTriIdx);
+
+					for (const auto& index : vec2)
 					{
-						triTags[index] = -1;
+						if (selTriIdx != index)
+						{
+							triTags[index] = -1;
 #ifdef LOCAL_DEBUG
-						deleTriIdxes.insert(index);
+							deleTriIdxes.insert(index);
 #endif
+						}
 					}
 				}
+ 
 			}
 		}
 
-		// 4.3 若联通三角片集合中没有当前的三角片，插入该三角片，队列中也插入该三角片；
+		// w.3 finalTriIdxes中插入保留下来的相邻三角片；若该三角片之前未访问，则插入队列；
 		for (const auto& index : adjTriIdx)
 		{
-			auto retPair = finalTriIdxes.insert(index);
-			if (retPair.second && 0 == triTags[index])
-				workingSet.insert(index);
+			if (0 == triTags[index])
+			{
+				auto retPair = finalTriIdxes.insert(index);
+				if (retPair.second)
+					workingSet.insert(index);
+			}
 		}
 	}
-
 
 	// for debug:
 #ifdef LOCAL_DEBUG
@@ -2902,50 +3398,20 @@ bool triangleGrowOuterSurf(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::Pla
 	subFromIdxCon(seleTris, tris, seleTriIdxes);
 	objWriteMeshMat("E:/seleTris.obj", versCopy, seleTris);
 #endif
- 
-	// 3. 由选定的三角片取顶点：
-	std::set<int> finalVerIdx;
-	Eigen::VectorXi finalVerIdxVec;													// 输出顶点的索引，是原网格中的索引；
-	Eigen::VectorXi oldNewIdxInfo = -Eigen::VectorXi::Ones(vers.rows());		// 新老索引表——下标为老索引，元素值为新索引，不在新网格中的顶点写为-1
-	for (const auto& index : finalTriIdxes)
+
+	DerivedV vers1 = vers;
+	DerivedI tris1 = tris;
+	tris1.resize(0, 0);
+	subFromIdxCon(tris1, tris, finalTriIdxes);
+
+	std::vector<unsigned> isoVerIdxes = checkIsoVers(vers1, tris1);
+	if (isoVerIdxes.empty())
 	{
-		finalVerIdx.insert(tris(static_cast<int>(index), 0));
-		finalVerIdx.insert(tris(static_cast<int>(index), 1));
-		finalVerIdx.insert(tris(static_cast<int>(index), 2));
+		versOut = vers1;
+		trisOut = tris1;
 	}
-
-	auto iter = finalVerIdx.begin();
-	finalVerIdxVec.resize(finalVerIdx.size());
-	for (int i = 0; i < finalVerIdx.size(); ++i)
-		finalVerIdxVec(i) = static_cast<int>(*iter++);
-
-	int setOrder = 0;
-	for (const auto& index : finalVerIdx)
-		oldNewIdxInfo[static_cast<int>(index)] = setOrder++;
-	subFromIdxVec(versOut, vers, finalVerIdxVec);
-
-
-	// 6. 原网格所有三角片中的顶点索引由老的换为新的。
-	Eigen::MatrixXi tempMat = tris;
-	int* intPtr = tempMat.data();
-	for (int i = 0; i < tempMat.size(); ++i)
-	{
-		int oldIdx = *intPtr;
-		*intPtr = oldNewIdxInfo[oldIdx];
-		intPtr++;
-	}
-
-	// 7. 去除非法三角片，即含有-1元素的三角片；
-	trisOut.resize(tris.rows(), 3);
-	int count = 0;
-	for (int i = 0; i < tris.rows(); ++i)
-	{
-		Eigen::RowVector3i currentTri = tempMat.row(i);
-		if ((currentTri.array() >= 0).all())
-			trisOut.row(count++) = currentTri;
-	}
-	trisOut.conservativeResize(count, 3);
-
+	else
+		removeIsoVers(versOut, trisOut, vers1, tris1, isoVerIdxes);
 
 	return true;
 }
@@ -2975,7 +3441,7 @@ int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::Plain
 	// 1. 求三角片邻接关系：
 	Eigen::MatrixXi ttAdj_nmEdge;
 	std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
-	if (!buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge))
+	if (!buildAdjacency(ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris))
 		return false;
 
 	// 2. 循环——队列中第一个三角片t出队 - t写入输出集合 - 求出t所有相邻三角片的索引然后入队
@@ -3086,7 +3552,7 @@ int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::
 	// 1. 求三角片邻接关系：
 	Eigen::MatrixXi ttAdj_nmEdge;
 	std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
-	if (!buildAdjacency(tris, ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge))
+	if (!buildAdjacency(ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris))
 		return false;
 
 	// 2. 三角片区域生长-寻找相邻的重叠三角片对的循环；
@@ -3197,10 +3663,13 @@ int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::
 	}
  
 #ifdef LOCAL_DEBUG
-	Eigen::MatrixXd versCopy = vers.array().cast<double>();
-	Eigen::MatrixXi olTris;
-	subFromIdxCon(olTris, tris, olTriIdxes);
-	objWriteMeshMat("E:/overlapTris.obj", versCopy, olTris);
+	if (olTriIdxes.size() > 0) 
+	{
+		Eigen::MatrixXd versCopy = vers.array().cast<double>();
+		Eigen::MatrixXi olTris;
+		subFromIdxCon(olTris, tris, olTriIdxes);
+		objWriteMeshMat("E:/overlapTris.obj", versCopy, olTris);
+	}
 #endif 
 
 	return olCount;
@@ -3333,73 +3802,49 @@ bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi 
 
 
 template <typename DerivedV, typename DerivedI>
-int findHoles(std::vector<std::vector<int>>& holeVerIdxes, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris)
+int findHolesBdrySegs(std::vector<std::vector<int>>& holes, std::vector<std::vector<int>>& bdrySegs, \
+		const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris)
 {
-	int holesCount = 0;
+	/*
+		int findHolesBdrySegs(															成功返回(洞数+边缘曲线数)，失败返回-1;
+			std::vector<std::vector<int>>& holes,								洞，即闭合为环路的边缘顶点，每圈顶点按顺时针排列；
+			std::vector<std::vector<int>>& bdrySegs,							边缘曲线，即不闭合的边缘顶点
+			const Eigen::PlainObjectBase<DerivedV>& vers, 
+			const Eigen::PlainObjectBase<DerivedI>& tris
+			)
+			
+	*/
 
 	// 确定洞的边——只关联一个三角片的边：
 	const unsigned trisCount = tris.rows();
 	const unsigned edgesCount = 3 * trisCount;
 	const unsigned versCount = tris.maxCoeff() + 1;
 
+	std::vector<Eigen::MatrixXi> circs, segs;
 	Eigen::MatrixXi bdrys;
 	bdryEdges(bdrys, tris);
+	uEdgeGrow(circs, segs, bdrys);
 
 #ifdef LOCAL_DEBUG
-	objWriteEdgesMat("E:/bdryEdges.obj", bdrys, vers);
+	Eigen::MatrixXd versCopy = vers.array().cast<double>();
+	if (circs.size() > 0)
+	{
+		Eigen::MatrixXi tmpMat;
+		for (const auto& mat : circs)
+			matInsertRows(tmpMat, mat);
+		objWriteEdgesMat("E:/circEdges.obj", tmpMat, versCopy);
+	}
+	if (segs.size() > 0)
+	{
+		Eigen::MatrixXi tmpMat;
+		for (const auto& mat : segs)
+			matInsertRows(tmpMat, mat);
+		objWriteEdgesMat("E:/segEdges.obj", tmpMat, versCopy);
+	}
 #endif
 
-	std::unordered_map<int, int> bdryMap;
-	for (int i = 0; i < bdrys.rows(); ++i)
-	{
-		auto iter = bdryMap.insert({ bdrys(i, 0), bdrys(i, 1) });
-		if (!iter.second)
-			return -1;							// 存在异常的边缘；
-	}
 
-	holeVerIdxes.resize(1);
-	while (!bdryMap.empty()) 
-	{
-		int cvIdx = bdryMap.begin()->first;						// current vertex
-		int nvIdx = -1;															// next vertex;
-		std::vector<int>& cLoop = *holeVerIdxes.rbegin();
-		std::unordered_set<int> tmpSet;
-		cLoop.push_back(cvIdx);
-		tmpSet.insert(cvIdx);
-
-		while (1)
-		{
-			auto mapIter = bdryMap.find(cvIdx);
-			if (bdryMap.end() == mapIter)
-				return -1;												// 存在异常的边缘；
-			nvIdx = mapIter->second;
-			bdryMap.erase(mapIter);
-			auto setIter = tmpSet.insert(nvIdx);
-			if (!setIter.second)
-				break;
-			cLoop.push_back(nvIdx);
-			cvIdx = nvIdx;
-		}
-
-		if (!bdryMap.empty())
-			holeVerIdxes.push_back(std::vector<int>{});
-	}
-
-
-#ifdef  LOCAL_DEBUG
-	Eigen::MatrixXd versCopy = vers;
-	for (unsigned i = 0; i<holeVerIdxes.size(); ++i)
-	{
-		char str[256];
-		sprintf_s(str, "E:/bdryLoop%d.obj", i);
-		Eigen::MatrixXd loopVers;
-		subFromIdxVec(loopVers, versCopy, holeVerIdxes[i]);
-		objWriteVerticesMat(str, loopVers);
-	}
-#endif  
-
-
-	return holesCount;
+	return holes.size() + bdrySegs.size();
 }
 
 
@@ -3421,18 +3866,18 @@ bool checkSickTris(std::vector<unsigned>& sickIdxes, const Eigen::PlainObjectBas
 }
 
 
-// 确定三角网格中的所有单连通区域
+// 确定三角网格中的所有单连通区域（顶点连通）
 template <typename Index>
 int simplyConnectedRegion(const Eigen::SparseMatrix<Index>& adjSM,
 	Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount)
 {
 	/*
-		int simplyConnectedRegion(									返回单连通区域的数量，出错时返回-1
+		int simplyConnectedRegion(												返回单连通区域的数量，出错时返回-1
 					const Eigen::SparseMatrix<Index>& adjSM,			三角网格的邻接矩阵
 					Eigen::VectorXi& connectedLabels,						同一连通区域内的顶点标签，依次为0, 1, 2,...；
-																						索引为i的顶点的标签为connectedLabels(i);
+																											索引为i的顶点的标签为connectedLabels(i);
 					Eigen::VectorXi& connectedCount							每个标签对应的单连通区域内包含的顶点数
-																						标签为i的单连通区域包含的顶点数为connectedCount(i)
+																											标签为i的单连通区域包含的顶点数为connectedCount(i)
 					)
 	*/
 	if (adjSM.rows() == 0)
@@ -3493,7 +3938,74 @@ int simplyConnectedRegion(const Eigen::SparseMatrix<Index>& adjSM,
 }
 
 
-// 提取三角网格中最大单连通区域
+// 确定三角网格中的所有单连通区域（三角片连通）——比triangleGrow更强，输入网格可以带有非流形元素；
+template <typename DerivedI>
+int simplyTrisConnectedRegion(	Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount, \
+	const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	// 
+	const unsigned trisCount = tris.rows();
+	connectedLabels = Eigen::VectorXi::Zero(trisCount);
+	unsigned visitedCount = 0;
+
+	Eigen::MatrixXi ttAdj_nmEdge;
+	std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
+	if (!buildAdjacency(ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris))
+		return -1;
+
+	// 邻接三角片生长的循环：
+	int currentLabel = 1;
+	while (visitedCount < trisCount)
+	{
+		int seedIdx = 0;
+		for (unsigned i = 0; i < trisCount; ++i)
+		{
+			if (0 == connectedLabels(i))
+			{
+				seedIdx = i;
+				break;
+			}
+		}
+
+		std::unordered_set<int> workingQueue;
+		workingQueue.insert(seedIdx);
+
+		while (!workingQueue.empty())
+		{
+			int cIdx = *workingQueue.begin();
+			visitedCount++;
+			workingQueue.erase(cIdx);
+			connectedLabels(cIdx) = currentLabel;
+
+			for (unsigned i = 0; i < 3; ++i)
+				if (ttAdj_nmEdge(cIdx, i) >= 0)
+					if (0 == connectedLabels(ttAdj_nmEdge(cIdx, i)))
+						workingQueue.insert(ttAdj_nmEdge(cIdx, i));					// 只插入未访问的三角片
+
+			for (const auto& vec : ttAdj_nmnEdge[cIdx])
+				for (const auto& index : vec)
+					if (0 == connectedLabels(index))
+						workingQueue.insert(index);
+ 
+		}
+
+		currentLabel++;
+	}
+
+	unsigned regionCount = currentLabel - 1;
+	connectedLabels.array() -= 1;
+	connectedCount = Eigen::VectorXi::Zero(regionCount);
+
+	for (unsigned i = 0; i < trisCount; ++i)
+		connectedCount[connectedLabels[i]]++;
+		
+
+	return static_cast<int>(regionCount);
+}
+
+
+
+// 提取三角网格中最大单连通区域（顶点连通）
 template <typename DerivedV, typename DerivedI>
 bool simplyConnectedLargest(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, \
 	Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut)
@@ -4291,6 +4803,7 @@ namespace TEST_TMESH
 	void test2();
 	void test3();
 	void test4();
+	void test44();
 	void test5();
 	void test6();
 	void test7();
