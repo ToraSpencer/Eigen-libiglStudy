@@ -6,9 +6,17 @@ static std::string g_debugPath = "E:/";
 
 /////////////////////////////////////////////////////////////////////////////////////////////////DEBUG接口：
 
-static void debugDisp(const char* str)
+static void debugDisp()			// 递归终止
+{						//		递归终止设为无参或者一个参数的情形都可以。
+	std::cout << std::endl;
+	return;
+}
+
+template <typename T, typename... Types>
+static void debugDisp(const T& firstArg, const Types&... args)
 {
-	std::cout << str << std::endl;
+	std::cout << firstArg << " ";
+	debugDisp(args...);
 }
 
 template<typename DerivedV>

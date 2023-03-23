@@ -262,9 +262,9 @@ bool triangleGrow(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectB
 template <typename DerivedV>
 bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eigen::MatrixXi>& meshesTrisOut, \
 	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
-template <typename DerivedV, typename DerivedI>
-bool triangleGrowOuterSurf(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx);
+template <typename T>
+bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const int triIdx);
 template <typename DerivedV, typename DerivedI>
 int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx, const double thetaThreshold);
@@ -3275,9 +3275,9 @@ bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eig
 
 
 // triangleGrowOuterSurf()——从指定三角片（必须是外部的三角片）开始区域生长，提取外层表面单连通流形网格
-template <typename DerivedV, typename DerivedI>
-bool triangleGrowOuterSurf(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx)
+template <typename T>
+bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const int triIdx)
 {
 	// ！！！目前假定输入网格的所有三角片朝向正确，且没有退化三角片；
 
@@ -3399,8 +3399,8 @@ bool triangleGrowOuterSurf(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::Pla
 	objWriteMeshMat("E:/seleTris.obj", versCopy, seleTris);
 #endif
 
-	DerivedV vers1 = vers;
-	DerivedI tris1 = tris;
+	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> vers1 = vers;
+	Eigen::MatrixXi tris1 = tris;
 	tris1.resize(0, 0);
 	subFromIdxCon(tris1, tris, finalTriIdxes);
 
@@ -4475,9 +4475,19 @@ bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOu
 	unsigned km = im;
 	unsigned offset = (sizeMask - 1) / 2;
 
-	// 1. 生成拓展矩阵：
+	// 1. 对输入矩阵进行边缘延拓，生成拓展矩阵：
 	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> matExt = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>::Zero(rows + 2*offset, cols + 2 * offset);
 	matExt.block(offset, offset, rows, cols) = matIn;
+	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> rowHead = matIn.block(0, 0, offset, cols);
+	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> rowTail = matIn.block(rows - offset, 0, offset, cols);
+
+	matExt.block(0, offset, offset, cols) = rowHead;
+	matExt.block(rows + offset, offset, offset, cols) = rowTail;
+
+	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> colHead = matExt.block(0, offset, rows + 2*offset, offset);
+	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> colTail = matExt.block(0, cols, rows + 2 * offset, offset);
+	matExt.block(0, 0, rows + 2*offset, offset) = colHead;
+	matExt.block(0, cols + offset, rows + 2 * offset, offset) = colTail;
 
 	// 2. 滑动领域操作：
 	PARALLEL_FOR(0, rows, [&](int i)
@@ -4496,9 +4506,7 @@ bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOu
 	return true;
 }
  
-
-
-
+ 
 //////////////////////////////////////////////////////////////////////////////////////////////////TMESH相关接口：
  
 // 对TMESH顶点的只读遍历；

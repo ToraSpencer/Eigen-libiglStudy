@@ -647,7 +647,7 @@ namespace TEST_DIP
 		Eigen::MatrixXi mat1(9, 9);
 		mat1.setRandom();
 		
-		Eigen::MatrixXd mask(3, 3);
+		Eigen::MatrixXd mask(5, 5);
 		mask.setOnes();
 
 		Eigen::MatrixXi matOut;

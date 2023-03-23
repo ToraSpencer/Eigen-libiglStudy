@@ -1645,7 +1645,26 @@ namespace IGL_BASIC_PMP
 
 		return true;
 	}
- 
+
+
+	//		距离场数据的高斯滤波：
+	bool gaussFilterSDFdata(Eigen::VectorXd& SDF, const int xCount, const int yCount, const int zCount)
+	{
+		Eigen::MatrixXd maskGauss(3, 3);
+		maskGauss << 0.0113, 0.0838, 0.0113, 0.0838, 0.6193, 0.0838, 0.0113, 0.0838, 0.0113;
+		int sliceSize = xCount * yCount;
+		for (int i = 0; i < zCount; ++i)
+		{
+			Eigen::VectorXd slice = SDF.segment(sliceSize * i, sliceSize);
+			Eigen::MatrixXd sliceMat = Eigen::Map<Eigen::MatrixXd>(slice.data(), xCount, yCount);
+			Eigen::MatrixXd filteredMat;
+			linearSpatialFilter(filteredMat, sliceMat, maskGauss);
+			slice = Eigen::Map<Eigen::VectorXd>(filteredMat.data(), sliceSize, 1);
+			SDF.segment(sliceSize * i, sliceSize) = slice;
+		}
+		return true;
+	}
+
 
 	// test4——测试生成栅格、marchingCubes算法：
 	void test4()
@@ -1762,6 +1781,120 @@ namespace IGL_BASIC_PMP
 		tt.endCout("Elapsed time of igl::marching_cubes() is ");
 		igl::writeOBJ("E:/shrinkedMeshOri.obj", versResult_SDF, trisResult_SDF);
  
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// test44
+	void test44()
+	{
+		tiktok& tt = tiktok::getInstance();
+
+		Eigen::VectorXd SDF;
+		Eigen::RowVector3i gridCounts;			// xyz三个维度上的栅格数量；
+		Eigen::MatrixXd gridCenters;				//	 所有栅格中点坐标的矩阵，每行都是一个中点坐标；存储优先级是x, y, z
+		Eigen::MatrixXd	boxVers;						// 栅格对应的包围盒的顶点；
+		Eigen::MatrixXi boxTris;
+		double selectedSDF = 0.75;						// 提取的水平集对应的距离场值；
+
+		std::vector<int> stepCounts{ 126, 132, 39 };														// xyz三个维度上栅格数
+		Eigen::RowVector3d gridsOri{ -23.4242516, -40.1728897, -1.50000501 };					// 栅格原点：
+		double SDFstep = 0.5;
+		int xCount = stepCounts[0];
+		int yCount = stepCounts[1];
+		int zCount = stepCounts[2];
+ 
+		// 0. 生成栅格：
+		Eigen::RowVector3d minp = gridsOri;
+		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCounts[0] - 1, stepCounts[1] - 1, stepCounts[2] - 1);
+		Eigen::AlignedBox<double, 3> box(minp, maxp);		// 栅格对应的包围盒；
+		genGrids(box, std::max({ stepCounts[0], stepCounts[1], stepCounts[2] }), 0, gridCenters, gridCounts);
+		genAABBmesh(box, boxVers, boxTris);
+		objWriteMeshMat("E:/AABB.obj", boxVers, boxTris);
+		{
+			//			栅格数据的分布：
+			/*
+				按索引增大排列的栅格中心点为：
+				gc(000), gc(100), gc(200), gc(300),...... gc(010), gc(110), gc(210), gc(310),...... gc(001), gc(101), gc(201).....
+
+
+				x坐标：
+				x0, x1, x2, x3......x0, x1, x2, x3......x0, x1, x2, x3......
+				周期为xCount;
+				重复次数为(yCount * zCount)
+
+				y坐标：
+				y0, y0, y0...y1, y1, y1...y2, y2, y2.........y0, y0, y0...y1, y1, y1...
+				周期为(xCount * yCount);
+				重复次数为zCount;
+				单个元素重复次数为xCount
+
+				z坐标：
+				z0, z0, z0......z1, z1, z1......z2, z2, z2......
+				单个元素重复次数为(xCount * yCount)
+			*/
+			Eigen::MatrixXd gridCenters0;				// for try——尝试自己生成栅格数据：
+			Eigen::RowVector3i gridCounts0{ stepCounts[0], stepCounts[1], stepCounts[2] };
+			Eigen::VectorXd xPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(0), minp(0), maxp(0));
+			Eigen::VectorXd yPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(1), minp(1), maxp(1));
+			Eigen::VectorXd zPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(2), minp(2), maxp(2));
+
+			Eigen::MatrixXd tmpVec0, tmpVec1, tmpVec2;
+			kron(tmpVec0, Eigen::VectorXd::Ones(gridCounts(1) * gridCounts(2)), xPeriod);
+			Eigen::VectorXd tmpVec11 = kron(yPeriod, Eigen::VectorXi::Ones(gridCounts(0)));
+			kron(tmpVec1, Eigen::VectorXi::Ones(gridCounts(2)), tmpVec11);
+			kron(tmpVec2, zPeriod, Eigen::VectorXd::Ones(gridCounts(0) * gridCounts(1)));
+			gridCenters0.resize(stepCounts[0] * stepCounts[1] * stepCounts[2], 3);
+			gridCenters0.col(0) = tmpVec0;
+			gridCenters0.col(1) = tmpVec1;
+			gridCenters0.col(2) = tmpVec2;
+
+			//				提取栅格中SDF值小于0的顶点：
+			Eigen::MatrixXd tmpVers(SDF.rows(), 3);
+			int index = 0;
+			for (int i = 0; i < SDF.rows(); ++i)
+				if (SDF(i) <= 0)
+					tmpVers.row(index++) = gridCenters0.row(i);
+			tmpVers.conservativeResize(index, 3);
+			igl::writeOBJ("E:/tmpVers.obj", tmpVers, Eigen::MatrixXi{});
+		}
+
+
+		// 1. 生成SDF数据：
+		unsigned spVersCount = gridCenters.rows();
+		SDF.resize(spVersCount);
+		for (unsigned i = 0; i < spVersCount; ++i)
+			SDF(i) = gridCenters(i, 2);
+
+		gaussFilterSDFdata(SDF, xCount, yCount, zCount);
+
+		// 2原始的marching cubes
+		Eigen::MatrixXd versResult;
+		Eigen::MatrixXi trisResult;
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 0, versResult, trisResult);
+		igl::writeOBJ("E:/meshXOY.obj", versResult, trisResult);
+
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 0.4, versResult, trisResult);
+		igl::writeOBJ("E:/meshSDF0.4.obj", versResult, trisResult);
+
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 0.5, versResult, trisResult);
+		igl::writeOBJ("E:/meshSDF0.5.obj", versResult, trisResult);
+
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 1.0, versResult, trisResult);
+		igl::writeOBJ("E:/meshSDF1.0.obj", versResult, trisResult);
+
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 1.5, versResult, trisResult);
+		igl::writeOBJ("E:/meshSDF1.5.obj", versResult, trisResult);
+
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 1.7, versResult, trisResult);
+		igl::writeOBJ("E:/meshSDF1.7.obj", versResult, trisResult);
+
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 2.0, versResult, trisResult);
+		igl::writeOBJ("E:/meshSDF2.0.obj", versResult, trisResult);
+
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 2.1, versResult, trisResult);
+		igl::writeOBJ("E:/meshSDF2.1.obj", versResult, trisResult);
+
 		std::cout << "finished." << std::endl;
 	}
 
