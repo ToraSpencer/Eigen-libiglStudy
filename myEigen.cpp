@@ -446,34 +446,45 @@ namespace TEST_MYEIGEN
 	}
 
 
-	//		测试包含非流形边的三角片区域生长：
+	//		测试triangleGrowOuterSurf提取包含非流行三角片的网格提取外层表面：
 	void test1111() 
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
-		objReadMeshMat(vers, tris, "E:/材料/meshRepairInput_d_meshArranged.obj");
+		int nmnCount = 0;
+		objReadMeshMat(vers, tris, "E:/材料/meshRepairInput_directMeshArranged.obj");
 		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
-
+ 
 		Eigen::MatrixXi nmnEdges;
 		std::vector<std::pair<int, std::pair<int, int>>> nmnInfos;
 		if (nonManifoldEdges(nmnEdges, nmnInfos, tris) > 0)
 			debugWriteEdges("nmnEdgesOrigin", nmnEdges, vers);
+		nmnCount = nmnEdges.rows();
  
-		if (!triangleGrowOuterSurf(versOut, trisOut, vers, tris, 0))
-			debugDisp("triangleGrowOuterSurf() failed!");
-		debugWriteMesh("triangleGrowOuterSurf", versOut, trisOut);
-		debugDisp("去除三角片个数：", trisCount - trisOut.rows());
+		// 一次提取外表面可能不能完全去除非流形边，需要多次调用：
+		while (nmnCount > 0) 
+		{
+			debugDisp("当前非流形有向边数：", nmnCount);
+			debugDisp("执行triangleGrowOuterSurf()...");
+			if (!triangleGrowOuterSurf(versOut, trisOut, vers, tris, true))
+				debugDisp("triangleGrowOuterSurf() failed!");
+			debugDisp("去除三角片个数：", trisCount - trisOut.rows());
 
+			// 检查输出网格中是否有非流形边：
+			nmnEdges.resize(0, 0);
+			nmnInfos.clear();
+			if (nonManifoldEdges(nmnEdges, nmnInfos, trisOut) > 0)
+				debugWriteEdges("nmnEdges", nmnEdges, versOut);
+			nmnCount = nmnEdges.rows();
 
-		// 检查输出网格中是否有非流形边：
-		nmnEdges.resize(0, 0);
-		nmnInfos.clear();
-		if (nonManifoldEdges(nmnEdges, nmnInfos, trisOut) > 0)
-			debugWriteEdges("nmnEdges", nmnEdges, versOut);
+			vers = versOut;
+			tris = trisOut;
+			trisCount = tris.rows();
+		}
 
-
+		debugWriteMesh("triangleGrowOuterSurf", vers, tris);
 		std::cout << "finished." << std::endl;
 	}
 
@@ -634,6 +645,18 @@ namespace TEST_MYEIGEN
 
 
 		debugDisp("finished.");
+	}
+
+
+	// 网格IO:
+	void test8() 
+	{
+		std::string file1{"E:/材料/tooth.obj"};							// 原文件是单精度
+		std::string file2{ "E:/材料/meshRepairInput.obj" };			// 原文件是双精度
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXf versF;
+		Eigen::MatrixXi tris;
+ 
 	}
 }
 
@@ -830,7 +853,7 @@ namespace TEST_TMESH
 
 		T_MESH::TMesh::init();				 
 		T_MESH::Basic_TMesh tMesh;
-		tMesh.load("E:/材料/jawMeshDense_qslim_150000_noDegOpTris.obj");
+		tMesh.load("E:/材料/meshRepairInput_e_outerSurf.obj");
 		debugWriteMesh("meshInput", tMesh);	
 
 		int removedCount = tMesh.removeSmallestComponents();						// d_boundaries, d_handles, d_shells赋值
@@ -853,7 +876,7 @@ namespace TEST_TMESH
 
 		debugWriteMesh("meshOut", tMesh);
 		debugDisp("holesCount == ", holesCount);
-		debugDisp("flagDeg == ", flagDeg);
+		debugDisp("输出结果是否没有退化三角片： ", flagDeg);
 		debugDisp("finished.");
 	}
 

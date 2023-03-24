@@ -1266,7 +1266,7 @@ namespace DECIMATION
 ////////////////////////////////////////////////////////////////////////////// TEST: 网格缺陷的检测和修复：
 namespace MESH_REPAIR 
 {
-	// 检测网格边缘边、非流形边、孤立点、重复点、洞等缺陷：
+	// 检测网格边缘边、非流形边、孤立点、重复点、洞、重叠三角片等缺陷：
 	void test0() 
 	{
 		Eigen::MatrixXd vers, edgeArrows, normals;
@@ -1276,7 +1276,7 @@ namespace MESH_REPAIR
 		//std::ifstream fileIn("E:/杨阳434165L_34_34b_2303012828.stl", std::ios::binary);
 		//retFlag = igl::readSTL(fileIn, vers, tris, normals);							// 貌似igl::readSTL读取的网格顶点数据不对；
 
-		objReadMeshMat(vers, tris, "E:/材料/meshRepairInput_e_outerSurf.obj");
+		objReadMeshMat(vers, tris, "E:/材料/meshRepairInput_directOuterSurf.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		// 0. 去除重复三角片：
@@ -1323,7 +1323,6 @@ namespace MESH_REPAIR
 			std::cout << "！！！存在非流形边，nmnEdges.rows() == " << nmnEdges.rows() << std::endl;
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
 
-
 		// 3. 检测孤立顶点：
 		std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, tris);
 		if (!isoVerIdxes.empty())
@@ -1332,18 +1331,27 @@ namespace MESH_REPAIR
 			Eigen::MatrixXd isoVers;
 			subFromIdxVec(isoVers, vers, isoVerIdxes);
 			objWriteVerticesMat("E:/isoVers.obj", isoVers);
+			Eigen::MatrixXd vers1;
+			Eigen::MatrixXi tris1;
+			removeIsoVers(vers1, tris1, vers, tris, isoVerIdxes);
+			vers = vers1;
+			tris = tris1;
+			debugWriteMesh("meshNoIsoVers", vers, tris);
 		}
 
+		// 4. 检测重叠三角片：
+		std::vector<std::pair<int, int>> opTrisPairs;
+		int olCount = findOverLapTris(opTrisPairs, vers, tris);
+		debugDisp("重叠三角片对数：", olCount);
 
-		// 4. 检测退化边
+		// 5. 检测退化边
 		double degEdgeThreshold = 1e-3;
 		Eigen::VectorXi degEdgeFlags = checkDegEdges(edges, edgeArrows, vers, tris, degEdgeThreshold);
 		unsigned degEdgesCount = degEdgeFlags.sum();
 		if (degEdgesCount > 0)
 			std::cout << "degenerate edges count == " << degEdgesCount << std::endl;
 
-
-		// 5. 检测退化三角片：
+		// 6. 检测退化三角片：
 		Eigen::VectorXd trisAreaVec;
 		std::vector<unsigned> degenTriIdxes;
 		const double eps = 10e-9;
@@ -1363,8 +1371,7 @@ namespace MESH_REPAIR
 			std::cout << std::endl;
 		}
 
-
-		// 6. 提取所有单连通区域：
+		// 7. 提取所有单连通区域：
 		Eigen::SparseMatrix<int> adjSM, adjSM_eCount, adjSM_eIdx;
 		Eigen::VectorXi connectedLabels, connectedCount, connectedTriLabels, connectedTriCount;
 		adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
@@ -1792,7 +1799,7 @@ namespace MESH_REPAIR
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
 		bool retFlag = false;
-		objReadMeshMat(vers, tris, "E:/材料/meshRepairInput_c_noOpTris.obj");
+		objReadMeshMat(vers, tris, "E:/材料/meshRepairInput_b_noDegTris.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 		unsigned trisCount = tris.rows();
 
@@ -1802,7 +1809,7 @@ namespace MESH_REPAIR
 		Eigen::MatrixXi opTris;
 		int olCount = findOverLapTris(opTrisPairs, vers, tris);
 
-		if (olCount > 0) 
+		if (olCount > 0)
 		{
 			debugDisp("重叠三角片对数：", olCount);
 			for (const auto& pair : opTrisPairs)
@@ -1829,6 +1836,11 @@ namespace MESH_REPAIR
 			tris = trisOut;
 			debugWriteMesh("noOpTris", vers, tris);
 		}
+		else
+			debugDisp("输入网格没有重叠三角片。");
+
+		// 2. 打印结果网格中的洞、边缘曲线：
+
 
 		debugDisp("finished.");
 	}
@@ -1902,7 +1914,7 @@ int main()
 	// IGL_DIF_GEO::test1();
 	// IGL_GRAPH::test1();
 	// IGL_SPACE_PARTITION::test0();
-	IGL_BASIC_PMP::test44();
+	// IGL_BASIC_PMP::test44();
  
 	// SCIENTIFICCALC::test7();
 	
@@ -1916,11 +1928,11 @@ int main()
 
 	// TEMP_TEST::test1();
 
-	// MESH_REPAIR::test0();
+	MESH_REPAIR::test0();
  
 	// TEST_DIP::test0();
 
-	// TEST_TMESH::test4();
+	// TEST_TMESH::test44();
 
 	std::cout << "main() finished." << std::endl;
 }

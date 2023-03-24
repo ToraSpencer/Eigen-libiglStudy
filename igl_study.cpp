@@ -1874,26 +1874,9 @@ namespace IGL_BASIC_PMP
 		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 0, versResult, trisResult);
 		igl::writeOBJ("E:/meshXOY.obj", versResult, trisResult);
 
-		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 0.4, versResult, trisResult);
-		igl::writeOBJ("E:/meshSDF0.4.obj", versResult, trisResult);
-
-		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 0.5, versResult, trisResult);
-		igl::writeOBJ("E:/meshSDF0.5.obj", versResult, trisResult);
-
-		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 1.0, versResult, trisResult);
-		igl::writeOBJ("E:/meshSDF1.0.obj", versResult, trisResult);
-
-		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 1.5, versResult, trisResult);
-		igl::writeOBJ("E:/meshSDF1.5.obj", versResult, trisResult);
-
 		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 1.7, versResult, trisResult);
 		igl::writeOBJ("E:/meshSDF1.7.obj", versResult, trisResult);
 
-		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 2.0, versResult, trisResult);
-		igl::writeOBJ("E:/meshSDF2.0.obj", versResult, trisResult);
-
-		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 2.1, versResult, trisResult);
-		igl::writeOBJ("E:/meshSDF2.1.obj", versResult, trisResult);
 
 		std::cout << "finished." << std::endl;
 	}

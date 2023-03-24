@@ -264,7 +264,7 @@ bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eig
 	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
 template <typename T>
 bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const int triIdx);
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso);
 template <typename DerivedV, typename DerivedI>
 int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx, const double thetaThreshold);
@@ -1653,7 +1653,6 @@ void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers,
 				break;
 
 			Eigen::Matrix<Scalar, 3, 1> ver;
-
 			ver(0) = (Scalar)atof(tmpBuffer);
 			nRet = readNextData(pTmp, nReadLen, tmpBuffer, nMaxSize);
 			if (0 == nRet)
@@ -1704,8 +1703,8 @@ void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic
 
 	for (int j = 0; j < vers.rows(); j++)
 	{
-		char szBuf[256] = { 0 };
-		sprintf_s(szBuf, 256, "v %f %f %f", static_cast<float>(vers(j, 0)), static_cast<float>(vers(j, 1)), static_cast<float>(vers(j, 2)));
+		char szBuf[1024] = { 0 };
+		sprintf_s(szBuf, 1024, "v %.17g %.17g %.17g", vers(j, 0), vers(j, 1), vers(j, 2));
 		dstFile << szBuf << "\n";
 	}
 
@@ -3277,7 +3276,7 @@ bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eig
 // triangleGrowOuterSurf()——从指定三角片（必须是外部的三角片）开始区域生长，提取外层表面单连通流形网格
 template <typename T>
 bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const int triIdx)
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso = true)
 {
 	// ！！！目前假定输入网格的所有三角片朝向正确，且没有退化三角片；
 
@@ -3297,22 +3296,37 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 	if (!buildAdjacency(ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris))
 		return false;
 
-	// 2. 循环——队列中第一个三角片t出队 - t写入输出集合 - 求出t所有相邻三角片的索引然后入队
+	// 2. 选取一个不包含非流形边的三角片作为扩散的种子三角片：
+	int seedIdx = -1;
+	for (int i = 0; i<trisCount; ++i) 
+	{
+		if (ttAdj_nmEdge(i, 0) >= 0 && ttAdj_nmEdge(i, 1) >= 0 && ttAdj_nmEdge(i, 2) >= 0)
+		{
+			seedIdx = i;
+			break;
+		}
+	}
+	if (seedIdx < 0)
+		return false;
+
+	// 3. 循环——队列中第一个三角片t出队 - t写入输出集合 - 求出t所有相邻三角片的索引然后入队
 #ifdef LOCAL_DEBUG
 	std::unordered_set<int> deleTriIdxes, seleTriIdxes;
 #endif
-	std::unordered_set<int> finalTriIdxes;							// 最终保留的三角片索引集合；
+	std::unordered_set<int> finalTriIdxes;							 
 	std::unordered_set<int> workingSet;								// 用于寻找相邻三角片的队列；
 	std::vector<int> triTags(trisCount, 0);								// 0 : 未访问，1: 已收录， -1: 已删除；
 
-	workingSet.insert(static_cast<int>(triIdx));						// 队列插入第一个三角片；
+	// ！！！注意tag写1以后，是有可能被改写为-1的，目前考虑第一次访问到时的标签来决定是否保存三角片；
+
+	workingSet.insert(static_cast<int>(seedIdx));						// 队列插入第一个三角片；
+	triTags[seedIdx] = 1;
 	while (workingSet.size() > 0)
 	{
 		// w.1 首个元素出队，插入到联通三角片集合中；
 		int cTriIdx = *workingSet.begin();									// 当前处理的三角片索引
 		workingSet.erase(workingSet.begin());
 		finalTriIdxes.insert(cTriIdx);
-		triTags[cTriIdx] = 1;
 
 		// w.2 确定当前三角片相邻的所有三角片，根据情况保留和删除
 		std::vector<int> adjTriIdx;												// 当前三角片相邻三角片的索引
@@ -3343,7 +3357,7 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 					continue;
 				else if (1 == vec2.size())
 				{
-					if(0 == triTags[vec2[0]])
+					if (0 == triTags[vec2[0]])
 						workingSet.insert(vec2[0]);
 				}
 				else
@@ -3362,7 +3376,7 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 					if (0 == triTags[selTriIdx])
 						workingSet.insert(selTriIdx);
 
-					for (const auto& index : vec2)
+					for (const auto& index : vec2)		// 未被选取的对面其他三角片全部删除 ；
 					{
 						if (selTriIdx != index)
 						{
@@ -3373,7 +3387,7 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 						}
 					}
 				}
- 
+
 			}
 		}
 
@@ -3384,7 +3398,10 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 			{
 				auto retPair = finalTriIdxes.insert(index);
 				if (retPair.second)
+				{
 					workingSet.insert(index);
+					triTags[index] = 1;
+				}
 			}
 		}
 	}
@@ -3399,19 +3416,29 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 	objWriteMeshMat("E:/seleTris.obj", versCopy, seleTris);
 #endif
 
+	// 4. 提取选中的三角片
 	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> vers1 = vers;
-	Eigen::MatrixXi tris1 = tris;
-	tris1.resize(0, 0);
-	subFromIdxCon(tris1, tris, finalTriIdxes);
+	Eigen::MatrixXi tris1;
+	subFromIdxCon(tris1, tris, finalTriIdxes); 
 
-	std::vector<unsigned> isoVerIdxes = checkIsoVers(vers1, tris1);
-	if (isoVerIdxes.empty())
+	// 5. 去除孤立顶点；
+	if (blRemIso)
+	{
+		std::vector<unsigned> isoVerIdxes = checkIsoVers(vers1, tris1);
+		if (isoVerIdxes.empty())
+		{
+			versOut = vers1;
+			trisOut = tris1;
+		}
+		else
+			removeIsoVers(versOut, trisOut, vers1, tris1, isoVerIdxes);
+	}
+	else
 	{
 		versOut = vers1;
 		trisOut = tris1;
 	}
-	else
-		removeIsoVers(versOut, trisOut, vers1, tris1, isoVerIdxes);
+ 
 
 	return true;
 }
