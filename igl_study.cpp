@@ -76,15 +76,7 @@ static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynam
 	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 	objWriteMeshMat(path, vers, tris);
 }
-
-
-static void debugWriteMesh(const char* name, T_MESH::Basic_TMesh& mesh)
-{
-	char path[512] = { 0 };
-	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-	mesh.save(path);
-}
-
+ 
 
 template<typename DerivedV>
 static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)

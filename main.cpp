@@ -2,6 +2,7 @@
 #include "sparse_mat.h"
 #include "scientific_calc.h"
 #include "igl_study.h"
+#include "myTmesh.h"
 
 #include<stdio.h>
 #include<assert.h>
@@ -18,7 +19,7 @@
 
 static igl::opengl::glfw::Viewer viewer;				// 全局的网格查看器对象；
 static std::mutex g_mutex;						// 全局的互斥锁；
-static std::string g_debugPath = "E:/";
+
 
 // 当前问题-easy
 /*
@@ -60,93 +61,6 @@ static std::string g_debugPath = "E:/";
 	CMAKE_INTDIR="Release"
 */
 
-
-
-/// /////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
-
-static void debugDisp()			// 递归终止
-{						//		递归终止设为无参或者一个参数的情形都可以。
-	std::cout << std::endl;
-	return;
-}
-
-template <typename T, typename... Types>
-static void debugDisp(const T& firstArg, const Types&... args)
-{
-	std::cout << firstArg << " ";
-	debugDisp(args...);
-}
- 
-template <typename T, int M, int N>
-static void dispData(const Eigen::Matrix<T, M, N>& m)
-{
-	auto dataPtr = m.data();
-	unsigned elemsCount = m.size();
-
-	for (unsigned i = 0; i < elemsCount; ++i)
-		std::cout << dataPtr[i] << ", ";
-
-	std::cout << std::endl;
-}
-
-
-template <typename Derived>
-static void dispData(const Eigen::PlainObjectBase<Derived>& m)
-{
-	int m0 = m.RowsAtCompileTime;
-	int n0 = m.ColsAtCompileTime;
-
-	auto dataPtr = m.data();
-	unsigned elemsCount = m.size();
-
-	for (unsigned i = 0; i < elemsCount; ++i)
-		std::cout << dataPtr[i] << ", ";
-
-	std::cout << std::endl;
-}
-
-
-template <typename Derived>
-static void dispElem(const Eigen::MatrixBase<Derived>& m)
-{
-	const Derived& mm = m.derived();
-	std::cout << mm(1, 1) << std::endl;
-}
-
-
-template<typename DerivedV>
-static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
-{
-	char path[512] = { 0 };
-	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-	objWriteVerticesMat(path, vers);
-}
-
-
-template<typename T>
-static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
-{
-	char path[512] = { 0 };
-	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-	objWriteMeshMat(path, vers, tris);
-}
-
-
-static void debugWriteMesh(const char* name, T_MESH::Basic_TMesh& mesh)
-{
-	char path[512] = { 0 };
-	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-	mesh.save(path);
-}
-
-
-template<typename DerivedV>
-static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
-{
-	char path[512] = { 0 };
-	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-	objWriteEdgesMat(path, edges, vers);
-}
 
 
 ////////////////////////////////////////////////////////////////////////////// TEST: 网格精简：
@@ -359,11 +273,11 @@ namespace DECIMATION
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
 		std::string filePath = "E:/材料/";
-		std::string fileName = "jawMeshDense";
+		std::string fileName = "gumMeshDense";
 		igl::readOBJ(filePath + fileName + std::string{ ".obj" }, vers, tris);
 
 		int trisCount = tris.rows();
-		int tarTrisCount = 60000;						// 精简目标三角片 
+		int tarTrisCount = 10000;						// 精简目标三角片 
 		Eigen::VectorXi newOldTrisInfo;				// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
 		Eigen::VectorXi newOldVersInfo;
 		if (!igl::qslim(vers, tris, tarTrisCount, versOut, trisOut, newOldTrisInfo, newOldVersInfo))
@@ -1924,11 +1838,11 @@ int main()
 
 	// DECIMATION::test0();
 
-	// TEST_MYEIGEN::test1111();
+	TEST_MYEIGEN::test1111();
 
 	// TEMP_TEST::test1();
 
-	MESH_REPAIR::test0();
+	// MESH_REPAIR::test0();
  
 	// TEST_DIP::test0();
 

@@ -113,6 +113,9 @@
     <ClCompile Include="triangulate.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="myTmesh.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="myEigen.h">
@@ -194,6 +197,9 @@
       <Filter>TMESH\头文件</Filter>
     </ClInclude>
     <ClInclude Include="triangulate.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="myTmesh.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
