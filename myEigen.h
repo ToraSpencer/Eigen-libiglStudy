@@ -237,8 +237,8 @@ bool trianglesNorm(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& triNorms, c
 template<typename DerivedV, typename DerivedI>
 bool trianglesPlane(Eigen::MatrixXd& planeCoeff, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
-template<typename Scalar, typename DerivedI>
-bool trisArea(Eigen::VectorXd& trisAreaVec, const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+template<typename Scalar, typename Ta, typename DerivedI>
+bool trisArea(Eigen::Matrix<Ta, Eigen::Dynamic, 1>& trisAreaVec, const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
 	const Eigen::MatrixBase<DerivedI>& tris);
 template<typename DerivedV, typename DerivedI>
 double meshVolume(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris);
@@ -309,6 +309,20 @@ bool genGrids(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, con
 	const float step, const std::vector<unsigned>& gridCounts);
 template<typename DerivedV, typename DerivedI>
 int removeSickDupTris(const Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBase<DerivedI>& tris);
+template <typename Tv, typename DerivedF, typename DerivedL>
+void squared_edge_lengths(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers,
+	const Eigen::MatrixBase<DerivedF>& tris, Eigen::PlainObjectBase<DerivedL>& lenMat2);
+template <typename Tv, typename DerivedF, typename Tl>
+void trisAreaDB(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixBase<DerivedF>& tris,
+	Eigen::Matrix<Tl, Eigen::Dynamic, 1>& dbArea);
+template <typename Tl>
+void trisAreaDB(const Eigen::Matrix<Tl, Eigen::Dynamic, 3>& lenMat,
+	const double nan_replacement, Eigen::Matrix<Tl, Eigen::Dynamic, 1>& dbArea);
+template <typename Tv, typename Tl>
+void trisCotValues(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers,
+	const Eigen::MatrixXi& tris, Eigen::Matrix<Tl, Eigen::Dynamic, Eigen::Dynamic>& cotValues);
+template<typename Tv, typename Tl>
+bool cotLaplacian(Eigen::SparseMatrix<Tl>& L, const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
 template<typename T>
 bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOut, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matIn, \
 	const Eigen::MatrixXd& mask);
@@ -2292,8 +2306,8 @@ bool trianglesPlane(Eigen::MatrixXd& planeCoeff, const Eigen::PlainObjectBase<De
 
 
 // 计算三角网格每个三角片的面积：
-template<typename Scalar, typename DerivedI>
-bool trisArea(Eigen::VectorXd& trisAreaVec, const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+template<typename Scalar, typename Ta, typename DerivedI>
+bool trisArea(Eigen::Matrix<Ta, Eigen::Dynamic, 1>& trisAreaVec, const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
 	const Eigen::MatrixBase<DerivedI>& tris)
 {
 	const unsigned versCount = vers.rows();
@@ -2316,12 +2330,29 @@ bool trisArea(Eigen::VectorXd& trisAreaVec, const Eigen::Matrix<Scalar, Eigen::D
 	s = (lens1 + lens2 + lens3) / 2.0;				// 三角片周长的一半；
 
 	// 使用Heron公式计算三角片面积:
-	trisAreaVec = s.array() * (s - lens1).array() * (s - lens2).array() * (s - lens3).array();
-	trisAreaVec = trisAreaVec.cwiseSqrt();
-	
+	Eigen::VectorXd tmpVec = s.array() * (s - lens1).array() * (s - lens2).array() * (s - lens3).array();
+	tmpVec = tmpVec.cwiseSqrt();
+	trisAreaVec = tmpVec.array().cast<Ta>();
+
 	return true;
 }
 
+
+template <typename Tv, typename DerivedF, typename DerivedL>
+void squared_edge_lengths(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers,
+	const Eigen::MatrixBase<DerivedF>& tris, Eigen::PlainObjectBase<DerivedL>& lenMat2)
+{
+	const int trisCount = tris.rows();
+
+	lenMat2.resize(trisCount, 3);
+	PARALLEL_FOR(0, trisCount, [&vers, &tris, &lenMat2](const int i)
+		{
+			lenMat2(i, 0) = (vers.row(tris(i, 1)) - vers.row(tris(i, 2))).squaredNorm();
+			lenMat2(i, 1) = (vers.row(tris(i, 2)) - vers.row(tris(i, 0))).squaredNorm();
+			lenMat2(i, 2) = (vers.row(tris(i, 0)) - vers.row(tris(i, 1))).squaredNorm();
+		});
+}
+ 
 
 // 计算三角网格的体积：
 template<typename DerivedV, typename DerivedI>
@@ -4460,6 +4491,71 @@ int removeSickDupTris(const Eigen::PlainObjectBase<DerivedV>& vers, Eigen::Plain
 	return removeCount;
 }
 
+
+// 计算网格中三角片三个角的余切值；
+template <typename Tv, typename Tl>
+void trisCotValues(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers,
+	const Eigen::MatrixXi& tris, Eigen::Matrix<Tl, Eigen::Dynamic, Eigen::Dynamic>& cotValues)
+{
+	// 1/2*cotangents corresponding angles. for triangles, columns correspond to edges bc, ca, ab;
+	const int trisCount = tris.rows();
+
+	// 计算每个三角片的面积的两倍：
+	Eigen::Matrix<Tl, Eigen::Dynamic, 3> lenMat2;
+	Eigen::Matrix<Tl, Eigen::Dynamic, 3> lenMat;
+	Eigen::Matrix<Tl, Eigen::Dynamic, 1> dblA;
+	squared_edge_lengths(vers, tris, lenMat2);
+	lenMat = lenMat2.array().sqrt();
+	trisArea(dblA, vers, tris);
+	dblA.array() *=  2;
+	cotValues.resize(trisCount, 3);
+	for (int i = 0; i < trisCount; i++)
+	{
+		cotValues(i, 0) = (lenMat2(i, 1) + lenMat2(i, 2) - lenMat2(i, 0)) / dblA(i) / 4.0;
+		cotValues(i, 1) = (lenMat2(i, 2) + lenMat2(i, 0) - lenMat2(i, 1)) / dblA(i) / 4.0;
+		cotValues(i, 2) = (lenMat2(i, 0) + lenMat2(i, 1) - lenMat2(i, 2)) / dblA(i) / 4.0;
+	} 
+}
+
+
+// 生成余切权的laplacian (同时也是刚度矩阵(stiffness matrix))——基于论文：Polygon Laplacian Made Simple [Bunge et al. 2020]
+template<typename Tv, typename Tl>
+bool cotLaplacian(Eigen::SparseMatrix<Tl>& L, const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+{
+	const unsigned versCount = vers.rows();
+	const unsigned trisCount = tris.rows();
+	L.resize(versCount, versCount);
+	L.reserve(10 * versCount);
+
+	Eigen::MatrixXi edges(3, 2);
+	edges << 1, 2, 2, 0, 0, 1;
+ 
+	// Gather cotangents
+	Eigen::Matrix<Tl, Eigen::Dynamic, Eigen::Dynamic> C;
+	trisCotValues(vers, tris, C);
+
+	std::vector<Eigen::Triplet<Tl> > IJV;
+	IJV.reserve(tris.rows() * edges.rows() * 4);
+
+	// Loop over triangles
+	for (int i = 0; i < tris.rows(); i++)
+	{
+		// loop over edges of element
+		for (int e = 0; e < edges.rows(); e++)
+		{
+			int source = tris(i, edges(e, 0));
+			int dest = tris(i, edges(e, 1));
+			IJV.push_back(Eigen::Triplet<Tl>(source, dest, C(i, e)));
+			IJV.push_back(Eigen::Triplet<Tl>(dest, source, C(i, e)));
+			IJV.push_back(Eigen::Triplet<Tl>(source, source, -C(i, e)));
+			IJV.push_back(Eigen::Triplet<Tl>(dest, dest, -C(i, e)));
+		}
+	}
+	L.setFromTriplets(IJV.begin(), IJV.end());
+
+
+	return true;
+}
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////// 图像处理相关：

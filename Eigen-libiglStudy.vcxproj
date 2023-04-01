@@ -142,7 +142,7 @@
     <LibraryPath>$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glad;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glfw\src;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>false</LinkIncremental>
+    <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(ProjectDir)..\libigl_CGAL_openGL\external\eigen;$(ProjectDir)..\libigl_CGAL_openGL\external\glad\include;$(ProjectDir)..\libigl_CGAL_openGL\external\glfw\include;$(ProjectDir)..\libigl_CGAL_openGL\tutorial;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\include;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\external\eigen;..\MeshFix-V2.1-master\include\TMesh;..\MeshFix-V2.1-master\include\Kernel;$(ProjectDir)</IncludePath>
     <LibraryPath>$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glad;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glfw\src;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
@@ -194,7 +194,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_CONSOLE;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"IGL_VIEWER_VIEWER_QUIET;_CRT_SECURE_NO_WARNINGS;LOCAL_DEBUG;NO_TIMER;REDUCED;CDT_ONLY;TRILIBRARY;ANSI_DECLARATORS;</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ANSI_DECLARATORS;_CONSOLE;_DEBUG;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"IGL_VIEWER_VIEWER_QUIET;_CRT_SECURE_NO_WARNINGS;LOCAL_DEBUG;NO_TIMER;REDUCED;CDT_ONLY;TRILIBRARY</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalOptions>/bigobj</AdditionalOptions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -226,7 +226,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"IGL_VIEWER_VIEWER_QUIET;LOCAL_DEBUG;NO_TIMER;REDUCED;CDT_ONLY;TRILIBRARY;ANSI_DECLARATORS;_CRT_SECURE_NO_WARNINGS;</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ANSI_DECLARATORS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"IGL_VIEWER_VIEWER_QUIET;LOCAL_DEBUG;NO_TIMER;REDUCED;CDT_ONLY;TRILIBRARY;ANSI_DECLARATORS;_CRT_SECURE_NO_WARNINGS;</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>

@@ -6,13 +6,36 @@
 
 #include<stdio.h>
 #include<assert.h>
+#include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <winuser.h>
+#include <string>
 
 #include <windows.h>
 #include <atlstr.h>			// 包含CString类。属于microsoft ATL(活动模板库avtive template library)
 #include <atlconv.h>
 #include <io.h>
+
+
+
+
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <random>
+#include <functional>
+#include <algorithm>
+#include <numeric>
+#include <thread>
+#include <windows.h>
+#include <atlstr.h>		// 包含CString类。属于microsoft ATL(活动模板库avtive template library)
+#include <io.h>
+#include <SDKDDKVer.h>	
+#include <windows.h>		
+#include <iostream>
+#include <locale>
 
 
 #define DATA_PATH "./data/"
@@ -60,6 +83,91 @@ static std::mutex g_mutex;						// 全局的互斥锁；
 	
 	CMAKE_INTDIR="Release"
 */
+
+
+////////////////////////////////////////////////////////////////////////////// 基于WINAPI的一些接口：
+
+// 读取某个目录下所有文件名、目录名；
+void getFileNames(std::string path, std::vector<std::string>& files, bool blRecur = true)
+{
+	std::string str;
+	struct _finddata_t fileinfo;			// 文件信息
+	intptr_t hFile = _findfirst(str.assign(path).append("/*").c_str(), &fileinfo);							// 文件句柄	
+	bool blFileValid = (hFile != -1);
+
+	if (blFileValid)
+	{
+		do
+		{
+			bool isSubDir = (fileinfo.attrib & _A_SUBDIR);
+			//如果是目录,递归查找；如果不是,把文件绝对路径存入vector中
+			if (isSubDir & blRecur)
+			{
+				if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
+					getFileNames(str.assign(path).append("/").append(fileinfo.name), files);
+			}
+			else
+				if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
+					files.push_back(str.assign(path).append("/").append(fileinfo.name));
+		} while (_findnext(hFile, &fileinfo) == 0);
+		_findclose(hFile);
+	}
+}
+
+
+// config文件路径字符串字面量 → std::wstring字符串；
+static void GetConfigDir(std::wstring& confDir, const TCHAR* pszConfFile)
+{
+#ifdef WIN32
+	std::wstring strRet(pszConfFile);
+	if ((std::string::npos != strRet.find(L"./")) ||
+		(std::string::npos != strRet.find(L".\\")))
+	{
+		TCHAR szCurDir[256] = { 0 };
+		GetCurrentDirectory(256, szCurDir);
+		confDir = szCurDir;
+		confDir += strRet.substr(1, strRet.length());
+
+		return;
+	}
+	confDir = strRet;
+#endif
+	return;
+}
+
+
+// 读取config文件中的某一个类型为float的键值
+float INIGetFloat(const TCHAR* pszKey, const TCHAR* pszConfFile)
+{
+#ifdef WIN32
+	std::wstring strFileName;
+	GetConfigDir(strFileName, pszConfFile);
+	TCHAR szValue[256] = { 0 };
+	GetPrivateProfileString(L"ZHENGYADENTALCONFIG", pszKey, L"", szValue, 256, strFileName.c_str());
+
+#ifdef UNICODE
+	return _wtof(szValue);
+#else
+	return atof(szValue);
+#endif
+#else
+	return 0.0f;
+#endif
+
+}
+
+
+// 读取config文件中的某一个类型为int的键值
+DWORD INIGetInt(const TCHAR* pszKey, const TCHAR* pszConfFile)
+{
+#ifdef WIN32
+	std::wstring strFileName;
+	GetConfigDir(strFileName, pszConfFile);
+	return GetPrivateProfileInt(L"ZHENGYADENTALCONFIG", pszKey, 0, strFileName.c_str());
+#else
+	return 0;
+#endif
+}
 
 
 
@@ -955,6 +1063,8 @@ namespace DECIMATION
 		int trisCountNew = trisCount;
 		int tarTrisCount = 60000;
 
+		tt.start();
+
 		// 1. 
 		igl::connect_boundary_to_infinity(versOri, trisOri, vers, tris);
 		if (!igl::is_edge_manifold(tris))
@@ -1160,9 +1270,6 @@ namespace DECIMATION
 		// 6. 删除网格中的孤立顶点：
 		igl::remove_unreferenced(vers, tris0, versOut, trisOut, _1, newOldVersInfo);
 
-		//		for debug:
-		igl::writeOBJ("E:/删除内部三角片前.obj", versOut, trisOut);
-
 		// 7. ？？？删除内部三角片
 		const Eigen::Array<bool, Eigen::Dynamic, 1> keep = (newOldTrisInfo.array() < trisCount);
 		igl::slice_mask(Eigen::MatrixXi(trisOut), keep, 1, trisOut);
@@ -1170,9 +1277,13 @@ namespace DECIMATION
 		igl::remove_unreferenced(Eigen::MatrixXd(versOut), Eigen::MatrixXi(trisOut), versOut, trisOut, _1, I2);
 		igl::slice(Eigen::VectorXi(newOldVersInfo), I2, 1, newOldVersInfo);
 
+		tt.endCout("精简耗时：");
+
+
 		igl::writeOBJ("E:/qslimOutput.obj", versOut, trisOut);
 		std::cout << "finished." << std::endl;
 	}
+
 } 
 
 
@@ -1187,10 +1298,9 @@ namespace MESH_REPAIR
 		Eigen::MatrixXi tris, edges;
 
 		bool retFlag = true;
-		//std::ifstream fileIn("E:/杨阳434165L_34_34b_2303012828.stl", std::ios::binary);
 		//retFlag = igl::readSTL(fileIn, vers, tris, normals);							// 貌似igl::readSTL读取的网格顶点数据不对；
 
-		objReadMeshMat(vers, tris, "E:/材料/meshRepairInput_directOuterSurf.obj");
+		objReadMeshMat(vers, tris, "E:/newBracket2.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		// 0. 去除重复三角片：
@@ -1816,14 +1926,294 @@ namespace TEMP_TEST
 }
 
 
+////////////////////////////////////////////////////////////////////////////// 生成控制台程序工具：
 
-int main()
+// 批量读取inputOBJ文件夹中的网格，调用MESHFIX修复：
+int testCmd_meshFix(int argc, char** argv)
+{
+	tiktok& tt = tiktok::getInstance();
+	float deciRatio = 0.5;							// 精简率
+
+	// 生成路径：
+	int   nPos;
+	CString   cPath;
+	GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
+	nPos = cPath.ReverseFind('\\');
+	cPath = cPath.Left(nPos);
+	std::string path{ CT2CA{cPath} };
+	std::string pathOBJ = path + "\\inputOBJ";
+	std::string pathOutput = path + "\\outputData";
+
+	// 1. 读取部件网格 
+	tt.start();
+	std::cout << "读取输入网格..." << std::endl;
+	std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;
+	std::vector<Eigen::MatrixXd> meshesVers, outVers;
+	std::vector<Eigen::MatrixXi> meshesTris, outTris;
+
+	getFileNames(pathOBJ.c_str(), tmpStrVec, false);
+	const unsigned meshesCount = tmpStrVec.size();
+	OBJfileNames.reserve(meshesCount);
+	for (const auto& str : tmpStrVec)
+	{
+		std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
+		if (".obj" == tailStr)
+		{
+			fileNames.push_back(str);
+			unsigned index = str.find_last_of("/");
+			std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
+			OBJfileNames.push_back(OBJfileName);
+		}
+	}
+
+	meshesVers.resize(meshesCount);
+	meshesTris.resize(meshesCount);
+	outVers.resize(meshesCount);
+	outTris.resize(meshesCount);
+	for (unsigned i = 0; i < meshesCount; ++i)
+		objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str());
+	tt.endCout("读取输入网格耗时：");
+
+	// 2. 执行meshFix：
+	tt.start();
+	debugDisp("执行meshFix：");
+	for (unsigned i = 0; i < meshesCount; ++i)
+	{
+		T_MESH::TMesh::init();												// ？？？This is mandatory
+		T_MESH::Basic_TMesh tMesh;
+		meshMat2tMesh(tMesh, meshesVers[i], meshesTris[i]);
+
+		unsigned versCount = tMesh.V.numels();
+		unsigned trisCount = tMesh.T.numels();
+
+		// f1. 提取最大单连通网格；
+		int removedCount = tMesh.removeSmallestComponents();					// d_boundaries, d_handles, d_shells赋值
+
+		// f2. 补洞
+		int holesCount = tMesh.boundaries();				// ？？？
+		int patchedCount = 0;
+		if (holesCount)
+			patchedCount = tMesh.fillSmallBoundaries(0, true);
+
+		// f3. meshclean前计算环形边界数、环柄数；
+		holesCount = tMesh.boundaries();
+
+		// f4. meshClean()——去除退化结构和三角片自交——默认max_iters == 10, inner_loops == 3；
+		bool flagClean = false;
+		int max_iters = 20;
+		int inner_loops = 6;					// 每次大循环中去除退化三角片、去除自交的迭代次数；
+		bool flagIsct, flagDeg;
+		T_MESH::Triangle* t;
+		T_MESH::Node* m;
+
+		//		f4.1. 
+		tMesh.deselectTriangles();
+		tMesh.invertSelection();
+
+		//		f4.2.修复流程的大循环 
+		for (int i = 0; i < max_iters; i++)
+		{
+			//		ff1. 去除退化三角片；
+			flagDeg = tMesh.strongDegeneracyRemoval(inner_loops);			// 全部清除成功返回true， 否则返回false
+
+			//		ff2. 
+			tMesh.deselectTriangles();
+			tMesh.invertSelection();
+
+			//		ff3. 去除自交三角片，补洞；
+			flagIsct = tMesh.strongIntersectionRemoval(inner_loops);			// 自交全部清除返回true，否则返回false;
+
+			//		ff4. 若前两项全部清除成功，进一步检查确认：
+			if (flagIsct && flagDeg)
+			{
+				// 遍历三角片检测是否有退化；
+				for (m = tMesh.T.head(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL; m != NULL; m = m->next(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL)
+					if (t->isExactlyDegenerate())
+						flagIsct = false;
+
+				// 若进一步检查没有问题，退出大循环；
+				if (flagIsct)
+				{
+					flagClean = true;
+					break;
+				}
+			}
+		}
+
+#ifdef LOCAL_DEBUG
+		if (!flagClean)
+			std::cout << "!!!meshclean() is not completed!!!" << std::endl;
+#endif
+
+		TMesh2MeshMat(outVers[i], outTris[i], tMesh);
+	}
+	tt.endCout("meshFix耗时：");
+
+	// 3. 输出：
+	for (unsigned i = 0; i < meshesCount; ++i)
+	{
+		std::string str = pathOutput + OBJfileNames[i] + std::string{ ".obj" };
+		objWriteMeshMat(str.c_str(), outVers[i], outTris[i]);
+	}
+
+	debugDisp("finished.");
+	getchar();
+
+	return 0;
+}
+
+
+// 批量读取本地网格执行qslim边折叠精简
+int testCmd_qslimDecimation(int argc, char** argv)
+{
+	tiktok& tt = tiktok::getInstance();
+	float deciRatio = 0.5;							// 精简率
+
+	// 生成路径：
+	int   nPos;
+	CString   cPath;
+	GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
+	nPos = cPath.ReverseFind('\\');
+	cPath = cPath.Left(nPos);
+	std::string path{ CT2CA{cPath} };
+	std::string pathOBJ = path + "\\inputOBJ";
+	std::string pathOutput = path + "\\outputData";
+
+	// 1. 读取部件网格 
+	tt.start();
+	std::cout << "读取输入网格..." << std::endl;
+	std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;
+	std::vector<Eigen::MatrixXd> meshesVers, outVers;
+	std::vector<Eigen::MatrixXi> meshesTris, outTris;
+
+	getFileNames(pathOBJ.c_str(), tmpStrVec, false);
+	const unsigned meshesCount = tmpStrVec.size();
+	OBJfileNames.reserve(meshesCount);
+	for (const auto& str : tmpStrVec)
+	{
+		std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
+		if (".obj" == tailStr)
+		{
+			fileNames.push_back(str);
+			unsigned index = str.find_last_of("/");
+			std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
+			OBJfileNames.push_back(OBJfileName);
+		}
+	}
+
+	meshesVers.resize(meshesCount);
+	meshesTris.resize(meshesCount);
+	outVers.resize(meshesCount);
+	outTris.resize(meshesCount);
+	for (unsigned i = 0; i < meshesCount; ++i)
+		objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str());
+	tt.endCout("读取输入网格耗时：");
+
+	// 2. 执行qslim精简：
+	tt.start();
+	debugDisp("执行qslim精简：");
+	for (int i = 0; i < meshesCount; ++i)
+	{
+		Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
+		Eigen::VectorXi newOldVersInfo;
+		int trisCount = meshesTris[i].rows();
+		int tarTrisCount = std::round(trisCount * deciRatio);
+
+		igl::qslim(meshesVers[i], meshesTris[i], tarTrisCount, outVers[i], outTris[i], newOldTrisInfo, newOldVersInfo);
+	}
+	tt.endCout("qslim精简耗时：");
+
+	// 3. 输出：
+	for (unsigned i = 0; i < meshesCount; ++i)
+	{
+		std::string str = pathOutput + OBJfileNames[i] + std::string{ ".obj" };
+		objWriteMeshMat(str.c_str(), outVers[i], outTris[i]);
+	}
+
+	debugDisp("finished.");
+	getchar();
+
+	return 0;
+}
+
+ 
+// 批量读取本地网格执行laplace光顺：
+int testCmd_laplaceFaring(int argc, char** argv)
+{
+	tiktok& tt = tiktok::getInstance();
+	float deciRatio = 0.5;							// 精简率
+
+	// 生成路径：
+	int   nPos;
+	CString   cPath;
+	GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
+	nPos = cPath.ReverseFind('\\');
+	cPath = cPath.Left(nPos);
+	std::string path{ CT2CA{cPath} };
+	std::string pathOBJ = path + "\\inputOBJ";
+	std::string pathOutput = path + "\\outputData";
+	CString fileConfig = cPath + "\\config.ini";
+
+	// 1. 读取部件网格 
+	tt.start();
+	std::cout << "读取输入网格..." << std::endl;
+	std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;
+	std::vector<Eigen::MatrixXd> meshesVers, outVers;
+	std::vector<Eigen::MatrixXi> meshesTris, outTris;
+
+	getFileNames(pathOBJ.c_str(), tmpStrVec, false);
+	const unsigned meshesCount = tmpStrVec.size();
+	OBJfileNames.reserve(meshesCount);
+	for (const auto& str : tmpStrVec)
+	{
+		std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
+		if (".obj" == tailStr)
+		{
+			fileNames.push_back(str);
+			unsigned index = str.find_last_of("/");
+			std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
+			OBJfileNames.push_back(OBJfileName);
+		}
+	}
+	meshesVers.resize(meshesCount);
+	meshesTris.resize(meshesCount);
+	outVers.resize(meshesCount);
+	outTris.resize(meshesCount);
+	for (unsigned i = 0; i < meshesCount; ++i)
+		objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str());
+	tt.endCout("读取输入网格耗时：");
+
+	// 2. 网格逐个执行laplace光顺：
+	tt.start();
+	debugDisp("执行laplace光顺：");
+	float deltaLB = INIGetFloat(TEXT("deltaLB"), fileConfig);
+	unsigned loopCount = INIGetInt(TEXT("laplaceFaringLoopCount"), fileConfig);
+	for (int i = 0; i < meshesCount; ++i)
+		laplaceFaring(outVers[i], meshesVers[i], meshesTris[i], deltaLB, loopCount);
+	outTris = std::move(meshesTris);
+	tt.endCout("laplace光顺：");
+
+	// 3. 输出：
+	for (unsigned i = 0; i < meshesCount; ++i)
+	{
+		std::string str = pathOutput + OBJfileNames[i] + std::string{ ".obj" };
+		objWriteMeshMat(str.c_str(), outVers[i], outTris[i]);
+	}
+
+	debugDisp("finished.");
+
+	return 0;
+}
+ 
+
+
+int main(int argc, char** argv)
 {
 	// DENSEMAT::test7();
 	
 	// SPARSEMAT::test0();
 
-	// DECIMATION::test0000();
+	 DECIMATION::test1();
 
 	// IGL_DIF_GEO::test1();
 	// IGL_GRAPH::test1();
@@ -1838,7 +2228,7 @@ int main()
 
 	// DECIMATION::test0();
 
-	TEST_MYEIGEN::test1111();
+	// TEST_MYEIGEN::test5();
 
 	// TEMP_TEST::test1();
 
@@ -1847,6 +2237,12 @@ int main()
 	// TEST_DIP::test0();
 
 	// TEST_TMESH::test44();
+
+	//DECIMATION::testCmd_qslimDecimation(argc, argv);
+
+	// MESH_REPAIR::testCmd_meshFix(argc, argv);
+
+	// testCmd_laplaceFaring(argc, argv);
 
 	std::cout << "main() finished." << std::endl;
 }

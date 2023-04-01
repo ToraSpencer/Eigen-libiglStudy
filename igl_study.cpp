@@ -88,8 +88,6 @@ static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, cons
 
 
 
-
-
 ////////////////////////////////////////////////////////////////////////////// libigl基本功能
 namespace IGL_BASIC
 {
@@ -532,23 +530,23 @@ namespace IGL_BASIC
 ////////////////////////////////////////////////////////////////////////////// libigl中的微分几何相关
 namespace IGL_DIF_GEO 
 {
-	Eigen::MatrixXd vers, newVers, normals;
-	Eigen::MatrixXi tris;
-	Eigen::SparseMatrix<double> L;
-	float deltaLB;
-	unsigned smoothLoopCount = 0;
+	Eigen::MatrixXd vers_g, newVers_g, normals_g;
+	Eigen::MatrixXi tris_g;
+	Eigen::SparseMatrix<double> L_g;
+	float deltaLB_g;
+	unsigned smoothLoopCount_g = 0;
 
 
 	// test0: 质量矩阵和LB算子
 	void test0() 
 	{
-		Eigen::MatrixXd vers;
-		Eigen::MatrixXi tris;
-		Eigen::SparseMatrix<double> L, M;
+		Eigen::MatrixXd vers_g;
+		Eigen::MatrixXi tris_g;
+		Eigen::SparseMatrix<double> L_g, M;
 
-		igl::readOBJ("E:/材料/tooth.obj", vers, tris);
-		igl::cotmatrix(vers, tris, L);
-		igl::massmatrix(vers, tris, igl::MassMatrixType::MASSMATRIX_TYPE_DEFAULT, M);
+		igl::readOBJ("E:/材料/tooth.obj", vers_g, tris_g);
+		igl::cotmatrix(vers_g, tris_g, L_g);
+		igl::massmatrix(vers_g, tris_g, igl::MassMatrixType::MASSMATRIX_TYPE_DEFAULT, M);
 
 		dispSpMat(M, 0, M.rows() - 1, 10);
 
@@ -568,31 +566,31 @@ namespace IGL_DIF_GEO
 		case 'r':
 
 		case 'R':							// 复位程序
-			newVers = vers;
-			smoothLoopCount = 0;
+			newVers_g = vers_g;
+			smoothLoopCount_g = 0;
 			break;
 
 		case 's':
 
 		case 'S':			
-			sprintf_s(&outputName[0], 512, "E:/meshSmoothLB_step%d.obj", smoothLoopCount);
-			igl::writeOBJ(outputName, newVers, tris);
-			std::cout << "step " << smoothLoopCount << " result saved." << std::endl;
+			sprintf_s(&outputName[0], 512, "E:/meshSmoothLB_step%d.obj", smoothLoopCount_g);
+			igl::writeOBJ(outputName, newVers_g, tris_g);
+			std::cout << "step " << smoothLoopCount_g << " result saved." << std::endl;
 			break;
 
 		case ' ':								// 空格键，执行一次laplace光顺
 		{
 			// 1. 重新计算质量矩阵
 			Eigen::SparseMatrix<double> mass;
-			igl::massmatrix(newVers, tris, igl::MASSMATRIX_TYPE_BARYCENTRIC, mass);
+			igl::massmatrix(newVers_g, tris_g, igl::MASSMATRIX_TYPE_BARYCENTRIC, mass);
 
-			// 2. 解线性方程组 (mass - delta*L) * newVers = mass * newVers
-			const auto& S = (mass - deltaLB * L);
+			// 2. 解线性方程组 (mass - delta*L_g) * newVers_g = mass * newVers_g
+			const auto& S = (mass - deltaLB_g * L_g);
 			Eigen::SimplicialLLT<Eigen::SparseMatrix<double > > solver(S);
 			assert(solver.info() == Eigen::Success);
-			newVers = solver.solve(mass * newVers).eval();
+			newVers_g = solver.solve(mass * newVers_g).eval();
 
-			std::cout << "smoothLoopCount == " << (++smoothLoopCount) << std::endl;
+			std::cout << "smoothLoopCount_g == " << (++smoothLoopCount_g) << std::endl;
 
 			break;
 		}
@@ -601,9 +599,9 @@ namespace IGL_DIF_GEO
 			return false;
 		}
 
-		viewer.data().set_vertices(newVers);
+		viewer.data().set_vertices(newVers_g);
 		viewer.data().compute_normals();
-		viewer.core().align_camera_center(newVers, tris);
+		viewer.core().align_camera_center(newVers_g, tris_g);
 		return true;
 	};
 
@@ -612,45 +610,42 @@ namespace IGL_DIF_GEO
 	{
 		Eigen::MatrixXd norms;
 		Eigen::MatrixXd colors;
-		
-		//igl::readOBJ("./data/bunny.obj", vers, tris);
-		//deltaLB = 0.001;
 
-		igl::readOBJ("E:/材料/jawMesh.obj", vers, tris);
-		deltaLB = 0.1;
+		igl::readOBJ("E:/gum.obj", vers_g, tris_g);
+		deltaLB_g = 0.5;
 
-		newVers = vers;
+		newVers_g = vers_g;
 
-		const unsigned versCount = vers.rows();
-		const unsigned trisCount = tris.rows();
+		const unsigned versCount = vers_g.rows();
+		const unsigned trisCount = tris_g.rows();
 
 		// 1.a 直接构造laplacian——Compute Laplace-Beltrami operator: 
-		igl::cotmatrix(vers, tris, L);
+		igl::cotmatrix(vers_g, tris_g, L_g);
 
 		// 1.b 测试分步构造laplacian
 		{
 			Eigen::SparseMatrix<double> Gradient, L2;
 			Eigen::VectorXd dblA;									  // 每个三角片面积的两倍
-			igl::grad(vers, tris, Gradient);      // 离散梯度
+			igl::grad(vers_g, tris_g, Gradient);      // 离散梯度
 
 			// Diagonal per-triangle "mass matrix"			
-			igl::doublearea(vers, tris, dblA);           
+			igl::doublearea(vers_g, tris_g, dblA);           
 
 			// Place areas along diagonal  #dim times
 			const auto& T = 1. * (dblA.replicate(3, 1) * 0.5).asDiagonal();
 
 			L2 = -Gradient.transpose() * T * Gradient;         // discrete Dirichelet energy Hessian 离散狄利克雷能量海塞矩阵
 			std::cout << "两种方法得到的laplacian的差的范数：" << std::endl;
-			std::cout << "(L2 - L).norm() == " << (L2 - L).norm() << std::endl;
+			std::cout << "(L2 - L_g).norm() == " << (L2 - L_g).norm() << std::endl;
 		}
 
 		// 2. 根据原始的法向量，使用伪色
-		igl::per_vertex_normals(vers, tris, norms);
+		igl::per_vertex_normals(vers_g, tris_g, norms);
 		colors = norms.rowwise().normalized().array() * 0.5 + 0.5;
 
 		// 3. viewr填充初始数据
-		newVers = vers;
-		viewer.data().set_mesh(newVers, tris);
+		newVers_g = vers_g;
+		viewer.data().set_mesh(newVers_g, tris_g);
 		viewer.data().set_colors(colors);
 		viewer.callback_key_down = key_down_laplacian;
 
@@ -660,7 +655,6 @@ namespace IGL_DIF_GEO
 
 		viewer.launch();
 	}
-
 
 }
 
