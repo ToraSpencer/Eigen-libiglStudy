@@ -1300,7 +1300,7 @@ namespace MESH_REPAIR
 		bool retFlag = true;
 		//retFlag = igl::readSTL(fileIn, vers, tris, normals);							// 貌似igl::readSTL读取的网格顶点数据不对；
 
-		objReadMeshMat(vers, tris, "E:/newBracket2.obj");
+		objReadMeshMat(vers, tris, "E:/meshArr0_isct134.obj.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		// 0. 去除重复三角片：
@@ -1398,6 +1398,7 @@ namespace MESH_REPAIR
 		// 7. 提取所有单连通区域：
 		Eigen::SparseMatrix<int> adjSM, adjSM_eCount, adjSM_eIdx;
 		Eigen::VectorXi connectedLabels, connectedCount, connectedTriLabels, connectedTriCount;
+		Eigen::VectorXi connectedLabelsSCT, connectedCountSCT;
 		adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
 		unsigned nzCount = adjSM_eCount.nonZeros();
 		adjSM = adjSM_eCount;
@@ -1407,13 +1408,31 @@ namespace MESH_REPAIR
 					iter.valueRef() = 1;
 			});
 		int scCount = simplyConnectedRegion(adjSM, connectedLabels, connectedCount);
-		int sctCount = simplyTrisConnectedRegion(connectedLabels, connectedCount, tris);
+		int sctCount = simplyTrisConnectedRegion(connectedLabelsSCT, connectedCountSCT, tris);
 		if (scCount > 1 || sctCount > 1)
 		{
 			if (scCount != sctCount)
 			{
 				debugDisp("存在奇异点。");
 				debugDisp("scCount == ", scCount);
+			}
+
+			if (sctCount > 1) 
+			{
+				std::vector<int> tmpVec = vec2Vec(connectedLabelsSCT);
+				Eigen::VectorXi flagVec = connectedLabelsSCT;
+				
+				for (int i = 0; i < sctCount; ++i) 
+				{
+					flagVec.setZero();
+					for (int k = 0; k < trisCount; ++k)
+						if (i == connectedLabelsSCT[k])
+							flagVec[k] = 1;
+					Eigen::MatrixXi subTris;
+					subFromFlagVec(subTris, tris, flagVec);
+					debugWriteMesh((std::string{"meshSplitted"} + std::to_string(i) + std::string{".obj"}).c_str(), vers, subTris);
+				}
+
 			}
 			debugDisp("sctCount == ", sctCount);
 		}
@@ -1522,7 +1541,7 @@ namespace MESH_REPAIR
 		tris = trisOut;
 		versOut.resize(0, 0);
 		trisOut.resize(0, 0);
-		simplyConnectedLargest(vers, tris, versOut, trisOut);
+		simplyConnectedLargest(versOut, trisOut, vers, tris);
 		std::cout << "remove isolated mesh: versCount == " << vers.rows() - versOut.rows() << ", trisCount == "\
 			<< tris.rows() - trisOut.rows() << std::endl;
 
@@ -2213,7 +2232,7 @@ int main(int argc, char** argv)
 	
 	// SPARSEMAT::test0();
 
-	 DECIMATION::test1();
+	 //DECIMATION::test1();
 
 	// IGL_DIF_GEO::test1();
 	// IGL_GRAPH::test1();
@@ -2232,7 +2251,7 @@ int main(int argc, char** argv)
 
 	// TEMP_TEST::test1();
 
-	// MESH_REPAIR::test0();
+	MESH_REPAIR::test0();
  
 	// TEST_DIP::test0();
 

@@ -2022,7 +2022,7 @@ namespace IGL_BASIC_PMP
 		objReadMeshMat(vers, tris, "E:/材料/原型数据/originalMesh.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
-		bool retFlag = simplyConnectedLargest(vers, tris, versOut, trisOut);
+		bool retFlag = simplyConnectedLargest(versOut, trisOut, vers, tris);
 		if (!retFlag)
 			std::cout << "function failed!!!" << std::endl;
 

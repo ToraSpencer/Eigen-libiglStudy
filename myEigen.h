@@ -19,7 +19,6 @@
 #include <limits>
 #include <windows.h>
  
-
 #define USE_TRIANGLE_H
 
 #ifdef USE_TRIANGLE_H
@@ -288,8 +287,8 @@ template <typename DerivedI>
 int simplyTrisConnectedRegion(Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
 template <typename DerivedV, typename DerivedI>
-bool simplyConnectedLargest(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, \
-	Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut);
+bool simplyConnectedLargest(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris);
 template <typename IndexT>
 bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, const std::vector<IndexT>& sickTriIdxes);
 template <typename DerivedV>
@@ -1492,7 +1491,45 @@ void concatMeshMat(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBas
 	matInsertRows(tris, trisCopy1);
 };
 
+// MATLAB——repmat();
+template <typename DerivedA, typename DerivedB>
+void repmat(Eigen::PlainObjectBase<DerivedB>& B, const Eigen::PlainObjectBase<DerivedA>& A, const int repRows, const int repCols)
+{
+	assert(repRows > 0);
+	assert(repCols > 0);
+	B.resize(repRows * A.rows(), repCols * A.cols());
 
+	// copy tiled blocks
+	for (int i = 0; i < repRows; i++)
+		for (int j = 0; j < repCols; j++)
+			B.block(i * A.rows(), j * A.cols(), A.rows(), A.cols()) = A;
+}
+
+// MATLAB——sparse()
+template <class IndexVectorI, class IndexVectorJ,	class ValueVector,	typename T>
+void sparse(Eigen::SparseMatrix<T>& SM, const IndexVectorI& I, const IndexVectorJ& J,
+		const ValueVector& values, const size_t m, const size_t n	)
+{
+	assert((int)I.maxCoeff() < (int)m);
+	assert((int)I.minCoeff() >= 0);
+	assert((int)J.maxCoeff() < (int)n);
+	assert((int)J.minCoeff() >= 0);
+	assert(I.size() == J.size());
+	assert(J.size() == values.size());
+
+	// Really we just need .size() to be the same, but this is safer
+	assert(I.rows() == J.rows());
+	assert(J.rows() == values.rows());
+	assert(I.cols() == J.cols());
+	assert(J.cols() == values.cols());
+
+	std::vector<Eigen::Triplet<T>> IJV;
+	IJV.reserve(I.size());
+	for (int x = 0; x < I.size(); x++)
+		IJV.push_back(Eigen::Triplet<T>(I(x), J(x), values(x)));
+	SM.resize(m, n);
+	SM.setFromTriplets(IJV.begin(), IJV.end());
+}
 
 
 
@@ -2335,6 +2372,20 @@ bool trisArea(Eigen::Matrix<Ta, Eigen::Dynamic, 1>& trisAreaVec, const Eigen::Ma
 	trisAreaVec = tmpVec.array().cast<Ta>();
 
 	return true;
+}
+
+
+template <typename Tv, typename DerivedF, typename DerivedL>
+void edge_lengths(Eigen::PlainObjectBase<DerivedL>& lenMat, const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers,
+	const Eigen::MatrixBase<DerivedF>& tris){
+	const int trisCount = tris.rows();
+	lenMat.resize(trisCount, 3);
+	PARALLEL_FOR(0, trisCount, [&vers, &tris, &lenMat](const int i)
+		{
+			lenMat(i, 0) = (vers.row(tris(i, 1)) - vers.row(tris(i, 2))).norm();
+			lenMat(i, 1) = (vers.row(tris(i, 2)) - vers.row(tris(i, 0))).norm();
+			lenMat(i, 2) = (vers.row(tris(i, 0)) - vers.row(tris(i, 1))).norm();
+		});
 }
 
 
@@ -4042,8 +4093,8 @@ int simplyTrisConnectedRegion(	Eigen::VectorXi& connectedLabels, Eigen::VectorXi
 
 // 提取三角网格中最大单连通区域（顶点连通）
 template <typename DerivedV, typename DerivedI>
-bool simplyConnectedLargest(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, \
-	Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut)
+bool simplyConnectedLargest(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris)
 {
 	const unsigned versCount = vers.rows();
 	const unsigned trisCount = tris.rows();
@@ -4553,11 +4604,76 @@ bool cotLaplacian(Eigen::SparseMatrix<Tl>& L, const Eigen::Matrix<Tv, Eigen::Dyn
 	}
 	L.setFromTriplets(IJV.begin(), IJV.end());
 
+	return true;
+}
+
+
+// 生成质量矩阵：
+template <typename Tm, typename Tv>
+bool massMatrix_baryCentric(Eigen::SparseMatrix<Tm>& MM, const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+	const Eigen::MatrixXi& tris)
+{
+	const int versCount = vers.rows();
+	const int trisCount = tris.rows();
+	Eigen::MatrixXd lenMat;
+	edge_lengths(lenMat, vers, tris);
+	
+	Eigen::VectorXd dblA;
+	trisArea(dblA, vers, tris);
+	dblA.array() *= 2;
+	Eigen::MatrixXi MI;
+	Eigen::MatrixXi MJ;
+	Eigen::MatrixXd MV;
+
+	// diagonal entries for each face corner
+	MI.resize(trisCount * 3, 1); 
+	MJ.resize(trisCount * 3, 1); 
+	MV.resize(trisCount * 3, 1);
+	MI.block(0 * trisCount, 0, trisCount, 1) = tris.col(0);
+	MI.block(1 * trisCount, 0, trisCount, 1) = tris.col(1);
+	MI.block(2 * trisCount, 0, trisCount, 1) = tris.col(2);
+	MJ = MI;
+	repmat(MV, dblA, 3, 1);
+	MV.array() /= 6.0;
+	sparse(MM, MI, MJ, MV, versCount, versCount);
 
 	return true;
 }
 
 
+// laplace光顺 
+template <typename T>
+bool laplaceFaring(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const float deltaLB, const unsigned loopCount)
+{
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	// 1. 计算laplace矩阵：
+	Eigen::SparseMatrix<T> Lmat;
+	cotLaplacian(Lmat, vers, tris);
+
+	// 2. 光顺的循环：
+	MatrixXT versCopy = vers;
+	for (unsigned i = 0; i < loopCount; ++i)
+	{
+		// f1. 计算当前质量矩阵：
+		Eigen::SparseMatrix<T> mass;
+		massMatrix_baryCentric(mass, vers, tris);
+
+		// f2. 解线性方程组 (mass - delta*L) * newVers = mass * newVers
+		const auto& S = (mass - deltaLB * Lmat);
+		Eigen::SimplicialLLT<Eigen::SparseMatrix<T>> solver(S);
+		assert(solver.info() == Eigen::Success);
+		versOut = solver.solve(mass * versCopy).eval();
+		versCopy = versOut;
+	}
+
+	return true;
+}
+
+ 
 //////////////////////////////////////////////////////////////////////////////////////////////// 图像处理相关：
 
 // 矩阵的空域线性滤波——！！！注：滤波mask尺寸必须为奇数！！！

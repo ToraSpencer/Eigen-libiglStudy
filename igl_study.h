@@ -93,41 +93,6 @@
 #include "tutorial_shared_path.h"
 
 
-// 封装的基于libigl的laplace光顺接口：
-template <typename T>
-bool laplaceFaring(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const float deltaLB, const unsigned loopCount)
-{
-	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
-	using Matrix3T = Eigen::Matrix<T, 3, 3>;
-	using RowVector3T = Eigen::Matrix<T, 1, 3>;
-
-	// 1. 计算laplace矩阵：
-	Eigen::SparseMatrix<T> Lmat;
-	//igl::cotmatrix(vers, tris, Lmat);
-	cotLaplacian(Lmat, vers, tris);
-
-	// 2. 光顺的循环：
-	MatrixXT versCopy = vers;
-	for (unsigned i = 0; i < loopCount; ++i)
-	{
-		// f1. 计算当前质量矩阵：
-		Eigen::SparseMatrix<T> mass;
-		igl::massmatrix(versCopy, tris, igl::MASSMATRIX_TYPE_BARYCENTRIC, mass);
-
-		// f2. 解线性方程组 (mass - delta*L) * newVers = mass * newVers
-		const auto& S = (mass - deltaLB * Lmat);
-		Eigen::SimplicialLLT<Eigen::SparseMatrix<T>> solver(S);
-		assert(solver.info() == Eigen::Success);
-		versOut = solver.solve(mass * versCopy).eval();
-		versCopy = versOut;
-	}
-
-	return true;
-}
-
-
-
 namespace IGL_BASIC
 {
 	const double pi = 3.14159;
