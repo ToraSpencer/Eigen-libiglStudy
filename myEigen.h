@@ -35,6 +35,24 @@
 
 const double pi = 3.14159265359;
 
+
+/////////////////////////////////////////////////////////////////////////////////////////////////// 辅助结构：
+template <typename T>
+struct triplet 
+{
+	T x;
+	T y;
+	T z;
+};
+
+template <typename T>
+struct doublet
+{
+	T x;
+	T y;
+};
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////////// 前置声明
 
 template <typename T>
@@ -138,7 +156,6 @@ template <typename Index>
 std::uint64_t encodeTriangle(const Index vaIdx, const Index vbIdx, const Index vcIdx);
 std::vector<int> decodeTrianagle(const std::uint64_t code);
 
-
 template <typename DerivedI>
 void findRepTris(std::vector<int>& repIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
 
@@ -220,8 +237,10 @@ template <typename T>
 void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, unsigned);
 template<typename T>
 Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& sampleVers);
+
 template <typename DerivedI>
-void getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedI>& tris);
+bool getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedI>& tris);
+
 template <typename DerivedV, typename DerivedF, typename DerivedN>
 bool getTriNorms(Eigen::PlainObjectBase<DerivedN>& triNorms, const Eigen::MatrixBase<DerivedV>& vers, \
 	const Eigen::MatrixBase<DerivedF>& tris);
@@ -327,7 +346,71 @@ bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOu
 	const Eigen::MatrixXd& mask);
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////// debug接口：
 
+// 顶点或三角片矩阵转换为triplet向量的形式；
+template <typename T>
+std::vector<triplet<T>> mat2triplets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat)
+{
+	std::vector<triplet<T>> vec;
+	if (0 == mat.rows() || 3 != mat.cols())
+		return vec;
+
+	vec.resize(mat.rows());
+	for (unsigned i = 0; i < mat.rows(); ++i) 
+	{
+		vec[i].x = mat(i, 0);
+		vec[i].y = mat(i, 1);
+		vec[i].z = mat(i, 2);
+	}
+
+	return vec;
+}
+
+template <typename T>
+std::vector<doublet<T>> mat2doublets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat)
+{
+	std::vector<doublet<T>> vec;
+	if (0 == mat.rows() || 2 != mat.cols())
+		return vec;
+
+	vec.resize(mat.rows());
+	for (unsigned i = 0; i < mat.rows(); ++i)
+	{
+		vec[i].x = mat(i, 0);
+		vec[i].y = mat(i, 1);
+	}
+
+	return vec;
+}
+
+
+// 遍历搜索triplet向量，若索引为index的triplet元素使得谓词f返回值为true，则返回index; 若找不到或出错则返回-1；
+template <typename T, typename F>
+int findTriplet(const std::vector<triplet<T>>& trips, F f)		
+{
+	// 谓词F的形式为bool foo(const triplet<T>& t);
+	if (trips.empty())
+		return -1;
+	for (unsigned i = 0; i < trips.size(); ++i)
+		if (f(trips[i]))
+			return static_cast<int>(i);
+
+	return -1;
+}
+
+template <typename T, typename F>
+int findTriplet(const std::vector<doublet<T>>& doubs, F f)
+{
+	// 谓词F的形式为bool foo(const doublet<T>& d);
+	if (doubs.empty())
+		return -1;
+	for (unsigned i = 0; i < doubs.size(); ++i)
+		if (f(doubs[i]))
+			return static_cast<int>(i);
+
+	return -1;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// basic math interface
 
@@ -2179,7 +2262,7 @@ Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Ei
 
 // 得到三角网格的有向边数据
 template <typename DerivedI>
-void getEdges(Eigen::MatrixXi& edges, 	const Eigen::PlainObjectBase<DerivedI>& tris)
+bool getEdges(Eigen::MatrixXi& edges, 	const Eigen::PlainObjectBase<DerivedI>& tris)
 {
 	const unsigned trisCount = tris.rows();
 	const unsigned edgesCount = 3 * trisCount;
@@ -2195,10 +2278,38 @@ void getEdges(Eigen::MatrixXi& edges, 	const Eigen::PlainObjectBase<DerivedI>& t
 	edges.block(0, 1, trisCount, 1) = vcIdxes;
 	edges.block(trisCount, 1, trisCount, 1) = vaIdxes;
 	edges.block(trisCount * 2, 1, trisCount, 1) = vbIdxes;
+
+	return true;
 }
 
 
- 
+template <typename DerivedI>
+bool getUedges(Eigen::MatrixXi& uEdges, const Eigen::PlainObjectBase<DerivedI>& edges)
+{
+	unsigned edgesCount = edges.rows();
+	uEdges.resize(0, 0);
+	if (0 == edges.size() || 2 != edges.rows())
+		return false;
+
+	std::unordered_set<std::int64_t> uEdgeSet;
+	for (unsigned i = 0; i < edgesCount; ++i)
+		uEdgeSet.insert(encodeUedge(edges(i, 0), edges(i, 1)));
+	unsigned uEdgesCount = uEdgeSet.size();
+	uEdges.resize(uEdgesCount, 2);
+
+	int index = 0;
+	for (auto& code : uEdgeSet)
+	{
+		auto pair = decodeEdge(code);
+		uEdges(index, 0) = pair.first;
+		uEdges(index, 1) = pair.second;
+		index++;
+	}
+
+	return true;
+}
+
+
 // 计算网格所有三角片法向：
 template <typename DerivedV, typename DerivedF, typename DerivedN>
 bool getTriNorms(Eigen::PlainObjectBase<DerivedN>& triNorms, const Eigen::MatrixBase<DerivedV>& vers, \
@@ -3377,26 +3488,28 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 	std::vector<int> triTags(trisCount, 0);								// 0 : 未访问，1: 已收录， -1: 已删除；
 
 	// ！！！注意tag写1以后，是有可能被改写为-1的，目前考虑第一次访问到时的标签来决定是否保存三角片；
-
 	workingSet.insert(static_cast<int>(seedIdx));						// 队列插入第一个三角片；
 	triTags[seedIdx] = 1;
 	while (workingSet.size() > 0)
 	{
 		// w.1 首个元素出队，插入到联通三角片集合中；
 		int cTriIdx = *workingSet.begin();									// 当前处理的三角片索引
-		workingSet.erase(workingSet.begin());
+		workingSet.erase(workingSet.begin());		
+		if (triTags[cTriIdx] < 0)											// 有可能入队时是未访问状态，入队之后被标记为删除三角片；
+			continue;
 		finalTriIdxes.insert(cTriIdx);
 
 		// w.2 确定当前三角片相邻的所有三角片，根据情况保留和删除
 		std::vector<int> adjTriIdx;												// 当前三角片相邻三角片的索引
 		for (int i = 0; i < 3; ++i)
 		{
-			if (ttAdj_nmEdge(cTriIdx, i) >= 0)
-				adjTriIdx.push_back(ttAdj_nmEdge(cTriIdx, i));		// wf.a. 流形边关联的相邻三角片都保留；
+			int nmAdjTriIdx = ttAdj_nmEdge(cTriIdx, i);
+			if (nmAdjTriIdx >= 0)
+					adjTriIdx.push_back(nmAdjTriIdx);						// wf.a. 流形边关联的相邻三角片都保留；
 			else
 			{
 				// wf.b.1. 删除当前非流形边关联的其他三角片：
-				auto& vec1 = ttAdj_nmnEdge[cTriIdx][i];				// 包括当前三角片自身；
+				auto& vec1 = ttAdj_nmnEdge[cTriIdx][i];				// 当前非流形边所在的三角片，包括当前三角片自身；
 				for (const auto& index : vec1)
 				{
 					if (index == cTriIdx)
@@ -3411,14 +3524,11 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 				}
 
 				// wf.b.2. 当前非流形边的对边所在的三角片中，选取法向夹角最大(即dot值最小)的那个；
-				auto& vec2 = ttAdj_nmnOppEdge[cTriIdx][i];
+				auto& vec2 = ttAdj_nmnOppEdge[cTriIdx][i];			// 当前非流形边的对边所在的所有三角片
 				if (vec2.empty())
 					continue;
 				else if (1 == vec2.size())
-				{
-					if (0 == triTags[vec2[0]])
-						workingSet.insert(vec2[0]);
-				}
+						adjTriIdx.push_back(vec2[0]);
 				else
 				{
 					unsigned nopTrisCount = vec2.size();
@@ -3431,11 +3541,9 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 					Eigen::Index minIdx;
 					dotValues.minCoeff(&minIdx);
 					int selTriIdx = vec2[minIdx];
+					adjTriIdx.push_back(selTriIdx);
 
-					if (0 == triTags[selTriIdx])
-						workingSet.insert(selTriIdx);
-
-					for (const auto& index : vec2)		// 未被选取的对面其他三角片全部删除 ；
+					for (const auto& index : vec2)				// 未被选取的对面其他三角片全部删除 ；
 					{
 						if (selTriIdx != index)
 						{
@@ -3496,8 +3604,7 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 	{
 		versOut = vers1;
 		trisOut = tris1;
-	}
- 
+	} 
 
 	return true;
 }

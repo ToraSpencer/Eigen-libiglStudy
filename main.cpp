@@ -174,6 +174,19 @@ DWORD INIGetInt(const TCHAR* pszKey, const TCHAR* pszConfFile)
 ////////////////////////////////////////////////////////////////////////////// TEST: 网格精简：
 namespace DECIMATION 
 {
+	using Quadric = std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double>;
+
+	// q矩阵重载运算符；
+	Quadric operator+(const Quadric& q1, const Quadric& q2)
+	{
+		Quadric result;
+		std::get<0>(result) = (std::get<0>(q1) + std::get<0>(q2)).eval();
+		std::get<1>(result) = (std::get<1>(q1) + std::get<1>(q2)).eval();
+		std::get<2>(result) = (std::get<2>(q1) + std::get<2>(q2));
+		return result;
+	}
+
+	// 判断边是否可以折叠：
 	bool edge_collapse_is_valid(std::vector<int>& srcNbrIdx, std::vector<int>& desNbrIdx)
 	{
 		// Do we really need to check if edge is IGL_COLLAPSE_EDGE_NULL ?
@@ -667,14 +680,40 @@ namespace DECIMATION
 		std::cout << "finished." << std::endl;
 	}
 
+	// 将网格处理成一个封闭网格——若存在边缘有向边，则将其和一个无限远点连接生成新三角片
+	template <typename T>
+	bool connect_boundary_to_infinity(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut,	Eigen::MatrixXi& trisOut,
+			const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+	{
+		// 1. 点云末尾加上一个无限远顶点：
+		versOut.resize(vers.rows() + 1, vers.cols());
+		versOut.topLeftCorner(vers.rows(), vers.cols()) = vers;
+		auto inf = std::numeric_limits<T>::infinity();
+		versOut.row(vers.rows()).setConstant(inf);
+
+		// 2. 将所有边缘有向边和无限远顶点连接形成新的三角片；
+		Eigen::MatrixXi bdrys, newTris;
+		bdryEdges(bdrys, tris);
+		if (0 == bdrys.size())
+			return true;
+		newTris.resize(bdrys.rows(), 3);
+		newTris.col(0) = bdrys.col(1);
+		newTris.col(1) = bdrys.col(0);
+		newTris.col(2).array() = vers.rows();
+
+		//// for debug:
+		//auto newTrisVec = mat2triplets(bdrys);
+
+		trisOut = tris;
+		matInsertRows(trisOut, newTris);
+
+		return true;
+	}
+ 
 
 	// 解析qslim()
 	void test0000()
 	{
-		using namespace igl;
-
-		using Quadric = std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double>;
-
 		Eigen::MatrixXd vers, versOut, vers0, versOri;
 		Eigen::MatrixXi tris, trisOut, tris0, trisOri;
 		Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
@@ -692,20 +731,48 @@ namespace DECIMATION
 		bool clean_finish = false;
 		tiktok& tt = tiktok::getInstance();
 
+		// for debug:
+		std::vector<triplet<double>> versMoni;
+		std::vector<triplet<int>>	trisMoni;
+		std::vector<doublet<int>> edgesMoni;
+		std::vector<int>			vecMoni;
+		int retIdx = -1;
+
 		tt.start();
-		igl::readOBJ("E:/材料/jawMeshDense.obj", versOri, trisOri);
+		igl::readOBJ("E:/材料/roundSurf.obj", versOri, trisOri);
 		tt.endCout("elapsed time of loading mesh is: ");
 		igl::writeOBJ("E:/meshIn.obj", versOri, trisOri);
 
+		unsigned versCount = versOri.rows();
 		unsigned trisCount = trisOri.rows();
 		int trisCountNew = trisCount;
-		int tarTrisCount = 60000;
+		int tarTrisCount = std::round(trisCount / 3);
 
-		// 1. 
-		igl::connect_boundary_to_infinity(versOri, trisOri, vers, tris);
-		if (!igl::is_edge_manifold(tris))
+		// 0. 检测是否有非流形有向边，有则直接退出；
+		Eigen::MatrixXi nmnEdges;
+		nonManifoldEdges(nmnEdges, trisOri);
+		if (nmnEdges.size() > 0)
 			return;
+
+		// 1. 将网格处理成一个封闭网格——若存在边缘有向边，则将其和一个无限远点连接生成新三角片
+		connect_boundary_to_infinity(vers, tris, versOri, trisOri);
+
+		// for debug:
+		versMoni = mat2triplets(vers);
+		trisMoni = mat2triplets(tris);
+		retIdx = findTriplet(trisMoni, [&trisMoni, &versCount](const triplet<int>& t) 
+			{
+				if (t.x >= versCount || t.y >= versCount || t.z >= versCount)
+					return true;
+				else
+					return false;
+			});
+
 		igl::edge_flaps(tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo);
+
+		// for debug:
+		edgesMoni = mat2doublets(uEdges);
+		vecMoni = vec2Vec(edgeUeInfo);
 
 		// 2. 计算每个顶点的Q矩阵：
 		igl::per_vertex_point_to_plane_quadrics(vers, tris, edgeUeInfo, UeTrisInfo, UeCornersInfo, quadrics);
@@ -1300,7 +1367,7 @@ namespace MESH_REPAIR
 		bool retFlag = true;
 		//retFlag = igl::readSTL(fileIn, vers, tris, normals);							// 貌似igl::readSTL读取的网格顶点数据不对；
 
-		objReadMeshMat(vers, tris, "E:/meshArr0_isct134.obj.obj");
+		objReadMeshMat(vers, tris, "E:/meshOut0.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		// 0. 去除重复三角片：
@@ -2245,13 +2312,13 @@ int main(int argc, char** argv)
 	
 	// IGL_MATH::test1();
 
-	// DECIMATION::test0();
+	DECIMATION::test0000();
 
 	// TEST_MYEIGEN::test5();
 
 	// TEMP_TEST::test1();
 
-	MESH_REPAIR::test0();
+	// MESH_REPAIR::test0();
  
 	// TEST_DIP::test0();
 
