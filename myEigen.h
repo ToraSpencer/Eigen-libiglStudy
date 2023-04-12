@@ -2260,6 +2260,56 @@ Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Ei
 
 //////////////////////////////////////////////////////////////////////////////////////////////// 三角网格处理：
 
+template <typename DerivedV>
+std::vector<int> oneRingTriIdxes(const int verIdx0, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+{
+	std::unordered_set<int> nbrIdxSet;
+	std::vector<int> nbrIdxes;
+	const int versCount = vers.rows();
+	const int trisCount = tris.rows();
+	if (verIdx0 < 0 || verIdx0 >= versCount)
+		return nbrIdxes;
+
+	Eigen::MatrixXi tmpMat = (verIdx0 == tris.array()).select(Eigen::MatrixXi::Ones(trisCount, 3), Eigen::MatrixXi::Zero(trisCount, 3));
+	Eigen::VectorXi flagVec = tmpMat.rowwise().sum();			 
+	Eigen::VectorXi tmpVec{Eigen::VectorXi::LinSpaced(trisCount, 0, trisCount - 1)};
+	Eigen::VectorXi selected;
+	subFromFlagVec(selected, tmpVec, flagVec);
+
+	for (int i = 0; i < selected.size(); ++i)
+		nbrIdxSet.insert(selected(i));
+	nbrIdxes.insert(nbrIdxes.end(), nbrIdxSet.begin(), nbrIdxSet.end());
+	return nbrIdxes;
+}
+
+template <typename DerivedV>
+std::vector<int> oneRingVerIdxes(const int verIdx0, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+{
+	std::vector<int> nbrIdxes;
+	Eigen::MatrixXi seleTris;
+	std::unordered_set<int> nbrIdxSet;
+	const int versCount = vers.rows();
+	const int trisCount = tris.rows();
+	if (verIdx0 < 0 || verIdx0 >= versCount)
+		return nbrIdxes;
+
+	std::vector<int> nbrTriIdxes = oneRingTriIdxes(verIdx0, vers, tris);
+	if (nbrTriIdxes.empty())
+		return nbrIdxes;
+
+	subFromIdxVec(seleTris, tris, nbrTriIdxes);
+	int* intPtr = seleTris.data();
+	for (int i = 0; i < seleTris.size(); ++i)
+	{
+		int verIdx = *intPtr++;
+		if (verIdx0 != verIdx)
+			nbrIdxSet.insert(verIdx);
+	}
+	nbrIdxes.insert(nbrIdxes.end(), nbrIdxSet.begin(), nbrIdxSet.end());
+	return nbrIdxes;
+}
+
+
 // 得到三角网格的有向边数据
 template <typename DerivedI>
 bool getEdges(Eigen::MatrixXi& edges, 	const Eigen::PlainObjectBase<DerivedI>& tris)
@@ -2288,7 +2338,7 @@ bool getUedges(Eigen::MatrixXi& uEdges, const Eigen::PlainObjectBase<DerivedI>& 
 {
 	unsigned edgesCount = edges.rows();
 	uEdges.resize(0, 0);
-	if (0 == edges.size() || 2 != edges.rows())
+	if (0 == edges.size() || 2 != edges.cols())
 		return false;
 
 	std::unordered_set<std::int64_t> uEdgeSet;
@@ -2304,6 +2354,88 @@ bool getUedges(Eigen::MatrixXi& uEdges, const Eigen::PlainObjectBase<DerivedI>& 
 		uEdges(index, 0) = pair.first;
 		uEdges(index, 1) = pair.second;
 		index++;
+	}
+
+	return true;
+}
+
+
+template <typename DerivedI>
+bool getUedges(Eigen::MatrixXi& uEdges, Eigen::VectorXi& edgeUeInfo, const Eigen::PlainObjectBase<DerivedI>& edges)
+{
+	/*
+		bool getUedges(
+				Eigen::MatrixXi& uEdges,													无向边
+				Eigen::VectorXi& edgeUeInfo,												edgeUeInfo(i)是索引为i的有向边对应的无向边的索引；
+				const Eigen::PlainObjectBase<DerivedI>& edges
+				)
+	*/
+	edgeUeInfo.resize(0);
+	if (!getUedges(uEdges, edges))
+		return false;
+
+	const unsigned uEdgesCount = uEdges.rows();
+	const unsigned edgesCount = edges.rows();
+	std::unordered_map<std::int64_t, int> codeMap;
+	for (unsigned i = 0; i < uEdgesCount; ++i)
+		codeMap.insert({ encodeUedge(uEdges(i, 0), uEdges(i, 1)), i });
+	edgeUeInfo.resize(edgesCount);
+	for (unsigned i = 0; i < edgesCount; ++i)
+	{
+		std::int64_t code = encodeUedge(edges(i, 0), edges(i, 1));
+		edgeUeInfo(i) = codeMap[code];
+	}
+
+	return true;
+}
+
+
+template <typename DerivedI>
+bool getUeInfos(Eigen::MatrixXi& UeTrisInfo, Eigen::MatrixXi& UeCornersInfo, const Eigen::VectorXi& edgeUeInfo, \
+	const Eigen::PlainObjectBase<DerivedI>& uEdges, const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	/*
+		bool getUeInfos(
+				Eigen::MatrixXi& UeTrisInfo,						ueCount×2，无向边关联的三角片索引矩阵；		
+																					若索引为i的无向边为(A,B)，则UeTrisInfo(i, 0)为有向边(A,B)所在的三角片索引，
+																							UeTrisInfo(i, 1)为有向边(B, A)所在的三角片索引。
+				Eigen::MatrixXi& UeCornersInfo,				ueCount×2，无向边所对的顶点标记；
+																					顶点标记：0-a, 1-b, 2-c
+																					若索引为i的无向边为(A,B)，则UeCornersInfo(i, 0)为有向边(A,B)所对的顶点的标记，
+																							则UeCornersInfo(i, 1)为有向边(B,A)所对的顶点的标记。
+
+				const Eigen::VectorXi& edgeUeInfo,										有向边索引到无向边索引的映射；
+				const Eigen::PlainObjectBase<DerivedI>& uEdges,				无向边数据
+				const Eigen::PlainObjectBase<DerivedI>& tris						三角片数据
+				)
+	
+	*/
+	const unsigned uEdgesCount = edgeUeInfo.maxCoeff()+1;
+	UeTrisInfo.resize(uEdgesCount, 2);
+	UeCornersInfo.resize(uEdgesCount, 2);
+	UeTrisInfo.setConstant(-1);
+	UeCornersInfo.setConstant(-1);
+
+	for (int i = 0; i < tris.rows(); i++)
+	{
+		for (int k = 0; k < 3; k++)
+		{
+			const int eIdx = k * tris.rows() + i;
+			const int ueIdx = edgeUeInfo(eIdx);
+
+			if (tris(i, (k + 1) % 3) == uEdges(ueIdx, 0) && tris(i, (k + 2) % 3) == uEdges(ueIdx, 1))
+			{
+				// 若当前有向边ab和无向边AB相同
+				UeTrisInfo(ueIdx, 0) = i;
+				UeCornersInfo(ueIdx, 0) = k;
+			}
+			else
+			{
+				// 若当前有向边ab和无向边AB相反
+				UeTrisInfo(ueIdx, 1) = i;
+				UeCornersInfo(ueIdx, 1) = k;
+			}
+		}
 	}
 
 	return true;
