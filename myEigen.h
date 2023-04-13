@@ -2314,6 +2314,18 @@ std::vector<int> oneRingVerIdxes(const int verIdx0, const Eigen::PlainObjectBase
 template <typename DerivedI>
 bool getEdges(Eigen::MatrixXi& edges, 	const Eigen::PlainObjectBase<DerivedI>& tris)
 {
+	/*
+		bool getEdges(
+				Eigen::MatrixXi& edges, 													
+				const Eigen::PlainObjectBase<DerivedI>& tris
+				)
+	
+		三条边在edges中的排列顺序为[bc; ca; ab]；其所对的顶点标记corner分别为0, 1, 2，即a,b,c;
+		边索引到三角片索引的映射——边eIdx0所在的三角片triIdx0 == eIdx0 % trisCount;
+		三角片triIdx0中corner0所对的边索引——eIdx0 = corner0 * trisCount + triIdx0;
+	
+	
+	*/
 	const unsigned trisCount = tris.rows();
 	const unsigned edgesCount = 3 * trisCount;
 	const unsigned versCount = tris.maxCoeff() + 1;
@@ -2322,6 +2334,7 @@ bool getEdges(Eigen::MatrixXi& edges, 	const Eigen::PlainObjectBase<DerivedI>& t
 	Eigen::MatrixXi vaIdxes = tris.col(0).array().cast<int>();
 	Eigen::MatrixXi vbIdxes = tris.col(1).array().cast<int>();
 	Eigen::MatrixXi vcIdxes = tris.col(2).array().cast<int>();
+
 	edges.block(0, 0, trisCount, 1) = vbIdxes;
 	edges.block(trisCount, 0, trisCount, 1) = vcIdxes;
 	edges.block(trisCount * 2, 0, trisCount, 1) = vaIdxes;

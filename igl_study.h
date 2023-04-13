@@ -74,7 +74,6 @@
 
 #include <igl/decimate.h>
 #include <igl/collapse_edge.h>
-#include <igl/collapse_small_triangles.h>
 #include <igl/qslim.h>
 #include <igl/per_vertex_point_to_plane_quadrics.h>
 #include <igl/quadric_binary_plus_operator.h>
