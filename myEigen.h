@@ -1574,6 +1574,7 @@ void concatMeshMat(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBas
 	matInsertRows(tris, trisCopy1);
 };
 
+
 // MATLAB——repmat();
 template <typename DerivedA, typename DerivedB>
 void repmat(Eigen::PlainObjectBase<DerivedB>& B, const Eigen::PlainObjectBase<DerivedA>& A, const int repRows, const int repCols)
@@ -2260,6 +2261,7 @@ Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Ei
 
 //////////////////////////////////////////////////////////////////////////////////////////////// 三角网格处理：
 
+// 返回网格中顶点verIdx0的1领域三角片索引；
 template <typename DerivedV>
 std::vector<int> oneRingTriIdxes(const int verIdx0, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 {
@@ -2282,6 +2284,7 @@ std::vector<int> oneRingTriIdxes(const int verIdx0, const Eigen::PlainObjectBase
 	return nbrIdxes;
 }
 
+// 返回网格中顶点verIdx0的1领域顶点索引；
 template <typename DerivedV>
 std::vector<int> oneRingVerIdxes(const int verIdx0, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 {
@@ -2310,6 +2313,53 @@ std::vector<int> oneRingVerIdxes(const int verIdx0, const Eigen::PlainObjectBase
 }
 
 
+// 返回网格中顶点verIdx0的1领域三角片索引——按面片法线方向逆时针排列；
+#if 0
+template <typename DerivedV>
+std::vector<int> oneRingTriIdxesOrdered(const int verIdx0, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+{
+	std::vector<int> nbrIdxes = oneRingTriIdxes(verIdx0, vers, tris);
+	if (nbrIdxes.empty())
+		return nbrIdxes;
+	const int trisCount = nbrIdxes.size();
+	Eigen::MatrixXi nbrTris;
+	subFromIdxVec(nbrTris, tris, nbrIdxes);
+	std::unordered_map<int, std::pair<int, int>> tmpMap;			// 第一个int是vbIdx, 第二个是vcIdx，第三个是所在三角片的索引；
+	for (int i = 0; i < trisCount; ++i)
+	{
+		int vbIdx, vcIdx;
+		if (verIdx0 == tris(i, 0))
+		{
+			vbIdx = tris(i, 1);
+			vcIdx = tris(i, 2);
+		}
+		else if (verIdx0 = tris(i, 1))
+		{
+			vbIdx = tris(i, 2);
+			vcIdx = tris(i, 0);
+		}
+		else
+		{
+			vbIdx = tris(i, 0);
+			vcIdx = tris(i, 1);
+		}
+
+		auto retPair = tmpMap.insert(std::make_pair(vbIdx, std::make_pair(vcIdx, nbrTris[i])));
+		if (!retPair.second)
+		{
+			// 走到这里说明存在非流形边；
+			nbrIdxes.clear();
+			return nbrIdxes;
+		}
+	}
+
+
+
+
+	return nbrIdxes;
+}
+#endif
+
 // 得到三角网格的有向边数据
 template <typename DerivedI>
 bool getEdges(Eigen::MatrixXi& edges, 	const Eigen::PlainObjectBase<DerivedI>& tris)
@@ -2323,8 +2373,7 @@ bool getEdges(Eigen::MatrixXi& edges, 	const Eigen::PlainObjectBase<DerivedI>& t
 		三条边在edges中的排列顺序为[bc; ca; ab]；其所对的顶点标记corner分别为0, 1, 2，即a,b,c;
 		边索引到三角片索引的映射——边eIdx0所在的三角片triIdx0 == eIdx0 % trisCount;
 		三角片triIdx0中corner0所对的边索引——eIdx0 = corner0 * trisCount + triIdx0;
-	
-	
+		边索引到corner的映射——corner0 = eIdx0 / trisCount;
 	*/
 	const unsigned trisCount = tris.rows();
 	const unsigned edgesCount = 3 * trisCount;
@@ -2344,7 +2393,7 @@ bool getEdges(Eigen::MatrixXi& edges, 	const Eigen::PlainObjectBase<DerivedI>& t
 
 	return true;
 }
-
+ 
 
 template <typename DerivedI>
 bool getUedges(Eigen::MatrixXi& uEdges, const Eigen::PlainObjectBase<DerivedI>& edges)
@@ -2374,12 +2423,17 @@ bool getUedges(Eigen::MatrixXi& uEdges, const Eigen::PlainObjectBase<DerivedI>& 
 
 
 template <typename DerivedI>
-bool getUedges(Eigen::MatrixXi& uEdges, Eigen::VectorXi& edgeUeInfo, const Eigen::PlainObjectBase<DerivedI>& edges)
+bool getUedges(Eigen::MatrixXi& uEdges, Eigen::VectorXi& edgeUeInfo, Eigen::MatrixXi& ueEdgeInfo, const Eigen::PlainObjectBase<DerivedI>& edges)
 {
+	// ！！！非流形网格不可使用；
 	/*
 		bool getUedges(
 				Eigen::MatrixXi& uEdges,													无向边
 				Eigen::VectorXi& edgeUeInfo,												edgeUeInfo(i)是索引为i的有向边对应的无向边的索引；
+				Eigen::MatrixXi& ueEdgeInfo												ueCount * 2的矩阵；
+																													ueEdgeInfo(i, 0)和ueEdgeInfo(i, 1)是索引为i的无向边对应的两条有向边的索引；
+																													正序有向边在前，逆序有向边在后；
+																													若当前无向边是边缘边，则只对应一条有向边，ueEdgeInfo(i, 1)==-1
 				const Eigen::PlainObjectBase<DerivedI>& edges
 				)
 	*/
@@ -2389,6 +2443,8 @@ bool getUedges(Eigen::MatrixXi& uEdges, Eigen::VectorXi& edgeUeInfo, const Eigen
 
 	const unsigned uEdgesCount = uEdges.rows();
 	const unsigned edgesCount = edges.rows();
+
+	// 确定有向边索引→无向边索引的映射；
 	std::unordered_map<std::int64_t, int> codeMap;
 	for (unsigned i = 0; i < uEdgesCount; ++i)
 		codeMap.insert({ encodeUedge(uEdges(i, 0), uEdges(i, 1)), i });
@@ -2397,6 +2453,32 @@ bool getUedges(Eigen::MatrixXi& uEdges, Eigen::VectorXi& edgeUeInfo, const Eigen
 	{
 		std::int64_t code = encodeUedge(edges(i, 0), edges(i, 1));
 		edgeUeInfo(i) = codeMap[code];
+	}
+
+	// 确定无向边索引→有向边索引的映射；
+	ueEdgeInfo.resize(uEdgesCount, 2);
+	ueEdgeInfo.setConstant(-1);
+	for (int i = 0; i<edgesCount; ++i) 
+	{
+		int ueIdx = edgeUeInfo(i);
+		if (ueEdgeInfo(ueIdx, 0) < 0)
+			ueEdgeInfo(ueIdx, 0) = i;
+		else
+			ueEdgeInfo(ueIdx, 1) = i;
+	}
+
+	// ueEdgeInfo中每行两条无向边排序——正序在前逆序在后；
+	for (int i = 0; i < uEdgesCount; ++i)
+	{
+		if (ueEdgeInfo(i, 1) < 0)
+			continue;
+		int eIdx0 = ueEdgeInfo(i, 0);
+		if (edges(eIdx0, 0) > edges(eIdx0, 1))
+		{
+			int tmp = ueEdgeInfo(i, 0);
+			ueEdgeInfo(i, 0) = ueEdgeInfo(i, 1);
+			ueEdgeInfo(i, 1) = tmp;
+		}
 	}
 
 	return true;
