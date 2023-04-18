@@ -385,6 +385,22 @@ std::vector<doublet<T>> mat2doublets(const Eigen::Matrix<T, Eigen::Dynamic, Eige
 }
 
 
+template <typename T>
+triplet<T> vec2triplet(const Eigen::Matrix<T, 1, 3>& vec) 
+{
+	triplet<T> t{vec(0), vec(1), vec(2)};
+	return t;
+}
+
+template <typename T>
+doublet<T> vec2doublet(const Eigen::Matrix<T, 1, 2>& vec)
+{
+	doublet<T> d{ vec(0), vec(1)};
+	return d;
+}
+
+
+
 // 遍历搜索triplet向量，若索引为index的triplet元素使得谓词f返回值为true，则返回index; 若找不到或出错则返回-1；
 template <typename T, typename F>
 int findTriplet(const std::vector<triplet<T>>& trips, F f)		
@@ -2263,10 +2279,9 @@ Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Ei
 
 // 返回网格中顶点verIdx0的1领域三角片索引；
 template <typename DerivedV>
-std::vector<int> oneRingTriIdxes(const int verIdx0, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+std::unordered_set<int> oneRingTriIdxes(const int verIdx0, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 {
-	std::unordered_set<int> nbrIdxSet;
-	std::vector<int> nbrIdxes;
+	std::unordered_set<int> nbrIdxes;
 	const int versCount = vers.rows();
 	const int trisCount = tris.rows();
 	if (verIdx0 < 0 || verIdx0 >= versCount)
@@ -2279,16 +2294,15 @@ std::vector<int> oneRingTriIdxes(const int verIdx0, const Eigen::PlainObjectBase
 	subFromFlagVec(selected, tmpVec, flagVec);
 
 	for (int i = 0; i < selected.size(); ++i)
-		nbrIdxSet.insert(selected(i));
-	nbrIdxes.insert(nbrIdxes.end(), nbrIdxSet.begin(), nbrIdxSet.end());
+		nbrIdxes.insert(selected(i)); 
 	return nbrIdxes;
 }
 
 // 返回网格中顶点verIdx0的1领域顶点索引；
 template <typename DerivedV>
-std::vector<int> oneRingVerIdxes(const int verIdx0, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+std::unordered_set<int> oneRingVerIdxes(const int verIdx0, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 {
-	std::vector<int> nbrIdxes;
+	std::unordered_set<int> nbrIdxes;
 	Eigen::MatrixXi seleTris;
 	std::unordered_set<int> nbrIdxSet;
 	const int versCount = vers.rows();
@@ -2296,19 +2310,18 @@ std::vector<int> oneRingVerIdxes(const int verIdx0, const Eigen::PlainObjectBase
 	if (verIdx0 < 0 || verIdx0 >= versCount)
 		return nbrIdxes;
 
-	std::vector<int> nbrTriIdxes = oneRingTriIdxes(verIdx0, vers, tris);
+	std::unordered_set<int> nbrTriIdxes = oneRingTriIdxes(verIdx0, vers, tris);
 	if (nbrTriIdxes.empty())
 		return nbrIdxes;
 
-	subFromIdxVec(seleTris, tris, nbrTriIdxes);
+	subFromIdxCon(seleTris, tris, nbrTriIdxes);
 	int* intPtr = seleTris.data();
 	for (int i = 0; i < seleTris.size(); ++i)
 	{
 		int verIdx = *intPtr++;
 		if (verIdx0 != verIdx)
-			nbrIdxSet.insert(verIdx);
-	}
-	nbrIdxes.insert(nbrIdxes.end(), nbrIdxSet.begin(), nbrIdxSet.end());
+			nbrIdxes.insert(verIdx);
+	} 
 	return nbrIdxes;
 }
 
@@ -2372,7 +2385,7 @@ bool getEdges(Eigen::MatrixXi& edges, 	const Eigen::PlainObjectBase<DerivedI>& t
 	
 		三条边在edges中的排列顺序为[bc; ca; ab]；其所对的顶点标记corner分别为0, 1, 2，即a,b,c;
 		边索引到三角片索引的映射——边eIdx0所在的三角片triIdx0 == eIdx0 % trisCount;
-		三角片triIdx0中corner0所对的边索引——eIdx0 = corner0 * trisCount + triIdx0;
+		三角片triIdx0和corner0到边索引的映射——eIdx0 = corner0 * trisCount + triIdx0;
 		边索引到corner的映射——corner0 = eIdx0 / trisCount;
 	*/
 	const unsigned trisCount = tris.rows();
@@ -2503,7 +2516,8 @@ bool getUeInfos(Eigen::MatrixXi& UeTrisInfo, Eigen::MatrixXi& UeCornersInfo, con
 				const Eigen::PlainObjectBase<DerivedI>& uEdges,				无向边数据
 				const Eigen::PlainObjectBase<DerivedI>& tris						三角片数据
 				)
-	
+		
+		注意：无向边统一使用正序表示，即vaIdx < vbIdx;
 	*/
 	const unsigned uEdgesCount = edgeUeInfo.maxCoeff()+1;
 	UeTrisInfo.resize(uEdgesCount, 2);
