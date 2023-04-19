@@ -19,7 +19,7 @@
 #include <limits>
 #include <windows.h>
  
-#define USE_TRIANGLE_H
+//#define USE_TRIANGLE_H
 
 #ifdef USE_TRIANGLE_H
 // 和algorithm工程一样，使用单精度；libigl库中封装的三角剖分使用的是双精度；
@@ -169,9 +169,9 @@ template<typename T, int N>					// N为列数；
 bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, 1, N>& rowVec);
 template <typename Derived1, typename Derived2>
 Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& rowVec);
-template <typename DerivedV, typename DerivedI>
-void concatMeshMat(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBase<DerivedI>& tris, \
-	const Eigen::PlainObjectBase<DerivedV>& vers1, const Eigen::PlainObjectBase<DerivedI>& tris1);
+template <typename T>
+void concatMeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers1, const Eigen::MatrixXi& tris1);
 
 unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize);
 template <typename T>
@@ -400,7 +400,6 @@ doublet<T> vec2doublet(const Eigen::Matrix<T, 1, 2>& vec)
 }
 
 
-
 // 遍历搜索triplet向量，若索引为index的triplet元素使得谓词f返回值为true，则返回index; 若找不到或出错则返回-1；
 template <typename T, typename F>
 int findTriplet(const std::vector<triplet<T>>& trips, F f)		
@@ -427,6 +426,7 @@ int findTriplet(const std::vector<doublet<T>>& doubs, F f)
 
 	return -1;
 }
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// basic math interface
 
@@ -1575,14 +1575,14 @@ Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eige
 
 
 // 网格串联——合并两个孤立的网格到一个网格里
-template <typename DerivedV, typename DerivedI>
-void concatMeshMat(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBase<DerivedI>& tris, \
-	const Eigen::PlainObjectBase<DerivedV>& vers1, const Eigen::PlainObjectBase<DerivedI>& tris1)
+template <typename T>
+void concatMeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers1, const Eigen::MatrixXi& tris1)
 {
 	int versCount = vers.rows();
 	matInsertRows(vers, vers1);
 
-	DerivedI trisCopy1 = tris1;
+	Eigen::MatrixXi trisCopy1 = tris1;
 	int* intPtr = trisCopy1.data();
 	for (int i = 0; i < trisCopy1.size(); ++i)
 		*(intPtr++) = versCount + *intPtr;

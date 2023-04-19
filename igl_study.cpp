@@ -2035,45 +2035,30 @@ namespace IGL_BASIC_PMP
 	// 测量两个网格之间的hausdorff distance
 	void test8() 
 	{
-		Eigen::MatrixXd vers1, vers2;
-		Eigen::MatrixXi tris1, tris2;
-		double hd = 0;
+		Eigen::MatrixXd vers0, vers1, vers2, vers3, vers4;
+		Eigen::MatrixXi tris0, tris1, tris2, tris3, tris4;
+		double hd0, hd1, hd2, hd3, hd4;
+		hd0 = hd1 = hd2 = hd3 = hd4 = 0;
 
-		igl::readOBJ("E:/材料/jawMeshDense.obj", vers1, tris1);
-		igl::readOBJ("E:/材料/jawMeshDense.obj", vers2, tris2);
-		igl::hausdorff(vers1, tris1, vers2, tris2, hd);
-		std::cout << "hd == " << hd << std::endl;
+		tiktok& tt = tiktok::getInstance();
+		tt.start();
+		objReadMeshMat(vers0, tris0, "E:/材料/jawMeshDense.obj");
+		objReadMeshMat(vers1, tris1, "E:/材料/jawMeshDenseSimplifyOutIsctCleaned.obj");
+		objReadMeshMat(vers2, tris2, "E:/材料/jawMeshDenseQEMoutputIsctCleaned.obj");
+		objReadMeshMat(vers3, tris3, "E:/材料/jawMeshDenseQslimOutputIsctCleaned.obj");
+		objReadMeshMat(vers4, tris4, "E:/材料/jawMeshDensePMPsimplifiedIsctCleaned.obj");
+		tt.endCout("meshes loading finished:");
 
-
-		vers2.resize(0, 0);
-		tris2.resize(0, 0);
-		igl::readOBJ("E:/材料/jawMeshDense_geoSimp_150000.obj", vers2, tris2);
-		igl::hausdorff(vers1, tris1, vers2, tris2, hd);
-		std::cout << "hd == " << hd << std::endl;
-
-		vers2.resize(0, 0);
-		tris2.resize(0, 0);
-		igl::readOBJ("E:/材料/jawMeshDense_geoSimp_120000.obj", vers2, tris2);
-		igl::hausdorff(vers1, tris1, vers2, tris2, hd);
-		std::cout << "hd == " << hd << std::endl;
-
-		vers2.resize(0, 0);
-		tris2.resize(0, 0);
-		igl::readOBJ("E:/材料/jawMeshDense_geoSimp_90000.obj", vers2, tris2);
-		igl::hausdorff(vers1, tris1, vers2, tris2, hd);
-		std::cout << "hd == " << hd << std::endl;
-
-		vers2.resize(0, 0);
-		tris2.resize(0, 0);
-		igl::readOBJ("E:/材料/jawMeshDense_geoSimp_60000.obj", vers2, tris2);
-		igl::hausdorff(vers1, tris1, vers2, tris2, hd);
-		std::cout << "hd == " << hd << std::endl;
-
-		vers2.resize(0, 0);
-		tris2.resize(0, 0);
-		igl::readOBJ("E:/材料/jawMeshDense_algSimp_60000.obj", vers2, tris2);
-		igl::hausdorff(vers1, tris1, vers2, tris2, hd);
-		std::cout << "algSimp, hd == " << hd << std::endl;
+		igl::hausdorff(vers0, tris0, vers0, tris0, hd0);
+		igl::hausdorff(vers0, tris0, vers1, tris1, hd1);
+		igl::hausdorff(vers0, tris0, vers2, tris2, hd2);
+		igl::hausdorff(vers0, tris0, vers3, tris3, hd3);
+		igl::hausdorff(vers0, tris0, vers4, tris4, hd4);
+		debugDisp("Hausdorff distance0 == ", hd0);
+		debugDisp("Hausdorff distance1 == ", hd1);
+		debugDisp("Hausdorff distance2 == ", hd2);
+		debugDisp("Hausdorff distance3 == ", hd3);
+		debugDisp("Hausdorff distance4 == ", hd4);
 
 		std::cout << "finished." << std::endl;
 	}

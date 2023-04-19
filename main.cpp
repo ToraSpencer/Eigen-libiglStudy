@@ -20,22 +20,22 @@
 
 
 
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <random>
-#include <functional>
-#include <algorithm>
-#include <numeric>
-#include <thread>
-#include <windows.h>
-#include <atlstr.h>		// 包含CString类。属于microsoft ATL(活动模板库avtive template library)
-#include <io.h>
-#include <SDKDDKVer.h>	
-#include <windows.h>		
-#include <iostream>
-#include <locale>
+//#include <iostream>
+//#include <fstream>
+//#include <vector>
+//#include <string>
+//#include <random>
+//#include <functional>
+//#include <algorithm>
+//#include <numeric>
+//#include <thread>
+//#include <windows.h>
+//#include <atlstr.h>		// 包含CString类。属于microsoft ATL(活动模板库avtive template library)
+//#include <io.h>
+//#include <SDKDDKVer.h>	
+//#include <windows.h>		
+//#include <iostream>
+//#include <locale>
 
 
 #define DATA_PATH "./data/"
@@ -174,7 +174,6 @@ DWORD INIGetInt(const TCHAR* pszKey, const TCHAR* pszConfFile)
 ////////////////////////////////////////////////////////////////////////////// TEST: 网格精简：
 namespace DECIMATION 
 {
-#define MY_EDGE_COLLAPSE
 
 #define IGL_COLLAPSE_EDGE_NULL -1
 
@@ -396,342 +395,7 @@ namespace DECIMATION
 		return true;
 	}
 
-
-#ifdef MY_EDGE_COLLAPSE
-	// 折叠索引为uEdgeIdx的无向边；
-	bool collapseSingleEdgeNew(const int uEdgeIdx, const Eigen::RowVectorXd& collapsedVer,
-		std::vector<int>& nbrVersIdx_src, const std::vector<int>& nbrTrisIdx_src,
-		std::vector<int>& nbrVersIdx_des, const std::vector<int>& nbrTrisIdx_des,
-		Eigen::MatrixXd& vers, Eigen::MatrixXi& tris, Eigen::MatrixXi& uEdges, Eigen::MatrixXi& edges, \
-		Eigen::VectorXi& edgeUeInfo, Eigen::MatrixXi& ueEdgeInfo, Eigen::MatrixXi& UeTrisInfo, Eigen::MatrixXi& UeCornersInfo,
-		int& a_e1, int& a_e2, int& a_f1, int& a_f2)
-	{
-		// lambda——某一条无向边的所有信息设置为无效信息；
-		const auto& kill_edge = [&uEdges, &UeCornersInfo, &UeTrisInfo](const int uEdgeIdx)
-		{
-			uEdges(uEdgeIdx, 0) = IGL_COLLAPSE_EDGE_NULL;
-			uEdges(uEdgeIdx, 1) = IGL_COLLAPSE_EDGE_NULL;
-			UeTrisInfo(uEdgeIdx, 0) = IGL_COLLAPSE_EDGE_NULL;
-			UeTrisInfo(uEdgeIdx, 1) = IGL_COLLAPSE_EDGE_NULL;
-			UeCornersInfo(uEdgeIdx, 0) = IGL_COLLAPSE_EDGE_NULL;
-			UeCornersInfo(uEdgeIdx, 1) = IGL_COLLAPSE_EDGE_NULL;
-		};
-
-		//
-		auto getOppEdgeIdx = [](const int eIdx, Eigen::VectorXi& edgeUeInfo, const Eigen::MatrixXi& ueEdgeInfo)->int
-		{
-			int ueIdx = edgeUeInfo(eIdx);
-			int eIdx0 = ueEdgeInfo(ueIdx, 0);
-			int eIdx1 = ueEdgeInfo(ueIdx, 1);
-			int retIdx = (eIdx == eIdx0 ? eIdx1 : eIdx0);
-			return retIdx;
-		};
-
-		// 注意！！当前所有有向边都是正序的，即vaIdx < vbIdx; 且所有无向边都对应着两条有向边，因为边缘边已被消除；
-
-	   // 定义无向边的起点和终点——索引小的为起点，索引大的为终点；
-		const int trisCount = tris.rows();
-		const int versCount = vers.rows();
-		const int vaIdx = uEdges(uEdgeIdx, 0);
-		const int vbIdx = uEdges(uEdgeIdx, 1);
-		const std::vector<int>& nbrTriIdxes = nbrTrisIdx_src;
-
-		// 0. 判断该边是否可折叠
-		if (!edge_collapse_is_valid(nbrVersIdx_src, nbrVersIdx_des))
-			return false;
-
-		// 1. 要折叠的边两端点都替换为collapsedVer
-		vers.row(vaIdx) = collapsedVer;
-		vers.row(vbIdx) = collapsedVer;
-
-		int eIdx = ueEdgeInfo(uEdgeIdx, 0);
-		int triIdx = eIdx % trisCount;
-		int corner = eIdx / trisCount;
-		int corner1 = (corner + 1) % 3;
-		int corner2 = (corner + 2) % 3;
-		int eIdx1 = triIdx + trisCount * corner1;
-		int eIdx2 = triIdx + trisCount * corner2;
-		const int ueIdx1 = edgeUeInfo(eIdx1);
-		const int ueIdx2 = edgeUeInfo(eIdx2);
-
-		int EIDX = ueEdgeInfo(uEdgeIdx, 1);
-		int TRIIDX = EIDX % trisCount;
-		int CORNER = EIDX / trisCount;
-		int CORNER1 = (CORNER + 2) % 3;
-		int CORNER2 = (CORNER + 1) % 3;
-		int EIDX1 = TRIIDX + trisCount * CORNER1;
-		int EIDX2 = TRIIDX + trisCount * CORNER2;
-		const int UEIDX1 = edgeUeInfo(EIDX1);
-		const int UEIDX2 = edgeUeInfo(EIDX2);
-
-		{
-			const int eOppIdx1 = getOppEdgeIdx(eIdx, edgeUeInfo, ueEdgeInfo);
-			const int triOppIdx1 = eOppIdx1 % trisCount;
-			const int cornerOpp1 = eOppIdx1 / trisCount;
-
-			// kill edge, kill tri:
-			kill_edge(ueIdx1);
-			edges(eIdx1, 0) = IGL_COLLAPSE_EDGE_NULL;
-			edges(eIdx1, 1) = IGL_COLLAPSE_EDGE_NULL;
-			edges(eOppIdx1, 0) = IGL_COLLAPSE_EDGE_NULL;
-			edges(eOppIdx1, 1) = IGL_COLLAPSE_EDGE_NULL;
-			tris(triIdx, 0) = IGL_COLLAPSE_EDGE_NULL;
-			tris(triIdx, 1) = IGL_COLLAPSE_EDGE_NULL;
-			tris(triIdx, 2) = IGL_COLLAPSE_EDGE_NULL;
-			a_e1 = ueIdx1;
-			a_f1 = triIdx;
-		}
-
-		{
-			const int EOPPIDX1 = getOppEdgeIdx(EIDX, edgeUeInfo, ueEdgeInfo);
-			const int TRIOPPIDX1 = EOPPIDX1 % trisCount;
-			const int CORNEROPP1 = EOPPIDX1 / trisCount;
-
-			kill_edge(UEIDX1);
-			edges(EIDX1, 0) = IGL_COLLAPSE_EDGE_NULL;
-			edges(EIDX1, 1) = IGL_COLLAPSE_EDGE_NULL;
-			edges(EOPPIDX1, 0) = IGL_COLLAPSE_EDGE_NULL;
-			edges(EOPPIDX1, 1) = IGL_COLLAPSE_EDGE_NULL;
-			tris(TRIIDX, 0) = IGL_COLLAPSE_EDGE_NULL;
-			tris(TRIIDX, 1) = IGL_COLLAPSE_EDGE_NULL;
-			tris(TRIIDX, 2) = IGL_COLLAPSE_EDGE_NULL;
-
-			a_e2 = UEIDX1;
-			a_f2 = TRIIDX;
-		}
-
-		// 3. 被折叠的无向边uEdgeIdx中, vaIdx被保留，vbIdx称为孤立点；
-		for (auto i : nbrTriIdxes)
-		{
-			for (int k = 0; k < 3; k++)
-			{
-				if (tris(i, k) == vbIdx)
-				{
-					const int eIdx1 = i + trisCount * ((k + 1) % 3);
-					const int eIdx2 = i + trisCount * ((k + 2) % 3);
-					const int eOppIdx1 = getOppEdgeIdx(eIdx1, edgeUeInfo, ueEdgeInfo);
-					const int eOppIdx2 = getOppEdgeIdx(eIdx2, edgeUeInfo, ueEdgeInfo);
-					const int ueIdx2 = edgeUeInfo(eIdx2);
-					const int ueIdx1 = edgeUeInfo(eIdx1);
-					if (vbIdx == uEdges(ueIdx1, 0))
-						uEdges(ueIdx1, 0) = vaIdx;
-					if (vbIdx == uEdges(ueIdx1, 1))
-						uEdges(ueIdx1, 1) = vaIdx;
-					if (vbIdx == edges(eIdx1, 0))
-						edges(eIdx1, 0) = vaIdx;
-					if (vbIdx == edges(eIdx1, 1))
-						edges(eIdx1, 1) = vaIdx;
-					if (vbIdx == edges(eOppIdx1, 0))
-						edges(eOppIdx1, 0) = vaIdx;
-					if (vbIdx == edges(eOppIdx1, 1))
-						edges(eOppIdx1, 1) = vaIdx;
-
-					// Skip if we just handled this edge (claim: this will be all except for the first non-trivial face)
-					if (ueIdx2 != -1)
-					{
-						if (vbIdx == uEdges(ueIdx2, 0))
-							uEdges(ueIdx2, 0) = vaIdx;
-						if (vbIdx == uEdges(ueIdx2, 1))
-							uEdges(ueIdx2, 1) = vaIdx;
-						if (vbIdx == edges(eIdx2, 0))
-							edges(eIdx2, 0) = vaIdx;
-						if (vbIdx == edges(eIdx2, 1))
-							edges(eIdx2, 1) = vaIdx;
-						if (vbIdx == edges(eOppIdx2, 0))
-							edges(eOppIdx2, 0) = vaIdx;
-						if (vbIdx == edges(eOppIdx2, 1))
-							edges(eOppIdx2, 1) = vaIdx;
-					}
-
-					tris(i, k) = vaIdx;
-					break;
-				}
-			}
-		}
-
-		// 4. Finally,  "remove" this edge and its information
-		kill_edge(uEdgeIdx);
-
-		return true;
-	}
-#else
-	// 折叠索引为uEdgeIdx的无向边；
-	bool collapseSingleEdge(const int uEdgeIdx, const Eigen::RowVectorXd& collapsedVer,
-		std::vector<int>& nbrVersIdx_src, const std::vector<int>& nbrTrisIdx_src,
-		std::vector<int>& nbrVersIdx_des, const std::vector<int>& nbrTrisIdx_des,
-		Eigen::MatrixXd& vers, Eigen::MatrixXi& tris, Eigen::MatrixXi& uEdges, Eigen::MatrixXi& edges, \
-		Eigen::VectorXi& edgeUeInfo, Eigen::MatrixXi& ueEdgeInfo, Eigen::MatrixXi& UeTrisInfo, Eigen::MatrixXi& UeCornersInfo,
-		int& a_e1, int& a_e2, int& a_f1, int& a_f2)
-	{
-		// lambda——某一条无向边的所有信息设置为无效信息；
-		const auto& kill_edge = [&uEdges, &UeCornersInfo, &UeTrisInfo](const int uEdgeIdx)
-		{
-			uEdges(uEdgeIdx, 0) = IGL_COLLAPSE_EDGE_NULL;
-			uEdges(uEdgeIdx, 1) = IGL_COLLAPSE_EDGE_NULL;
-			UeTrisInfo(uEdgeIdx, 0) = IGL_COLLAPSE_EDGE_NULL;
-			UeTrisInfo(uEdgeIdx, 1) = IGL_COLLAPSE_EDGE_NULL;
-			UeCornersInfo(uEdgeIdx, 0) = IGL_COLLAPSE_EDGE_NULL;
-			UeCornersInfo(uEdgeIdx, 1) = IGL_COLLAPSE_EDGE_NULL;
-		};
-
-		//
-		auto getOppEdgeIdx = [](const int eIdx, Eigen::VectorXi& edgeUeInfo, const Eigen::MatrixXi& ueEdgeInfo)->int
-		{
-			int ueIdx = edgeUeInfo(eIdx);
-			int eIdx0 = ueEdgeInfo(ueIdx, 0);
-			int eIdx1 = ueEdgeInfo(ueIdx, 1);
-			int retIdx = (eIdx == eIdx0 ? eIdx1 : eIdx0);
-			return retIdx;
-		};
-
-		// 注意！！当前所有有向边都是正序的，即vaIdx < vbIdx; 且所有无向边都对应着两条有向边，因为边缘边已被消除；
-
-	   // 定义无向边的起点和终点——索引小的为起点，索引大的为终点；
-		const int trisCount = tris.rows();
-		const int versCount = vers.rows();
-		const int vaIdx = uEdges(uEdgeIdx, 0);
-		const int vbIdx = uEdges(uEdgeIdx, 1);
-		const std::vector<int>& nbrTriIdxes = nbrTrisIdx_src;
-
-		// 0. 判断该边是否可折叠
-		if (!edge_collapse_is_valid(nbrVersIdx_src, nbrVersIdx_des))
-			return false;
-
-		// 1. 要折叠的边两端点都替换为collapsedVer
-		vers.row(vaIdx) = collapsedVer;
-		vers.row(vbIdx) = collapsedVer;
- 
-		int corner = UeCornersInfo(uEdgeIdx, 0);
-		int triIdx = UeTrisInfo(uEdgeIdx, 0);
-		int eIdx = corner * trisCount + triIdx;
-		int corner1 = (corner + 1) % 3;
-		int corner2 = (corner + 2) % 3;
-		int eIdx1 = triIdx + trisCount * corner1;
-		int eIdx2 = triIdx + trisCount * corner2;
-		const int ueIdx1 = edgeUeInfo(eIdx1);
-		const int ueIdx2 = edgeUeInfo(eIdx2);
-
-		{
-			const bool flip1 = UeTrisInfo(ueIdx1, 1) == triIdx;
-			const int triOppIdx1 = flip1 ? UeTrisInfo(ueIdx1, 0) : UeTrisInfo(ueIdx1, 1);
-			// const int triOppIdx1 = eOppIdx1 % trisCount;
-			const int cornerOpp1 = flip1 ? UeCornersInfo(ueIdx1, 0) : UeCornersInfo(ueIdx1, 1);
-			const int eOppIdx1 = triOppIdx1 + trisCount * cornerOpp1;
-			//const int eOppIdx1 = eOppIdx1;
-
-			// kill edge, kill tri:
-			kill_edge(ueIdx1);
-			tris(triIdx, 0) = IGL_COLLAPSE_EDGE_NULL;
-			tris(triIdx, 1) = IGL_COLLAPSE_EDGE_NULL;
-			tris(triIdx, 2) = IGL_COLLAPSE_EDGE_NULL;
-
-			// 更新有向边无向边的索引映射；
-			edgeUeInfo(eOppIdx1) = ueIdx2;
-
-			// 更新其他：
-			const int opp2 = (UeTrisInfo(ueIdx2, 0) == triIdx ? 0 : 1);
-			UeTrisInfo(ueIdx2, opp2) = triOppIdx1;
-			UeCornersInfo(ueIdx2, opp2) = cornerOpp1;
-
-			// for debug:
-			Eigen::RowVector2i edge = edges.row(eIdx);
-			Eigen::RowVector2i edge1 = edges.row(eIdx1);
-			Eigen::RowVector2i eOpp1 = edges.row(eOppIdx1);
-			Eigen::RowVector3i tri = tris.row(triIdx);
-			Eigen::RowVector3i triOpp1 = tris.row(triOppIdx1);
-			auto edgeVec = vec2doublet(edge);
-			auto edgeVec1 = vec2doublet(edge1);
-			auto edgeVecOpp1 = vec2doublet(eOpp1);
-			auto triVec = vec2triplet(tri);
-			auto triOpp1Vec = vec2triplet(triOpp1);
-
-			a_e1 = ueIdx1;
-			a_f1 = triIdx;
-		}
-
-		int CORNER = UeCornersInfo(uEdgeIdx, 1);
-		int TRIIDX = UeTrisInfo(uEdgeIdx, 1);
-		int EIDX = CORNER * trisCount + TRIIDX;
-		int CORNER1 = (CORNER + 2) % 3;
-		int CORNER2 = (CORNER + 1) % 3;
-		int EIDX1 = TRIIDX + trisCount * CORNER1;
-		int EIDX2 = TRIIDX + trisCount * CORNER2;
-		const int UEIDX1 = edgeUeInfo(EIDX1);
-		const int UEIDX2 = edgeUeInfo(EIDX2);
-
-		{
-			const bool flip1 = UeTrisInfo(UEIDX1, 1) == TRIIDX;
-			const int TRIOPPIDX1 = flip1 ? UeTrisInfo(UEIDX1, 0) : UeTrisInfo(UEIDX1, 1);
-			const int CORNEROPP1 = flip1 ? UeCornersInfo(UEIDX1, 0) : UeCornersInfo(UEIDX1, 1);
-			const int EOPPIDX1 = TRIOPPIDX1 + trisCount * CORNEROPP1;
-
-			kill_edge(UEIDX1);
-			tris(TRIIDX, 0) = IGL_COLLAPSE_EDGE_NULL;
-			tris(TRIIDX, 1) = IGL_COLLAPSE_EDGE_NULL;
-			tris(TRIIDX, 2) = IGL_COLLAPSE_EDGE_NULL;
-
-			edgeUeInfo(EOPPIDX1) = UEIDX2;
-
-			const int opp2 = (UeTrisInfo(UEIDX2, 0) == TRIIDX ? 0 : 1);
-			UeTrisInfo(UEIDX2, opp2) = TRIOPPIDX1;
-			UeCornersInfo(UEIDX2, opp2) = CORNEROPP1;
-
-			// for debug:
-			Eigen::RowVector2i edge = edges.row(EIDX);
-			Eigen::RowVector2i edge1 = edges.row(EIDX1);
-			Eigen::RowVector2i eOpp1 = edges.row(EOPPIDX1);
-			Eigen::RowVector3i tri = tris.row(triIdx);
-			Eigen::RowVector3i triOpp1 = tris.row(TRIOPPIDX1);
-			auto edgeVec = vec2doublet(edge);
-			auto edgeVec1 = vec2doublet(edge1);
-			auto edgeVecOpp1 = vec2doublet(eOpp1);
-			auto triVec = vec2triplet(tri);
-			auto triOpp1Vec = vec2triplet(triOpp1);
-
-			a_e2 = UEIDX1;
-			a_f2 = TRIIDX;
-		}
-
-		// 3. 被折叠的无向边uEdgeIdx中, vaIdx被保留，vbIdx称为孤立点；
-		for (auto i : nbrTriIdxes)
-		{
-			for (int k = 0; k < 3; k++)
-			{
-				if (tris(i, k) == vbIdx)
-				{
-					const int eIdx1 = i + trisCount * ((k + 1) % 3);
-					const int eIdx2 = i + trisCount * ((k + 2) % 3);
-					const int ueIdx2 = edgeUeInfo(eIdx2);
-					const int ueIdx1 = edgeUeInfo(eIdx1);
-					if (vbIdx == uEdges(ueIdx1, 0))
-						uEdges(ueIdx1, 0) = vaIdx;
-					if (vbIdx == uEdges(ueIdx1, 1))
-						uEdges(ueIdx1, 1) = vaIdx;
-
-					// Skip if we just handled this edge (claim: this will be all except for the first non-trivial face)
-					if (ueIdx2 != -1)
-					{
-						if (vbIdx == uEdges(ueIdx2, 0))
-							uEdges(ueIdx2, 0) = vaIdx;
-						if (vbIdx == uEdges(ueIdx2, 1))
-							uEdges(ueIdx2, 1) = vaIdx;
-					}
-
-					tris(i, k) = vaIdx;
-					break;
-				}
-			}
-		}
- 
-		// 4. Finally,  "remove" this edge and its information
-		kill_edge(uEdgeIdx);
-
-		return true;
-	}
-
-#endif
- 
-
+	 
 	// 将网格处理成一个封闭网格——若存在边缘有向边，则将其和一个无限远点连接生成新三角片
 	template <typename T>
 	bool connect_boundary_to_infinity(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut,
@@ -786,6 +450,363 @@ namespace DECIMATION
 			std::cout << costValues[i] << ", ";
 
 		std::cout << std::endl << std::endl;
+	}
+ 
+
+	// 折叠索引为uEdgeIdx的无向边；
+	bool collapseSingleEdge(const int uEdgeIdx, const Eigen::RowVectorXd& collapsedVer,
+		std::vector<int>& nbrVersIdx_src, const std::vector<int>& nbrTrisIdx_src,
+		std::vector<int>& nbrVersIdx_des, const std::vector<int>& nbrTrisIdx_des,
+		Eigen::MatrixXd& vers, Eigen::MatrixXi& tris, Eigen::MatrixXi& uEdges, Eigen::MatrixXi& edges, \
+		Eigen::VectorXi& edgeUeInfo, Eigen::MatrixXi& UeTrisInfo, Eigen::MatrixXi& UeCornersInfo,
+		int& a_e1, int& a_e2, int& a_f1, int& a_f2)
+	{
+		// lambda——某一条无向边的所有信息设置为无效信息；
+		const auto& kill_edge = [&uEdges, &UeCornersInfo, &UeTrisInfo](const int uEdgeIdx)
+		{
+			uEdges(uEdgeIdx, 0) = IGL_COLLAPSE_EDGE_NULL;
+			uEdges(uEdgeIdx, 1) = IGL_COLLAPSE_EDGE_NULL;
+			UeTrisInfo(uEdgeIdx, 0) = IGL_COLLAPSE_EDGE_NULL;
+			UeTrisInfo(uEdgeIdx, 1) = IGL_COLLAPSE_EDGE_NULL;
+			UeCornersInfo(uEdgeIdx, 0) = IGL_COLLAPSE_EDGE_NULL;
+			UeCornersInfo(uEdgeIdx, 1) = IGL_COLLAPSE_EDGE_NULL;
+		};
+
+		// 注意！！当前所有有向边都是正序的，即vaIdx < vbIdx; 且所有无向边都对应着两条有向边，因为边缘边已被消除；
+
+	   // 定义无向边的起点和终点——索引小的为起点，索引大的为终点；
+		const int trisCount = tris.rows();
+		const int versCount = vers.rows();
+		const int vaIdx = uEdges(uEdgeIdx, 0);
+		const int vbIdx = uEdges(uEdgeIdx, 1);
+		const std::vector<int>& nbrTriIdxes = nbrTrisIdx_src;
+
+		// 0. 判断该边是否可折叠
+		if (!edge_collapse_is_valid(nbrVersIdx_src, nbrVersIdx_des))
+			return false;
+
+		// 1. 要折叠的边两端点都替换为collapsedVer
+		vers.row(vaIdx) = collapsedVer;
+		vers.row(vbIdx) = collapsedVer;
+
+		int corner = UeCornersInfo(uEdgeIdx, 0);
+		int triIdx = UeTrisInfo(uEdgeIdx, 0);
+		int eIdx = corner * trisCount + triIdx;
+		int corner1 = (corner + 1) % 3;
+		int corner2 = (corner + 2) % 3;
+		int eIdx1 = triIdx + trisCount * corner1;
+		int eIdx2 = triIdx + trisCount * corner2;
+		const int ueIdx1 = edgeUeInfo(eIdx1);
+		const int ueIdx2 = edgeUeInfo(eIdx2);
+
+		{
+			const bool flip1 = UeTrisInfo(ueIdx1, 1) == triIdx;
+			const int triOppIdx1 = flip1 ? UeTrisInfo(ueIdx1, 0) : UeTrisInfo(ueIdx1, 1);
+			// const int triOppIdx1 = eOppIdx1 % trisCount;
+			const int cornerOpp1 = flip1 ? UeCornersInfo(ueIdx1, 0) : UeCornersInfo(ueIdx1, 1);
+			const int eOppIdx1 = triOppIdx1 + trisCount * cornerOpp1;
+			//const int eOppIdx1 = eOppIdx1;
+
+			// kill edge, kill tri:
+			kill_edge(ueIdx1);
+			tris(triIdx, 0) = IGL_COLLAPSE_EDGE_NULL;
+			tris(triIdx, 1) = IGL_COLLAPSE_EDGE_NULL;
+			tris(triIdx, 2) = IGL_COLLAPSE_EDGE_NULL;
+
+			// 更新有向边无向边的索引映射；
+			edgeUeInfo(eOppIdx1) = ueIdx2;
+
+			// 更新其他：
+			const int opp2 = (UeTrisInfo(ueIdx2, 0) == triIdx ? 0 : 1);
+			UeTrisInfo(ueIdx2, opp2) = triOppIdx1;
+			UeCornersInfo(ueIdx2, opp2) = cornerOpp1;
+
+			a_e1 = ueIdx1;
+			a_f1 = triIdx;
+		}
+
+		int CORNER = UeCornersInfo(uEdgeIdx, 1);
+		int TRIIDX = UeTrisInfo(uEdgeIdx, 1);
+		int EIDX = CORNER * trisCount + TRIIDX;
+		int CORNER1 = (CORNER + 2) % 3;
+		int CORNER2 = (CORNER + 1) % 3;
+		int EIDX1 = TRIIDX + trisCount * CORNER1;
+		int EIDX2 = TRIIDX + trisCount * CORNER2;
+		const int UEIDX1 = edgeUeInfo(EIDX1);
+		const int UEIDX2 = edgeUeInfo(EIDX2);
+
+		{
+			const bool flip1 = UeTrisInfo(UEIDX1, 1) == TRIIDX;
+			const int TRIOPPIDX1 = flip1 ? UeTrisInfo(UEIDX1, 0) : UeTrisInfo(UEIDX1, 1);
+			const int CORNEROPP1 = flip1 ? UeCornersInfo(UEIDX1, 0) : UeCornersInfo(UEIDX1, 1);
+			const int EOPPIDX1 = TRIOPPIDX1 + trisCount * CORNEROPP1;
+
+			kill_edge(UEIDX1);
+			tris(TRIIDX, 0) = IGL_COLLAPSE_EDGE_NULL;
+			tris(TRIIDX, 1) = IGL_COLLAPSE_EDGE_NULL;
+			tris(TRIIDX, 2) = IGL_COLLAPSE_EDGE_NULL;
+
+			edgeUeInfo(EOPPIDX1) = UEIDX2;
+
+			const int opp2 = (UeTrisInfo(UEIDX2, 0) == TRIIDX ? 0 : 1);
+			UeTrisInfo(UEIDX2, opp2) = TRIOPPIDX1;
+			UeCornersInfo(UEIDX2, opp2) = CORNEROPP1;
+
+			a_e2 = UEIDX1;
+			a_f2 = TRIIDX;
+		}
+
+		// 3. 被折叠的无向边uEdgeIdx中, vaIdx被保留，vbIdx称为孤立点；
+		for (auto i : nbrTriIdxes)
+		{
+			for (int k = 0; k < 3; k++)
+			{
+				if (tris(i, k) == vbIdx)
+				{
+					const int eIdx1 = i + trisCount * ((k + 1) % 3);
+					const int eIdx2 = i + trisCount * ((k + 2) % 3);
+					const int ueIdx2 = edgeUeInfo(eIdx2);
+					const int ueIdx1 = edgeUeInfo(eIdx1);
+					if (vbIdx == uEdges(ueIdx1, 0))
+						uEdges(ueIdx1, 0) = vaIdx;
+					if (vbIdx == uEdges(ueIdx1, 1))
+						uEdges(ueIdx1, 1) = vaIdx;
+
+					// Skip if we just handled this edge (claim: this will be all except for the first non-trivial face)
+					if (ueIdx2 != -1)
+					{
+						if (vbIdx == uEdges(ueIdx2, 0))
+							uEdges(ueIdx2, 0) = vaIdx;
+						if (vbIdx == uEdges(ueIdx2, 1))
+							uEdges(ueIdx2, 1) = vaIdx;
+					}
+
+					tris(i, k) = vaIdx;
+					break;
+				}
+			}
+		}
+
+		// 4. Finally,  "remove" this edge and its information
+		kill_edge(uEdgeIdx);
+
+		return true;
+	}
+ 
+
+
+	// 最简单的边折叠精简算法——使用边长来度量折叠损耗；
+	void test1()
+	{
+		Eigen::MatrixXd vers, versOut, versOri;
+		Eigen::MatrixXi tris, trisOut, trisTmp, trisOri;
+		Eigen::VectorXi edgeUeInfo;
+		Eigen::MatrixXi edges, uEdges, UeTrisInfo, UeCornersInfo, ueEdgeInfo;
+		Eigen::VectorXi timeStamps;
+		Eigen::MatrixXd collapsedVers;
+		Eigen::VectorXd costs;
+		igl::min_heap<std::tuple<double, int, int> > pQueue;				// 优先队列；(无向边的cost, 无向边索引, 时间戳)
+		bool clean_finish = false;
+		tiktok& tt = tiktok::getInstance();
+
+		igl::readOBJ("E:/材料/tooth.obj", versOri, trisOri);
+		igl::writeOBJ("E:/meshIn.obj", versOri, trisOri);
+
+		tt.start();
+		const unsigned trisCountOri = trisOri.rows();
+		int trisCountNew = trisCountOri;
+		int tarTrisCount = std::round(trisCountOri / 3);
+
+		// 0. 检测是否有非流形有向边，有则直接退出；
+		Eigen::MatrixXi nmnEdges;
+		nonManifoldEdges(nmnEdges, trisOri);
+		if (nmnEdges.size() > 0)
+			return;
+
+		// 1. 将网格处理成一个封闭网格——若存在边缘有向边，则将其和一个无限远点连接生成新三角片
+		if (!connect_boundary_to_infinity(vers, tris, versOri, trisOri))
+			return;
+
+		// 2. 计算无向边信息：
+		if (!getEdges(edges, tris))
+			return;
+		if (!getUedges(uEdges, edgeUeInfo, ueEdgeInfo, edges))
+			return;
+		if (!getUeInfos(UeTrisInfo, UeCornersInfo, edgeUeInfo, uEdges, tris))
+			return;
+
+		// 3. 计算每条无向边的cost值（边长），以此为优先级存入优先队列
+		const unsigned ueCount = uEdges.rows();
+		timeStamps = Eigen::VectorXi::Zero(uEdges.rows());
+		collapsedVers.resize(uEdges.rows(), vers.cols());
+		costs.resize(uEdges.rows());
+		igl::parallel_for(ueCount, [&](const int ueIdx)
+			{
+				Eigen::RowVector3d newPos;
+				double cost = costAndNewPos_simplest(newPos, ueIdx, uEdges, vers, tris);
+				collapsedVers.row(ueIdx) = newPos;
+				costs(ueIdx) = cost;
+			},
+			10000);
+		for (int i = 0; i < ueCount; i++)
+			pQueue.emplace(costs(i), i, 0);
+ 
+		// 4. 边折叠的循环：
+		int uEdgeIdx0;							// 优先队列首部的边；
+		int ueIdx1, ueIdx02, triIdx1, triIdx02;
+		unsigned loopCount = 0;
+		while (true)
+		{
+			bool collapsed = true;
+			std::tuple<double, int, int> edgeTuple;							// 优先队列首部的元素；
+			std::vector<int> nbrTrisIdx_src, nbrVersIdx_src;				// vaIdx的1领域的三角片索引、顶点索引
+			std::vector<int>  nbrTrisIdx_des, nbrVersIdx_des;			// vbIdx的1领域的三角片索引、顶点索引
+
+			// w1. 取队首元素，队首元素出队：
+			while (true)
+			{
+				// ww1. 若队列为空，退出循环；
+				if (pQueue.empty())
+					assert("边折叠光了");
+
+				// ww2. 取队首元素，队首元素出队：
+				edgeTuple = pQueue.top();
+				if (std::get<0>(edgeTuple) == std::numeric_limits<double>::infinity())
+					assert("队首边的cost是无穷大");
+				pQueue.pop();
+				uEdgeIdx0 = std::get<1>(edgeTuple);          // 队首的无向边索引;
+
+				// ww3. Check if matches timestamp
+				if (std::get<2>(edgeTuple) == timeStamps(uEdgeIdx0))
+					break;
+			}
+
+			// w2. 计算当前边两端点1领域的顶点、三角片：
+			getAllTheShit(uEdgeIdx0, uEdges, vers, tris, nbrVersIdx_src, nbrTrisIdx_src, nbrVersIdx_des, nbrTrisIdx_des);
+
+			//	w3. 折叠队首的边：
+			collapsed = collapseSingleEdge(uEdgeIdx0, collapsedVers.row(uEdgeIdx0), nbrVersIdx_src, nbrTrisIdx_src, \
+				nbrVersIdx_des, nbrTrisIdx_des, vers, tris, uEdges, edges, edgeUeInfo, UeTrisInfo, UeCornersInfo, \
+				ueIdx1, ueIdx02, triIdx1, triIdx02);
+			loopCount++;
+
+			//	w4. post_collapses; 默认情形下什么都不做；
+
+			// w5. 折叠操作之后，更新相关timeStamp， 更新相关边的cost值
+			if (collapsed)
+			{
+				// w5.1. Erase the two,  other collapsed uEdges by marking their timestamps as -1
+				timeStamps(ueIdx1) = -1;
+				timeStamps(ueIdx02) = -1;
+
+				// w5.2.确定被折叠的边1领域的所有三角片
+				std::vector<int> nbrTrisIdx;							// 被折叠的边1领域的所有三角片索引；
+				nbrTrisIdx.reserve(nbrTrisIdx_src.size() + nbrTrisIdx_des.size());
+				nbrTrisIdx.insert(nbrTrisIdx.end(), nbrTrisIdx_src.begin(), nbrTrisIdx_src.end());
+				nbrTrisIdx.insert(nbrTrisIdx.end(), nbrTrisIdx_des.begin(), nbrTrisIdx_des.end());
+				std::sort(nbrTrisIdx.begin(), nbrTrisIdx.end());
+				nbrTrisIdx.erase(std::unique(nbrTrisIdx.begin(), nbrTrisIdx.end()), nbrTrisIdx.end());
+
+				// w5.3. 确定被折叠的边1领域的所有无向边 
+				std::vector<int> nbrUeIdxes;						// 被折叠的边1领域的所有无向边索引；
+				nbrUeIdxes.reserve(3 * nbrTrisIdx.size());
+				for (auto& triIdx : nbrTrisIdx)
+				{
+					if (tris(triIdx, 0) == IGL_COLLAPSE_EDGE_NULL || tris(triIdx, 1) == IGL_COLLAPSE_EDGE_NULL || tris(triIdx, 2) == IGL_COLLAPSE_EDGE_NULL)
+						continue;
+
+					for (int i = 0; i < 3; i++)
+					{
+						const int eIdx = i * tris.rows() + triIdx;
+						const int ueIdx = edgeUeInfo(eIdx);
+						nbrUeIdxes.push_back(ueIdx);
+					}
+				}
+				std::sort(nbrUeIdxes.begin(), nbrUeIdxes.end());
+				nbrUeIdxes.erase(std::unique(nbrUeIdxes.begin(), nbrUeIdxes.end()), nbrUeIdxes.end());             // 去除重复元素：
+ 
+				// w5.4. 更新被折叠的边1领域的所有无向边的信息——cost值、折叠后顶点、时间戳；
+				for (auto& ueIdx : nbrUeIdxes)
+				{
+					// wf1. 计算边折叠的cost值，及折叠后的顶点坐标：
+					Eigen::RowVector3d newPos;
+					double cost = costAndNewPos_simplest(newPos, ueIdx, uEdges, vers, tris);
+
+					// wf2. 更新的无向边的时间戳+1
+					timeStamps(ueIdx)++;
+
+					// wf3. 更新后的无向边被重新插入队列，之前插入的由于时间戳不匹配所以已经无效；
+					pQueue.emplace(cost, ueIdx, timeStamps(ueIdx));
+					collapsedVers.row(ueIdx) = newPos;
+				}
+			}
+			else
+				assert("edge collapse failed.");
+
+			// w6. 判断是否满足终止条件stopping_condition，若满足则跳出边折叠循环；
+			if (collapsed)
+			{
+				// w6.1. 更新三角片数
+				if (triIdx1 < trisCountOri)
+					trisCountNew -= 1;
+				if (triIdx02 < trisCountOri)
+					trisCountNew -= 1;
+
+				// w6.2. 若三角片数达到目标，则退出边折叠循环；
+				bool stopConditionFlag = (trisCountNew <= (int)tarTrisCount);
+				if (stopConditionFlag)
+				{
+					clean_finish = true;
+					break;
+				}
+			}
+			else
+				assert("edge collapse failed.");		 // 边折叠失败，退出循环：
+		}
+
+
+		// 5. 删除所有含有IGL_COLLAPSE_EDGE_NULL的三角片，以及包含无穷远点的三角片
+		trisTmp.resize(tris.rows(), 3);
+		int index = 0;
+		for (int i = 0; i < tris.rows(); i++)
+		{
+			int vaIdx = tris(i, 0);
+			int vbIdx = tris(i, 1);
+			int vcIdx = tris(i, 2);
+			bool continueFlag = false;
+			Eigen::Matrix3d triVers;					// 当前三角片的三个顶点；
+			double* coorPtr = nullptr;
+			if (vaIdx == vbIdx || vbIdx == vcIdx || vcIdx == vaIdx)
+				continue;
+			triVers.row(0) = vers.row(vaIdx);
+			triVers.row(1) = vers.row(vbIdx);
+			triVers.row(2) = vers.row(vcIdx);
+			coorPtr = triVers.data();
+			for (int k = 0; k < 9; ++k)
+			{
+				if (std::isinf(*coorPtr++))
+				{
+					continueFlag = true;
+					break;
+				}
+			}
+			if (continueFlag)
+				continue;
+			trisTmp.row(index) = tris.row(i);
+			index++;
+		}
+		trisTmp.conservativeResize(index, trisTmp.cols());					  // 这里相当于shrink_to_fit(); 
+
+
+		// 6. 删除孤立顶点，并更新三角片：
+		std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, trisTmp);
+		if (!removeIsoVers(versOut, trisOut, vers, trisTmp, isoVerIdxes))
+			return;
+
+		debugDisp("loopCount == ", loopCount);
+		tt.endCout("精简耗时：");
+		igl::writeOBJ("E:/decimateOutput.obj", versOut, trisOut);
+		std::cout << "finished." << std::endl;
 	}
 
 
@@ -1057,7 +1078,6 @@ namespace DECIMATION
 
  
 	// 解析qslim()
-#if 0
 	void test0000()
 	{
 		Eigen::MatrixXd vers, versOut, vers0, versOri;
@@ -1065,13 +1085,13 @@ namespace DECIMATION
 		Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
 		Eigen::VectorXi newOldVersInfo;
 		Eigen::VectorXi edgeUeInfo;
-		Eigen::MatrixXi edges, uEdges, UeTrisInfo, UeCornersInfo;
+		Eigen::MatrixXi edges, uEdges, ueEdgeInfo, UeTrisInfo, UeCornersInfo;
 		Eigen::VectorXi timeStamps;
 		Eigen::MatrixXd collapsedVers;
 		Eigen::VectorXd costs;
 		std::vector<Quadric> quadrics;													// 每个顶点的Q矩阵；
 		igl::min_heap<std::tuple<double, int, int> > pQueue;				// 优先队列；
-		Eigen::VectorXi _1, I2;										// 最后删除孤立点和内补三角片时用到；
+		Eigen::VectorXi _1, I2;											// 最后删除孤立点和内补三角片时用到；
 		bool clean_finish = false;
 		tiktok& tt = tiktok::getInstance();
 
@@ -1083,14 +1103,14 @@ namespace DECIMATION
 		int retIdx = -1;
 
 		tt.start();
-		igl::readOBJ("E:/材料/roundSurf.obj", versOri, trisOri);
+		igl::readOBJ("E:/材料/jawMeshDense.obj", versOri, trisOri);
 		tt.endCout("elapsed time of loading mesh is: ");
 		igl::writeOBJ("E:/meshIn.obj", versOri, trisOri);
 
 		unsigned versCount = versOri.rows();
 		unsigned trisCount = trisOri.rows();
 		int trisCountNew = trisCount;
-		int tarTrisCount = std::round(trisCount / 3);
+		int tarTrisCount = 30000;
 
 		// 0. 检测是否有非流形有向边，有则直接退出；
 		Eigen::MatrixXi nmnEdges;
@@ -1103,7 +1123,7 @@ namespace DECIMATION
 
 		// 1.1 计算无向边信息：
 		getEdges(edges, tris);
-		getUedges(uEdges, edgeUeInfo, edges);
+		getUedges(uEdges, edgeUeInfo, ueEdgeInfo, edges);
 		getUeInfos(UeTrisInfo, UeCornersInfo, edgeUeInfo, uEdges, tris);
 
 		// 2. 计算每个顶点的Q矩阵：
@@ -1180,15 +1200,10 @@ namespace DECIMATION
 			int smallIdx = (vaIdx < vbIdx ? vaIdx: vbIdx);
 			igl::circulation(uEdgeIdx0, true, tris, edgeUeInfo, UeTrisInfo, UeCornersInfo, nbrVersIdx_src, nbrTrisIdx_src);
 			igl::circulation(uEdgeIdx0, false, tris, edgeUeInfo, UeTrisInfo, UeCornersInfo, nbrVersIdx_des, nbrTrisIdx_des);
-			//nbrVersIdx_des = oneRingVerIdxes(vaIdx, vers, tris);
-			//nbrTrisIdx_des = oneRingTriIdxes(vaIdx, vers, tris);
-			//nbrVersIdx_src = oneRingVerIdxes(vbIdx, vers, tris);
-			//nbrVersIdx_src = oneRingVerIdxes(vbIdx, vers, tris);
-			//nbrTrisIdx_src = oneRingTriIdxes(vbIdx, vers, tris);
 
 			//	w3. 折叠队首的边：
 			collapsed = collapseSingleEdge(uEdgeIdx0, collapsedVers.row(uEdgeIdx0), nbrVersIdx_src, nbrTrisIdx_src, \
-				nbrVersIdx_des, nbrTrisIdx_des, vers, tris, uEdges, edgeUeInfo, UeTrisInfo, UeCornersInfo, ueIdx1, ueIdx02, triIdx1, triIdx02);
+				nbrVersIdx_des, nbrTrisIdx_des, vers, tris, uEdges, edges, edgeUeInfo, UeTrisInfo, UeCornersInfo, ueIdx1, ueIdx02, triIdx1, triIdx02);
 
 			//	w4. post_collapses——更新q矩阵
 			if (collapsed)
@@ -1308,283 +1323,9 @@ namespace DECIMATION
 		igl::writeOBJ("E:/qslimOutput.obj", versOut, trisOut);
 		std::cout << "finished." << std::endl;
 	}
-#endif
+ 
 
-	// 最简单的边折叠精简算法——使用边长来度量折叠损耗；
-	void test1() 
-	{
-		Eigen::MatrixXd vers, versOut, versOri;
-		Eigen::MatrixXi tris, trisOut, trisTmp, trisOri;
-		Eigen::VectorXi edgeUeInfo;
-		Eigen::MatrixXi edges, uEdges, UeTrisInfo, UeCornersInfo, ueEdgeInfo;
-		Eigen::VectorXi timeStamps;
-		Eigen::MatrixXd collapsedVers;
-		Eigen::VectorXd costs;
-		igl::min_heap<std::tuple<double, int, int> > pQueue;				// 优先队列；(无向边的cost, 无向边索引, 时间戳)
-		bool clean_finish = false;
-		tiktok& tt = tiktok::getInstance();
-
-		igl::readOBJ("E:/材料/roundSurf.obj", versOri, trisOri);
-		igl::writeOBJ("E:/meshIn.obj", versOri, trisOri);
-
-		tt.start();
-		unsigned trisCount = trisOri.rows();
-		int trisCountNew = trisCount;
-		int tarTrisCount = std::round(trisCount / 3);
-
-		// 0. 检测是否有非流形有向边，有则直接退出；
-		Eigen::MatrixXi nmnEdges;
-		nonManifoldEdges(nmnEdges, trisOri);
-		if (nmnEdges.size() > 0)
-			return;
-
-		// 1. 将网格处理成一个封闭网格——若存在边缘有向边，则将其和一个无限远点连接生成新三角片
-		if (!connect_boundary_to_infinity(vers, tris, versOri, trisOri))
-			return;
-
-		// 2. 计算无向边信息：
-		if (!getEdges(edges, tris))
-			return;
-		if (!getUedges(uEdges, edgeUeInfo, ueEdgeInfo, edges))
-			return;
-		if (!getUeInfos(UeTrisInfo, UeCornersInfo, edgeUeInfo, uEdges, tris))
-			return;
-
-		// 3. 计算每条无向边的cost值（边长），以此为优先级存入优先队列
-		const unsigned ueCount = uEdges.rows();
-		timeStamps = Eigen::VectorXi::Zero(uEdges.rows());
-		collapsedVers.resize(uEdges.rows(), vers.cols());
-		costs.resize(uEdges.rows());
-		igl::parallel_for(ueCount, [&](const int ueIdx)
-			{
-				Eigen::RowVector3d newPos;
-				double cost = costAndNewPos_simplest(newPos, ueIdx, uEdges, vers, tris);
-				collapsedVers.row(ueIdx) = newPos;
-				costs(ueIdx) = cost;
-			},
-			10000);
-		for (int i = 0; i < ueCount; i++)
-			pQueue.emplace(costs(i), i, 0);
-
-		// 4. 边折叠的循环：
-		int uEdgeIdx0;							// 优先队列首部的边；
-		int ueIdx1, ueIdx02, triIdx1, triIdx02;
-		while (true)
-		{
-			bool collapsed = true;
-			std::tuple<double, int, int> edgeTuple;							// 优先队列首部的元素；
-			std::vector<int> nbrTrisIdx_src, nbrVersIdx_src;				// vaIdx的1领域的三角片索引、顶点索引
-			std::vector<int>  nbrTrisIdx_des, nbrVersIdx_des;			// vbIdx的1领域的三角片索引、顶点索引
-
-			// w1. 取队首元素，队首元素出队：
-			while (true)
-			{
-				// ww1. 若队列为空，退出循环；
-				if (pQueue.empty())						 
-					assert("边折叠光了");
-
-				// ww2. 取队首元素，队首元素出队：
-				edgeTuple = pQueue.top();
-				if (std::get<0>(edgeTuple) == std::numeric_limits<double>::infinity())
-					assert("队首边的cost是无穷大");
-				pQueue.pop();
-				uEdgeIdx0 = std::get<1>(edgeTuple);          // 队首的无向边索引;
-
-				// ww3. Check if matches timestamp
-				if (std::get<2>(edgeTuple) == timeStamps(uEdgeIdx0))
-					break;
-			}
-
-			// w2. 计算当前边两端点1领域的顶点、三角片：
-			getAllTheShit(uEdgeIdx0, uEdges, vers, tris, nbrVersIdx_src, nbrTrisIdx_src, nbrVersIdx_des, nbrTrisIdx_des);
-
-			// for debug;
-			if(0)
-			{
-				Eigen::MatrixXd vers0 = vers.topRows(vers.rows() - 1);
-				Eigen::MatrixXd verPrint;
-				Eigen::MatrixXi triPrint;
-				int vaIdx = uEdges(uEdgeIdx0, 0);
-				int vbIdx = uEdges(uEdgeIdx0, 1);
-				Eigen::RowVector3d va = vers0.row(vaIdx);
-				Eigen::RowVector3d vb = vers0.row(vbIdx);
-				verPrint = va;
-				debugWriteVers("va", verPrint);
-				verPrint = vb;
-				debugWriteVers("vb", verPrint);
-
-				nbrVersIdx_des.clear();
-				nbrVersIdx_src.clear();
-				nbrTrisIdx_des.clear();
-				nbrTrisIdx_src.clear();
-				getAllTheShit(uEdgeIdx0, uEdges, vers, tris, nbrVersIdx_src, nbrTrisIdx_src, nbrVersIdx_des, nbrTrisIdx_des);
-
-				for (int i = 0; i<nbrVersIdx_src.size(); ++i) 
-				{
-					int index = nbrVersIdx_src[i];
-					verPrint = vers0.row(index);
-					debugWriteVers((std::string{"nbrVersSrc"} + std::to_string(i)).c_str(), verPrint);
-				}
-				for (int i = 0; i < nbrVersIdx_des.size(); ++i)
-				{
-					int index = nbrVersIdx_des[i];
-					verPrint = vers0.row(index);
-					debugWriteVers((std::string{ "nbrVersDes" } + std::to_string(i)).c_str(), verPrint);
-				}
-				for (int i = 0; i < nbrTrisIdx_src.size(); ++i)
-				{
-					int index = nbrTrisIdx_src[i];
-					triPrint = tris.row(index);
-					debugWriteMesh((std::string{ "nbrTrisSrc" } + std::to_string(i)).c_str(), vers0, triPrint);
-				}
-				for (int i = 0; i < nbrTrisIdx_des.size(); ++i)
-				{
-					int index = nbrTrisIdx_des[i];
-					triPrint = tris.row(index);
-					debugWriteMesh((std::string{ "nbrTrisDes" } + std::to_string(i)).c_str(), vers0, triPrint);
-				}
-
-				debugDisp("pause");
-			}
-
-			//	w3. 折叠队首的边：
-#ifdef MY_EDGE_COLLAPSE
-			collapsed = collapseSingleEdgeNew(uEdgeIdx0, collapsedVers.row(uEdgeIdx0), nbrVersIdx_src, nbrTrisIdx_src, \
-				nbrVersIdx_des, nbrTrisIdx_des, vers, tris, uEdges, edges, edgeUeInfo, ueEdgeInfo, UeTrisInfo, UeCornersInfo, \
-				ueIdx1, ueIdx02, triIdx1, triIdx02);
-#else
-			collapsed = collapseSingleEdge(uEdgeIdx0, collapsedVers.row(uEdgeIdx0), nbrVersIdx_src, nbrTrisIdx_src, \
-				nbrVersIdx_des, nbrTrisIdx_des, vers, tris, uEdges, edges, edgeUeInfo, ueEdgeInfo, UeTrisInfo, UeCornersInfo, \
-				ueIdx1, ueIdx02, triIdx1, triIdx02);
-#endif
-
-			//	w4. post_collapses; 默认情形下什么都不做；
-
-			// w5. 折叠操作之后，更新相关timeStamp， 更新相关边的cost值
-			if (collapsed)
-			{
-				// w5.1. Erase the two,  other collapsed uEdges by marking their timestamps as -1
-				timeStamps(ueIdx1) = -1;
-				timeStamps(ueIdx02) = -1;
-
-				// w5.2.确定被折叠的边1领域的所有三角片
-				std::vector<int> nbrTrisIdx;							// 被折叠的边1领域的所有三角片索引；
-				nbrTrisIdx.reserve(nbrTrisIdx_src.size() + nbrTrisIdx_des.size());
-				nbrTrisIdx.insert(nbrTrisIdx.end(), nbrTrisIdx_src.begin(), nbrTrisIdx_src.end());
-				nbrTrisIdx.insert(nbrTrisIdx.end(), nbrTrisIdx_des.begin(), nbrTrisIdx_des.end());
-				std::sort(nbrTrisIdx.begin(), nbrTrisIdx.end());
-				nbrTrisIdx.erase(std::unique(nbrTrisIdx.begin(), nbrTrisIdx.end()), nbrTrisIdx.end());
-
-				// w5.3. 确定被折叠的边1领域的所有无向边 
-				std::vector<int> nbrUeIdxes;						// 被折叠的边1领域的所有无向边索引；
-				nbrUeIdxes.reserve(3 * nbrTrisIdx.size());
-				for (auto& triIdx : nbrTrisIdx)
-				{
-					if (tris(triIdx, 0) == IGL_COLLAPSE_EDGE_NULL || tris(triIdx, 1) == IGL_COLLAPSE_EDGE_NULL || tris(triIdx, 2) == IGL_COLLAPSE_EDGE_NULL)
-						continue;
-
-					for (int i = 0; i < 3; i++)
-					{
-						const int eIdx = i * tris.rows() + triIdx;
-						const int ueIdx = edgeUeInfo(eIdx);
-						nbrUeIdxes.push_back(ueIdx);
-					}
-				}
-				std::sort(nbrUeIdxes.begin(), nbrUeIdxes.end());
-				nbrUeIdxes.erase(std::unique(nbrUeIdxes.begin(), nbrUeIdxes.end()), nbrUeIdxes.end());             // 去除重复元素：
-
-				// for debug:
-				Eigen::MatrixXi tmpUedges;
-				subFromIdxVec(tmpUedges, uEdges, nbrUeIdxes);
-				auto tmpVec = mat2doublets(tmpUedges);
-
-				// w5.4. 更新被折叠的边1领域的所有无向边的信息——cost值、折叠后顶点、时间戳；
-				for (auto& ueIdx : nbrUeIdxes)			 
-				{
-#ifdef MY_EDGE_COLLAPSE
-					if (IGL_COLLAPSE_EDGE_NULL == uEdges(ueIdx, 0))
-						continue;
-#endif 
-
-					// wf1. 计算边折叠的cost值，及折叠后的顶点坐标：
-					Eigen::RowVector3d newPos;
-					double cost = costAndNewPos_simplest(newPos, ueIdx, uEdges, vers, tris);
-
-					// wf2. 更新的无向边的时间戳+1
-					timeStamps(ueIdx)++;
-
-					// wf3. 更新后的无向边被重新插入队列，之前插入的由于时间戳不匹配所以已经无效；
-					pQueue.emplace(cost, ueIdx, timeStamps(ueIdx));
-					collapsedVers.row(ueIdx) = newPos;
-				}
-			}
-			else
-				assert("edge collapse failed.");
-
-			// w6. 判断是否满足终止条件stopping_condition，若满足则跳出边折叠循环；
-			if (collapsed)
-			{
-				// w6.1. 更新三角片数
-				if (triIdx1 < trisCount)
-					trisCountNew -= 1;
-				if (triIdx02 < trisCount)
-					trisCountNew -= 1;
-
-				// w6.2. 若三角片数达到目标，则退出边折叠循环；
-				bool stopConditionFlag = (trisCountNew <= (int)tarTrisCount);
-				if (stopConditionFlag)
-				{
-					clean_finish = true;
-					break;
-				}
-			}
-			else			
-				assert("edge collapse failed.");		 // 边折叠失败，退出循环：
-		}
-
-		// 5. 删除所有含有IGL_COLLAPSE_EDGE_NULL的三角片，以及包含无穷远点的三角片
-		trisTmp.resize(tris.rows(), 3);
-		int index = 0;
-		for (int i = 0; i < tris.rows(); i++)
-		{
-			int vaIdx = tris(i, 0);
-			int vbIdx = tris(i, 1);
-			int vcIdx = tris(i, 2);
-			bool continueFlag = false;
-			Eigen::Matrix3d triVers;					// 当前三角片的三个顶点；
-			double* coorPtr = nullptr;
-			if (vaIdx == vbIdx || vbIdx == vcIdx || vcIdx == vaIdx)
-				continue;
-			triVers.row(0) = vers.row(vaIdx);
-			triVers.row(1) = vers.row(vbIdx);
-			triVers.row(2) = vers.row(vcIdx);
-			coorPtr = triVers.data();
-			for (int k = 0; k < 9; ++k)
-			{
-				if (std::isinf(*coorPtr++))
-				{
-					continueFlag = true;
-					break;
-				}
-			}
-			if (continueFlag)
-				continue;
-			trisTmp.row(index) = tris.row(i);
-			index++;
-		}
-		trisTmp.conservativeResize(index, trisTmp.cols());					  // 这里相当于shrink_to_fit(); 
-
-		// 6. 删除孤立顶点，并更新三角片：
-		std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, trisTmp);
-		if (!removeIsoVers(versOut, trisOut, vers, trisTmp, isoVerIdxes))
-			return;
-
-		tt.endCout("精简耗时：");
-		igl::writeOBJ("E:/decimateOutput.obj", versOut, trisOut);
-		std::cout << "finished." << std::endl;
-	}
-
-
+	 
 	// 求精简后的网格和原始网格的近似误差（来自QEM的paper）——速度太慢
 	double calcSimpApproxError(const Eigen::MatrixXd& versSimp, const Eigen::MatrixXi& trisSimp, \
 		const Eigen::MatrixXd& versOri, const Eigen::MatrixXi& trisOri)
@@ -1613,11 +1354,10 @@ namespace DECIMATION
 		versExt0.leftCols(3) = versMat0.array().cast<double>();
 		versExt1.leftCols(3) = versMat1.array().cast<double>();
 
-		// for debug
-		Eigen::Vector4d verColVec = versExt0.row(3).transpose();
-		// 索引为verIdx的simp网格中的顶点，到ori网格中所有三角片平面的符号距离：
-		Eigen::VectorXd signedDises = planeCoeff0 * verColVec;
-		Eigen::VectorXd sqrDises = signedDises.array() * signedDises.array();
+		//// for debug
+		//Eigen::Vector4d verColVec = versExt0.row(3).transpose();		
+		//Eigen::VectorXd signedDises = planeCoeff0 * verColVec;			// 索引为verIdx的simp网格中的顶点，到ori网格中所有三角片平面的符号距离：
+		//Eigen::VectorXd sqrDises = signedDises.array() * signedDises.array();
 
 		// for new method:
 		PARALLEL_FOR(0, versCount1, [&](int verIdx)
@@ -2100,17 +1840,11 @@ namespace MESH_REPAIR
 			}
 		}
 
-		// for debug
-		std::vector<int> oppTriIdxes;
-
 
 		// 3. 退化三角片ABC，若最长边是AB, 对边所在的三角片为BAX, 则BAX分解为BCX和CAX，
 		for (unsigned i = 0; i < degCount; ++i) 
 		{
 			unsigned oppTriIdx = edgesMap.find(longEdgeOppCodes[i])->second;		
-
-			// for debug
-			oppTriIdxes.push_back(oppTriIdx);
 
 			Eigen::RowVector3i oppTri = tris.row(oppTriIdx);
 			std::pair<int, int> retPair = decodeEdge(longEdgeOppCodes[i]);
@@ -2129,11 +1863,6 @@ namespace MESH_REPAIR
 			trisCopy.row(oppTriIdx) = Eigen::RowVector3i{vbIdx, vcIdx, vxIdx};
 			matInsertRows<int , 3>(trisCopy, Eigen::RowVector3i{vcIdx, vaIdx, vxIdx});
 		}
-
-		// for debug;
-		Eigen::MatrixXi oppTris;
-		subFromIdxVec(oppTris, tris, oppTriIdxes);
-		objWriteMeshMat("E:/tris2modify.obj", vers, oppTris);
  
 		// 4. 删除被标记的退化三角片：
 		tris.resize(trisCopy.rows(), 3);
@@ -2639,12 +2368,12 @@ int main(int argc, char** argv)
 	
 	// SPARSEMAT::test0();
 
-	 DECIMATION::test1();
+	 // DECIMATION::test0000();
 
 	// IGL_DIF_GEO::test1();
 	// IGL_GRAPH::test1();
 	// IGL_SPACE_PARTITION::test0();
-	// IGL_BASIC_PMP::test44();
+	// IGL_BASIC_PMP::test8();
  
 	// SCIENTIFICCALC::test7();
 	
@@ -2658,13 +2387,13 @@ int main(int argc, char** argv)
 
 	// TEMP_TEST::test1();
 
-	// MESH_REPAIR::test0();
+	MESH_REPAIR::test0();
  
 	// TEST_DIP::test0();
 
 	// TEST_TMESH::test44();
 
-	//DECIMATION::testCmd_qslimDecimation(argc, argv);
+	// DECIMATION::testCmd_qslimDecimation(argc, argv);
 
 	// MESH_REPAIR::testCmd_meshFix(argc, argv);
 
