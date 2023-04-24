@@ -18,26 +18,6 @@
 #include <io.h>
 
 
-
-
-//#include <iostream>
-//#include <fstream>
-//#include <vector>
-//#include <string>
-//#include <random>
-//#include <functional>
-//#include <algorithm>
-//#include <numeric>
-//#include <thread>
-//#include <windows.h>
-//#include <atlstr.h>		// 包含CString类。属于microsoft ATL(活动模板库avtive template library)
-//#include <io.h>
-//#include <SDKDDKVer.h>	
-//#include <windows.h>		
-//#include <iostream>
-//#include <locale>
-
-
 #define DATA_PATH "./data/"
 
 static igl::opengl::glfw::Viewer viewer;				// 全局的网格查看器对象；
@@ -1447,7 +1427,7 @@ namespace MESH_REPAIR
 		bool retFlag = true;
 		//retFlag = igl::readSTL(fileIn, vers, tris, normals);							// 貌似igl::readSTL读取的网格顶点数据不对；
 
-		objReadMeshMat(vers, tris, "E:/meshOut0.obj");
+		objReadMeshMat(vers, tris, "E:/meshOut.obj");
 		objWriteMeshMat("E:/meshInput.obj", vers, tris);
 
 		// 0. 去除重复三角片：
@@ -1585,6 +1565,194 @@ namespace MESH_REPAIR
 		}
 
 		std::cout << "finished." << std::endl;
+	}
+
+
+	// 检测inputOBJ文件夹中网格的边缘边、非流形边、孤立点、重复点、洞、重叠三角片等缺陷：
+	int testCmd_meshDefectsDetect(int argc, char** argv)
+	{
+		tiktok& tt = tiktok::getInstance();
+		float deciRatio = 0.5;							// 精简率
+
+		// 生成路径：
+		int   nPos;
+		CString   cPath;
+		GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
+		nPos = cPath.ReverseFind('\\');
+		cPath = cPath.Left(nPos);
+		std::string path{ CT2CA{cPath} };
+		std::string pathOBJ = path + "\\inputOBJ";
+		g_debugPath =  path + "\\outputData\\";
+
+		debugDisp("读取输入网格..."); 
+		Eigen::MatrixXd vers, edgeArrows, normals;
+		Eigen::MatrixXi tris, edges;
+		std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;
+		std::vector<Eigen::MatrixXd> meshesVers, outVers;
+		std::vector<Eigen::MatrixXi> meshesTris, outTris;
+
+		// 0. 读取输入网格，只能读一个；
+		getFileNames(pathOBJ.c_str(), tmpStrVec, false);
+		const unsigned meshesCount = tmpStrVec.size();
+		OBJfileNames.reserve(meshesCount);
+		for (const auto& str : tmpStrVec)
+		{
+			std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
+			if (".obj" == tailStr)
+			{
+				fileNames.push_back(str);
+				unsigned index = str.find_last_of("/");
+				std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
+				OBJfileNames.push_back(OBJfileName);
+			}
+		}
+		if (fileNames.empty())
+		{
+			debugDisp("no input OBJ files.");
+			return -1;
+		}
+		objReadMeshMat(vers, tris, fileNames[0].c_str());
+		int versCount = vers.rows();
+		int trisCount = tris.rows();
+
+		// 1. 计算边数据， 检测边缘有向边：
+		Eigen::Index minEdgeIdx = 0;
+		double minLen = 0;
+		Eigen::MatrixXi bdrys, bdryTris;
+		Eigen::VectorXd edgesLen;
+		std::vector<int> bdryTriIdxes;
+		getEdges(edges, tris);
+		getEdgeArrows(edgeArrows, edges, vers);
+		edgesLen = edgeArrows.rowwise().norm();
+		minLen = edgesLen.minCoeff(&minEdgeIdx);
+		debugDisp("minimum edge len is ", minLen); 
+		if (!bdryEdges(bdrys, bdryTriIdxes, tris))
+		{
+			debugDisp("error! bdryEdges() run failed.");
+			return -1;
+		}
+		if (bdrys.rows() > 0)
+		{
+			std::cout << "bdrys.rows() == " << bdrys.rows() << std::endl;
+			subFromIdxVec(bdryTris, tris, bdryTriIdxes);
+			debugWriteEdges("bdrys", bdrys, vers);
+			debugWriteMesh("bdryTris", vers, bdryTris);
+
+			// 1.1 若存在边缘，找洞：
+		}
+
+		// 2. 检测非流形有向边：
+		Eigen::MatrixXi nmnEdges;
+		std::vector<std::pair<int, std::pair<int, int>>> nmnEdgeInfos;
+		if (nonManifoldEdges(nmnEdges, nmnEdgeInfos, tris) < 0)
+		{
+			debugDisp("error! nonManifoldEdges() run failed.");
+			return -1;
+		}			 
+		if (nmnEdges.rows() > 0)
+		{
+			debugDisp("！！！存在非流形边，nmnEdges.rows() == ", nmnEdges.rows());
+			debugWriteEdges("nmnEdges", nmnEdges, vers);
+		} 
+
+		// 3. 检测孤立顶点：
+		std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, tris);
+		if (!isoVerIdxes.empty())
+		{
+			Eigen::MatrixXd isoVers;
+			Eigen::MatrixXd vers1;
+			Eigen::MatrixXi tris1;
+			debugDisp("isoVerIdxes.size() == ", isoVerIdxes.size());
+			subFromIdxVec(isoVers, vers, isoVerIdxes);
+			debugWriteVers("isoVers", isoVers); 
+			removeIsoVers(vers1, tris1, vers, tris, isoVerIdxes);
+			vers = vers1;
+			tris = tris1;
+			versCount = vers.rows();
+			trisCount = tris.rows();
+			debugWriteMesh("meshNoIsoVers", vers, tris);
+		}
+
+		// 4. 检测重叠三角片：
+		std::vector<std::pair<int, int>> opTrisPairs;
+		int olCount = findOverLapTris(opTrisPairs, vers, tris);
+		debugDisp("重叠三角片对数：", olCount);
+
+		// 5. 检测退化边
+		double degEdgeThreshold = 1e-3;
+		Eigen::VectorXi degEdgeFlags = checkDegEdges(edges, edgeArrows, vers, tris, degEdgeThreshold);
+		unsigned degEdgesCount = degEdgeFlags.sum();
+		if (degEdgesCount > 0)
+			debugDisp("degenerate edges count == ", degEdgesCount);
+ 
+		// 6. 检测退化三角片：
+		Eigen::VectorXd trisAreaVec;
+		std::vector<unsigned> degenTriIdxes;
+		const double eps = 10e-9;
+		if (!trisArea(trisAreaVec, vers, tris))
+		{
+			debugDisp("error! trisArea() run failed.");
+			return -1;
+		} 
+		for (unsigned i = 0; i < trisCount; ++i)
+			if (trisAreaVec(i) < eps)
+				degenTriIdxes.push_back(i);
+		if (!degenTriIdxes.empty())
+		{
+			Eigen::MatrixXi deTris;
+			debugDisp("degenTriIdxes.size() == ", degenTriIdxes.size());
+			subFromIdxVec(deTris, tris, degenTriIdxes);
+			debugDisp("degenerate tris data:"); 
+			dispMat(deTris);
+			std::cout << std::endl;
+		}
+
+		// 7. 提取所有单连通区域：
+		int scCount = 0;							// 顶点单连通区域个数；
+		int sctCount = 0;							// 三角片单连通区域个数；
+		Eigen::SparseMatrix<int> adjSM, adjSM_eCount, adjSM_eIdx;
+		Eigen::VectorXi connectedLabels, connectedCount, connectedTriLabels, connectedTriCount;
+		Eigen::VectorXi connectedLabelsSCT, connectedCountSCT;
+		adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
+		adjSM = adjSM_eCount;
+		traverseSparseMatrix(adjSM, [&adjSM](auto& iter)
+			{
+				if (iter.value() > 0)
+					iter.valueRef() = 1;
+			});
+		scCount = simplyConnectedRegion(adjSM, connectedLabels, connectedCount);
+		sctCount = simplyTrisConnectedRegion(connectedLabelsSCT, connectedCountSCT, tris);
+		if (scCount > 1 || sctCount > 1)
+		{
+			if (scCount != sctCount)
+			{
+				debugDisp("存在奇异点。");
+				debugDisp("scCount == ", scCount);
+			}
+
+			if (sctCount > 1)
+			{
+				std::vector<int> tmpVec = vec2Vec(connectedLabelsSCT);
+				Eigen::VectorXi flagVec = connectedLabelsSCT;
+				for (int i = 0; i < sctCount; ++i)
+				{
+					Eigen::MatrixXi subTris;
+					flagVec.setZero();
+					for (int k = 0; k < trisCount; ++k)
+						if (i == connectedLabelsSCT[k])
+							flagVec[k] = 1;
+					subFromFlagVec(subTris, tris, flagVec);
+					debugWriteMesh((std::string{ "meshSplitted" } + std::to_string(i) + std::string{ ".obj" }).c_str(), vers, subTris);
+				}
+			}
+			debugDisp("sctCount == ", sctCount);
+		}
+ 
+
+		debugDisp("finished.");
+		getchar();
+
+		return 0;
 	}
 
 
@@ -2387,7 +2555,7 @@ int main(int argc, char** argv)
 
 	// TEMP_TEST::test1();
 
-	MESH_REPAIR::test0();
+	MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
  
 	// TEST_DIP::test0();
 
