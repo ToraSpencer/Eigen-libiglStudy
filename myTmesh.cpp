@@ -188,7 +188,7 @@ namespace TEST_TMESH
 
 		Eigen::MatrixXd vers;
 		Eigen::MatrixXi tris;
-		objReadMeshMat(vers, tris, "E:/²ÄÁÏ/meshRepairInput_directOuterSurf.obj");
+		objReadMeshMat(vers, tris, "E:/²ÄÁÏ/holeMeshIsctFree2.obj");
 		debugWriteMesh("meshInput", vers, tris);
 		meshMat2tMesh(tMesh, vers, tris);
  

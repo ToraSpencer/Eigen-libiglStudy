@@ -36,6 +36,10 @@
 const double pi = 3.14159265359;
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////// debug全局变量
+static Eigen::MatrixXd g_debugVers;
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////////// 辅助结构：
 template <typename T>
 struct triplet 
@@ -44,6 +48,7 @@ struct triplet
 	T y;
 	T z;
 };
+
 
 template <typename T>
 struct doublet
@@ -267,11 +272,15 @@ template<typename DerivedI>
 bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, const Eigen::PlainObjectBase<DerivedI>& tris);
 template<typename DerivedI>
 bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, std::vector<int>& bdryTriIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
+template <typename T>
+int nonManifoldEdges(Eigen::MatrixXi& nmnUedges, const Eigen::SparseMatrix<T>& adjSM_eCount, \
+	const Eigen::SparseMatrix<T>& adjSM_ueCount);
+template <typename DerivedI>
+int nonManifoldEdges(Eigen::MatrixXi& nmnUedges, const Eigen::PlainObjectBase<DerivedI>& tris);
 template<typename DerivedI>
-bool nonManifoldEdges(Eigen::MatrixXi& nmnEdges, const Eigen::PlainObjectBase<DerivedI>& tris);
-template<typename DerivedI>
-int nonManifoldEdges(Eigen::MatrixXi& nmnEdges, std::vector<std::pair<int, std::pair<int, int>>>& nmnEdgeInfos, \
+int nonManifoldEdges(Eigen::MatrixXi& nmnUedges, std::vector<std::pair<int, std::pair<int, int>>>& nmnEdgeInfos, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
+
 using tVec = std::vector<std::vector<int>>;
 template <typename DerivedI>
 bool buildAdjacency(Eigen::MatrixXi& ttAdj_nmEdge, std::vector<tVec>& ttAdj_nmnEdge, std::vector<tVec>& ttAdj_nmnOppEdge, \
@@ -298,7 +307,7 @@ template <typename DerivedV, typename DerivedI>
 int findHolesBdrySegs(std::vector<std::vector<int>>& holes, std::vector<std::vector<int>>& bdrySegs, \
 	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris);
 template <typename DerivedI>
-bool checkSickTris(std::vector<unsigned>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
+bool checkSickTris(std::vector<int>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
 template <typename Index>
 int simplyConnectedRegion(const Eigen::SparseMatrix<Index>& adjSM,
 	Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount);
@@ -2565,7 +2574,10 @@ bool getTriNorms(Eigen::PlainObjectBase<DerivedN>& triNorms, const Eigen::Matrix
 		triNorms.row(i) = v1.cross(v2);        
 		typename DerivedV::Scalar r = triNorms.row(i).norm();
 		if (r == 0)
+		{
+			std::cout << "error!!! degenerate triangle detected, unable to calculate its normal dir." << std::endl;
 			return false;
+		}
 		else
 			triNorms.row(i) /= r;
 	}
@@ -2849,7 +2861,6 @@ bool adjMatrix(Eigen::SparseMatrix<Index>& adjSM_eCount, \
 }
 
 
-
 // 边缘有向边，重载1：
 template<typename DerivedI>
 bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, const Eigen::PlainObjectBase<DerivedI>& tris)
@@ -2889,6 +2900,15 @@ bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, const Eigen::PlainObject
 template<typename DerivedI>
 bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, std::vector<int>& bdryTriIdxes, const Eigen::PlainObjectBase<DerivedI>& tris)
 {
+	/*
+		bool bdryEdges(
+				Eigen::PlainObjectBase<DerivedI>& bdrys,					bdrysCount * 2，边缘边数据，是有向边；
+				std::vector<int>& bdryTriIdxes,										包含边缘边的三角片索引；
+				const Eigen::PlainObjectBase<DerivedI>& tris				trisCount * 3, 网格三角片数据；
+				)
+	
+	*/
+
 	// 1. 查找网格的边缘有向边；
 	if (!bdryEdges(bdrys, tris))
 		return false;
@@ -2931,72 +2951,93 @@ bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, std::vector<int>& bdryTr
 	return true;
 }
 
-
-// 求三角网格中的非流形半边，重载1
-template<typename DerivedI>
-bool nonManifoldEdges(Eigen::MatrixXi& nmnEdges, const Eigen::PlainObjectBase<DerivedI>& tris)
+ 
+// 求三角网格中的非流形无向边，重载1 
+template <typename T>
+int nonManifoldEdges(Eigen::MatrixXi& nmnUedges, const Eigen::SparseMatrix<T>& adjSM_eCount, \
+	const Eigen::SparseMatrix<T>& adjSM_ueCount)
 {
-	Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
-	adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
+	nmnUedges.resize(0, 0);
+	std::unordered_set<std::int64_t> nmnUeCodes;
+
+	// 遍历adjSM_ueCount，搜索非流形边；
+	traverseSparseMatrix(adjSM_ueCount, [&adjSM_ueCount, &nmnUedges, &nmnUeCodes](auto& iter)
+		{
+			if (iter.valueRef() > 2)
+			{
+				std::int64_t code = encodeUedge(iter.row(), iter.col());
+				nmnUeCodes.insert(code);
+			}
+		});
+	const int nmnCount = nmnUeCodes.size();
+	nmnUedges.resize(nmnCount, 2);
+	int index = 0;
+	for (const auto& code : nmnUeCodes)
+	{
+		auto retPair = decodeEdge(code);
+		nmnUedges(index, 0) = retPair.first;
+		nmnUedges(index, 1) = retPair.second;
+		index++;
+	}
+
+	return nmnCount;
+}
+
+
+// 求三角网格中的非流形无向边，重载2 
+template <typename DerivedI>
+int nonManifoldEdges(Eigen::MatrixXi& nmnUedges, const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	Eigen::SparseMatrix<int> adjSM_eIdx, adjSM_eCount, adjSM_ueCount, tmpSpMat;
+	if (!adjMatrix(adjSM_eCount, adjSM_eIdx, tris))
+		return false;
+
+	spMatTranspose(tmpSpMat, adjSM_eCount);
+	adjSM_ueCount = adjSM_eCount + tmpSpMat;
 	
-	unsigned nmnEdgesCount = 0;
-	traverseSparseMatrix(adjSM_eCount, [&nmnEdgesCount](auto& iter)
-		{
-			if (iter.value() > 1)
-				nmnEdgesCount++;
-		});
-
-	nmnEdges.resize(nmnEdgesCount, 2);
-	int index = 0;
-	traverseSparseMatrix(adjSM_eCount, [&index, &nmnEdges](auto& iter) 
-		{
-			if (iter.value() > 1)
-			{
-				nmnEdges(index, 0) = iter.row();
-				nmnEdges(index, 1) = iter.col();
-				index++;
-			}
-		});
-
-	return true;
+	return nonManifoldEdges(nmnUedges, adjSM_eCount, adjSM_ueCount);
 }
 
 
- 
-// 求三角网格中的非流形半边，重载2——输出非流形边的详细信息：
+// 求三角网格中的非流形无向边，重载3——输出非流形无向边的详细信息：
 template<typename DerivedI>
-int nonManifoldEdges(Eigen::MatrixXi& nmnEdges, std::vector<std::pair<int, std::pair<int, int>>>& nmnEdgeInfos, const Eigen::PlainObjectBase<DerivedI>& tris)
+int nonManifoldEdges(Eigen::MatrixXi& nmnUedges, std::vector<std::pair<int, std::pair<int, int>>>& nmnEdgeInfos, \
+	const Eigen::PlainObjectBase<DerivedI>& tris)
 {
-	Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
-	adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
+	/*
+		int nonManifoldEdges(																			返回检测到的非流形无向边的数量，失败返回-1；
+				Eigen::MatrixXi& nmnUedges,																nmnCount * 2, 非流形无向边数据
+				std::vector<std::pair<int, std::pair<int, int>>>& nmnEdgeInfos,			元素的first是有向边重复的次数，second是这条非流形有向边的具体数据；
+				const Eigen::PlainObjectBase<DerivedI>& tris
+				)
+	*/
+	nmnEdgeInfos.clear();
+	Eigen::SparseMatrix<int> adjSM_eIdx, adjSM_eCount, adjSM_ueCount, tmpSpMat;
+	if (!adjMatrix(adjSM_eCount, adjSM_eIdx, tris))
+		return -1;
 
-	unsigned nmnEdgesCount = 0;
-	traverseSparseMatrix(adjSM_eCount, [&nmnEdgesCount](auto& iter)
-		{
-			if (iter.value() > 1)
-				nmnEdgesCount++;
-		});
+	spMatTranspose(tmpSpMat, adjSM_eCount);
+	adjSM_ueCount = adjSM_eCount + tmpSpMat;
 
-	nmnEdges.resize(nmnEdgesCount, 2);
-	nmnEdgeInfos.reserve(nmnEdgesCount);
-	int index = 0;
-	traverseSparseMatrix(adjSM_eCount, [&index, &nmnEdges, &nmnEdgeInfos](auto& iter)
-		{
-			if (iter.value() > 1)
-			{
-				nmnEdges(index, 0) = iter.row();
-				nmnEdges(index, 1) = iter.col();
-				std::pair<int, int> edgePair = std::make_pair(iter.row(), iter.col());
-				std::pair<int, std::pair<int, int>> infoPair = std::make_pair(static_cast<int>(iter.value()), edgePair);
-				nmnEdgeInfos.push_back(infoPair);
+	int nmnUeCount = nonManifoldEdges(nmnUedges, adjSM_eCount, adjSM_ueCount);
+	if (nmnUeCount < 0)
+		return -1;
+	 
+	nmnEdgeInfos.reserve(2 * nmnUeCount);
+	for (int i = 0; i < nmnUeCount; ++i)
+	{
+		int vaIdx = nmnUedges(i, 0);
+		int vbIdx = nmnUedges(i, 1);
+		int repCount = adjSM_eCount.coeff(vaIdx, vbIdx);
+		int repOppCount = adjSM_eCount.coeff(vbIdx, vaIdx);
+		nmnEdgeInfos.push_back({ repCount, {vaIdx, vbIdx} });
+		nmnEdgeInfos.push_back({ repOppCount, {vbIdx, vaIdx} });
+	}
 
-				index++;
-			}
-		});
-
-	return nmnEdgesCount;
+	return nmnUeCount;
 }
- 
+
+
 
 // buildAdjacency()——计算网格的三角片邻接信息：
 using tVec = std::vector<std::vector<int>>;
@@ -3024,6 +3065,7 @@ bool buildAdjacency(Eigen::MatrixXi& ttAdj_nmEdge, std::vector<tVec>& ttAdj_nmnE
 					)
 
 	*/
+
 	const unsigned trisCount = tris.rows();
 	const unsigned edgesCount = 3 * trisCount;
 	const unsigned versCount = tris.maxCoeff() + 1;
@@ -3031,10 +3073,8 @@ bool buildAdjacency(Eigen::MatrixXi& ttAdj_nmEdge, std::vector<tVec>& ttAdj_nmnE
 	Eigen::MatrixXi edges;							// 有向边数据；
 	Eigen::MatrixXi nmnEdges;					// 非流形有向边
 
-
 	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的triplet数据；
-
-	std::unordered_multimap<std::int64_t, int> edgeMap;			// 边编码——64位整型数数表示的边数据（两个端点索引）；
+	std::unordered_multimap<std::int64_t, int> edgeMap;					// 边编码——64位整型数数表示的边数据（两个端点索引）；
 
 
 	// 1. 求基本的边信息、邻接矩阵：
@@ -3690,7 +3730,6 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso = true)
 {
 	// ！！！目前假定输入网格的所有三角片朝向正确，且没有退化三角片；
-
 	int versCount = vers.rows();
 	int trisCount = tris.rows();
 	int edgesCount = 3 * trisCount;
@@ -3699,13 +3738,19 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 	// 0. 计算所有三角片法向：
 	Eigen::MatrixXd triNorms;
 	if (!getTriNorms(triNorms, vers, tris))				// 若含有退化三角片，会导致计算面片法向出错；
+	{
+		std::cout << "error!!! getTriNorms() failed." << std::endl;
 		return false;
+	}
 
 	// 1. 求三角片邻接关系：
 	Eigen::MatrixXi ttAdj_nmEdge;
 	std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
 	if (!buildAdjacency(ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris))
+	{
+		std::cout << "error!!! buildAdjacency() failed." << std::endl;
 		return false;
+	}
 
 	// 2. 选取一个不包含非流形边的三角片作为扩散的种子三角片：
 	int seedIdx = -1;
@@ -4110,11 +4155,19 @@ int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::
 }
 
 
-// 无向边的区域生长，提取环路边；输入的边矩阵可以是有向边也可以是无向边；
+// 无向边的区域生长，提取环路边和边曲线；输入的边矩阵可以是有向边也可以是无向边；
 template <typename DerivedI>
 bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi >& segs, \
 	const Eigen::PlainObjectBase<DerivedI>& uEdges)
 {
+	/*
+	bool uEdgeGrow(
+			std::vector<Eigen::MatrixXi>& circs,									元素是组成一个环路的边缘边数据
+			std::vector<Eigen::MatrixXi >& segs,									元素是组成一个非封闭曲线的边缘边数据
+			const Eigen::PlainObjectBase<DerivedI>& uEdges			ueCount * 2, 无向边数据
+			)
+	
+	*/
 	std::list<std::list<std::pair<int, int>>> circList, segList;
 	Eigen::SparseMatrix<int> adjSM;										// 邻接矩阵；
 	std::vector<Eigen::Triplet<int>> smElems;
@@ -4235,47 +4288,242 @@ bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi 
 }
 
 
+#if 0
+// 有向边的区域生长，提取环路边和边曲线；
+template <typename DerivedI>
+bool edgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi >& segs, \
+	const Eigen::PlainObjectBase<DerivedI>& edges)
+{
+	/*
+	bool edgeGrow(
+			std::vector<Eigen::MatrixXi>& circs,									元素是组成一个环路的边缘边数据
+			std::vector<Eigen::MatrixXi >& segs,									元素是组成一个非封闭曲线的边缘边数据
+			const Eigen::PlainObjectBase<DerivedI>& edges				edgesCount * 2, 无向边数据
+			)
+
+	*/
+	std::list<std::list<std::pair<int, int>>> circList, segList;
+	Eigen::SparseMatrix<int> adjSM;										// 无向边邻接矩阵；
+	std::vector<Eigen::Triplet<int>> smElems;
+	const int edgesCount = edges.rows();
+
+	// 1. 建立无向边邻接矩阵：
+	int maxIdx = 0;																// 输入边数据中最大的顶点索引；
+	const int* idxPtr = edges.data();
+	for (int i = 0; i < edges.size(); i++, idxPtr++)
+		if (*idxPtr > maxIdx)
+			maxIdx = *idxPtr;
+	adjSM.resize(maxIdx + 1, maxIdx + 1);
+	smElems.reserve(2 * edges.rows());
+	for (unsigned i = 0; i < edges.rows(); ++i)
+	{
+		smElems.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), 1});
+		smElems.push_back(Eigen::Triplet<int>{edges(i, 1), edges(i, 0), 1});
+	}	
+	adjSM.setFromTriplets(smElems.begin(), smElems.end());
+	smElems.clear();
+
+	bool blRepEdge = false;					// 所有边视为无向边的话，是否存在重复的边；
+	traverseSparseMatrix(adjSM, [&adjSM, &blRepEdge](auto& iter) 
+		{
+			if (iter.valueRef() > 1)
+			{
+				blRepEdge = true;
+			}
+		});
+	if (blRepEdge)
+		return false;									// should not happen; 说明存在重复的边；
+	int remainCount = edgesCount;
+
+
+	// 2. 生成边编码-边索引的字典：
+	std::unordered_map<std::int64_t, int> edgeCodeMap;
+	for (int i = 0; i < edgesCount; ++i)
+	{
+		std::int64_t code = encodeUedge(edges(i, 0), edges(i, 1));				// 这里要按无向边的规则编码，以便下面在无向边邻接矩阵中查到(3,4)和(4,3)都能找到同一个边索引；
+		edgeCodeMap.insert(std::make_pair(code, i));
+	}
+		
+
+	// 3. 边生长的循环——从一条边开始生长，直到填满整个联通区域；
+	while (remainCount > 0)
+	{
+		std::list<std::pair<int, int>> currentSeg;
+
+		// w1. 提取邻接表中第一个无向边：
+		bool breakFlag = false;
+		for (unsigned i = 0; !breakFlag & i < adjSM.outerSize(); ++i)
+		{
+			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM, i); !breakFlag & iter; ++iter)
+			{
+				if (iter.valueRef() > 0)
+				{
+					std::int64_t code = encodeUedge(iter.row(), iter.col());
+					int edgeIdx = edgeCodeMap[code];
+					int vaIdx = edges(edgeIdx, 0);
+					int vbIdx = edges(edgeIdx, 1);					
+					currentSeg.push_back({ vaIdx, vbIdx });
+					iter.valueRef() = -1;												// 表示删除该元素；
+					adjSM.coeffRef(iter.col(), iter.row()) = -1;
+					remainCount--;
+					breakFlag = true;
+				}
+			}
+		}
+
+
+		// w2. 搜索第一条无向边关联的边，直到搜索不到，或者形成环路为止。
+		int head = currentSeg.front().first;
+		int tail = currentSeg.front().second;
+		while (1)
+		{
+			int otherEnd = -1;
+			breakFlag = false;
+			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM, head); !breakFlag & iter; ++iter)	// 对第head列的遍历：
+			{
+				if (iter.valueRef() > 0)
+				{
+					otherEnd = iter.row();
+
+					std::int64_t code = encodeUedge(head, otherEnd);
+					int edgeIdx = edgeCodeMap[code];
+					int vaIdx = edges(edgeIdx, 0);
+					int vbIdx = edges(edgeIdx, 1);
+					currentSeg.push_back({ vaIdx, vbIdx });
+					iter.valueRef() = -1;												// 表示删除该元素；
+					adjSM.coeffRef(iter.col(), iter.row()) = -1;
+					remainCount--;
+					head = otherEnd;
+					breakFlag = true;
+				}
+			}
+
+			if (otherEnd == tail)
+			{
+				circList.push_back(currentSeg);
+				break;
+			}
+
+			if (otherEnd < 0)
+			{
+				segList.push_back(currentSeg);
+				break;
+			}
+		}
+
+
+		// 首先考虑没有多重源点的情形：
+		std::unordered_map<int, int> tmpMap;
+		std::vector<int> multiSrcIdx;
+		for (const auto& pair : currentSeg)
+		{
+			auto retPair = tmpMap.insert(pair);
+			if (!retPair.second) 
+			{
+				// 插入失败，说明当前边的起点vaIdx在当前连通域内，发出了不止一条边;
+				multiSrcIdx.push_back(pair.first);
+				return false;
+			}
+		}
+
+		std::unordered_map<int, int> tmpRevMap;
+		for (const auto& pair : currentSeg)
+		{
+			auto retPair = tmpMap.insert({ pair.second, pair.first });
+			if (!retPair.second)
+				return false;
+		}
+
+
+	}
+
+
+
+	return true;
+}
+#endif
+
+
+template <typename DerivedI>
+bool sortLoopEdges(std::vector<int>& loopVerIdxes, const Eigen::PlainObjectBase<DerivedI>& loopEdges)
+{
+	loopVerIdxes.clear();
+	const int edgesCount = loopEdges.rows();
+	loopVerIdxes.reserve(edgesCount);
+
+	// for debug:
+	Eigen::MatrixXi tmpMat = loopEdges;
+	std::vector<doublet<int>> debugVec = mat2doublets(tmpMat);
+	objWriteEdgesMat("E:/currentLoopEdge.obj", tmpMat, g_debugVers);
+
+	std::unordered_map<int, int> tmpMap;
+	for (int i = 0; i < edgesCount; ++i)
+	{
+		auto retPair = tmpMap.insert(std::make_pair(loopEdges(i, 0), loopEdges(i, 1)));
+		if (!retPair.second)
+			return false;				// should not happen;
+	}
+
+	int head = tmpMap.begin()->first;
+	loopVerIdxes.push_back(head);
+	for (int i = 0; i < edgesCount - 1; ++i) 
+	{
+		auto iter = tmpMap.find(head);
+		if (iter == tmpMap.end())
+			return false;										// should not happen;
+		int tail = iter->second;
+		tmpMap.erase(iter);
+		loopVerIdxes.push_back(tail);
+		head = tail;
+	}
+
+	if(*loopVerIdxes.begin() != tmpMap.begin()->second)
+		return false;										// should not happen;
+ 
+	return true;
+}
+
+
+
+// 搜索网格中组成边缘回路(即洞的边缘)，和边缘曲线（非封闭的曲线）
 template <typename DerivedV, typename DerivedI>
 int findHolesBdrySegs(std::vector<std::vector<int>>& holes, std::vector<std::vector<int>>& bdrySegs, \
-		const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris)
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris)
 {
 	/*
 		int findHolesBdrySegs(															成功返回(洞数+边缘曲线数)，失败返回-1;
 			std::vector<std::vector<int>>& holes,								洞，即闭合为环路的边缘顶点，每圈顶点按顺时针排列；
 			std::vector<std::vector<int>>& bdrySegs,							边缘曲线，即不闭合的边缘顶点
-			const Eigen::PlainObjectBase<DerivedV>& vers, 
+			const Eigen::PlainObjectBase<DerivedV>& vers,
 			const Eigen::PlainObjectBase<DerivedI>& tris
 			)
-			
+
 	*/
 
 	// 确定洞的边——只关联一个三角片的边：
-	const unsigned trisCount = tris.rows();
-	const unsigned edgesCount = 3 * trisCount;
-	const unsigned versCount = tris.maxCoeff() + 1;
+	const int  trisCount = tris.rows();
+	const int  edgesCount = 3 * trisCount;
+	const int  versCount = tris.maxCoeff() + 1;
+	holes.clear();
+	bdrySegs.clear();
 
+	// 1. 提取所有边缘有向边：
 	std::vector<Eigen::MatrixXi> circs, segs;
 	Eigen::MatrixXi bdrys;
 	bdryEdges(bdrys, tris);
-	uEdgeGrow(circs, segs, bdrys);
+	const int bdrysCount = bdrys.rows();
 
-#ifdef LOCAL_DEBUG
-	Eigen::MatrixXd versCopy = vers.array().cast<double>();
-	if (circs.size() > 0)
+	// 2. 建立边起点-边终点的字典，多重起点暂时存在别的链表中：
+	std::unordered_map<int, int> bdryMap;
+	std::vector<int> multiSrcIdxes;
+	std::list<std::pair<int, int>> multiSrcBdrys;
+	for (int i = 0; i < bdrysCount; ++i)
 	{
-		Eigen::MatrixXi tmpMat;
-		for (const auto& mat : circs)
-			matInsertRows(tmpMat, mat);
-		objWriteEdgesMat("E:/circEdges.obj", tmpMat, versCopy);
+		int vaIdx = bdrys(i, 0);
+		int vbIdx = bdrys(i, 1);
+		auto retPair = bdryMap.insert({vaIdx, vbIdx});
+		//...
 	}
-	if (segs.size() > 0)
-	{
-		Eigen::MatrixXi tmpMat;
-		for (const auto& mat : segs)
-			matInsertRows(tmpMat, mat);
-		objWriteEdgesMat("E:/segEdges.obj", tmpMat, versCopy);
-	}
-#endif
 
 
 	return holes.size() + bdrySegs.size();
@@ -4285,10 +4533,10 @@ int findHolesBdrySegs(std::vector<std::vector<int>>& holes, std::vector<std::vec
 
 // 检测网格中是否有非法三角片（三个顶点索引中有两个相同的）
 template <typename DerivedI>
-bool checkSickTris(std::vector<unsigned>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris)
+bool checkSickTris(std::vector<int>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris)
 {
 	bool retFlag = false;
-	for (unsigned i = 0; i < tris.rows(); ++i)
+	for (int i = 0; i < tris.rows(); ++i)
 	{
 		if (tris(i, 0) == tris(i, 1) || tris(i, 0) == tris(i, 2) || tris(i, 1) == tris(i, 2))
 		{
@@ -4775,7 +5023,7 @@ int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::MatrixXi& ne
 	}
 
 	// 删除非法三角片：
-	std::vector<unsigned> sickIdxes;
+	std::vector<int> sickIdxes;
 	checkSickTris(sickIdxes, trisCopy);
 	removeTris(newTris, trisCopy, sickIdxes);
  
@@ -4854,14 +5102,14 @@ bool genGrids(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, con
 template<typename DerivedV, typename DerivedI>
 int removeSickDupTris(const Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBase<DerivedI>& tris)
 {
-	unsigned versCount = vers.rows();
-	unsigned trisCount = tris.rows();
+	int versCount = vers.rows();
+	int trisCount = tris.rows();
 
 	Eigen::VectorXi flags{Eigen::VectorXi::Ones(trisCount)};			// flag向量，需要去除的三角片标0；
 	std::unordered_set<std::uint64_t> triCodeSet;
 
 	// 遍历三角片
-	for (unsigned i = 0; i < trisCount; ++i) 
+	for (int i = 0; i < trisCount; ++i) 
 	{
 		// 三角片中的索引值不在0~versCount-1之间则为非法三角片；貌似有些STL文件中会出现这种情形；
 		if (tris(i, 0) < 0 || tris(i, 0) > versCount - 1 || tris(i, 1) < 0 || tris(i, 1) > versCount - 1 || tris(i, 2) < 0 || tris(i, 2) > versCount - 1)

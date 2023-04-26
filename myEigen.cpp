@@ -426,17 +426,23 @@ namespace TEST_MYEIGEN
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
-		int nmnCount = 0;
-		objReadMeshMat(vers, tris, "E:/meshOut.obj");
+		objReadMeshMat(vers, tris, "E:/材料/tmpTriangleGrowOuterSurfError2.obj");
 		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
  
-		Eigen::MatrixXi nmnEdges;
-		std::vector<std::pair<int, std::pair<int, int>>> nmnInfos;
-		if (nonManifoldEdges(nmnEdges, nmnInfos, tris) > 0)
-			debugWriteEdges("nmnEdgesOrigin", nmnEdges, vers);
-		nmnCount = nmnEdges.rows();
+		Eigen::MatrixXi nmnUedges;
+		int nmnCount = nonManifoldEdges(nmnUedges, tris);
+		if (nmnCount < 0) 
+		{
+			debugDisp("error! nonManifoldEdges() run failed.");
+			return;
+		}
+		if (nmnUedges.rows() > 0)
+		{
+			debugDisp("非流形无向边数量：nmnUedges.rows() == ", nmnUedges.rows());
+			debugWriteEdges("nmnEdgesOrigin", nmnUedges, vers);
+		}
  
 		// 一次提取外表面可能不能完全去除非流形边，需要多次调用：
 		while (nmnCount > 0) 
@@ -448,11 +454,16 @@ namespace TEST_MYEIGEN
 			debugDisp("去除三角片个数：", trisCount - trisOut.rows());
 
 			// 检查输出网格中是否有非流形边：
-			nmnEdges.resize(0, 0);
-			nmnInfos.clear();
-			if (nonManifoldEdges(nmnEdges, nmnInfos, trisOut) > 0)
-				debugWriteEdges("nmnEdges", nmnEdges, versOut);
-			nmnCount = nmnEdges.rows();
+			nmnUedges.resize(0, 0);
+			nmnCount = nonManifoldEdges(nmnUedges, trisOut);
+			if (nmnCount < 0)
+			{
+				debugDisp("error! nonManifoldEdges() run failed.");
+				return;
+			}
+			if (nmnUedges.rows() > 0)
+				debugWriteEdges("nmnUedges", nmnUedges, versOut);
+			nmnCount = nmnUedges.rows();
 
 			vers = versOut;
 			tris = trisOut;
