@@ -9,13 +9,13 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <winuser.h>
 #include <string>
 
 #include <windows.h>
 #include <atlstr.h>			// 包含CString类。属于microsoft ATL(活动模板库avtive template library)
 #include <atlconv.h>
 #include <io.h>
+#include <winuser.h>
 
 
 #define DATA_PATH "./data/"
@@ -2039,6 +2039,117 @@ namespace MESH_REPAIR
 	}
 
 
+	// 使用meshFix去除退化三角片、补洞；
+	void test44() 
+	{
+		T_MESH::TMesh::init();																// ？？？This is mandatory
+		T_MESH::Basic_TMesh mesh;
+		Eigen::MatrixXd versMat;
+		Eigen::MatrixXi trisMat;
+		objReadMeshMat(versMat, trisMat, "E:/材料/meshDegEdges.obj");				// TMesh的load方法担心会有精度问题，反正save方法肯定有；
+		meshMat2tMesh(mesh, versMat, trisMat);		 
+		mesh.save("E:/meshFixInput.obj"); 
+		debugWriteMesh("meshFixInput_matRepr", versMat, trisMat); 
+
+		tiktok& tt = tiktok::getInstance();
+		unsigned versCount = mesh.V.numels();
+		unsigned trisCount = mesh.T.numels();
+
+		// 1. 提取最大单连通网格；
+		int removedCount = mesh.removeSmallestComponents();					// d_boundaries, d_handles, d_shells赋值
+		if (removedCount > 1)
+			std::cout << "！！！输入网格有" << removedCount << "个单连通区域。" << std::endl;
+
+		// 2. 补洞
+		int holesCount = mesh.boundaries();				// ？？？
+		int patchedCount = 0;
+		if (holesCount)
+		{
+			std::cout << "！！！输入网格环形边界数+环柄数 == " << holesCount << "。" << std::endl;
+			T_MESH::TMesh::warning("Patching holes\n");
+			patchedCount = mesh.fillSmallBoundaries(0, true);
+		}
+
+		// 3. meshclean前计算环形边界数、环柄数；
+		holesCount = mesh.boundaries();
+		if (holesCount > 0)
+			std::cout << "网格补洞后边界数+环柄数 == " << holesCount << "。" << std::endl;
+
+		// 4. 
+		bool flagClean = false;
+		int max_iters = 20;
+		int inner_loops = 6;			 
+		bool flagDeg = false;
+		bool flagNoHoles = false;
+		T_MESH::Triangle* t;
+		T_MESH::Node* m;
+
+		//		4.1. 
+		mesh.deselectTriangles();
+		mesh.invertSelection();
+
+		//		4.2.修复流程的大循环 
+		for (int i = 0; i < max_iters; i++)
+		{
+			//		f1. 去除退化三角片；
+			flagDeg = mesh.strongDegeneracyRemoval(inner_loops);			// 全部清除成功返回true， 否则返回false
+
+			//		f2. 
+			mesh.deselectTriangles();
+			mesh.invertSelection();
+ 
+			//		f4. 若前两项全部清除成功，进一步检查确认：
+			if (flagDeg)
+			{
+				// 检查是否有洞
+				holesCount = mesh.boundaries();				 
+				if (holesCount)
+				{ 
+					T_MESH::TMesh::warning("Patching holes\n");
+					mesh.fillSmallBoundaries(0, true);
+					continue;
+				}
+
+				// 遍历三角片检测是否有退化；
+				for (m = mesh.T.head(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL; m != NULL; m = m->next(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL)
+					if (t->isExactlyDegenerate())
+						flagDeg = false;
+
+				// 若进一步检查没有问题，退出大循环；
+				if (flagDeg)
+				{
+					flagClean = true;
+					break;
+				}
+			}
+
+
+		}
+
+#ifdef LOCAL_DEBUG
+		if (flagClean)
+			std::cout << "meshclean() succeeded." << std::endl;
+		else
+			std::cout << "!!!meshclean() is not completed!!!" << std::endl;
+#endif
+
+		// 5. meshclean最后计算环形边界数、环柄数；
+		holesCount = mesh.boundaries();
+		if (holesCount > 0)
+			std::cout << "输出网格边界数+环柄数 == " << holesCount << "。" << std::endl;
+
+		// 6. 输出：
+		mesh.save("E:/meshFixOutput.obj");
+
+		versMat.resize(0, 0);
+		trisMat.resize(0, 0);
+		TMesh2MeshMat(versMat, trisMat, mesh);
+		debugWriteMesh("meshFixOutput_matRepr", versMat, trisMat);
+
+		std::cout << "finished." << std::endl;
+	}
+
+
 	// 修复边折叠精简之后的网格——寻找重叠三角片 
 	void test5() 
 	{
@@ -2454,7 +2565,7 @@ int main(int argc, char** argv)
 
 	// TEMP_TEST::test1();
 
-	MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
+	// MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
 	
 	// MESH_REPAIR::test0();
 
@@ -2464,7 +2575,7 @@ int main(int argc, char** argv)
 
 	// DECIMATION::testCmd_qslimDecimation(argc, argv);
 
-	// MESH_REPAIR::testCmd_meshFix(argc, argv);
+	MESH_REPAIR::test44();
 
 	// testCmd_laplaceFaring(argc, argv);
  
