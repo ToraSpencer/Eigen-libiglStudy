@@ -135,6 +135,7 @@ namespace SPARSEMAT
 
 		//					coeffRef(row, col)——访问稀疏矩阵某一个元素
 		std::cout << " sm2.coeffRef(3, 4) == " << sm2.coeffRef(3, 4) << std::endl;
+		std::cout << " sm2.coeffRef(3, 1) == " << sm2.coeffRef(3, 1) << std::endl;
 
 		//					使用InnerIterator访问稀疏矩阵的非零元素
 		dispMat(sm2.toDense());

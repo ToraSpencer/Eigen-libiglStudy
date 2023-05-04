@@ -599,7 +599,7 @@ namespace DECIMATION
 
 		// 0. 检测是否有非流形有向边，有则直接退出；
 		Eigen::MatrixXi nmnUedges;
-		nonManifoldEdges(nmnUedges, trisOri);
+		nonManifoldUEs(nmnUedges, trisOri);
 		if (nmnUedges.size() > 0)
 			return;
 
@@ -1094,7 +1094,7 @@ namespace DECIMATION
 
 		// 0. 检测是否有非流形有向边，有则直接退出；
 		Eigen::MatrixXi nmnUedges;
-		nonManifoldEdges(nmnUedges, trisOri);
+		nonManifoldUEs(nmnUedges, trisOri);
 		if (nmnUedges.size() > 0)
 			return;
 
@@ -1484,8 +1484,6 @@ namespace DECIMATION
 
 		return 0;
 	}
-
-
 } 
 
 
@@ -1624,25 +1622,25 @@ namespace MESH_REPAIR
 			}
 
 			// f3. 检测非流形有向边：
-			Eigen::MatrixXi nmnUedges;
-			int nmnCount = nonManifoldEdges(nmnUedges, tris);
+			Eigen::MatrixXi nmnEdges;
+			int nmnCount = nonManifoldEdges(nmnEdges, tris);
 			if (nmnCount < 0)
 			{
-				debugDisp("error! nonManifoldEdges() run failed.");
+				debugDisp("error! nonManifoldUEs() run failed.");
 				return -1;
 			}
-			if (nmnUedges.rows() > 0)
+			if (nmnEdges.rows() > 0)
 			{
 				Eigen::MatrixXd	nmnVers;
 				std::unordered_set<int> nmnVerIdxes;
 				int* ptrInt = nullptr;
-				debugDisp(OBJfileNames[i], ".obj ！！！存在非流形边，nmnUedges.rows() == ", nmnUedges.rows());
+				debugDisp(OBJfileNames[i], ".obj ！！！存在非流形边，nmnEdges.rows() == ", nmnEdges.rows());
 
 				ss.str("");
 				ss << OBJfileNames[i] << "_nmnEdges";
-				debugWriteEdges(ss.str().c_str(), nmnUedges, vers);
-				ptrInt = nmnUedges.data();
-				for (int i = 0; i < nmnUedges.size(); ++i)
+				debugWriteEdges(ss.str().c_str(), nmnEdges, vers);
+				ptrInt = nmnEdges.data();
+				for (int i = 0; i < nmnEdges.size(); ++i)
 					nmnVerIdxes.insert(*ptrInt++);
 				subFromIdxCon(nmnVers, vers, nmnVerIdxes);
 
@@ -1651,11 +1649,13 @@ namespace MESH_REPAIR
 				debugWriteVers(ss.str().c_str(), nmnVers);
 			}
  
+#if 0
 			// f4. 检测重叠三角片：
 			std::vector<std::pair<int, int>> opTrisPairs;
 			int olCount = findOverLapTris(opTrisPairs, vers, tris);
 			if(olCount > 0)
 				debugDisp(OBJfileNames[i], ".obj 重叠三角片对数：", olCount);
+
 
 			// f5. 检测退化边
 			double degEdgeThreshold = 1e-3;
@@ -1682,6 +1682,7 @@ namespace MESH_REPAIR
 				debugDisp(OBJfileNames[i], ".obj degenTriIdxes.size() == ", degenTriIdxes.size());
 				subFromIdxVec(deTris, tris, degenTriIdxes);
 			}
+#endif
 
 			// f7. 提取所有单连通区域：
 			int scCount = 0;							// 顶点单连通区域个数；
@@ -1697,16 +1698,18 @@ namespace MESH_REPAIR
 						iter.valueRef() = 1;
 				});
 			scCount = simplyConnectedRegion(adjSM, connectedLabels, connectedCount);
-			sctCount = simplyTrisConnectedRegion(connectedLabelsSCT, connectedCountSCT, tris);
-			if (scCount > 1 || sctCount > 1)
+			if (scCount > 1)
 			{
-				if (scCount != sctCount)
-				{
-					debugDisp(OBJfileNames[i], ".obj ！！！存在奇异点。");
-					debugDisp(OBJfileNames[i], ".obj scCount == ", scCount);
-				}
-				debugDisp(OBJfileNames[i], ".obj sctCount == ", sctCount);
+				debugDisp(OBJfileNames[i], ".obj ！！！存在", scCount, "个顶点联通区域。");
 			}
+
+			sctCount = simplyTrisConnectedRegion(connectedLabelsSCT, connectedCountSCT, tris);
+			if (scCount != sctCount)
+			{
+				debugDisp(OBJfileNames[i], ".obj ！！！存在奇异点。");
+				debugDisp(OBJfileNames[i], ".obj scCount == ", scCount);
+			}
+			debugDisp(OBJfileNames[i], ".obj sctCount == ", sctCount);
 		}
 
 		debugDisp("finished.");
@@ -1714,6 +1717,7 @@ namespace MESH_REPAIR
 
 		return 0;
 	}
+
 
 	// 查找hole, gap，并尝试修补：
 	void test0() 
@@ -2179,6 +2183,153 @@ namespace MESH_REPAIR
 	}
 
 
+	// 批量读取inputOBJ文件夹中的网格，调用MESHFIX补洞和去除退化三角片：
+	int testCmd_meshFix_fixHolesDegTris(int argc, char** argv)
+	{
+		tiktok& tt = tiktok::getInstance();
+		CString   cPath, fileConfig;
+		std::string path, pathOBJ, pathOutput;
+		std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;
+		bool debugFlag = false;
+		int meshesCount = 0;
+		std::stringstream ss;
+
+		// 0. 读取路径、参数；
+		{
+			GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
+			int nPos = cPath.ReverseFind('\\');
+			cPath = cPath.Left(nPos);
+			path = CT2CA{ cPath };
+			pathOBJ = path + "\\inputOBJ";
+			pathOutput = path + "\\outputData";
+			fileConfig = cPath + "\\config.ini";
+
+			// 读取配置文件中的参数：
+			unsigned debugInt = INIGetInt(TEXT("debugFlag"), fileConfig);
+			debugFlag = debugInt > 0 ? true : false;
+			if (debugFlag)
+				debugDisp("Debug mode: ");
+
+			getFileNames(pathOBJ.c_str(), tmpStrVec, false);
+			meshesCount = tmpStrVec.size();
+			OBJfileNames.reserve(meshesCount);
+			for (const auto& str : tmpStrVec)
+			{
+				std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
+				if (".obj" == tailStr)
+				{
+					fileNames.push_back(str);
+					unsigned index = str.find_last_of("/");
+					std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
+					OBJfileNames.push_back(OBJfileName);
+				}
+			}
+		}
+
+		// 1. 读取网格 
+		std::vector<Eigen::MatrixXd> meshesVers;
+		std::vector<Eigen::MatrixXi> meshesTris;
+		{
+			tt.start();
+			std::cout << "读取输入网格..." << std::endl;
+			meshesVers.resize(meshesCount);
+			meshesTris.resize(meshesCount);
+			for (int i = 0; i < meshesCount; ++i)
+				objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str());
+			tt.endCout("读取输入网格耗时：");
+		}
+
+		// 2. 去除退化三角片和补洞的循环：
+		debugDisp("执行meshFix："); 
+		int max_iters = 20;					// 大循环次数；
+		int inner_loops = 6;					// 每次大循环中去除退化三角片、去除自交的迭代次数； 
+		bool flagDeg = false;
+		for (int i = 0; i < meshesCount; ++i)
+		{
+			// f0. 表象转换：
+			T_MESH::TMesh::init();												// ？？？This is mandatory
+			T_MESH::Basic_TMesh tMesh;
+			T_MESH::TMesh::quiet = false;						// true——不要在控制台上打印修复信息；
+
+			Eigen::MatrixXd versOut;
+			Eigen::MatrixXi trisOut;
+			meshMat2tMesh(tMesh, meshesVers[i], meshesTris[i]);
+			int versCount = tMesh.V.numels();
+			int trisCount = tMesh.T.numels();
+
+			// f1. 提取最大单连通网格；
+			int removedCount = tMesh.removeSmallestComponents();					// d_boundaries, d_handles, d_shells赋值
+
+			// f2. 补洞
+			int holesCount = tMesh.boundaries();
+			int patchedCount = 0;
+			if (holesCount > 0)
+			{
+				patchedCount = tMesh.fillSmallBoundaries(0, true);
+				holesCount = tMesh.boundaries();
+			}
+
+			// f3. 去除退化结构——默认max_iters == 10, inner_loops == 3；
+			T_MESH::Triangle* t = nullptr;
+			T_MESH::Node* m = nullptr;
+
+			//		f3.1. 
+			tMesh.deselectTriangles();
+			tMesh.invertSelection();
+
+			//		f3.2.修复流程的大循环 
+			flagDeg = false; 
+			for (int k = 0; k < max_iters; k++)
+			{
+				//		ff1. 去除退化三角片；
+				flagDeg = tMesh.strongDegeneracyRemoval(inner_loops);			// 全部清除成功返回true， 否则返回false
+
+				//		ff2. 
+				tMesh.deselectTriangles();
+				tMesh.invertSelection();
+
+				//		ff3. 检测是否有洞、尝试补洞；
+				holesCount = tMesh.boundaries();
+				if (holesCount > 0)
+				{
+					patchedCount = tMesh.fillSmallBoundaries(0, true);
+					holesCount = tMesh.boundaries();
+				}
+
+				//		ff4. 若前两项全部清除成功，进一步检查确认：
+				if (flagDeg && 0 == holesCount)
+				{
+					// 遍历三角片检测是否有退化；
+					for (m = tMesh.T.head(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL; m != NULL; m = m->next(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL)
+						if (t->isExactlyDegenerate())
+							flagDeg = false; 
+				}
+			} 
+			if (!flagDeg)
+				debugDisp("！！！输出网格存在退化三角片。");
+			if(holesCount > 0)
+				debugDisp("！！！输出网格有洞。");
+
+			// f5. 写输出数据
+			TMesh2MeshMat(versOut, trisOut, tMesh);
+			ss.str("");
+			ss << pathOutput << OBJfileNames[i] << "_holesDegTrisFree.obj";
+			objWriteMeshMat(ss.str().c_str(), versOut, trisOut);
+			if (debugFlag)
+			{
+				ss.str("");
+				ss << OBJfileNames[i] << "_holesDegTrisFree";
+				debugWriteMesh(ss.str().c_str(), versOut, trisOut);
+			}
+		}
+
+		debugDisp("finished.");
+		getchar();
+
+		return 0;
+	}
+
+
 	// 使用meshFix去除退化三角片、补洞；
 	void test4() 
 	{
@@ -2474,7 +2625,11 @@ int testCmd_laplaceFaring(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-	MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
+	// MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
+
+	//TEST_MYEIGEN::test1111();
+
+	SPARSEMAT::test0();
 
 	std::cout << "main() finished." << std::endl;
 }

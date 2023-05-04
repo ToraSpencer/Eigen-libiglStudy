@@ -3,6 +3,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
 static std::string g_debugPath = "E:/";
+
  
 static void debugDisp()			// 递归终止
 {						//		递归终止设为无参或者一个参数的情形都可以。
@@ -426,16 +427,18 @@ namespace TEST_MYEIGEN
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
-		objReadMeshMat(vers, tris, "E:/材料/tmpTriangleGrowOuterSurfError2.obj");
+		objReadMeshMat(vers, tris, "E:/材料/tmpSickArrResult.obj");
 		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
- 
-		Eigen::MatrixXi nmnUedges;
-		int nmnCount = nonManifoldEdges(nmnUedges, tris);
+
+		// 1. 确定所有非流形无向边：
+		Eigen::MatrixXi nmnUedges; 
+		std::vector<std::tuple<std::pair<int, int>, int, int>> nmnInfos;
+		int nmnCount = nonManifoldUEs(nmnUedges, nmnInfos, tris);
 		if (nmnCount < 0) 
 		{
-			debugDisp("error! nonManifoldEdges() run failed.");
+			debugDisp("error! nonManifoldUEs() run failed.");
 			return;
 		}
 		if (nmnUedges.rows() > 0)
@@ -444,7 +447,7 @@ namespace TEST_MYEIGEN
 			debugWriteEdges("nmnEdgesOrigin", nmnUedges, vers);
 		}
  
-		// 一次提取外表面可能不能完全去除非流形边，需要多次调用：
+		// 3. 一次提取外表面可能不能完全去除非流形边，需要多次调用：
 		while (nmnCount > 0) 
 		{
 			debugDisp("当前非流形有向边数：", nmnCount);
@@ -455,10 +458,10 @@ namespace TEST_MYEIGEN
 
 			// 检查输出网格中是否有非流形边：
 			nmnUedges.resize(0, 0);
-			nmnCount = nonManifoldEdges(nmnUedges, trisOut);
+			nmnCount = nonManifoldUEs(nmnUedges, trisOut);
 			if (nmnCount < 0)
 			{
-				debugDisp("error! nonManifoldEdges() run failed.");
+				debugDisp("error! nonManifoldUEs() run failed.");
 				return;
 			}
 			if (nmnUedges.rows() > 0)

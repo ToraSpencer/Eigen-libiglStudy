@@ -976,30 +976,6 @@ namespace IGL_BASIC_PMP
 				index = etInfo[index];
 			etNMNmap.insert(copyPair);
 		}
-
-		//	 nonManifoldEdges()——输出非流形半边：
-		Eigen::MatrixXi  nmnEdges;
-		nonManifoldEdges(nmnEdges, tris);
-		dispMatBlock(nmnEdges, 0, 10, 0, 1);
-		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers);
-
-		// 4. 找出所有非流形边所在三角片：
-		std::vector<int> trisIdxNM;
-		for (auto& pair : etNMNmap)
-		{
-			for (auto& index : pair.second)
-				trisIdxNM.push_back(index);
-		}
-		Eigen::MatrixXi trisNM(Eigen::MatrixXi::Zero(trisIdxNM.size(), 3));
-		for (int i = 0; i < trisIdxNM.size(); ++i)
-			trisNM.row(i) = tris.row(trisIdxNM[i]);
-
-		// for debug: 打印trisNM:
-		objWriteMeshMat("E:/trisNM.obj", vers, trisNM);
-		std::cout << "finished." << std::endl;
-
-		// 5. 确定流形三角片、非流形三角片的邻接关系：
-
 	}
 
 
@@ -1044,7 +1020,7 @@ namespace IGL_BASIC_PMP
 		objWriteMeshMat("E:/mnTris.obj", vers, mnTris);
 
 		Eigen::MatrixXi nmnEdges;
-		nonManifoldEdges(nmnEdges, tris);
+		nonManifoldUEs(nmnEdges, tris);
 		objWriteEdgesMat("E:/nmnEdges.obj", nmnEdges, vers); 
 
 		std::cout << "finished." << std::endl;
