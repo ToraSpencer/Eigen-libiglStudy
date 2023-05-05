@@ -100,22 +100,26 @@ namespace SPARSEMAT
 
 		//		valuePtr()方法——返回稀疏矩阵元素数组的首地址；
 		auto dataPtr = sm1.valuePtr();
-		std::cout << "data of sm1: " << std::endl;
+		std::cout << "valuePtr()方法——返回稀疏矩阵元素数组的首地址\n data of sm1: " << std::endl;
 		for(unsigned i = 0; i < sm1.nonZeros(); ++i)
 			std::cout << dataPtr[i] << std::endl;
 		std::cout << std::endl;
 
 		// 注：貌似直接修改dataPtr指向的数据是危险的。如果要将某元素清零应该使用prune()方法；
 		Eigen::SparseMatrix<float> sm11 = sm1;
+		dispMat(sm1.toDense());
+		std::cout << "sm1.nonZeros() == " << sm1.nonZeros() << std::endl;
+		std::cout << "sm1.isCompressed() == " << sm1.isCompressed() << std::endl << std::endl;;
 
 		//		prune方法()——将不满足条件的元素清零；
 		sm1.prune([&](const Eigen::Index& row, const Eigen::Index& col, const float& value)->bool
 			{
 				if (value > 1.3)
-					return true;			// 返回true的元素被保留；
+					return true;					// 返回true的元素被保留；
 				else
 					return false;
 			});
+		std::cout << "prune方法()——将不满足条件的元素清零；" << std::endl;
 		dispMat(sm1.toDense());
 		std::cout << "sm1.nonZeros() == " << sm1.nonZeros() << std::endl;
 		std::cout << "sm1.isCompressed() == " << sm1.isCompressed() << std::endl;

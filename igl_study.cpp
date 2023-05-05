@@ -989,9 +989,9 @@ namespace IGL_BASIC_PMP
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
 
-		Eigen::MatrixXi ttAdj_nmEdge;
+		Eigen::MatrixXi ttAdj_mnEdge;
 		std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
-		bool retFlag = buildAdjacency(ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris);
+		bool retFlag = buildAdjacency(ttAdj_mnEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris);
 
 		// 输出包含非流形边的三角片：
 		std::vector<int> nmnTrisIdx;
@@ -1051,9 +1051,9 @@ namespace IGL_BASIC_PMP
 		*/
 
 		// 1. 计算三角片邻接关系
-		Eigen::MatrixXi ttAdj_nmEdge;
+		Eigen::MatrixXi ttAdj_mnEdge;
 		std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
-		buildAdjacency(ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris);
+		buildAdjacency(ttAdj_mnEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris);
 		unsigned trisCount = tris.rows();
 		std::vector<bool> visited(trisCount, false);			// 三角片是否被访问的标记；
 
@@ -1071,8 +1071,8 @@ namespace IGL_BASIC_PMP
 			// 对当前三角片三条边的遍历：
 			for (int i = 0; i < 3; ++i)
 			{
-				// wf0. 若当前边为流形边，则在ttAdj_nmEdge中寻找其对面；
-				int nbrTriIdx = ttAdj_nmEdge(currentTriIdx, i);
+				// wf0. 若当前边为流形边，则在ttAdj_mnEdge中寻找其对面；
+				int nbrTriIdx = ttAdj_mnEdge(currentTriIdx, i);
 				
 				// wf1. 若当前边为非流形边，根据布尔操作不同类型选取不同的对面；
 				if (-1 == nbrTriIdx)
@@ -1279,9 +1279,9 @@ namespace IGL_BASIC_PMP
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
 
-		Eigen::MatrixXi ttAdj_nmEdge;
+		Eigen::MatrixXi ttAdj_mnEdge;
 		std::vector<tVec> ttAdj_nmnEdge, ttAdj_nmnOppEdge;
-		bool retFlag = buildAdjacency(ttAdj_nmEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris);
+		bool retFlag = buildAdjacency(ttAdj_mnEdge, ttAdj_nmnEdge, ttAdj_nmnOppEdge, tris);
 
 		// 输出包含非流形边的三角片：
 		std::vector<int> nmnTrisIdx;
@@ -1298,7 +1298,7 @@ namespace IGL_BASIC_PMP
 
 		Eigen::MatrixXi mnTris;				// 不包含非流形边的三角片：
 		std::set<int> tmpSet;
-		traverseMatrix(ttAdj_nmEdge, [&](const int num)
+		traverseMatrix(ttAdj_mnEdge, [&](const int num)
 			{
 				if (num > 0)
 					tmpSet.insert(num);

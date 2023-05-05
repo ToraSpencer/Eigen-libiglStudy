@@ -1623,7 +1623,8 @@ namespace MESH_REPAIR
 
 			// f3. 检测非流形有向边：
 			Eigen::MatrixXi nmnEdges;
-			int nmnCount = nonManifoldEdges(nmnEdges, tris);
+			std::vector<std::pair<std::pair<int, int>, int>> nmnInfos;
+			int nmnCount = nonManifoldEdges(nmnEdges, nmnInfos, tris);
 			if (nmnCount < 0)
 			{
 				debugDisp("error! nonManifoldUEs() run failed.");
@@ -1699,17 +1700,30 @@ namespace MESH_REPAIR
 				});
 			scCount = simplyConnectedRegion(adjSM, connectedLabels, connectedCount);
 			if (scCount > 1)
-			{
 				debugDisp(OBJfileNames[i], ".obj ！！！存在", scCount, "个顶点联通区域。");
-			}
 
 			sctCount = simplyTrisConnectedRegion(connectedLabelsSCT, connectedCountSCT, tris);
 			if (scCount != sctCount)
 			{
 				debugDisp(OBJfileNames[i], ".obj ！！！存在奇异点。");
 				debugDisp(OBJfileNames[i], ".obj scCount == ", scCount);
+				debugDisp(OBJfileNames[i], ".obj sctCount == ", sctCount);
 			}
-			debugDisp(OBJfileNames[i], ".obj sctCount == ", sctCount);
+			if (sctCount > 0)
+			{
+				// 打印各个联通区域的三角片：
+				for (int i = 0; i < sctCount; ++i)
+				{
+					Eigen::MatrixXi selectedTris;
+					Eigen::VectorXi flags = (i == connectedLabelsSCT.array()).select(Eigen::VectorXi::Ones(trisCount), Eigen::VectorXi::Zero(trisCount));
+					subFromFlagVec(selectedTris, tris, flags);
+
+					ss.str("");
+					ss << "meshSCT_" << i;
+					debugWriteMesh(ss.str().c_str(), vers, selectedTris);
+				}
+			}
+			
 		}
 
 		debugDisp("finished.");
@@ -2113,11 +2127,11 @@ namespace MESH_REPAIR
 			// f2. 补洞
 			int holesCount = tMesh.boundaries();				
 			int patchedCount = 0;
-			if (holesCount)
+			if (holesCount > 0)
+			{
 				patchedCount = tMesh.fillSmallBoundaries(0, true);
-
-			// f3. meshclean前计算环形边界数、环柄数；
-			holesCount = tMesh.boundaries();
+				holesCount = tMesh.boundaries();
+			}
 
 			// f4. meshClean()——去除退化结构和三角片自交——默认max_iters == 10, inner_loops == 3；
 			T_MESH::Triangle* t;
@@ -2492,6 +2506,69 @@ namespace MESH_REPAIR
 
 		debugDisp("finished.");
 	}
+
+
+	// 删除包含短边的三角片；
+	void test6()
+	{
+		const double lenThreshold = 1e-5;
+		Eigen::MatrixXd vers, arrows, vas, vbs, triEdgeLens;
+		Eigen::MatrixXi tris, edges;
+		Eigen::VectorXi vaIdxes, vbIdxes;
+		Eigen::VectorXd edgeLens;
+		objReadMeshMat(vers, tris, "E:/材料/tmpTriangleGrowOuterSurf.obj");
+		int versCount = vers.rows();
+		int trisCount = tris.rows();
+
+		// 生成三角片边长信息：
+		if (!getEdges(edges, tris))
+		{
+			debugDisp("error!!! getEdges() failed.");
+			return;
+		}
+		vaIdxes = edges.col(0);
+		vbIdxes = edges.col(1);
+		subFromIdxVec(vas, vers, vaIdxes);
+		subFromIdxVec(vbs, vers, vbIdxes);
+		arrows = vbs - vas;
+		edgeLens = arrows.rowwise().norm();
+		triEdgeLens = Eigen::Map<Eigen::MatrixXd>(edgeLens.data(), trisCount, 3);
+
+		// 搜索边长都小于阈值的三角片：
+		std::vector<int> sickTriIdxes;
+		Eigen::MatrixXi sickTris;
+		int sickCount = 0;
+		sickTriIdxes.reserve(trisCount);
+		for (int i = 0; i < trisCount; ++i)
+			if (triEdgeLens(i, 0) < lenThreshold || triEdgeLens(i, 1) < lenThreshold || triEdgeLens(i, 2) < lenThreshold)
+				sickTriIdxes.push_back(i);
+		sickCount = sickTriIdxes.size();
+		sickTriIdxes.shrink_to_fit();
+		subFromIdxVec(sickTris, tris, sickTriIdxes);
+		debugDisp("sickCount == ", sickCount);
+
+		// 去除被标记的三角片：
+		Eigen::VectorXi flags = Eigen::VectorXi::Ones(trisCount);
+		for (const auto& index : sickTriIdxes)
+			flags(index) = 0;
+		Eigen::MatrixXi tmpTris;
+		subFromFlagVec(tmpTris, tris, flags);
+		tris = tmpTris;
+			
+		// 
+		Eigen::MatrixXd versOut;
+		Eigen::MatrixXi trisOut;
+		if (removeSickDupTris(vers, tris) < 0)
+		{
+			debugDisp("error!!! removeSickDupTris() failed");
+			return;
+		}
+		std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, tris);
+		removeIsoVers(versOut, trisOut, vers, tris, isoVerIdxes);
+		debugWriteMesh("meshNoSmallTris", versOut, trisOut);
+
+		debugDisp("finished.");
+	}
 }
 
 
@@ -2625,11 +2702,16 @@ int testCmd_laplaceFaring(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-	// MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
+	MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
 
-	//TEST_MYEIGEN::test1111();
+	// MESH_REPAIR::test6();
 
-	SPARSEMAT::test0();
+	// MESH_REPAIR::testCmd_meshFix(argc, argv);
+
+	// TEST_MYEIGEN::test1111();
+
+	// SPARSEMAT::test0();
+	 
 
 	std::cout << "main() finished." << std::endl;
 }

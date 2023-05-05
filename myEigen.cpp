@@ -427,15 +427,14 @@ namespace TEST_MYEIGEN
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
-		objReadMeshMat(vers, tris, "E:/材料/tmpSickArrResult.obj");
+		objReadMeshMat(vers, tris, "E:/材料/tmpBracketBeforeSimpArred.obj");
 		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
 		unsigned versCount = vers.rows();
 		unsigned trisCount = tris.rows();
 
 		// 1. 确定所有非流形无向边：
-		Eigen::MatrixXi nmnUedges; 
-		std::vector<std::tuple<std::pair<int, int>, int, int>> nmnInfos;
-		int nmnCount = nonManifoldUEs(nmnUedges, nmnInfos, tris);
+		Eigen::MatrixXi nmnUedges;  
+		int nmnCount = nonManifoldEdges(nmnUedges, tris);
 		if (nmnCount < 0) 
 		{
 			debugDisp("error! nonManifoldUEs() run failed.");
@@ -458,7 +457,7 @@ namespace TEST_MYEIGEN
 
 			// 检查输出网格中是否有非流形边：
 			nmnUedges.resize(0, 0);
-			nmnCount = nonManifoldUEs(nmnUedges, trisOut);
+			nmnCount = nonManifoldEdges(nmnUedges, trisOut);
 			if (nmnCount < 0)
 			{
 				debugDisp("error! nonManifoldUEs() run failed.");
