@@ -1664,26 +1664,12 @@ namespace MESH_REPAIR
 			unsigned degEdgesCount = degEdgeFlags.sum();
 			if (degEdgesCount > 0)
 				debugDisp(OBJfileNames[i], ".obj degenerate edges count == ", degEdgesCount);
+#endif
 
 			// f6. 检测退化三角片：
-			Eigen::VectorXd trisAreaVec;
-			std::vector<unsigned> degenTriIdxes;
-			const double eps = 10e-9;
-			if (!trisArea(trisAreaVec, vers, tris))
-			{
-				debugDisp("error! trisArea() run failed.");
-				return -1;
-			}
-			for (unsigned i = 0; i < trisCount; ++i)
-				if (trisAreaVec(i) < eps)
-					degenTriIdxes.push_back(i);
-			if (!degenTriIdxes.empty())
-			{
-				Eigen::MatrixXi deTris;
-				debugDisp(OBJfileNames[i], ".obj degenTriIdxes.size() == ", degenTriIdxes.size());
-				subFromIdxVec(deTris, tris, degenTriIdxes);
-			}
-#endif
+			Eigen::MatrixXd triNorms;
+			if (!getTriNorms(triNorms, vers, tris))
+				debugDisp("error!!! degenerate tris detected.");
 
 			// f7. 提取所有单连通区域：
 			int scCount = 0;							// 顶点单连通区域个数；
@@ -2702,7 +2688,7 @@ int testCmd_laplaceFaring(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-	MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
+	// MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
 
 	// MESH_REPAIR::test6();
 
@@ -2712,6 +2698,41 @@ int main(int argc, char** argv)
 
 	// SPARSEMAT::test0();
 	 
+
+	// 尝试融合网格狭缝中距离过近的三个点：
+	Eigen::MatrixXd vers, sickVers, versTmp;
+	Eigen::MatrixXi tris, trisTmp;
+	objReadMeshMat(vers, tris, "E:/beforeHoleFilling.obj");
+	int trisCount = tris.rows();
+	int versCount = vers.rows();
+
+	std::vector<int> sickVerIdxes{ 7024, 5099, 15050 };
+	subFromIdxVec(sickVers, vers, sickVerIdxes);
+	Eigen::RowVector3d newVer = sickVers.colwise().mean();
+	int newVerIdx = versCount;
+	matInsertRows<double, 3>(vers, newVer);
+	versCount++;
+
+	int* ptrIdx = tris.data();
+	for (int i = 0; i < tris.size(); ++i)
+	{
+		if (7024 == *ptrIdx || 5099 == *ptrIdx || 15050 == *ptrIdx)
+			*ptrIdx = newVerIdx;
+		ptrIdx++;
+	}
+
+	
+	removeSickDupTris(vers, tris);
+	std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, tris);
+	if (!isoVerIdxes.empty())
+	{
+		removeIsoVers(versTmp, trisTmp, vers, tris, isoVerIdxes);
+		vers = versTmp;
+		tris = trisTmp;
+	}
+
+	debugWriteMesh("meshOut", vers, tris);
+
 
 	std::cout << "main() finished." << std::endl;
 }
