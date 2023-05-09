@@ -4095,11 +4095,84 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 		subFromFlagVec(trisClean, tris, flagValidTri);
 		subFromFlagVec(triNorms, tmpNorms, flagValidTri);
 		trisCount = trisClean.rows();
+		edgesCount = 3 * trisCount;
 	}
 	else
 	{
 		trisClean = tris;
 		triNorms = tmpNorms;
+	}
+
+	// 0+.处理异常的非流形边——有些情形下meshArrange会在自交处生成关联三个三角片的无向边，其中一条有向边关联一个，其对边关联两个；
+	Eigen::MatrixXi nmnEdges, edges, trisTmp;
+	std::vector<std::pair<std::pair<int, int>, int>> nmnInfos;
+	std::unordered_map<std::int64_t, int> nmnMap;						// 非流形有向边code-边索引的字典；
+	std::unordered_set<std::int64_t> sickCodes;							// 需要预处理的非流形有向边的code；
+	std::vector<std::int64_t> edgeCodes;
+	std::unordered_map<std::int64_t, int> nmnTriIdxMap;
+	std::unordered_map<std::int64_t, double> nmnTriAreaMap;
+	std::vector<int> sickTriIdxes;
+	getEdges(edges, tris);
+	edgeCodes.resize(edgesCount);
+	int nmnCount = nonManifoldEdges(nmnEdges, nmnInfos, trisClean);
+	for (const auto& pair : nmnInfos)
+	{
+		std::int64_t code = encodeEdge(pair.first.first, pair.first.second);
+		nmnMap.insert({ code, pair.second });
+	}
+	for (const auto& pair : nmnMap)
+	{
+		std::int64_t code = pair.first;
+		auto retPair = decodeEdge(code);
+		int repCount = pair.second;
+		std::int64_t codeOpp = encodeEdge(retPair.second, retPair.first);
+		int repCountOpp = nmnMap[codeOpp];
+		if (2 == repCount && 1 == repCountOpp)
+			sickCodes.insert(code);
+		if (1 == repCount && 2 == repCountOpp)
+			sickCodes.insert(codeOpp);
+	}
+	if (!sickCodes.empty())
+	{
+		for (int i = 0; i < edgesCount; ++i)
+			edgeCodes[i] = encodeEdge(edges(i, 0), edges(i, 1));
+		for (int i = 0; i < edgesCount; ++i)
+		{
+			std::int64_t& code = edgeCodes[i];
+			auto iter = sickCodes.find(code);
+			if (sickCodes.end() != iter)
+			{
+				int triIdx = i % trisCount;							// 当前流形边所在的三角片索引；
+				RowVector3T arrow1 = vers.row(trisClean(triIdx, 1)) - vers.row(trisClean(triIdx, 0));
+				RowVector3T arrow2 = vers.row(trisClean(triIdx, 2)) - vers.row(trisClean(triIdx, 0));
+				double area = std::abs(0.5 * arrow1.dot(arrow2));
+				auto areaIter = nmnTriAreaMap.find(code);
+				if (nmnTriAreaMap.end() == areaIter)
+				{
+					nmnTriAreaMap.insert({ code, area });
+					nmnTriIdxMap.insert({ code, triIdx });
+				}
+				else
+				{
+					double areaOld = areaIter->second;
+					if (area < areaOld)
+					{
+						areaIter->second = area;
+						nmnTriIdxMap[code] = triIdx;
+					}
+				}
+			}
+		}
+		for (const auto& pair : nmnTriIdxMap)
+			sickTriIdxes.push_back(pair.second);
+
+		// 非流形有向边关联的两个三角片，删除面积较小的那个：
+		if (!removeTris(trisTmp, trisClean, sickTriIdxes))
+		{
+			std::cout << "error!!! removeTris() failed." << std::endl;
+			return false;
+		}
+		trisClean = trisTmp;
 	}
 
 	// 1. 求三角片邻接关系：

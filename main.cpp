@@ -1589,15 +1589,23 @@ namespace MESH_REPAIR
 			}
 
 			// f2. 计算边数据， 检测边缘有向边：
+			int genus = 0;
+			int ueCount = 0;
 			Eigen::Index minEdgeIdx = 0;
 			double minLen = 0;
 			Eigen::MatrixXd edgeArrows, normals;
-			Eigen::MatrixXi edges;
+			Eigen::MatrixXi edges, uEdges;
 			Eigen::MatrixXi bdrys, bdryTris;
 			Eigen::VectorXd edgesLen;
 			std::vector<int> bdryTriIdxes;
 			getEdges(edges, tris);
 			getEdgeArrows(edgeArrows, edges, vers);
+			getUedges(uEdges, edges);
+			ueCount = uEdges.rows();
+			genus = (ueCount - versCount - trisCount) / 2 + 1;				//  g == (e - v- f )/2+1;
+			if (genus > 0)
+				debugDisp(OBJfileNames[i], ".obj genus == ", genus);
+
 			edgesLen = edgeArrows.rowwise().norm();
 			minLen = edgesLen.minCoeff(&minEdgeIdx);
 			debugDisp(OBJfileNames[i], ".obj minimum edge len is ", minLen);
@@ -1630,6 +1638,36 @@ namespace MESH_REPAIR
 				debugDisp("error! nonManifoldUEs() run failed.");
 				return -1;
 			}
+
+			// for debug;
+			std::unordered_map<std::int64_t, int> nmnMap;
+			for (const auto& pair: nmnInfos) 
+			{
+				auto edgePair = pair.first;
+				std::int64_t code = encodeUedge(edgePair.first, edgePair.second);
+				auto iter = nmnMap.find(code);
+				if (nmnMap.end() == iter)
+					nmnMap.insert({ code, pair.second });
+				else
+					nmnMap[code] += pair.second;
+			}
+			
+			std::vector<std::int64_t> sickCodes;
+			for (const auto& pair : nmnMap)
+				if (3 == pair.second)
+					sickCodes.push_back(pair.first);
+			int sickCount = sickCodes.size();
+			Eigen::MatrixXi sickNMNedges(sickCount, 2);
+			for (int k = 0; k < sickCount; ++k) 
+			{
+				auto pair = decodeEdge(sickCodes[k]);
+				sickNMNedges(k, 0) = pair.first;
+				sickNMNedges(k, 1) = pair.second;
+			}
+			
+			debugWriteEdges("sickNMNedges", sickNMNedges, vers); 
+ 
+
 			if (nmnEdges.rows() > 0)
 			{
 				Eigen::MatrixXd	nmnVers;
@@ -2688,7 +2726,7 @@ int testCmd_laplaceFaring(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-	// MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
+	MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
 
 	// MESH_REPAIR::test6();
 
@@ -2696,42 +2734,7 @@ int main(int argc, char** argv)
 
 	// TEST_MYEIGEN::test1111();
 
-	// SPARSEMAT::test0();
-	 
-
-	// 尝试融合网格狭缝中距离过近的三个点：
-	Eigen::MatrixXd vers, sickVers, versTmp;
-	Eigen::MatrixXi tris, trisTmp;
-	objReadMeshMat(vers, tris, "E:/beforeHoleFilling.obj");
-	int trisCount = tris.rows();
-	int versCount = vers.rows();
-
-	std::vector<int> sickVerIdxes{ 7024, 5099, 15050 };
-	subFromIdxVec(sickVers, vers, sickVerIdxes);
-	Eigen::RowVector3d newVer = sickVers.colwise().mean();
-	int newVerIdx = versCount;
-	matInsertRows<double, 3>(vers, newVer);
-	versCount++;
-
-	int* ptrIdx = tris.data();
-	for (int i = 0; i < tris.size(); ++i)
-	{
-		if (7024 == *ptrIdx || 5099 == *ptrIdx || 15050 == *ptrIdx)
-			*ptrIdx = newVerIdx;
-		ptrIdx++;
-	}
-
-	
-	removeSickDupTris(vers, tris);
-	std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, tris);
-	if (!isoVerIdxes.empty())
-	{
-		removeIsoVers(versTmp, trisTmp, vers, tris, isoVerIdxes);
-		vers = versTmp;
-		tris = trisTmp;
-	}
-
-	debugWriteMesh("meshOut", vers, tris);
+	// SPARSEMAT::test0(); 
 
 
 	std::cout << "main() finished." << std::endl;
