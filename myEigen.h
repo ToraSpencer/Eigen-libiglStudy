@@ -302,7 +302,7 @@ bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eig
 	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
 template <typename T>
 bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso);
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso, const int startIdx);
 template <typename DerivedV, typename DerivedI>
 int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx, const double thetaThreshold);
@@ -4061,7 +4061,7 @@ bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eig
 // triangleGrowOuterSurf()——从指定三角片（必须是外部的三角片）开始区域生长，提取外层表面单连通流形网格
 template <typename T>
 bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso = true)
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso = true, const int startIdx = -1)
 {
 	using RowVector3T = Eigen::Matrix<T, 1, 3>;
 
@@ -4184,18 +4184,23 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 		return false;
 	}
 
-	// 2. 选取一个不包含非流形边的三角片作为扩散的种子三角片：
+	// 2. 若未指定种子三角片索引，则选取一个不包含非流形边的三角片作为扩散的种子三角片：
 	int seedIdx = -1;
-	for (int i = 0; i < trisCount; ++i)
+	if (startIdx < 0)
 	{
-		if (ttAdj_mnEdge(i, 0) >= 0 && ttAdj_mnEdge(i, 1) >= 0 && ttAdj_mnEdge(i, 2) >= 0)
+		for (int i = 0; i < trisCount; ++i)
 		{
-			seedIdx = i;
-			break;
+			if (ttAdj_mnEdge(i, 0) >= 0 && ttAdj_mnEdge(i, 1) >= 0 && ttAdj_mnEdge(i, 2) >= 0)
+			{
+				seedIdx = i;
+				break;
+			}
 		}
+		if (seedIdx < 0)
+			return false;
 	}
-	if (seedIdx < 0)
-		return false;
+	else
+		seedIdx = startIdx;
 
 	// 3. 循环——队列中第一个三角片t出队 - t写入输出集合 - 求出t所有相邻三角片的索引然后入队 
 	std::unordered_set<int> finalTriIdxes;
@@ -4257,7 +4262,6 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 						if (selTriIdx != index)
 							triTags[index] = -1;
 				}
-
 			}
 
 			// nmAdjTriIdx == -2边缘边，直接跳过；
@@ -5807,6 +5811,7 @@ namespace TEST_MYEIGEN
 	void test7();
 	void test8();
 	void test9();
+	void test99();
 	void test10();
 
 	void test12();

@@ -422,61 +422,6 @@ namespace TEST_MYEIGEN
 	}
 
 
-	//		测试triangleGrowOuterSurf提取包含非流行三角片的网格提取外层表面：
-	void test1111() 
-	{
-		Eigen::MatrixXd vers, versOut;
-		Eigen::MatrixXi tris, trisOut;
-		objReadMeshMat(vers, tris, "E:/材料/tmpBracketBeforeSimpArred.obj");
-		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
-		unsigned versCount = vers.rows();
-		unsigned trisCount = tris.rows();
-
-		// 1. 确定所有非流形无向边：
-		Eigen::MatrixXi nmnUedges;  
-		int nmnCount = nonManifoldEdges(nmnUedges, tris);
-		if (nmnCount < 0) 
-		{
-			debugDisp("error! nonManifoldUEs() run failed.");
-			return;
-		}
-		if (nmnUedges.rows() > 0)
-		{
-			debugDisp("非流形无向边数量：nmnUedges.rows() == ", nmnUedges.rows());
-			debugWriteEdges("nmnEdgesOrigin", nmnUedges, vers);
-		}
- 
-		// 3. 一次提取外表面可能不能完全去除非流形边，需要多次调用：
-		while (nmnCount > 0) 
-		{
-			debugDisp("当前非流形有向边数：", nmnCount);
-			debugDisp("执行triangleGrowOuterSurf()...");
-			if (!triangleGrowOuterSurf(versOut, trisOut, vers, tris, true))
-				debugDisp("triangleGrowOuterSurf() failed!");
-			debugDisp("去除三角片个数：", trisCount - trisOut.rows());
-
-			// 检查输出网格中是否有非流形边：
-			nmnUedges.resize(0, 0);
-			nmnCount = nonManifoldEdges(nmnUedges, trisOut);
-			if (nmnCount < 0)
-			{
-				debugDisp("error! nonManifoldUEs() run failed.");
-				return;
-			}
-			if (nmnUedges.rows() > 0)
-				debugWriteEdges("nmnUedges", nmnUedges, versOut);
-			nmnCount = nmnUedges.rows();
-
-			vers = versOut;
-			tris = trisOut;
-			trisCount = tris.rows();
-		}
-
-		debugWriteMesh("triangleGrowOuterSurf", vers, tris);
-		std::cout << "finished." << std::endl;
-	}
-
-
 	// 检测重复三角片，重复顶点，
 	void test2() 
 	{
@@ -645,6 +590,111 @@ namespace TEST_MYEIGEN
 		Eigen::MatrixXf versF;
 		Eigen::MatrixXi tris;
  
+	}
+
+
+	//		测试triangleGrowOuterSurf提取包含非流行三角片的网格提取外层表面：
+	void test9()
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		objReadMeshMat(vers, tris, "E:/材料/tmpArrangeResult.obj");
+		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
+		unsigned versCount = vers.rows();
+		unsigned trisCount = tris.rows();
+
+		// 1. 确定所有非流形无向边：
+		Eigen::MatrixXi nmnEdges;
+		int nmnCount = nonManifoldEdges(nmnEdges, tris);
+		if (nmnCount < 0)
+		{
+			debugDisp("error! nonManifoldUEs() run failed.");
+			return;
+		}
+		if (nmnEdges.rows() > 0)
+		{
+			debugDisp("非流形无向边数量：nmnEdges.rows() == ", nmnEdges.rows());
+			debugWriteEdges("nmnEdgesOrigin", nmnEdges, vers);
+		}
+
+		// 3. 一次提取外表面可能不能完全去除非流形边，需要多次调用：
+		while (nmnCount > 0)
+		{
+			debugDisp("当前非流形有向边数：", nmnCount);
+			debugDisp("执行triangleGrowOuterSurf()...");
+			if (!triangleGrowOuterSurf(versOut, trisOut, vers, tris, true))
+				debugDisp("triangleGrowOuterSurf() failed!");
+			debugDisp("去除三角片个数：", trisCount - trisOut.rows());
+
+			// 检查输出网格中是否有非流形边：
+			nmnEdges.resize(0, 0);
+			nmnCount = nonManifoldEdges(nmnEdges, trisOut);
+			if (nmnCount < 0)
+			{
+				debugDisp("error! nonManifoldUEs() run failed.");
+				return;
+			}
+			if (nmnEdges.rows() > 0)
+				debugWriteEdges("nmnEdges", nmnEdges, versOut);
+			nmnCount = nmnEdges.rows();
+
+			vers = versOut;
+			tris = trisOut;
+			trisCount = tris.rows();
+		}
+
+		debugWriteMesh("triangleGrowOuterSurf", vers, tris);
+		std::cout << "finished." << std::endl;
+	}
+
+
+	//		测试triangleGrowOuterSurf()——从指定三角片开始生长，只调用一次；
+	void test99()
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		objReadMeshMat(vers, tris, "E:/材料/tmpArrangeResult.obj");
+		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
+		unsigned versCount = vers.rows();
+		unsigned trisCount = tris.rows();
+		int startIdx = 17801;
+
+		// 1. 确定所有非流形无向边：
+		Eigen::MatrixXi nmnEdges;
+		int nmnCount = nonManifoldEdges(nmnEdges, tris);
+		if (nmnCount < 0)
+		{
+			debugDisp("error! nonManifoldUEs() run failed.");
+			return;
+		}
+		if (nmnEdges.rows() > 0)
+		{
+			debugDisp("非流形无向边数量：nmnEdges.rows() == ", nmnEdges.rows());
+			debugWriteEdges("nmnEdgesOrigin", nmnEdges, vers);
+		}
+
+		// 3.  
+		debugDisp("当前非流形有向边数：", nmnCount);
+		debugDisp("执行triangleGrowOuterSurf()...");
+		if (!triangleGrowOuterSurf(versOut, trisOut, vers, tris, true))
+			debugDisp("triangleGrowOuterSurf() failed!");
+		debugDisp("去除三角片个数：", trisCount - trisOut.rows());
+
+		// 检查输出网格中是否有非流形边：
+		nmnEdges.resize(0, 0);
+		nmnCount = nonManifoldEdges(nmnEdges, trisOut);
+		if (nmnCount < 0)
+		{
+			debugDisp("error! nonManifoldUEs() run failed.");
+			return;
+		}
+		if (nmnEdges.rows() > 0)
+			debugWriteEdges("nmnEdges", nmnEdges, versOut);
+		nmnCount = nmnEdges.rows(); 
+ 
+
+		debugWriteMesh("triangleGrowOuterSurf", versOut, trisOut);
+		std::cout << "finished." << std::endl;
 	}
 }
 

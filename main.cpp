@@ -12,7 +12,7 @@
 #include <string>
 
 #include <windows.h>
-#include <atlstr.h>			// 包含CString类。属于microsoft ATL(活动模板库avtive template library)
+#include <atlstr.h>					// 包含CString类。属于microsoft ATL(活动模板库avtive template library)
 #include <atlconv.h>
 #include <io.h>
 #include <winuser.h>
@@ -573,7 +573,6 @@ namespace DECIMATION
 		return true;
 	}
  
-
 
 	// 最简单的边折叠精简算法——使用边长来度量折叠损耗；
 	void test1()
@@ -1302,8 +1301,7 @@ namespace DECIMATION
 
 		igl::writeOBJ("E:/qslimOutput.obj", versOut, trisOut);
 		std::cout << "finished." << std::endl;
-	}
- 
+	} 
 
 	 
 	// 求精简后的网格和原始网格的近似误差（来自QEM的paper）——速度太慢
@@ -1333,11 +1331,6 @@ namespace DECIMATION
 		Eigen::MatrixXd versExt1{ Eigen::MatrixXd::Ones(versCount1, 4) };
 		versExt0.leftCols(3) = versMat0.array().cast<double>();
 		versExt1.leftCols(3) = versMat1.array().cast<double>();
-
-		//// for debug
-		//Eigen::Vector4d verColVec = versExt0.row(3).transpose();		
-		//Eigen::VectorXd signedDises = planeCoeff0 * verColVec;			// 索引为verIdx的simp网格中的顶点，到ori网格中所有三角片平面的符号距离：
-		//Eigen::VectorXd sqrDises = signedDises.array() * signedDises.array();
 
 		// for new method:
 		PARALLEL_FOR(0, versCount1, [&](int verIdx)
@@ -1379,34 +1372,28 @@ namespace DECIMATION
 		Eigen::MatrixXi tris1, tris2;
 		double appErr = 0;
 
-		igl::readOBJ("E:/材料/jawMeshDense.obj", vers1, tris1);
-		igl::readOBJ("E:/材料/jawMeshDense.obj", vers2, tris2);
+		igl::readOBJ("E:/牙齿.obj", vers1, tris1);
+		igl::readOBJ("E:/牙齿_remeshed.obj", vers2, tris2);
 		appErr = calcSimpApproxError(vers2, tris2, vers1, tris1);
 		std::cout << "appErr == " << appErr << std::endl;
 
+		vers1.resize(0, 0);
+		tris1.resize(0, 0);
 		vers2.resize(0, 0);
 		tris2.resize(0, 0);
-		igl::readOBJ("E:/材料/jawMeshDense_geoSimp_150000.obj", vers2, tris2);
+		igl::readOBJ("E:/rootTooth1.obj", vers1, tris1);
+		igl::readOBJ("E:/rootTooth1_remeshed.obj", vers2, tris2);
 		appErr = calcSimpApproxError(vers2, tris2, vers1, tris1);
 		std::cout << "appErr == " << appErr << std::endl;
 
+		vers1.resize(0, 0);
+		tris1.resize(0, 0);
 		vers2.resize(0, 0);
 		tris2.resize(0, 0);
-		igl::readOBJ("E:/材料/jawMeshDense_geoSimp_120000.obj", vers2, tris2);
+		igl::readOBJ("E:/fatTeeth.obj", vers1, tris1);
+		igl::readOBJ("E:/fatTeeth_remeshed.obj", vers2, tris2);
 		appErr = calcSimpApproxError(vers2, tris2, vers1, tris1);
-		std::cout << "appErr == " << appErr << std::endl;
-
-		vers2.resize(0, 0);
-		tris2.resize(0, 0);
-		igl::readOBJ("E:/材料/jawMeshDense_geoSimp_90000.obj", vers2, tris2);
-		appErr = calcSimpApproxError(vers2, tris2, vers1, tris1);
-		std::cout << "appErr == " << appErr << std::endl;
-
-		vers2.resize(0, 0);
-		tris2.resize(0, 0);
-		igl::readOBJ("E:/材料/jawMeshDense_geoSimp_60000.obj", vers2, tris2);
-		appErr = calcSimpApproxError(vers2, tris2, vers1, tris1);
-		std::cout << "appErr == " << appErr << std::endl;
+		std::cout << "appErr == " << appErr << std::endl; 
 
 		std::cout << "finished." << std::endl;
 	}
@@ -1416,69 +1403,91 @@ namespace DECIMATION
 	int testCmd_qslimDecimation(int argc, char** argv)
 	{
 		tiktok& tt = tiktok::getInstance();
-		float deciRatio = 0.5;							// 精简率
-
-		// 生成路径：
-		int   nPos;
-		CString   cPath;
-		GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
-		nPos = cPath.ReverseFind('\\');
-		cPath = cPath.Left(nPos);
-		std::string path{ CT2CA{cPath} };
-		std::string pathOBJ = path + "\\inputOBJ";
-		std::string pathOutput = path + "\\outputData";
-
-		// 1. 读取部件网格 
-		tt.start();
-		std::cout << "读取输入网格..." << std::endl;
+		CString   cPath, fileConfig;
+		std::string path, pathOBJ, pathOutput;
 		std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;
-		std::vector<Eigen::MatrixXd> meshesVers, outVers;
-		std::vector<Eigen::MatrixXi> meshesTris, outTris;
+		std::stringstream ss;
+		bool debugFlag = false;
+		bool blTarVersOrRatio = false;			// 0 - 精简到百分比顶点数, 1 - 精简到确定点数；
+		int meshesCount = 0;
+		int tarVersCount = 0;
+		float deciRatio = 0;
 
-		getFileNames(pathOBJ.c_str(), tmpStrVec, false);
-		const unsigned meshesCount = tmpStrVec.size();
-		OBJfileNames.reserve(meshesCount);
-		for (const auto& str : tmpStrVec)
+		// 00. 读取路径、参数；
 		{
-			std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
-			if (".obj" == tailStr)
+			GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
+			int nPos = cPath.ReverseFind('\\');
+			cPath = cPath.Left(nPos);
+			path = CT2CA{ cPath };
+			pathOBJ = path + "\\inputOBJ";
+			pathOutput = path + "\\outputData";
+			fileConfig = cPath + "\\config.ini";
+
+			// 读取配置文件中的参数：
+			tarVersCount = INIGetInt(TEXT("decimationTarVers"), fileConfig);			// 精简目标顶点数；
+			deciRatio = INIGetFloat(TEXT("decimationRatio"), fileConfig);					// 精简百分比；
+			unsigned tmpInt = INIGetInt(TEXT("deciFlagTarVersOrRatio"), fileConfig);
+			blTarVersOrRatio = tmpInt > 0 ? true : false;
+			unsigned debugInt = INIGetInt(TEXT("debugFlag"), fileConfig);
+			debugFlag = debugInt > 0 ? true : false;
+			if (debugFlag)
+				debugDisp("Debug mode: ");
+
+			getFileNames(pathOBJ.c_str(), tmpStrVec, false);
+			meshesCount = tmpStrVec.size();
+			OBJfileNames.reserve(meshesCount);
+			for (const auto& str : tmpStrVec)
 			{
-				fileNames.push_back(str);
-				unsigned index = str.find_last_of("/");
-				std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
-				OBJfileNames.push_back(OBJfileName);
+				std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
+				if (".obj" == tailStr)
+				{
+					fileNames.push_back(str);
+					unsigned index = str.find_last_of("/");
+					std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
+					OBJfileNames.push_back(OBJfileName);
+				}
 			}
 		}
 
-		meshesVers.resize(meshesCount);
-		meshesTris.resize(meshesCount);
-		outVers.resize(meshesCount);
-		outTris.resize(meshesCount);
-		for (unsigned i = 0; i < meshesCount; ++i)
-			objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str());
-		tt.endCout("读取输入网格耗时：");
+		// 0. 读取输入网格
+		tt.start();
+		std::cout << "读取输入网格..." << std::endl;
+		std::vector<Eigen::MatrixXd> meshesVers;
+		std::vector<Eigen::MatrixXi> meshesTris;
+		{
+			meshesVers.resize(meshesCount);
+			meshesTris.resize(meshesCount);
+			for (unsigned i = 0; i < meshesCount; ++i)
+				objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str());
+			tt.endCout("读取输入网格耗时：");
+		}
 
 		// 2. 执行qslim精简：
 		tt.start();
 		debugDisp("执行qslim精简：");
 		for (int i = 0; i < meshesCount; ++i)
 		{
+			Eigen::MatrixXd outVers;
+			Eigen::MatrixXi outTris;
 			Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
 			Eigen::VectorXi newOldVersInfo;
-			int trisCount = meshesTris[i].rows();
-			int tarTrisCount = std::round(trisCount * deciRatio);
+			double tvRatio = static_cast<double>(meshesTris[i].rows()) / static_cast<double>(meshesVers[i].rows());
+			int tarTrisCount = 0;
+			if (blTarVersOrRatio)
+				tarTrisCount = static_cast<int>(tarVersCount * tvRatio);
+			else
+				tarTrisCount = static_cast<int>(meshesTris[i].rows() * deciRatio);
+			igl::qslim(meshesVers[i], meshesTris[i], tarTrisCount, outVers, outTris, newOldTrisInfo, newOldVersInfo);
 
-			igl::qslim(meshesVers[i], meshesTris[i], tarTrisCount, outVers[i], outTris[i], newOldTrisInfo, newOldVersInfo);
+			debugDisp(OBJfileNames[i], ".obj网格精简完成，顶点数：", meshesVers[i].rows(), "→", outVers.rows());
+			if (debugFlag)
+				debugWriteMesh((OBJfileNames[i] + std::string{ "_qslimDeci" }).c_str(), outVers, outTris);
+			ss.str("");
+			ss << pathOutput << OBJfileNames[i] << "_qslimDeci.obj";
+			objWriteMeshMat(ss.str().c_str(), outVers, outTris);
 		}
 		tt.endCout("qslim精简耗时：");
-
-		// 3. 输出：
-		for (unsigned i = 0; i < meshesCount; ++i)
-		{
-			std::string str = pathOutput + OBJfileNames[i] + std::string{ ".obj" };
-			objWriteMeshMat(str.c_str(), outVers[i], outTris[i]);
-		}
-
+		 
 		debugDisp("finished.");
 		getchar();
 
@@ -2732,9 +2741,13 @@ int main(int argc, char** argv)
 
 	// MESH_REPAIR::testCmd_meshFix(argc, argv);
 
-	// TEST_MYEIGEN::test1111();
+	// TEST_MYEIGEN::test99();
 
 	// SPARSEMAT::test0(); 
+
+	// IGL_BASIC_PMP::test8();
+
+	// DECIMATION::testCmd_qslimDecimation(argc, argv);
 
 
 	std::cout << "main() finished." << std::endl;
