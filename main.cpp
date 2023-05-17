@@ -1572,6 +1572,19 @@ namespace MESH_REPAIR
 				debugWriteMesh(ss.str().c_str(), vers, tris);
 			}
 
+			// 检测非流形点
+			std::vector<int> nmnVerIdxes;
+			int nmnVersCount = nonManifoldVers(nmnVerIdxes, vers, tris);
+			if (nmnVersCount > 0)
+			{
+				debugDisp(OBJfileNames[i], ".obj ！！！存在非流形点，nmnVersCount == ", nmnVersCount);
+				Eigen::MatrixXd nmnVers;
+				subFromIdxCon(nmnVers, vers, nmnVerIdxes);
+				ss.str("");
+				ss << OBJfileNames[i] << "_nmnVers";
+				debugWriteVers(ss.str().c_str(), nmnVers);
+			}
+
 			// f1. 检测孤立顶点：
 			int versCount = vers.rows();
 			int trisCount = tris.rows();
@@ -1738,7 +1751,7 @@ namespace MESH_REPAIR
 			sctCount = simplyTrisConnectedRegion(connectedLabelsSCT, connectedCountSCT, tris);
 			if (scCount != sctCount)
 			{
-				debugDisp(OBJfileNames[i], ".obj ！！！存在奇异点。");
+				debugDisp(OBJfileNames[i], ".obj ！！！三角片连通区域数目大于顶点联通区域数目。");
 				debugDisp(OBJfileNames[i], ".obj scCount == ", scCount);
 				debugDisp(OBJfileNames[i], ".obj sctCount == ", sctCount);
 			}

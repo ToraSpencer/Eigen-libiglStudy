@@ -286,6 +286,8 @@ int nonManifoldUEs(Eigen::MatrixXi& nmnUedges, const Eigen::PlainObjectBase<Deri
 template<typename DerivedI>
 int nonManifoldUEs(Eigen::MatrixXi& nmnUedges, std::vector<std::pair<int, std::pair<int, int>>>& nmnEdgeInfos, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
+template<typename DerivedV>
+int nonManifoldVers(std::vector<int>& nmnVerIdxes, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
 
 using tVec = std::vector<std::vector<int>>;
 template <typename DerivedI>
@@ -3153,6 +3155,61 @@ int nonManifoldUEs(Eigen::MatrixXi& nmnUedges, std::vector<std::tuple<std::pair<
 	return nmnUeCount;
 }
  
+
+// 检测非流形点——输入网格需要没有重复三角片和非法三角片
+template<typename DerivedV>
+int nonManifoldVers(std::vector<int>& nmnVerIdxes, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+{ 
+	const int versCount = vers.rows();
+	const int trisCount = tris.rows();
+	std::unordered_multimap<int, std::int64_t> triMap;
+	for (int i = 0; i < trisCount; ++i)
+	{
+		const int& vaIdx = tris(i, 0);
+		const int& vbIdx = tris(i, 1);
+		const int& vcIdx = tris(i, 2);
+		triMap.insert({ vaIdx, encodeUedge(vbIdx, vcIdx) }); 
+		triMap.insert({ vbIdx, encodeUedge(vcIdx, vaIdx) }); 
+		triMap.insert({ vcIdx, encodeUedge(vaIdx, vbIdx) }); 
+	}
+ 
+	nmnVerIdxes.reserve(versCount);
+	for (int i = 0; i < versCount; ++i) 
+	{
+		std::list<std::pair<int, int>> roundUes;
+		auto iter = triMap.find(i);
+		if (iter == triMap.end())
+			continue;
+		for (int k = 0; k < triMap.count(i); ++k)
+			roundUes.push_back(decodeEdge((iter++)->second));
+		std::pair<int, int> currentUe = roundUes.front();
+		roundUes.pop_front();
+		while (!roundUes.empty())
+		{ 
+			bool blFound = false;
+			auto iter = roundUes.begin();
+			for (; iter != roundUes.end(); iter++)
+			{
+				if (currentUe.first == iter->first || currentUe.second == iter->first || currentUe.first == iter->second || currentUe.second == iter->second)
+				{
+					blFound = true;
+					currentUe = *iter;
+					roundUes.erase(iter);
+					break;
+				}
+			}
+			if (!blFound && !roundUes.empty())					// 若当前连通边已生长完全，但roundUes中仍有别的边，说明此顶点关联两个或者更多的扇形；
+			{
+				nmnVerIdxes.push_back(i);
+				break;
+			}
+		}
+
+	}
+	nmnVerIdxes.shrink_to_fit();
+
+	return nmnVerIdxes.size();
+}
 
 
 // buildAdjacency()——计算网格的三角片邻接信息：
