@@ -486,6 +486,7 @@ namespace TEST_MYEIGEN
 		std::cout << "finished." << std::endl;
 	}
 
+
 #ifdef USE_TRIANGLE_H
 	// 测试生成基础图形的接口：
 	void test5() 
@@ -564,19 +565,33 @@ namespace TEST_MYEIGEN
 	}
 
 
-	// 查找洞和边缘曲线：
+	// 找洞、补洞；
 	void test7() 
 	{
 		Eigen::MatrixXd vers;
 		Eigen::MatrixXi tris;
-		std::vector<std::vector<int>> holes, bdrySegs;
+		std::vector<Eigen::VectorXi> holes;
 
-		objReadMeshMat(vers, tris, "E:/材料/meshRepairInput_c_noOpTris.obj");
+		objReadMeshMat(vers, tris, "E:/材料/meshHoles.obj");
 		debugWriteMesh("meshInput", vers, tris);
-
-		findHolesBdrySegs(holes, bdrySegs, vers, tris);
-
-
+ 
+		// 1. 找洞：
+		if (findHoles(holes, vers, tris) < 0)
+		{
+			debugDisp("error!!! findHoles() failed!");
+			return;
+		}
+		
+		// 2. 补洞：
+		Eigen::MatrixXi newTris;
+		if (!fillSmallHoles(newTris, holes))
+		{
+			debugDisp("error!!! fillSmallHoles() failed!");
+			return;
+		}
+		matInsertRows(tris, newTris);
+		debugWriteMesh("meshHoleFilled", vers, tris);
+		 
 		debugDisp("finished.");
 	}
 

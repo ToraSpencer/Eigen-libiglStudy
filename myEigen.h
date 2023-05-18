@@ -315,8 +315,8 @@ template <typename DerivedI>
 bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi >& segs, \
 	const Eigen::PlainObjectBase<DerivedI>& uEdges);
 template <typename DerivedV, typename DerivedI>
-int findHolesBdrySegs(std::vector<std::vector<int>>& holes, std::vector<std::vector<int>>& bdrySegs, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris);
+int findHoles(std::vector<Eigen::VectorXi>& holes, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris);
 template <typename DerivedI>
 bool checkSickTris(std::vector<int>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
 template <typename Index>
@@ -364,7 +364,12 @@ bool cotLaplacian(Eigen::SparseMatrix<Tl>& L, const Eigen::Matrix<Tv, Eigen::Dyn
 template<typename T>
 bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOut, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matIn, \
 	const Eigen::MatrixXd& mask);
-
+template <typename IndexType>
+bool circuitGetTris(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tris, \
+	const Eigen::Matrix<IndexType, Eigen::Dynamic, 1>& indexes, const bool regularTri);
+template <typename IndexType>
+bool fillSmallHoles(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& newTris, \
+	const std::vector<Eigen::Matrix<IndexType, Eigen::Dynamic, 1>>& holes);
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// debug接口：
 
@@ -3163,6 +3168,8 @@ int nonManifoldVers(std::vector<int>& nmnVerIdxes, const Eigen::PlainObjectBase<
 	const int versCount = vers.rows();
 	const int trisCount = tris.rows();
 	std::unordered_multimap<int, std::int64_t> triMap;
+
+	// 1. 计算顶点所对的所有无向边编码，存入字典
 	for (int i = 0; i < trisCount; ++i)
 	{
 		const int& vaIdx = tris(i, 0);
@@ -3173,24 +3180,35 @@ int nonManifoldVers(std::vector<int>& nmnVerIdxes, const Eigen::PlainObjectBase<
 		triMap.insert({ vcIdx, encodeUedge(vaIdx, vbIdx) }); 
 	}
  
+	// 2. 遍历所有顶点，分析其所对的所有无向边：
 	nmnVerIdxes.reserve(versCount);
 	for (int i = 0; i < versCount; ++i) 
 	{
+		// f1. 当前顶点所对的所有无向边存入双向链表：
 		std::list<std::pair<int, int>> roundUes;
 		auto iter = triMap.find(i);
 		if (iter == triMap.end())
 			continue;
 		for (int k = 0; k < triMap.count(i); ++k)
 			roundUes.push_back(decodeEdge((iter++)->second));
+
+		// f2. 无向边生长的循环：
+		std::unordered_set<int> connectedVers;
 		std::pair<int, int> currentUe = roundUes.front();
 		roundUes.pop_front();
 		while (!roundUes.empty())
 		{ 
 			bool blFound = false;
 			auto iter = roundUes.begin();
+			connectedVers.insert(currentUe.first);
+			connectedVers.insert(currentUe.second);
+
+			// fw1. 若当前无向边和已连通无向边存在相同的顶点，则两者是连通的；
 			for (; iter != roundUes.end(); iter++)
 			{
-				if (currentUe.first == iter->first || currentUe.second == iter->first || currentUe.first == iter->second || currentUe.second == iter->second)
+				auto iter1 = connectedVers.find(iter->first);
+				auto iter2 = connectedVers.find(iter->second);
+				if (iter1 != connectedVers.end() || iter2 != connectedVers.end())
 				{
 					blFound = true;
 					currentUe = *iter;
@@ -3198,13 +3216,14 @@ int nonManifoldVers(std::vector<int>& nmnVerIdxes, const Eigen::PlainObjectBase<
 					break;
 				}
 			}
-			if (!blFound && !roundUes.empty())					// 若当前连通边已生长完全，但roundUes中仍有别的边，说明此顶点关联两个或者更多的扇形；
+
+			// fw1. 若当前连通边已生长完全，但roundUes中仍有别的边，说明此顶点关联两个或者更多的扇形，当前顶点是非流形点；
+			if (!blFound && !roundUes.empty())					
 			{
 				nmnVerIdxes.push_back(i);
 				break;
 			}
 		}
-
 	}
 	nmnVerIdxes.shrink_to_fit();
 
@@ -4756,163 +4775,7 @@ bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi 
 
 	return true;
 }
-
-
-#if 0
-// 有向边的区域生长，提取环路边和边曲线；
-template <typename DerivedI>
-bool edgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi >& segs, \
-	const Eigen::PlainObjectBase<DerivedI>& edges)
-{
-	/*
-	bool edgeGrow(
-			std::vector<Eigen::MatrixXi>& circs,									元素是组成一个环路的边缘边数据
-			std::vector<Eigen::MatrixXi >& segs,									元素是组成一个非封闭曲线的边缘边数据
-			const Eigen::PlainObjectBase<DerivedI>& edges				edgesCount * 2, 无向边数据
-			)
-
-	*/
-	std::list<std::list<std::pair<int, int>>> circList, segList;
-	Eigen::SparseMatrix<int> adjSM;										// 无向边邻接矩阵；
-	std::vector<Eigen::Triplet<int>> smElems;
-	const int edgesCount = edges.rows();
-
-	// 1. 建立无向边邻接矩阵：
-	int maxIdx = 0;																// 输入边数据中最大的顶点索引；
-	const int* idxPtr = edges.data();
-	for (int i = 0; i < edges.size(); i++, idxPtr++)
-		if (*idxPtr > maxIdx)
-			maxIdx = *idxPtr;
-	adjSM.resize(maxIdx + 1, maxIdx + 1);
-	smElems.reserve(2 * edges.rows());
-	for (unsigned i = 0; i < edges.rows(); ++i)
-	{
-		smElems.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), 1});
-		smElems.push_back(Eigen::Triplet<int>{edges(i, 1), edges(i, 0), 1});
-	}	
-	adjSM.setFromTriplets(smElems.begin(), smElems.end());
-	smElems.clear();
-
-	bool blRepEdge = false;					// 所有边视为无向边的话，是否存在重复的边；
-	traverseSparseMatrix(adjSM, [&adjSM, &blRepEdge](auto& iter) 
-		{
-			if (iter.valueRef() > 1)
-			{
-				blRepEdge = true;
-			}
-		});
-	if (blRepEdge)
-		return false;									// should not happen; 说明存在重复的边；
-	int remainCount = edgesCount;
-
-
-	// 2. 生成边编码-边索引的字典：
-	std::unordered_map<std::int64_t, int> edgeCodeMap;
-	for (int i = 0; i < edgesCount; ++i)
-	{
-		std::int64_t code = encodeUedge(edges(i, 0), edges(i, 1));				// 这里要按无向边的规则编码，以便下面在无向边邻接矩阵中查到(3,4)和(4,3)都能找到同一个边索引；
-		edgeCodeMap.insert(std::make_pair(code, i));
-	}
-		
-
-	// 3. 边生长的循环——从一条边开始生长，直到填满整个联通区域；
-	while (remainCount > 0)
-	{
-		std::list<std::pair<int, int>> currentSeg;
-
-		// w1. 提取邻接表中第一个无向边：
-		bool breakFlag = false;
-		for (unsigned i = 0; !breakFlag & i < adjSM.outerSize(); ++i)
-		{
-			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM, i); !breakFlag & iter; ++iter)
-			{
-				if (iter.valueRef() > 0)
-				{
-					std::int64_t code = encodeUedge(iter.row(), iter.col());
-					int edgeIdx = edgeCodeMap[code];
-					int vaIdx = edges(edgeIdx, 0);
-					int vbIdx = edges(edgeIdx, 1);					
-					currentSeg.push_back({ vaIdx, vbIdx });
-					iter.valueRef() = -1;												// 表示删除该元素；
-					adjSM.coeffRef(iter.col(), iter.row()) = -1;
-					remainCount--;
-					breakFlag = true;
-				}
-			}
-		}
-
-
-		// w2. 搜索第一条无向边关联的边，直到搜索不到，或者形成环路为止。
-		int head = currentSeg.front().first;
-		int tail = currentSeg.front().second;
-		while (1)
-		{
-			int otherEnd = -1;
-			breakFlag = false;
-			for (auto iter = Eigen::SparseMatrix<int>::InnerIterator(adjSM, head); !breakFlag & iter; ++iter)	// 对第head列的遍历：
-			{
-				if (iter.valueRef() > 0)
-				{
-					otherEnd = iter.row();
-
-					std::int64_t code = encodeUedge(head, otherEnd);
-					int edgeIdx = edgeCodeMap[code];
-					int vaIdx = edges(edgeIdx, 0);
-					int vbIdx = edges(edgeIdx, 1);
-					currentSeg.push_back({ vaIdx, vbIdx });
-					iter.valueRef() = -1;												// 表示删除该元素；
-					adjSM.coeffRef(iter.col(), iter.row()) = -1;
-					remainCount--;
-					head = otherEnd;
-					breakFlag = true;
-				}
-			}
-
-			if (otherEnd == tail)
-			{
-				circList.push_back(currentSeg);
-				break;
-			}
-
-			if (otherEnd < 0)
-			{
-				segList.push_back(currentSeg);
-				break;
-			}
-		}
-
-
-		// 首先考虑没有多重源点的情形：
-		std::unordered_map<int, int> tmpMap;
-		std::vector<int> multiSrcIdx;
-		for (const auto& pair : currentSeg)
-		{
-			auto retPair = tmpMap.insert(pair);
-			if (!retPair.second) 
-			{
-				// 插入失败，说明当前边的起点vaIdx在当前连通域内，发出了不止一条边;
-				multiSrcIdx.push_back(pair.first);
-				return false;
-			}
-		}
-
-		std::unordered_map<int, int> tmpRevMap;
-		for (const auto& pair : currentSeg)
-		{
-			auto retPair = tmpMap.insert({ pair.second, pair.first });
-			if (!retPair.second)
-				return false;
-		}
-
-
-	}
-
-
-
-	return true;
-}
-#endif
-
+ 
 
 template <typename DerivedI>
 bool sortLoopEdges(std::vector<int>& loopVerIdxes, const Eigen::PlainObjectBase<DerivedI>& loopEdges)
@@ -4954,53 +4817,94 @@ bool sortLoopEdges(std::vector<int>& loopVerIdxes, const Eigen::PlainObjectBase<
 }
 
 
-
-// 搜索网格中组成边缘回路(即洞的边缘)，和边缘曲线（非封闭的曲线）
+// 搜索网格中组成边缘回路(即洞的边缘)——不考虑洞共边的情形。！！！当前对于太复杂的洞，返回的洞顶点索引顺序可能不对。效果不如VBFindHole2
 template <typename DerivedV, typename DerivedI>
-int findHolesBdrySegs(std::vector<std::vector<int>>& holes, std::vector<std::vector<int>>& bdrySegs, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris)
+int findHoles(std::vector<Eigen::VectorXi>& holes, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris)
 {
+	// 注: 输入网格不可以存在非法三角片、重复三角片。
 	/*
-		int findHolesBdrySegs(															成功返回(洞数+边缘曲线数)，失败返回-1;
-			std::vector<std::vector<int>>& holes,								洞，即闭合为环路的边缘顶点，每圈顶点按顺时针排列；
-			std::vector<std::vector<int>>& bdrySegs,							边缘曲线，即不闭合的边缘顶点
+		int findHoles(																		成功返回洞数，失败返回-1;
+			std::vector<Eigen::VectorXi>& holes,								洞，即闭合为环路的边缘顶点，每圈顶点按顺时针排列；
 			const Eigen::PlainObjectBase<DerivedV>& vers,
 			const Eigen::PlainObjectBase<DerivedI>& tris
 			)
-
 	*/
 
 	// 确定洞的边——只关联一个三角片的边：
 	const int  trisCount = tris.rows();
 	const int  edgesCount = 3 * trisCount;
 	const int  versCount = tris.maxCoeff() + 1;
-	holes.clear();
-	bdrySegs.clear();
+	holes.clear(); 
 
 	// 1. 提取所有边缘有向边：
-	std::vector<Eigen::MatrixXi> circs, segs;
+	std::vector<Eigen::MatrixXi> circs;
 	Eigen::MatrixXi bdrys;
 	bdryEdges(bdrys, tris);
 	const int bdrysCount = bdrys.rows();
 
-	// 2. 建立边起点-边终点的字典，多重起点暂时存在别的链表中：
-	std::unordered_map<int, int> bdryMap;
-	std::vector<int> multiSrcIdxes;
-	std::list<std::pair<int, int>> multiSrcBdrys;
+	// 2. 生成边缘边链表
+	std::list<std::pair<int, int>> bdryList;
 	for (int i = 0; i < bdrysCount; ++i)
+		bdryList.push_back({ bdrys(i, 0), bdrys(i, 1) });
+
+	// 3. 有向边生长，寻找所有的边缘回路；
+	std::list<std::list<int>> holeList;
+	std::pair<int, int> currentEdge = bdryList.front();
+	int currentHead = currentEdge.first;								// 当前洞的首顶点索引；
+	holeList.push_back(std::list<int>{currentEdge.first, currentEdge.second});
+	bdryList.pop_front();
+	while (!bdryList.empty())
 	{
-		int vaIdx = bdrys(i, 0);
-		int vbIdx = bdrys(i, 1);
-		auto retPair = bdryMap.insert({vaIdx, vbIdx});
-		//...
+		int vaIdx1 = currentEdge.first;
+		int vbIdx1 = currentEdge.second;
+		std::list<int>& currentHole = holeList.back();
+		auto iter = bdryList.begin();
+		bool blFound = false;
+		for (; iter != bdryList.end(); ++iter)
+		{
+			int vaIdx2 = iter->first;
+			int vbIdx2 = iter->second;
+			if (vbIdx1 == vaIdx2)
+			{
+				currentEdge = *iter; 
+				bdryList.erase(iter);
+				currentHole.push_back(vbIdx2);
+				blFound = true;
+				break;
+			}
+		}
+
+		if (!blFound) 
+		{
+			currentEdge = bdryList.front();
+			currentHead = currentEdge.first;
+			holeList.push_back(std::list<int>{currentEdge.first, currentEdge.second});
+			bdryList.pop_front();
+		}
 	}
 
+	// 4. 整理，输出：
+	const int holesCount = holeList.size();
+	holes.reserve(holesCount);
+	for (const auto& list : holeList)
+	{
+		const int holeVersCount = list.size() - 1;
+		auto iterList = list.rbegin();							// 使用反向迭代器，按照逆序填充；
+		Eigen::VectorXi currentHole(holeVersCount);
+		if (holeVersCount < 3)
+			return -1;							// 没有形成回路；
+		if (*list.begin() != *list.rbegin())
+			return -1;							// 没有形成回路；
+		for (int i = 0; i < holeVersCount; ++i)
+			currentHole(i) = *iterList++;		
+		holes.push_back(currentHole);
+	}
 
-	return holes.size() + bdrySegs.size();
+	return holesCount;
 }
 
-
-
+ 
 // 检测网格中是否有非法三角片（三个顶点索引中有两个相同的）
 template <typename DerivedI>
 bool checkSickTris(std::vector<int>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris)
@@ -5752,7 +5656,98 @@ bool laplaceFaring(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, \
 	return true;
 }
 
+
+// 对环路点集进行不插点三角剖分
+template <typename IndexType>
+bool circuitGetTris(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tris, \
+	const Eigen::Matrix<IndexType, Eigen::Dynamic, 1>& indexes, const bool regularTri)
+{
+	/*
+		bool circuitGetTris(
+			Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tris,		三角剖分生成的triangle soup
+			const Eigen::Matrix<IndexType, Eigen::Dynamic, 1>& indexes,				单个环路点集，顶点需要有序排列。
+			const bool regularTri																				true——右手螺旋方向为生成面片方向；false——反向；
+			)
+
+	*/
+	using MatrixXI = Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>;
+	using RowVector3I = Eigen::Matrix<IndexType, 1, 3>;
+
+	int versCount = indexes.rows();
+	if (versCount < 3)
+		return false;
+
+	// lambda——环路中的顶点索引转换；
+	auto getIndex = [versCount](const int index0) -> IndexType
+	{
+		int index = index0;
+		if (index >= versCount)
+			while (index >= versCount)
+				index -= versCount;
+		else if (index < 0)
+			while (index < 0)
+				index += versCount;
+		return static_cast<IndexType>(index);
+	};
+
+	tris.resize(versCount - 2, 3);
+	int count = 0;
+	int k = 0;
+	if (regularTri)
+	{
+		while (count < versCount - 2)
+		{
+			tris.row(count++) = RowVector3I{ indexes(getIndex(-k - 1)), indexes(getIndex(-k)), indexes(getIndex(k + 1)) };
+			if (count == versCount - 2)
+				break;
+
+			tris.row(count++) = RowVector3I{ indexes(getIndex(-k - 1)), indexes(getIndex(k + 1)), indexes(getIndex(k + 2)) };
+			k++;
+		}
+	}
+	else
+	{
+		while (count < versCount - 2)
+		{
+			tris.row(count++) = RowVector3I{ indexes(getIndex(-k - 1)), indexes(getIndex(k + 1)), indexes(getIndex(-k)) };
+			if (count == versCount - 2)
+				break;
+
+			tris.row(count++) = RowVector3I{ indexes(getIndex(-k - 1)), indexes(getIndex(k + 2)), indexes(getIndex(k + 1)) };
+			k++;
+		}
+	}
+
+	return true;
+}
+
+
+// 补洞——不插点，直接对洞进行三角剖分： 
+template <typename IndexType>
+bool fillSmallHoles(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& newTris, \
+	const std::vector<Eigen::Matrix<IndexType, Eigen::Dynamic, 1>>& holes)
+{
+	/*
+	bool fillSmallHoles(
+		Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& newTris,				// 补洞生成的新triangle soup
+		const std::vector<Eigen::Matrix<IndexType, Eigen::Dynamic, 1>>& holes			// 洞的信息，每个元素是有序的环路顶点索引向量；
+		)
+	
+	*/
+	newTris.resize(0, 0);
+	const int holesCount = holes.size();
+	for (int i = 0; i < holesCount; ++i)
+	{
+		Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic> currentNewTris;
+		if (!circuitGetTris(currentNewTris, holes[i], true))
+			return false;
+		matInsertRows(newTris, currentNewTris);
+	}
+
+	return true;
+}
  
+
 //////////////////////////////////////////////////////////////////////////////////////////////// 图像处理相关：
 
 // 矩阵的空域线性滤波——！！！注：滤波mask尺寸必须为奇数！！！

@@ -1779,6 +1779,109 @@ namespace MESH_REPAIR
 	}
 
 
+	// 对inputOBJ文件夹中的网格不插点补洞
+	int testCmd_fillSmallHoles(int argc, char** argv)
+	{
+		tiktok& tt = tiktok::getInstance();
+		CString   cPath, fileConfig;
+		std::string path, pathOBJ, pathOutput;
+		std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;
+		bool debugFlag = false;
+		int meshesCount = 0;
+		std::stringstream ss;
+
+		// 00. 读取路径、参数；
+		{
+			GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
+			int nPos = cPath.ReverseFind('\\');
+			cPath = cPath.Left(nPos);
+			path = CT2CA{ cPath };
+			pathOBJ = path + "\\inputOBJ";
+			pathOutput = path + "\\outputData";
+			fileConfig = cPath + "\\config.ini";
+
+			// 读取配置文件中的参数：
+			unsigned debugInt = INIGetInt(TEXT("debugFlag"), fileConfig);
+			debugFlag = debugInt > 0 ? true : false;
+			if (debugFlag)
+				debugDisp("Debug mode: ");
+
+			getFileNames(pathOBJ.c_str(), tmpStrVec, false);
+			meshesCount = tmpStrVec.size();
+			OBJfileNames.reserve(meshesCount);
+			for (const auto& str : tmpStrVec)
+			{
+				std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
+				if (".obj" == tailStr)
+				{
+					fileNames.push_back(str);
+					unsigned index = str.find_last_of("/");
+					std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
+					OBJfileNames.push_back(OBJfileName);
+				}
+			}
+		}
+
+		// 0. 读取输入网格
+		tt.start();
+		std::cout << "读取输入网格..." << std::endl;
+		std::vector<Eigen::MatrixXd> meshesVers;
+		std::vector<Eigen::MatrixXi> meshesTris;
+		{
+			meshesVers.resize(meshesCount);
+			meshesTris.resize(meshesCount);
+			for (unsigned i = 0; i < meshesCount; ++i)
+				objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str());
+			tt.endCout("读取输入网格耗时：");
+		}
+
+		// 2. 网格找洞、补洞的循环：
+		for (int i = 0; i < meshesCount; ++i)
+		{ 
+			Eigen::MatrixXd& vers = meshesVers[i];
+			Eigen::MatrixXi& tris = meshesTris[i];
+			std::vector<Eigen::VectorXi> holes;
+			
+			// f1. 找洞
+			int holesCount = findHoles(holes, vers, tris);
+			if (holesCount <= 0)
+			{
+				std::string tmpStr = (0 == holesCount) ? (OBJfileNames[i] + std::string{".obj 没有洞，不需要补。"}) : \
+					(std::string{ "error!!! " } + OBJfileNames[i] + std::string{ ".obj调用findHoles()失败。" });
+				debugDisp(tmpStr);
+				continue;
+			}
+
+			// f2. 补洞
+			Eigen::MatrixXi newTris;
+			if (!fillSmallHoles(newTris, holes))
+			{
+				debugDisp("error!!! ", OBJfileNames[i], ".obj调用fillSmallHoles()失败。");
+				continue;
+			}
+			else
+				debugDisp(OBJfileNames[i], ".obj补了", holesCount, "个洞。");
+			matInsertRows(tris, newTris);
+			 
+			// f3. 输出结果：
+			ss.str("");
+			ss << pathOutput << OBJfileNames[i] << "_holeFilled.obj";
+			objWriteMeshMat(ss.str().c_str(), vers, tris);
+			if (debugFlag)
+			{
+				ss.str("");
+				ss << OBJfileNames[i] << "_holeFilled";
+				debugWriteMesh(ss.str().c_str(), vers, tris);
+			}
+		}
+
+		debugDisp("finished.");
+		getchar();
+
+		return 0;
+	}
+
+
 	// 查找hole, gap，并尝试修补：
 	void test0() 
 	{
@@ -2748,13 +2851,15 @@ int testCmd_laplaceFaring(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
-	MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
+	// MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
 
 	// MESH_REPAIR::test6();
 
 	// MESH_REPAIR::testCmd_meshFix(argc, argv);
 
-	// TEST_MYEIGEN::test99();
+	MESH_REPAIR::testCmd_fillSmallHoles(argc, argv);
+
+	// TEST_MYEIGEN::test7();
 
 	// SPARSEMAT::test0(); 
 

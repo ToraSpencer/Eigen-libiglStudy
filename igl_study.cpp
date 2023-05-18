@@ -1845,6 +1845,7 @@ namespace IGL_BASIC_PMP
 
 
 	// 补洞：opological_hole_fill()——当前有问题
+#if 0
 	void test5()
 	{
 		Eigen::MatrixXd vers;
@@ -1871,7 +1872,7 @@ namespace IGL_BASIC_PMP
 		igl::writeOBJ("E:/meshFilled.obj", versOut, trisOut);
 		std::cout << "finished." << std::endl;
 	}
-
+#endif
 
 	// 缠绕数winding number:
 	void test6() 
