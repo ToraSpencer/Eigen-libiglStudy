@@ -1779,6 +1779,131 @@ namespace MESH_REPAIR
 	}
 
 
+	// 三角片生长提取最外层网格：
+	int testCmd_triangleGrowOutterSurf(int argc, char** argv)
+	{
+		tiktok& tt = tiktok::getInstance();
+		CString   cPath, fileConfig;
+		std::string path, pathOBJ, pathOutput;
+		std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;
+		bool debugFlag = false;
+		int meshesCount = 0;
+		std::stringstream ss;
+
+		// 00. 读取路径、参数；
+		{
+			GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
+			int nPos = cPath.ReverseFind('\\');
+			cPath = cPath.Left(nPos);
+			path = CT2CA{ cPath };
+			pathOBJ = path + "\\inputOBJ";
+			pathOutput = path + "\\outputData";
+			fileConfig = cPath + "\\config.ini";
+
+			// 读取配置文件中的参数：
+			unsigned debugInt = INIGetInt(TEXT("debugFlag"), fileConfig);
+			debugFlag = debugInt > 0 ? true : false;
+			if (debugFlag)
+				debugDisp("Debug mode: ");
+
+			getFileNames(pathOBJ.c_str(), tmpStrVec, false);
+			meshesCount = tmpStrVec.size();
+			OBJfileNames.reserve(meshesCount);
+			for (const auto& str : tmpStrVec)
+			{
+				std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
+				if (".obj" == tailStr)
+				{
+					fileNames.push_back(str);
+					unsigned index = str.find_last_of("/");
+					std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
+					OBJfileNames.push_back(OBJfileName);
+				}
+			}
+		}
+
+		// 0. 读取输入网格
+		tt.start();
+		std::cout << "读取输入网格..." << std::endl;
+		std::vector<Eigen::MatrixXd> meshesVers;
+		std::vector<Eigen::MatrixXi> meshesTris;
+		{
+			meshesVers.resize(meshesCount);
+			meshesTris.resize(meshesCount);
+			for (unsigned i = 0; i < meshesCount; ++i)
+				objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str());
+			tt.endCout("读取输入网格耗时：");
+		}
+
+
+		// 2. 检测网格的循环：
+		for (int i = 0; i < meshesCount; ++i)
+		{
+			Eigen::MatrixXd& vers = meshesVers[i];
+			Eigen::MatrixXi& tris = meshesTris[i];
+			Eigen::MatrixXd versOut;
+			Eigen::MatrixXi trisOut; 
+			unsigned versCount = vers.rows();
+			unsigned trisCount = tris.rows();
+
+			// f1. 确定所有非流形无向边：
+			Eigen::MatrixXi nmnEdges;
+			int nmnCount = nonManifoldEdges(nmnEdges, tris);
+			if (nmnCount < 0)
+			{
+				debugDisp("error!!!", OBJfileNames[i],  ".obj nonManifoldUEs() run failed.");
+				return -1;
+			}
+			if (nmnEdges.rows() > 0)
+			{
+				debugDisp(OBJfileNames[i], ".obj 非流形无向边数量：nmnEdges.rows() == ", nmnEdges.rows());
+				ss.str("");
+				ss << OBJfileNames[i] << "_nmnEdgesOrigin";
+				debugWriteEdges(ss.str().c_str(), nmnEdges, vers);
+			}
+
+			// f2. 一次提取外表面可能不能完全去除非流形边，需要多次调用：
+			while (nmnCount > 0)
+			{ 
+				if (!triangleGrowOuterSurf(versOut, trisOut, vers, tris, true))
+					debugDisp("error!!!", OBJfileNames[i], ".obj triangleGrowOuterSurf() failed!"); 
+
+				// 检查输出网格中是否有非流形边：
+				nmnEdges.resize(0, 0);
+				nmnCount = nonManifoldEdges(nmnEdges, trisOut);
+				if (nmnCount < 0)
+				{
+					debugDisp("error!!!", OBJfileNames[i], ".obj nonManifoldUEs() run failed.");
+					return -1;
+				}
+				if (nmnEdges.rows() > 0)
+					debugWriteEdges("nmnEdges", nmnEdges, versOut);
+				nmnCount = nmnEdges.rows();
+
+				vers = versOut;
+				tris = trisOut;
+				trisCount = tris.rows();
+			}
+
+			// f3. 输出结果：
+			ss.str("");
+			ss << pathOutput << OBJfileNames[i] << "_noNMNedges.obj";
+			objWriteMeshMat(ss.str().c_str(), vers, tris);
+			if (debugFlag)
+			{
+				ss.str("");
+				ss << OBJfileNames[i] << "_noNMNedges";
+				debugWriteMesh(ss.str().c_str(), vers, tris);
+			}
+		}
+
+		debugDisp("finished.");
+		getchar();
+
+		return 0;
+	}
+
+
 	// 对inputOBJ文件夹中的网格不插点补洞
 	int testCmd_fillSmallHoles(int argc, char** argv)
 	{
@@ -2857,7 +2982,9 @@ int main(int argc, char** argv)
 
 	// MESH_REPAIR::testCmd_meshFix(argc, argv);
 
-	MESH_REPAIR::testCmd_fillSmallHoles(argc, argv);
+	// MESH_REPAIR::testCmd_fillSmallHoles(argc, argv);
+
+	MESH_REPAIR::testCmd_triangleGrowOutterSurf(argc, argv);
 
 	// TEST_MYEIGEN::test7();
 
