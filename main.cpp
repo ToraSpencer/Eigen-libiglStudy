@@ -2984,7 +2984,7 @@ int main(int argc, char** argv)
 
 	// MESH_REPAIR::testCmd_fillSmallHoles(argc, argv);
 
-	MESH_REPAIR::testCmd_triangleGrowOutterSurf(argc, argv);
+	// MESH_REPAIR::testCmd_triangleGrowOutterSurf(argc, argv);
 
 	// TEST_MYEIGEN::test7();
 
@@ -2993,6 +2993,14 @@ int main(int argc, char** argv)
 	// IGL_BASIC_PMP::test8();
 
 	// DECIMATION::testCmd_qslimDecimation(argc, argv);
+
+	Eigen::MatrixXd vers;
+	Eigen::MatrixXi tris;
+	objReadMeshMat(vers, tris, "E:/tmpMesh.obj");
+	Eigen::VectorXi tmpVec = tris.col(2);
+	tris.col(2) = tris.col(1);
+	tris.col(1) = tmpVec;
+	debugWriteMesh("meshRev", vers, tris);
 
 
 	std::cout << "main() finished." << std::endl;

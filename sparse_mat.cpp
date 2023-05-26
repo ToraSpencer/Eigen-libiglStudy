@@ -256,8 +256,8 @@ namespace SPARSEMAT
 		//				稀疏矩阵表示的线性方程组：Ax = b
 		Eigen::SparseMatrix<float> A;
 		Eigen::VectorXf b(2), x;
-		///SimplicialLLT<Eigen::SparseMatrix<float>> solver;									//基于LLT分解的求解器，一般推荐使用此求解器。
-		//SparseLU<Eigen::SparseMatrix<float> > solver;											// 基于LU分解的求解器。
+		///Eigen::SimplicialLLT<Eigen::SparseMatrix<float>> solver;									//基于LLT分解的求解器，一般推荐使用此求解器。
+		//Eigen::SparseLU<Eigen::SparseMatrix<float> > solver;											// 基于LU分解的求解器。
 		Eigen::SparseQR<Eigen::SparseMatrix<float>, Eigen::COLAMDOrdering<int> > solver;		// 基于QR分解的求解器，推荐最小方差问题使用。
 
 		//				写入方程组数据：
