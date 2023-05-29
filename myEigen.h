@@ -315,7 +315,7 @@ template <typename DerivedI>
 bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi >& segs, \
 	const Eigen::PlainObjectBase<DerivedI>& uEdges);
 template <typename DerivedV, typename DerivedI>
-int findHoles(std::vector<Eigen::VectorXi>& holes, const Eigen::PlainObjectBase<DerivedV>& vers, \
+int findHoles(std::vector<std::vector<int>>& holes, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
 template <typename DerivedI>
 bool checkSickTris(std::vector<int>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
@@ -366,10 +366,12 @@ bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOu
 	const Eigen::MatrixXd& mask);
 template <typename IndexType>
 bool circuitGetTris(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tris, \
-	const Eigen::Matrix<IndexType, Eigen::Dynamic, 1>& indexes, const bool regularTri);
+	const std::vector<int>& indexes, const bool regularTri);
 template <typename IndexType>
 bool fillSmallHoles(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& newTris, \
 	const std::vector<Eigen::Matrix<IndexType, Eigen::Dynamic, 1>>& holes);
+template<typename T>
+bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, const float param);
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// debug接口：
 
@@ -2046,6 +2048,7 @@ Eigen::MatrixXf homoVers2vers(const Eigen::MatrixXf& homoVers);
 template<typename T>
 bool spMatTranspose(Eigen::SparseMatrix<T>& smOut, const Eigen::SparseMatrix<T>& smIn) 
 {
+	smOut.resize(0, 0);
 	smOut.resize(smIn.cols(), smIn.rows());
 	std::vector<Eigen::Triplet<T>> trips;
 	trips.reserve(smIn.nonZeros());
@@ -2425,7 +2428,6 @@ bool getEdges(Eigen::MatrixXi& edges, 	const Eigen::PlainObjectBase<DerivedI>& t
 	Eigen::MatrixXi vaIdxes = tris.col(0).array().cast<int>();
 	Eigen::MatrixXi vbIdxes = tris.col(1).array().cast<int>();
 	Eigen::MatrixXi vcIdxes = tris.col(2).array().cast<int>();
-
 	edges.block(0, 0, trisCount, 1) = vbIdxes;
 	edges.block(trisCount, 0, trisCount, 1) = vcIdxes;
 	edges.block(trisCount * 2, 0, trisCount, 1) = vaIdxes;
@@ -3164,7 +3166,8 @@ int nonManifoldUEs(Eigen::MatrixXi& nmnUedges, std::vector<std::tuple<std::pair<
 // 检测非流形点——输入网格需要没有重复三角片和非法三角片
 template<typename DerivedV>
 int nonManifoldVers(std::vector<int>& nmnVerIdxes, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
-{ 
+{
+	nmnVerIdxes.clear();
 	const int versCount = vers.rows();
 	const int trisCount = tris.rows();
 	std::unordered_multimap<int, std::int64_t> triMap;
@@ -3373,7 +3376,7 @@ bool buildAdjacency(Eigen::MatrixXi& ttAdj_mnEdge, std::vector<tVec>& ttAdj_nmnE
 		for (int i = 0; i < edgesCount; ++i)
 			etInfo[i] = i % trisCount;
 
-		// 3.2 求边所在三角片的索引——！！！error——edgesIdxOpp超出范围；
+		// 3.2 求边所在三角片的索引；
 		etAdj_mnEdge = -Eigen::VectorXi::Ones(edgesCount);					// 边所在三角片的索引，非流形边或边缘边写-1；
 		for (unsigned i = 0; i < edgesIdx_MN_NB.size(); ++i)
 		{
@@ -4141,6 +4144,9 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 {
 	using RowVector3T = Eigen::Matrix<T, 1, 3>;
 
+	versOut.resize(0, 0);
+	trisOut.resize(0, 0);
+
 	int versCount = vers.rows();
 	int trisCount = tris.rows();
 	int edgesCount = 3 * trisCount;
@@ -4819,13 +4825,13 @@ bool sortLoopEdges(std::vector<int>& loopVerIdxes, const Eigen::PlainObjectBase<
 
 // 搜索网格中组成边缘回路(即洞的边缘)——不考虑洞共边的情形。！！！当前对于太复杂的洞，返回的洞顶点索引顺序可能不对。效果不如VBFindHole2
 template <typename DerivedV, typename DerivedI>
-int findHoles(std::vector<Eigen::VectorXi>& holes, const Eigen::PlainObjectBase<DerivedV>& vers, \
+int findHoles(std::vector<std::vector<int>>& holes, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris)
 {
 	// 注: 输入网格不可以存在非法三角片、重复三角片。
 	/*
-		int findHoles(																		成功返回洞数，失败返回-1;
-			std::vector<Eigen::VectorXi>& holes,								洞，即闭合为环路的边缘顶点，每圈顶点按顺时针排列；
+		int findHoles(																			成功返回洞数，失败返回-1;
+			std::vector<std::vector<int>>& holes,								洞，即闭合为环路的边缘顶点，每圈顶点按顺时针排列；
 			const Eigen::PlainObjectBase<DerivedV>& vers,
 			const Eigen::PlainObjectBase<DerivedI>& tris
 			)
@@ -4890,14 +4896,14 @@ int findHoles(std::vector<Eigen::VectorXi>& holes, const Eigen::PlainObjectBase<
 	for (const auto& list : holeList)
 	{
 		const int holeVersCount = list.size() - 1;
-		auto iterList = list.rbegin();							// 使用反向迭代器，按照逆序填充；
-		Eigen::VectorXi currentHole(holeVersCount);
+		auto iterList = list.rbegin();									// 使用反向迭代器，按照逆序填充；
+		std::vector<int> currentHole(holeVersCount);
 		if (holeVersCount < 3)
 			return -1;							// 没有形成回路；
 		if (*list.begin() != *list.rbegin())
 			return -1;							// 没有形成回路；
 		for (int i = 0; i < holeVersCount; ++i)
-			currentHole(i) = *iterList++;		
+			currentHole[i] = *iterList++;		
 		holes.push_back(currentHole);
 	}
 
@@ -5660,12 +5666,12 @@ bool laplaceFaring(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, \
 // 对环路点集进行不插点三角剖分
 template <typename IndexType>
 bool circuitGetTris(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tris, \
-	const Eigen::Matrix<IndexType, Eigen::Dynamic, 1>& indexes, const bool regularTri)
+	const std::vector<int>& indexes, const bool regularTri)
 {
 	/*
 		bool circuitGetTris(
 			Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tris,		三角剖分生成的triangle soup
-			const Eigen::Matrix<IndexType, Eigen::Dynamic, 1>& indexes,				单个环路点集，顶点需要有序排列。
+			const std::vector<int>& indexes,				单个环路点集，顶点需要有序排列。
 			const bool regularTri																				true——右手螺旋方向为生成面片方向；false——反向；
 			)
 
@@ -5673,9 +5679,9 @@ bool circuitGetTris(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tr
 	using MatrixXI = Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>;
 	using RowVector3I = Eigen::Matrix<IndexType, 1, 3>;
 
-	int versCount = indexes.rows();
+	int versCount = static_cast<int>(indexes.size());
 	if (versCount < 3)
-		return false;
+		return false;						// invalid input
 
 	// lambda——环路中的顶点索引转换；
 	auto getIndex = [versCount](const int index0) -> IndexType
@@ -5697,11 +5703,11 @@ bool circuitGetTris(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tr
 	{
 		while (count < versCount - 2)
 		{
-			tris.row(count++) = RowVector3I{ indexes(getIndex(-k - 1)), indexes(getIndex(-k)), indexes(getIndex(k + 1)) };
+			tris.row(count++) = RowVector3I{ indexes[getIndex(-k - 1)], indexes[getIndex(-k)], indexes[getIndex(k + 1)] };
 			if (count == versCount - 2)
 				break;
 
-			tris.row(count++) = RowVector3I{ indexes(getIndex(-k - 1)), indexes(getIndex(k + 1)), indexes(getIndex(k + 2)) };
+			tris.row(count++) = RowVector3I{ indexes[getIndex(-k - 1) ], indexes[getIndex(k + 1)], indexes[getIndex(k + 2)] };
 			k++;
 		}
 	}
@@ -5709,11 +5715,11 @@ bool circuitGetTris(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tr
 	{
 		while (count < versCount - 2)
 		{
-			tris.row(count++) = RowVector3I{ indexes(getIndex(-k - 1)), indexes(getIndex(k + 1)), indexes(getIndex(-k)) };
+			tris.row(count++) = RowVector3I{ indexes[getIndex(-k - 1)], indexes[getIndex(k + 1)], indexes[getIndex(-k)] };
 			if (count == versCount - 2)
 				break;
 
-			tris.row(count++) = RowVector3I{ indexes(getIndex(-k - 1)), indexes(getIndex(k + 2)), indexes(getIndex(k + 1)) };
+			tris.row(count++) = RowVector3I{ indexes[getIndex(-k - 1)], indexes[getIndex(k + 2)], indexes[getIndex(k + 1)] };
 			k++;
 		}
 	}
@@ -5725,12 +5731,12 @@ bool circuitGetTris(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tr
 // 补洞——不插点，直接对洞进行三角剖分： 
 template <typename IndexType>
 bool fillSmallHoles(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& newTris, \
-	const std::vector<Eigen::Matrix<IndexType, Eigen::Dynamic, 1>>& holes)
+	const std::vector<std::vector<int>>& holes)
 {
 	/*
 	bool fillSmallHoles(
 		Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& newTris,				// 补洞生成的新triangle soup
-		const std::vector<Eigen::Matrix<IndexType, Eigen::Dynamic, 1>>& holes			// 洞的信息，每个元素是有序的环路顶点索引向量；
+		const std::vector<std::vector<int>>& holes					// 洞的信息，每个元素是有序的环路顶点索引向量；
 		)
 	
 	*/
@@ -5738,6 +5744,9 @@ bool fillSmallHoles(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& ne
 	const int holesCount = holes.size();
 	for (int i = 0; i < holesCount; ++i)
 	{
+		if (holes[i].size() < 3)				// invalid input;
+			return false;
+
 		Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic> currentNewTris;
 		if (!circuitGetTris(currentNewTris, holes[i], true))
 			return false;
@@ -5747,6 +5756,116 @@ bool fillSmallHoles(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& ne
 	return true;
 }
  
+
+// 斌杰写的环路光顺接口：
+template <typename T>
+bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, const float param = 0.1)
+{
+	int versCount = circuit.rows();
+	Eigen::MatrixXd circDouble(circuit.rows(), circuit.cols());
+	circDouble.array() = circuit.array().cast<double>();
+
+	// 1. 环路中心点移动到原点，如果环路太小则适当放大；
+	double scale = 0.0;
+	Eigen::RowVector3d center = circDouble.colwise().mean();
+	circDouble.rowwise() -= center;
+	Eigen::RowVector3d length = circDouble.rowwise().norm();
+	double maxLen = length.maxCoeff();
+	if (maxLen < 10.0)
+	{
+		scale = 10.0 / maxLen;
+		circDouble.array() *= scale;
+	}
+
+	// 2. 计算一堆数据；		A = [A1; p * A2];		B = [B1; p * B2];
+	Eigen::SparseMatrix<double> W, A, AT, A1, A2, B, B1, B2, ATA, ATB, tempMat, temp1, temp2;
+	W.resize(versCount, versCount);
+	std::vector<Eigen::Triplet<double>> data;
+	data.reserve(2 * versCount);
+	for (int i = 0; i < versCount; ++i)
+	{
+		if (i == 0)
+		{
+			data.push_back(Eigen::Triplet<double>(i, versCount - 1, 1));
+			data.push_back(Eigen::Triplet<double>(i, i + 1, 1));
+		}
+		else if (i == versCount - 1)
+		{
+			data.push_back(Eigen::Triplet<double>(i, i - 1, 1));
+			data.push_back(Eigen::Triplet<double>(i, 0, 1));
+		}
+		else
+		{
+			data.push_back(Eigen::Triplet<double>(i, i - 1, 1));
+			data.push_back(Eigen::Triplet<double>(i, i + 1, 1));
+		}
+	}
+	W.setFromTriplets(data.begin(), data.end());
+
+	A1.resize(versCount, versCount);
+	B1.resize(circuit.rows(), circuit.cols());
+	A2.resize(versCount, versCount);
+	A1.setIdentity();
+	A1 -= 0.5 * W;
+	B1.setZero();
+	A2.setIdentity();
+	B2 = circDouble.sparseView();
+	tempMat.resize(versCount, 2 * versCount);
+
+	spMatTranspose(temp1, A1);
+	spMatTranspose(temp2, A2);
+	tempMat.leftCols(versCount) = temp1;
+	tempMat.rightCols(versCount) = param * temp2;
+	spMatTranspose(A, tempMat);
+	spMatTranspose(AT, A);
+
+	tempMat.resize(3, 2 * versCount);
+	spMatTranspose(temp1, B1);
+	spMatTranspose(temp2, B2);
+	tempMat.leftCols(versCount) = temp1;
+	tempMat.rightCols(versCount) = param * temp2;
+	spMatTranspose(B, tempMat);
+ 
+	ATA = AT * A;
+	ATB = AT * B;
+	ATA.makeCompressed();
+	ATB.makeCompressed();
+	W.resize(0, 0);
+	A.resize(0, 0);
+	A1.resize(0, 0);
+	A2.resize(0, 0);
+	B.resize(0, 0);
+	B1.resize(0, 0);
+	B2.resize(0, 0);
+	tempMat.resize(0, 0);
+	temp1.resize(0, 0);
+	temp2.resize(0, 0);
+
+	// 3. 最小二乘法解超定线性方程组A*X = B;
+	Eigen::SimplicialLLT<Eigen::SparseMatrix<double>> solver;
+	solver.compute(ATA);
+	if (solver.info() != Eigen::Success)
+	{
+		std::cout << "error!!! matrix decomposition failed" << std::endl;
+		return false;
+	}
+	circDouble = solver.solve(ATB);
+	if (solver.info() != Eigen::Success)
+	{
+		std::cout << "error!!! solving linear equations failed" << std::endl;
+		return false;
+	}
+
+	// 4. 环路中心位移到原位，输出；
+	if (scale > 0)
+		circDouble.array() /= scale;
+	circDouble.rowwise() += center;
+	circuit.array() = circDouble.array().cast<T>();
+
+	return true;
+}
+
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////// 图像处理相关：
 

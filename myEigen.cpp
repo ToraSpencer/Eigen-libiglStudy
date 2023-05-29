@@ -570,7 +570,7 @@ namespace TEST_MYEIGEN
 	{
 		Eigen::MatrixXd vers;
 		Eigen::MatrixXi tris;
-		std::vector<Eigen::VectorXi> holes;
+		std::vector<std::vector<int>> holes;
 
 		objReadMeshMat(vers, tris, "E:/²ÄÁÏ/meshHoles.obj");
 		debugWriteMesh("meshInput", vers, tris);

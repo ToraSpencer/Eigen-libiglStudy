@@ -1965,7 +1965,7 @@ namespace MESH_REPAIR
 		{ 
 			Eigen::MatrixXd& vers = meshesVers[i];
 			Eigen::MatrixXi& tris = meshesTris[i];
-			std::vector<Eigen::VectorXi> holes;
+			std::vector<std::vector<int>> holes;
 			
 			// f1. 找洞
 			int holesCount = findHoles(holes, vers, tris);
