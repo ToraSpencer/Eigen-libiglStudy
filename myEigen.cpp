@@ -711,6 +711,50 @@ namespace TEST_MYEIGEN
 		debugWriteMesh("triangleGrowOuterSurf", versOut, trisOut);
 		std::cout << "finished." << std::endl;
 	}
+
+
+	// 轴向包围盒类Eigen::AlignedBox
+	void test10() 
+	{
+		Eigen::MatrixXd vers, vers1, versBox;
+		Eigen::MatrixXi tris, tris1, trisBox;
+		objReadMeshMat(vers, tris, "E:/材料/tooth.obj");
+		objReadMeshMat(vers1, tris1, "E:/材料/jawMesh.obj");
+		const int versCount = vers.rows();
+		const int versCount1 = vers1.rows();
+		const int trisCount = tris.rows();
+		const int trisCount1 = tris1.rows();
+
+		// extend()——包围盒扩张至将列向量表示的顶点纳入其中；
+		Eigen::AlignedBox3d aabb;
+		for (int i = 0; i < versCount; ++i) 
+		{ 
+			Eigen::Vector3d v = vers.row(i).transpose();
+			aabb.extend(v);			
+		}
+		genAABBmesh(versBox, trisBox, aabb);
+		debugWriteMesh("boxMesh", versBox, trisBox);
+
+		// max(), min()——返回包围盒最大、最小向量；
+		Eigen::RowVector3d arrowMax = aabb.max().transpose();				// 注意返回的是列向量；
+		Eigen::RowVector3d arrowMin = aabb.min().transpose();
+		debugWriteVers("arrowMax", arrowMax);
+		debugWriteVers("arrowMin", arrowMin);
+		double boxLen = (arrowMax - arrowMin).norm();
+		debugDisp("boxLen == ", boxLen); 
+
+		// setEmpty()——初始化AABB
+		aabb.setEmpty();
+		for (int i = 0; i < versCount1; ++i)
+		{
+			Eigen::Vector3d v = vers1.row(i).transpose();
+			aabb.extend(v);
+		}
+		genAABBmesh(versBox, trisBox, aabb);
+		debugWriteMesh("boxMesh1", versBox, trisBox);
+
+		debugDisp("finished.");
+	}
 }
 
 

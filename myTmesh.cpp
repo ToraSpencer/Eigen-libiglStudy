@@ -1,7 +1,6 @@
 #include "myTmesh.h"
 
 
-
 // 生成T_MESH::di_cell对应的轴向包围盒网格；
 void genAABBmesh(const T_MESH::di_cell& cell, Eigen::MatrixXd& vers, Eigen::MatrixXi& tris)
 {

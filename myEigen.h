@@ -114,8 +114,8 @@ bool getCircleVers(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const
 template	<typename DerivedV, typename DerivedI>
 void genCubeMesh(Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::Matrix<DerivedI, Eigen::Dynamic, Eigen::Dynamic>& tris);
 template <typename _Scalar, int _AmbientDim>
-void genAABBmesh(const Eigen::AlignedBox<_Scalar, _AmbientDim>& aabb, Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
-	Eigen::MatrixXi& tris);
+void genAABBmesh(Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::AlignedBox<_Scalar, _AmbientDim>& aabb);
 template <typename T>
 bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& btmVers, \
@@ -295,7 +295,7 @@ bool buildAdjacency(Eigen::MatrixXi& ttAdj_mnEdge, std::vector<tVec>& ttAdj_nmnE
 	const Eigen::PlainObjectBase<DerivedI>& tris);
 template <typename DerivedI>
 bool buildAdjacency_new(Eigen::MatrixXi& ttAdj_mnEdge, std::vector<tVec>& ttAdj_nmnEdge, std::vector<tVec>& ttAdj_nmnOppEdge, \
-	const Eigen::PlainObjectBase<DerivedI>& tris); 
+	const Eigen::PlainObjectBase<DerivedI>& tris);
 template <typename DerivedV, typename DerivedI>
 bool triangleGrow(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
 	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx);
@@ -915,6 +915,8 @@ bool getCircleVers(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const
 template	<typename DerivedV, typename DerivedI>
 void genCubeMesh(Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::Matrix<DerivedI, Eigen::Dynamic, Eigen::Dynamic>& tris)
 {
+	vers.resize(0, 0);
+	tris.resize(0, 0);
 	vers.resize(8, 3);
 	vers << -0.5000000, -0.5000000, -0.5000000, -0.5000000, 0.5000000, -0.5000000, \
 		0.5000000, -0.5000000, -0.5000000, 0.5000000, 0.5000000, -0.5000000, \
@@ -928,9 +930,11 @@ void genCubeMesh(Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers, 
 
 // 生成轴向包围盒的三角网格；
 template <typename _Scalar, int _AmbientDim>
-void genAABBmesh(const Eigen::AlignedBox<_Scalar, _AmbientDim>& aabb, Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
-	Eigen::MatrixXi& tris)
+void genAABBmesh(Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::AlignedBox<_Scalar, _AmbientDim>& aabb)
 {
+	vers.resize(0, 0);
+	tris.resize(0, 0);
 	Eigen::Matrix<_Scalar, _AmbientDim, 1> minp = aabb.min();
 	Eigen::Matrix<_Scalar, _AmbientDim, 1> maxp = aabb.max();
 	Eigen::Matrix<_Scalar, _AmbientDim, 1> newOri = (minp + maxp) / 2.0;
@@ -3078,6 +3082,7 @@ int nonManifoldEdges(Eigen::MatrixXi& nmnEdges, std::vector<std::pair<std::pair<
 	return nmnCount; 
 }
 
+
 // 求三角网格中的非流形无向边，重载1 
 template <typename T>
 int nonManifoldUEs(Eigen::MatrixXi& nmnUedges, const Eigen::SparseMatrix<T>& adjSM_eCount, \
@@ -3178,14 +3183,14 @@ int nonManifoldVers(std::vector<int>& nmnVerIdxes, const Eigen::PlainObjectBase<
 		const int& vaIdx = tris(i, 0);
 		const int& vbIdx = tris(i, 1);
 		const int& vcIdx = tris(i, 2);
-		triMap.insert({ vaIdx, encodeUedge(vbIdx, vcIdx) }); 
-		triMap.insert({ vbIdx, encodeUedge(vcIdx, vaIdx) }); 
-		triMap.insert({ vcIdx, encodeUedge(vaIdx, vbIdx) }); 
+		triMap.insert({ vaIdx, encodeUedge(vbIdx, vcIdx) });
+		triMap.insert({ vbIdx, encodeUedge(vcIdx, vaIdx) });
+		triMap.insert({ vcIdx, encodeUedge(vaIdx, vbIdx) });
 	}
- 
+
 	// 2. 遍历所有顶点，分析其所对的所有无向边：
 	nmnVerIdxes.reserve(versCount);
-	for (int i = 0; i < versCount; ++i) 
+	for (int i = 0; i < versCount; ++i)
 	{
 		// f1. 当前顶点所对的所有无向边存入双向链表：
 		std::list<std::pair<int, int>> roundUes;
@@ -3221,7 +3226,7 @@ int nonManifoldVers(std::vector<int>& nmnVerIdxes, const Eigen::PlainObjectBase<
 			}
 
 			// fw1. 若当前连通边已生长完全，但roundUes中仍有别的边，说明此顶点关联两个或者更多的扇形，当前顶点是非流形点；
-			if (!blFound && !roundUes.empty())					
+			if (!blFound && !roundUes.empty())
 			{
 				nmnVerIdxes.push_back(i);
 				break;
@@ -4296,7 +4301,7 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 	{
 		// w.1 首个元素出队，插入到联通三角片集合中；
 		int cTriIdx = *workingSet.begin();									// 当前处理的三角片索引
-		workingSet.erase(workingSet.begin());
+		workingSet.erase(workingSet.begin());		
 		if (triTags[cTriIdx] < 0)											// 有可能入队时是未访问状态，入队之后被标记为删除三角片；
 			continue;
 		finalTriIdxes.insert(cTriIdx);
@@ -4307,8 +4312,8 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 		{
 			int nmAdjTriIdx = ttAdj_mnEdge(cTriIdx, i);
 			if (nmAdjTriIdx >= 0)										// 流形边（非边缘）；
-				adjTriIdx.push_back(nmAdjTriIdx);						// wf.a. 流形边关联的相邻三角片都保留；
-			else if (nmAdjTriIdx == -1)								// 非流形边
+					adjTriIdx.push_back(nmAdjTriIdx);						// wf.a. 流形边关联的相邻三角片都保留；
+			else if(nmAdjTriIdx == -1)								// 非流形边
 			{
 				// wf.b.1. 删除当前非流形边关联的其他三角片：
 				auto& vec1 = ttAdj_nmnEdge[cTriIdx][i];				// 当前非流形边所在的三角片，包括当前三角片自身；
@@ -4316,8 +4321,8 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 				{
 					if (index == cTriIdx)
 						continue;
-					else
-						triTags[index] = -1;
+					else 
+						triTags[index] = -1;  
 				}
 
 				// wf.b.2. 当前非流形边的对边所在的三角片中，选取法向夹角最大(即dot值最小)的那个；
@@ -4325,7 +4330,7 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 				if (vec2.empty())
 					continue;
 				else if (1 == vec2.size())
-					adjTriIdx.push_back(vec2[0]);
+						adjTriIdx.push_back(vec2[0]);
 				else
 				{
 					unsigned nopTrisCount = vec2.size();
@@ -4341,9 +4346,10 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 					adjTriIdx.push_back(selTriIdx);
 
 					for (const auto& index : vec2)				// 未被选取的对面其他三角片全部删除 ； 
-						if (selTriIdx != index)
-							triTags[index] = -1;
+						if (selTriIdx != index) 
+							triTags[index] = -1; 
 				}
+
 			}
 
 			// nmAdjTriIdx == -2边缘边，直接跳过；
@@ -4367,7 +4373,7 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 	// 4. 提取选中的三角片
 	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> vers1 = vers;
 	Eigen::MatrixXi tris1;
-	subFromIdxCon(tris1, trisClean, finalTriIdxes);
+	subFromIdxCon(tris1, trisClean, finalTriIdxes); 
 
 	// 5. 去除孤立顶点；
 	if (blRemIso)
@@ -4385,7 +4391,7 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 	{
 		versOut = vers1;
 		trisOut = tris1;
-	}
+	} 
 
 	return true;
 }
@@ -5237,6 +5243,8 @@ template <typename DerivedV>
 bool removeIsoVers(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::MatrixXi& trisOut, \
 		const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const std::vector<unsigned>& isoVerIdxes)
 {
+	versOut.resize(0, 0);
+	trisOut.resize(0, 0);
 	unsigned versCount = vers.rows();
 	unsigned trisCount = tris.rows();
 	unsigned isoVersCount = isoVerIdxes.size();

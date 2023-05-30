@@ -502,7 +502,7 @@ namespace IGL_BASIC
 		Eigen::RowVector3d minp = Eigen::RowVector3d(-1, 2, -3);
 		Eigen::RowVector3d maxp = Eigen::RowVector3d(4, 5, 6);
 		Eigen::AlignedBox<double, 3> aabb(minp, maxp);
-		genAABBmesh(aabb, aabbVers, aabbTris);
+		genAABBmesh(aabbVers, aabbTris, aabb);
 		igl::writeOBJ("E:/aabbMesh.obj", aabbVers, aabbTris);
  
 		OBB<double> obb(aabb, Eigen::RowVector3d(3,4,5).normalized(), Eigen::RowVector3d(1, 2, 3) );
@@ -1676,7 +1676,7 @@ namespace IGL_BASIC_PMP
 		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCounts[0] - 1, stepCounts[1] - 1, stepCounts[2] - 1);
 		Eigen::AlignedBox<double, 3> box(minp, maxp);		// 栅格对应的包围盒；
 		genGrids(box, std::max({ stepCounts[0], stepCounts[1], stepCounts[2] }), 0, gridCenters, gridCounts);
-		genAABBmesh(box, boxVers, boxTris);
+		genAABBmesh(boxVers, boxTris, box);
 		objWriteMeshMat("E:/AABB.obj", boxVers, boxTris);
 
 		{
@@ -1771,7 +1771,7 @@ namespace IGL_BASIC_PMP
 		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCounts[0] - 1, stepCounts[1] - 1, stepCounts[2] - 1);
 		Eigen::AlignedBox<double, 3> box(minp, maxp);		// 栅格对应的包围盒；
 		genGrids(box, std::max({ stepCounts[0], stepCounts[1], stepCounts[2] }), 0, gridCenters, gridCounts);
-		genAABBmesh(box, boxVers, boxTris);
+		genAABBmesh(boxVers, boxTris, box);
 		objWriteMeshMat("E:/AABB.obj", boxVers, boxTris);
 		{
 			//			栅格数据的分布：
