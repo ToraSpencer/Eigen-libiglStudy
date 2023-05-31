@@ -2982,11 +2982,11 @@ int main(int argc, char** argv)
 
 	// MESH_REPAIR::testCmd_meshFix(argc, argv);
 
-	// MESH_REPAIR::testCmd_fillSmallHoles(argc, argv);
+	MESH_REPAIR::testCmd_fillSmallHoles(argc, argv);
 
 	// MESH_REPAIR::testCmd_triangleGrowOutterSurf(argc, argv);
 
-	TEST_MYEIGEN::test10();
+	// TEST_MYEIGEN::test10();
 
 	// SPARSEMAT::test0(); 
 
