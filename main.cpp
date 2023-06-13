@@ -2982,11 +2982,11 @@ int main(int argc, char** argv)
 
 	// MESH_REPAIR::testCmd_meshFix(argc, argv);
 
-	MESH_REPAIR::testCmd_fillSmallHoles(argc, argv);
+	// MESH_REPAIR::testCmd_fillSmallHoles(argc, argv);
 
 	// MESH_REPAIR::testCmd_triangleGrowOutterSurf(argc, argv);
 
-	// TEST_MYEIGEN::test10();
+	TEST_MYEIGEN::test1111();
 
 	// SPARSEMAT::test0(); 
 
@@ -2995,6 +2995,25 @@ int main(int argc, char** argv)
 	// DECIMATION::testCmd_qslimDecimation(argc, argv);
 
 
+	//Eigen::MatrixXd vers;
+	//Eigen::MatrixXi tris;
+	//objReadMeshMat(vers, tris, "E:/材料/pillars.obj");
+
+	//Eigen::VectorXi connectedLabels, connectedCount;
+	//Eigen::SparseMatrix<int> adjSM_eIdx, adjSM_eCount, adjSM;
+	//adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
+	//adjSM = adjSM_eCount;
+	//traverseSparseMatrix(adjSM, [&adjSM](auto& iter)
+	//	{
+	//		if (iter.value() > 0)
+	//			iter.valueRef() = 1;
+	//	});
+	//int scCount1 = simplyConnectedRegion(adjSM, connectedLabels, connectedCount); 
+
+	//std::vector<int> connectedLabels1, connectedLabels2, connectedCount1, connectedCount2;
+	//connectedLabels1 = vec2Vec(connectedLabels);
+	//connectedCount1 = vec2Vec(connectedCount);
+	//int scCount2 = simplyConnectedRegion(connectedLabels2, connectedCount2, vers, tris);
 
 
 	std::cout << "main() finished." << std::endl;

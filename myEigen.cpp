@@ -422,6 +422,24 @@ namespace TEST_MYEIGEN
 	}
 
 
+	// 顶点区域生长提取单连通网格：
+	void test1111() 
+	{
+		Eigen::MatrixXd vers, versTmp;
+		Eigen::MatrixXi tris, trisTmp;
+		objReadMeshMat(vers, tris, "E:/材料/arrangeResult.obj");
+
+		std::vector<Eigen::MatrixXd> compVers;
+		std::vector<Eigen::MatrixXi> compTris;
+		simplyConnectedSplitMesh(compVers, compTris, vers, tris);
+
+		for(int k = 0; k<compVers.size(); ++k)
+			debugWriteMesh((std::string{ "compMesh_" } + std::to_string(k)).c_str(), compVers[k], compTris[k]);
+
+		debugDisp("finished.");
+	}
+
+
 	// 检测重复三角片，重复顶点，
 	void test2() 
 	{

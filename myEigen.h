@@ -144,6 +144,9 @@ template <typename Derived, typename IndexContainer>
 bool subFromIdxCon(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const IndexContainer& con);
 template <typename Derived>
 bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
+template <typename Derived>
+bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, std::vector<int>& oldNewIdxInfo, std::vector<int>& newOldIdxInfo, \
+	const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
 template<typename T, int N>
 std::vector<T>  vec2Vec(const Eigen::Matrix<T, N, 1>& vIn);
 template<typename T, int N>
@@ -322,12 +325,18 @@ bool checkSickTris(std::vector<int>& sickIdxes, const Eigen::PlainObjectBase<Der
 template <typename Index>
 int simplyConnectedRegion(const Eigen::SparseMatrix<Index>& adjSM,
 	Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount);
+template <typename T>
+int simplyConnectedRegion(std::vector<int>& connectedLabels, std::vector<int>& connectedCount, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
 template <typename DerivedI>
 int simplyTrisConnectedRegion(Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
 template <typename DerivedV, typename DerivedI>
 bool simplyConnectedLargest(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
 	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris);
+template <typename T>
+bool simplyConnectedSplitMesh(std::vector<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>>& compVers, std::vector<Eigen::MatrixXi>& compTris, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
 template <typename IndexT>
 bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, const std::vector<IndexT>& sickTriIdxes);
 template <typename DerivedV>
@@ -345,8 +354,8 @@ int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::MatrixXi& ne
 template<typename T>
 bool genGrids(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, const Eigen::Matrix<T, 1, 3>& origin, \
 	const float step, const std::vector<unsigned>& gridCounts);
-template<typename DerivedV, typename DerivedI>
-int removeSickDupTris(const Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBase<DerivedI>& tris);
+template<typename T>
+int removeSickDupTris(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris);
 template <typename Tv, typename DerivedF, typename DerivedL>
 void squared_edge_lengths(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers,
 	const Eigen::MatrixBase<DerivedF>& tris, Eigen::PlainObjectBase<DerivedL>& lenMat2);
@@ -1374,6 +1383,46 @@ bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixB
 }
 
 
+template <typename Derived>
+bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, std::vector<int>& oldNewIdxInfo, std::vector<int>& newOldIdxInfo, \
+		const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& flag)
+{
+	if (flag.rows() != matBaseIn.rows())
+		return false;
+
+	// 1. 抽取flag标记为1的层数：
+	const int N = flag.rows();
+	const int M = flag.sum();
+	int count = 0;
+	Derived& matOut = matBaseOut.derived();
+	matOut.resize(0, 0);
+	oldNewIdxInfo.clear();
+	newOldIdxInfo.clear();
+	matOut.resize(M, matBaseIn.cols());
+	for (unsigned i = 0; i < flag.rows(); ++i)
+		if (flag(i) > 0)
+			matOut.row(count++) = matBaseIn.row(i);
+
+	// 2. 生成新老索引映射表：
+	oldNewIdxInfo.resize(N, -1); 
+	newOldIdxInfo.reserve(M);
+	int index = 0;
+	for (int k = 0; k < N; ++k)
+	{
+		int oldIdx = k;
+		if (flag(oldIdx) > 0)
+		{
+			int newIdx = index++;
+			oldNewIdxInfo[oldIdx] = newIdx;
+			newOldIdxInfo.push_back(oldIdx);
+		} 
+	}
+
+	return true;
+}
+
+
+
 // eigen的向量和std::vector<T>相互转换
 template<typename T, int N>
 std::vector<T>  vec2Vec(const Eigen::Matrix<T, N, 1>& vIn)
@@ -1458,32 +1507,33 @@ std::pair<int, int> decodeEdge(const std::int64_t code);
 template <typename Index>
 std::uint64_t encodeTriangle(const Index vaIdx, const Index vbIdx, const Index vcIdx)
 {
-	unsigned long triIdxLimit = 0x1FFFFF;								// 最多为21位全1, 0x1FFFFF ==  2097181, 两百多万三角片；
-	if (vaIdx > triIdxLimit || vbIdx > triIdxLimit || vcIdx > triIdxLimit)
-		return 0;			// 索引超出范围
-	if (vaIdx == vbIdx || vaIdx == vcIdx || vbIdx == vcIdx || vaIdx < 0 || vbIdx < 0 || vcIdx < 0)
-		return 0;			// 非法三角片
+	std::uint64_t triIdxLimit = 0x1FFFFF;								// 最多为21位全1, 0x1FFFFF ==  2097181, 两百多万三角片；
+	std::uint64_t vaIdx0 = static_cast<std::uint64_t>(vaIdx);
+	std::uint64_t vbIdx0 = static_cast<std::uint64_t>(vbIdx);
+	std::uint64_t vcIdx0 = static_cast<std::uint64_t>(vcIdx);
+
+	assert(vaIdx0 <= triIdxLimit && vbIdx0 <= triIdxLimit && vcIdx0 <= triIdxLimit, "triangle index out of range !!!");
+	assert(vaIdx0 != vbIdx0 && vaIdx0 != vcIdx0 && vbIdx0 != vcIdx0, "invalid triangle index !!!"); 
 
 	// 区分正反面——即(a, b, c)和(a, c, b)会映射成不同的编码；但是(a,b,c)(b,c,a)(c,a,b)映射成相同的编码；
-	Index A, B, C;
-	if (vaIdx < vbIdx && vaIdx < vcIdx)
+	std::uint64_t A, B, C;
+	if (vaIdx0 < vbIdx0 && vaIdx0 < vcIdx0)
 	{
-		A = vaIdx; B = vbIdx; C = vcIdx;			// abc
+		A = vaIdx0; B = vbIdx0; C = vcIdx0;						// abc
 	}						
-	else if (vbIdx < vaIdx && vbIdx < vcIdx)
+	else if (vbIdx0 < vaIdx0 && vbIdx0 < vcIdx0)
 	{
-		A = vbIdx; B = vcIdx; C = vaIdx;						// bca
+		A = vbIdx0; B = vcIdx0; C = vaIdx0;						// bca
 	}
 	else
 	{
-		A = vcIdx; B = vaIdx; C = vbIdx;						// cab;
+		A = vcIdx0; B = vaIdx0; C = vbIdx0;						// cab;
 	}
 	std::uint64_t code = 0;
-	code |= (static_cast<std::uint64_t>(A) << 42);
-	code |= (static_cast<std::uint64_t>(B) << 21);
-	code |= static_cast<std::uint64_t>(C);
-	return code;
-	 
+	code |= (A << 42);
+	code |= (B << 21);
+	code |= C;
+	return code;	 
 }
 
 
@@ -4842,6 +4892,18 @@ int findHoles(std::vector<std::vector<int>>& holes, const Eigen::PlainObjectBase
 			const Eigen::PlainObjectBase<DerivedI>& tris
 			)
 	*/
+	// lambda——整理洞的信息：
+	auto organizeHoles = [](std::vector<std::vector<int>>& holes)		// 整理每个洞的顶点顺序，使得首个顶点是索引最小的那个
+	{
+		for (auto& vec : holes)
+		{
+			auto iter = std::min_element(vec.begin(), vec.end());
+			std::vector<int> tmpVec;
+			tmpVec.insert(tmpVec.end(), iter, vec.end());
+			tmpVec.insert(tmpVec.end(), vec.begin(), iter);
+			vec = tmpVec;
+		}
+	};
 
 	// 确定洞的边——只关联一个三角片的边：
 	const int  trisCount = tris.rows();
@@ -4912,6 +4974,7 @@ int findHoles(std::vector<std::vector<int>>& holes, const Eigen::PlainObjectBase
 			currentHole[i] = *iterList++;		
 		holes.push_back(currentHole);
 	}
+	organizeHoles(holes);
 
 	return holesCount;
 }
@@ -4934,7 +4997,7 @@ bool checkSickTris(std::vector<int>& sickIdxes, const Eigen::PlainObjectBase<Der
 }
 
 
-// 确定三角网格中的所有单连通区域（顶点连通）
+// 确定三角网格中的所有单连通区域（顶点连通）——使用稀疏矩阵；
 template <typename Index>
 int simplyConnectedRegion(const Eigen::SparseMatrix<Index>& adjSM,
 	Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount)
@@ -5004,6 +5067,111 @@ int simplyConnectedRegion(const Eigen::SparseMatrix<Index>& adjSM,
 
 	return currentLabel;
 }
+
+
+// 确定三角网格中的所有单连通区域（顶点连通）——使用std::unordered_set，不使用稀疏矩阵；
+template <typename T>
+int simplyConnectedRegion(std::vector<int>& connectedLabels, std::vector<int>& connectedCount, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+{
+	auto collectVers = [](std::vector<int>& connectedLabels, std::vector<bool>& triCollected, \
+		std::unordered_set<int>& versSet, const Eigen::MatrixXi& tris, const int label)->int
+	{
+		const int trisCount = tris.rows();
+		int collectedCount = 0;
+		bool blCollectedNew = false;
+		for (const auto& flag : triCollected)
+		{
+			if (flag)
+				collectedCount++;
+		}
+
+		do 
+		{
+			blCollectedNew = false;
+			for (int i = 0; i < trisCount; ++i)
+			{
+				if (triCollected[i])
+					continue;
+
+				int a = tris(i, 0);
+				int b = tris(i, 1);
+				int c = tris(i, 2);
+				auto iter1 = versSet.find(a);
+				auto iter2 = versSet.find(b);
+				auto iter3 = versSet.find(c);
+				if (versSet.end() != iter1 || versSet.end() != iter2 || versSet.end() != iter3)
+				{
+					versSet.insert(a);
+					versSet.insert(b);
+					versSet.insert(c);
+					connectedLabels[a] = label;
+					connectedLabels[b] = label;
+					connectedLabels[c] = label;
+					triCollected[i] = true;
+					collectedCount++;
+					blCollectedNew = true;
+				}
+			}
+		} while (blCollectedNew);						// 本轮有新元素被收集，则继续执行一轮
+
+		return versSet.size();										// 返回收集的顶点个数，即被标记为label的顶点个数；
+	};
+
+	if (vers.rows() == 0 || tris.rows() == 0)
+		return -1;
+
+	const int versCount = vers.rows();
+	const int trisCount = tris.rows();
+
+	// 1. 区域生长的循环：
+	connectedLabels.resize(versCount, versCount);		// 最终结果中最大可能的标签为versCount-1;
+	std::unordered_set<int> versSet;
+	std::vector<bool> triCollected(trisCount, false);
+	int currentLabel = 0;
+	int collectedVersCount = 0;
+	while (collectedVersCount < versCount)
+	{
+		// w1. 选取第一个未被标记的三角片，将其三个顶点作为区域生长的种子顶点；
+		for (int i = 0; i < trisCount; ++i)
+		{
+			if (!triCollected[i])
+			{
+				int a = tris(i, 0);
+				int b = tris(i, 1);
+				int c = tris(i, 2);
+				triCollected[i] = true;
+				versSet.insert(a);
+				versSet.insert(b);
+				versSet.insert(c);
+				connectedLabels[a] = currentLabel;
+				connectedLabels[b] = currentLabel;
+				connectedLabels[c] = currentLabel;
+				break;
+			}
+		}
+
+		// w2. 区域生长的循环：
+		int currentLabelVersCount = collectVers(connectedLabels, triCollected, versSet, tris, currentLabel);
+
+		// w3. post procedure:
+		versSet.clear();
+		collectedVersCount += currentLabelVersCount;
+		currentLabel++;
+	}
+
+	// 2. 统计：
+	int scCount = currentLabel; 
+	connectedCount.resize(scCount, 0);
+	for (int i = 0; i<versCount; ++i) 
+	{
+		int label = connectedLabels[i];
+		connectedCount[label]++;
+	}
+
+	return scCount;
+}
+
 
 
 // 确定三角网格中的所有单连通区域（三角片连通）——比triangleGrow更强，输入网格可以带有非流形元素；
@@ -5167,6 +5335,80 @@ bool simplyConnectedLargest(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::Pl
 	//		5.4 shrink_to_fit();
 	trisOut.conservativeResize(trisCountNew, 3);
 
+
+	return true;
+}
+
+
+// 按顶点单连通区域分解网格：
+template <typename T> 
+bool simplyConnectedSplitMesh(std::vector<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>>& compVers, std::vector<Eigen::MatrixXi>& compTris, \
+		const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+{ 
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>; 
+	using Matrix3T = Eigen::Matrix<T, 3, 3>; 
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	if (0 == vers.rows() || 0 == tris.rows())
+		return false;
+
+	compVers.clear();
+	compTris.clear();
+
+	// 0. 预处理——去除孤立顶点，去除非法、重复三角片：
+	MatrixXT vers0;
+	Eigen::MatrixXi tris0, trisTmp;
+	trisTmp = tris;
+	removeSickDupTris(vers, trisTmp);
+	std::vector<unsigned> isoVerIdxes = checkIsoVers(vers, tris);
+	if (!isoVerIdxes.empty())
+		removeIsoVers(vers0, tris0, vers, trisTmp, isoVerIdxes);
+	else
+	{
+		vers0 = vers;
+		tris0 = trisTmp;
+	}
+
+	// 1. 提取顶点单连通点云：
+	const int versCount = vers0.rows();
+	int scCount = 0;							// 顶点单连通区域个数；
+	int sctCount = 0;							// 三角片单连通区域个数；
+	Eigen::VectorXi connectedLabels, connectedCount;
+
+#if 1				
+	Eigen::SparseMatrix<int> adjSM, adjSM_eCount, adjSM_eIdx;
+	adjMatrix(adjSM_eCount, adjSM_eIdx, tris0);
+	adjSM = adjSM_eCount;
+	traverseSparseMatrix(adjSM, [&adjSM](auto& iter)
+		{
+			if (iter.value() > 0)
+				iter.valueRef() = 1;
+		});
+	scCount = simplyConnectedRegion(adjSM, connectedLabels, connectedCount);
+#else
+	std::vector<int> connectedLabelsVec, connectedCountVec;
+	scCount = simplyConnectedRegion(connectedLabelsVec, connectedCountVec, vers, tris);
+	connectedLabels = vec2Vec<int>(connectedLabelsVec);
+	connectedCount = vec2Vec<int>(connectedCountVec);
+#endif
+
+	// 2. 生成顶点单连通网格：
+	compVers.resize(scCount);
+	compTris.resize(scCount);
+	for (int i = 0; i < scCount; ++i)
+	{
+		Eigen::VectorXi flag = (connectedLabels.array() == i).select(Eigen::VectorXi::Ones(versCount), Eigen::VectorXi::Zero(versCount));
+		std::vector<int> oldNewIdxInfo, newOldIdxInfo;
+		subFromFlagVec(compVers[i], oldNewIdxInfo, newOldIdxInfo, vers0, flag);
+		compTris[i] = tris0;
+		int* ptrData = compTris[i].data();
+		for (int k = 0; k < compTris[i].size(); ++k)
+		{
+			*ptrData = oldNewIdxInfo[*ptrData];					// 老索引映射成新索引；
+			ptrData++;
+		}
+		removeSickDupTris(compVers[i], compTris[i]);		// 去除非法三角片；
+	}
 
 	return true;
 }
@@ -5500,9 +5742,12 @@ bool genGrids(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, con
 
 
 // 去除非法三角片，重复三角片：
-template<typename DerivedV, typename DerivedI>
-int removeSickDupTris(const Eigen::PlainObjectBase<DerivedV>& vers, Eigen::PlainObjectBase<DerivedI>& tris)
+template<typename T>
+int removeSickDupTris(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris)
 {
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
 	int versCount = vers.rows();
 	int trisCount = tris.rows();
 
@@ -5531,7 +5776,7 @@ int removeSickDupTris(const Eigen::PlainObjectBase<DerivedV>& vers, Eigen::Plain
 			flags(i) = 0;				// 重复三角片非法；
 	}
 
-	DerivedI tmpMat;
+	Eigen::MatrixXi tmpMat;
 	subFromFlagVec(tmpMat, tris, flags);
 	tris = tmpMat;
 
