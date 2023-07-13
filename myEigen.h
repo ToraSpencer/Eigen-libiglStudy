@@ -226,7 +226,9 @@ template<typename T, int N>
 bool solveLinearEquation(Eigen::Matrix<T, N, 1>& x, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, const Eigen::Matrix<T, N, 1>& b);
 template <typename T>
 bool solveLinearEquations(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& B);
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& B); 
+template<typename T>
+double calcCondNum(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& m);
 template<typename T, int N>
 double hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const double x);
 template<typename T, int N>
@@ -308,6 +310,9 @@ bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eig
 template <typename T>
 bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso, const int startIdx);
+template <typename T>
+bool robustTriangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso);
 template <typename DerivedV, typename DerivedI>
 int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx, const double thetaThreshold);
@@ -2121,8 +2126,8 @@ template<typename T, int N>
 bool solveLinearEquation(Eigen::Matrix<T, N, 1>& x, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, const Eigen::Matrix<T, N, 1>& b)
 {
 	// 解线性方程组Ax == b;
-	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	x = svd.solve(b);
+	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	x = svdSolver.solve(b);
 
 	return true;
 }
@@ -2136,16 +2141,28 @@ bool solveLinearEquations(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, c
 	if (A.rows() != B.rows())
 		return false;
 
-	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	X.resize(A.cols(), B.cols());
 	for (int i = 0; i < B.cols(); ++i)
 	{
-		Eigen::Matrix < T, Eigen::Dynamic, 1> x = svd.solve(B.col(i));
+		Eigen::Matrix < T, Eigen::Dynamic, 1> x = svdSolver.solve(B.col(i));
 		X.col(i) = x;
 	}
 
 	return true;
 }
+
+
+// 通过SVD求稠密矩阵的条件数：
+template<typename T>
+double calcCondNum(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& m)
+{
+	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(m, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	Eigen::Matrix<T, Eigen::Dynamic, 1> sValues = svdSolver.singularValues();
+	T sMax = sValues.maxCoeff();
+	T sMin = sValues.minCoeff();
+	return static_cast<double>(sMax/sMin);
+} 
 
 
 // 霍纳方法（秦九昭算法）求多项式的值
@@ -4447,6 +4464,41 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 }
 
 
+// robustTriangleGrowOuterSurf()——提升了鲁棒性的三角片生长，避免了某些反向三角片的干扰；
+template <typename T>
+bool robustTriangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso = true)
+{
+	if (0 == vers.rows() || 0 == tris.rows())
+		return false;
+
+	const int trisCount = tris.rows();
+	const int maxIter = 5;
+	int startIdx = 0;
+	bool subFlag = false;
+	std::default_random_engine e;
+	std::uniform_int_distribution<int>	UID_i(0, trisCount - 1);
+
+	// 有时有反向三角片的干扰，导致生长出来的网格只是原网格很小的一部分，需要尝试多次避免这种错误；
+	for (int i = 0; i < maxIter; ++i)
+	{
+		versOut.resize(0, 0);
+		trisOut.resize(0, 0);
+		startIdx = UID_i(e);
+		triangleGrowOuterSurf(versOut, trisOut, vers, tris, blRemIso, startIdx);
+		int trisCountNew = trisOut.rows();
+		if (trisCountNew > trisCount / 2)						// 输出三角片过少则说明有错误，重来；
+		{
+			subFlag = true;
+			break;
+		}
+	}
+
+	return subFlag;
+}
+
+
+
 // correctTriDirs()——矫正网格的三角片朝向，基于三角片区域生长的方法；使用前需要先处理网格中的重叠三角片；
 template <typename DerivedV, typename DerivedI>
 int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::PlainObjectBase<DerivedV>& vers, \
@@ -6022,7 +6074,7 @@ bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, c
 	double scale = 0.0;
 	Eigen::RowVector3d center = circDouble.colwise().mean();
 	circDouble.rowwise() -= center;
-	Eigen::RowVector3d length = circDouble.rowwise().norm();
+	Eigen::VectorXd length = circDouble.rowwise().norm();
 	double maxLen = length.maxCoeff();
 	if (maxLen < 10.0)
 	{

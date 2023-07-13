@@ -7,63 +7,148 @@ namespace DENSEMAT
 	using spMatf = Eigen::SparseMatrix<float, ColMajor>;
 	using TripF = Eigen::Triplet<float>;
 
+	////////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
 
-	// 写一个接口，将矩阵数据保存到.dat文件中，方便python读取然后画图
-	void writeData2D(const Eigen::VectorXd& x, const Eigen::VectorXd& y, const char* filename)
+	namespace MY_DEBUG
 	{
-		// 顺序挨个写入x和y向量中的数据，先写x再写y，因为两条向量是对应的，所以肯定前一半是x坐标，后一半是y坐标。
-		double darr1[MAXLEN];
-		double darr2[MAXLEN];
-		unsigned int size = x.rows();
-		std::string str1 = filename;
-		std::string str2 = str1;
+		static std::string g_debugPath = "E:/";
 
-		auto iter = find(str1.begin(), str1.end(), '.');
-		if (iter == str1.end())
+		// 写一个接口，将矩阵数据保存到.dat文件中，方便python读取然后画图
+		void writeData2D(const Eigen::VectorXd& x, const Eigen::VectorXd& y, const char* filename)
 		{
-			std::cout << "错误，输出的二进制文件必须有后缀名。" << std::endl;
+			// 顺序挨个写入x和y向量中的数据，先写x再写y，因为两条向量是对应的，所以肯定前一半是x坐标，后一半是y坐标。
+			double darr1[MAXLEN];
+			double darr2[MAXLEN];
+			unsigned int size = x.rows();
+			std::string str1 = filename;
+			std::string str2 = str1;
+
+			auto iter = find(str1.begin(), str1.end(), '.');
+			if (iter == str1.end())
+			{
+				std::cout << "错误，输出的二进制文件必须有后缀名。" << std::endl;
+				return;
+			}
+
+
+			auto dis = distance(str1.begin(), iter);
+			str1.insert(dis, "_x");
+			str2.insert(dis, "_y");
+
+			for (unsigned int i = 0; i < size; i++)
+				darr1[i] = x(i);
+			for (unsigned int i = 0; i < size; i++)
+				darr2[i] = y(i);
+
+			std::ofstream file1(str1, std::ios::out | std::ios::binary);
+			std::ofstream file2(str2, std::ios::out | std::ios::binary);
+
+			file1.write(reinterpret_cast<char*>(&darr1[0]), size * sizeof(double));
+			file2.write(reinterpret_cast<char*>(&darr2[0]), size * sizeof(double));
+			file1.close();
+			file2.close();
+		}
+
+
+		void readData(Eigen::VectorXd& x, const char* filename)
+		{
+			std::ifstream file(filename, std::ios::in | std::ios::binary);
+			file.seekg(0, file.end);					// 追溯到文件流的尾部
+			unsigned int size = file.tellg();			// 获取文件流的长度。
+			file.seekg(0, file.beg);					// 回到文件流的头部	
+
+														// 这一块以后考虑用alloctor改写
+			char* pc = (char*)malloc(size);
+			file.read(pc, size);
+
+			double* pd = reinterpret_cast<double*>(pc);
+			for (unsigned int i = 0; i < size / sizeof(double); i++)
+			{
+				x[i] = *pd;
+				pd++;
+			}
+
+		}
+
+		static void debugDisp()			// 递归终止
+		{						//		递归终止设为无参或者一个参数的情形都可以。
+			std::cout << std::endl;
 			return;
 		}
 
-
-		auto dis = distance(str1.begin(), iter);
-		str1.insert(dis, "_x");
-		str2.insert(dis, "_y");
-
-		for (unsigned int i = 0; i < size; i++)
-			darr1[i] = x(i);
-		for (unsigned int i = 0; i < size; i++)
-			darr2[i] = y(i);
-
-		std::ofstream file1(str1, std::ios::out | std::ios::binary);
-		std::ofstream file2(str2, std::ios::out | std::ios::binary);
-
-		file1.write(reinterpret_cast<char*>(&darr1[0]), size * sizeof(double));
-		file2.write(reinterpret_cast<char*>(&darr2[0]), size * sizeof(double));
-		file1.close();
-		file2.close();
-	}
-
-
-	void readData(Eigen::VectorXd& x, const char* filename)
-	{
-		std::ifstream file(filename, std::ios::in | std::ios::binary);
-		file.seekg(0, file.end);					// 追溯到文件流的尾部
-		unsigned int size = file.tellg();			// 获取文件流的长度。
-		file.seekg(0, file.beg);					// 回到文件流的头部	
-
-													// 这一块以后考虑用alloctor改写
-		char* pc = (char*)malloc(size);
-		file.read(pc, size);
-
-		double* pd = reinterpret_cast<double*>(pc);
-		for (unsigned int i = 0; i < size / sizeof(double); i++)
+		template <typename T, typename... Types>
+		static void debugDisp(const T& firstArg, const Types&... args)
 		{
-			x[i] = *pd;
-			pd++;
+			std::cout << firstArg << " ";
+			debugDisp(args...);
 		}
 
+
+		template <typename T, int M, int N>
+		static void dispData(const Eigen::Matrix<T, M, N>& m)
+		{
+			auto dataPtr = m.data();
+			unsigned elemsCount = m.size();
+
+			for (unsigned i = 0; i < elemsCount; ++i)
+				std::cout << dataPtr[i] << ", ";
+
+			std::cout << std::endl;
+		}
+
+
+		template <typename Derived>
+		static void dispData(const Eigen::PlainObjectBase<Derived>& m)
+		{
+			int m0 = m.RowsAtCompileTime;
+			int n0 = m.ColsAtCompileTime;
+
+			auto dataPtr = m.data();
+			unsigned elemsCount = m.size();
+
+			for (unsigned i = 0; i < elemsCount; ++i)
+				std::cout << dataPtr[i] << ", ";
+
+			std::cout << std::endl;
+		}
+
+
+		template <typename Derived>
+		static void dispElem(const Eigen::MatrixBase<Derived>& m)
+		{
+			const Derived& mm = m.derived();
+			std::cout << mm(1, 1) << std::endl;
+		}
+
+
+		template<typename DerivedV>
+		static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+		{
+			char path[512] = { 0 };
+			sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+			objWriteVerticesMat(path, vers);
+		}
+
+
+		template<typename T>
+		static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+		{
+			char path[512] = { 0 };
+			sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+			objWriteMeshMat(path, vers, tris);
+		}
+
+
+
+		template<typename DerivedV>
+		static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
+		{
+			char path[512] = { 0 };
+			sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+			objWriteEdgesMat(path, edges, vers);
+		}
 	}
+	using namespace MY_DEBUG;
  
 
 	// test0——eigen库的基本数据结构
@@ -353,13 +438,15 @@ namespace DENSEMAT
 		// 1. 求矩阵的特征值、特征向量。
 		EigenSolver<Matrix3d> es(A);
 		Matrix3d D = es.pseudoEigenvalueMatrix();			// 对角线元素是特征值
-		Matrix3d V = es.pseudoEigenvectors();				// 每一个列向量都是特征向量。
+		Matrix3d V = es.pseudoEigenvectors();					// 每一个列向量都是特征向量。
 		std::cout << "特征值矩阵D：" << std::endl << D << std::endl;
 		std::cout << "特征向量矩阵V: " << std::endl << V << std::endl;
 		std::cout << "Finally, V * D * V^(-1) = " << std::endl << V * D * V.inverse() << std::endl;
 
 		std::cout << A * V.block<3, 1>(0, 0) << std::endl << std::endl;
 		std::cout << D(0, 0) * V.block<3, 1>(0, 0) << std::endl << std::endl;
+		debugDisp("\n\n");
+
 
 		// 2. 矩阵的LU分解——Eigen::FullPivLU
 		Eigen::MatrixXf m = Eigen::MatrixXf::Random(5, 5);
@@ -382,22 +469,32 @@ namespace DENSEMAT
 
 		std::cout << "Let us now reconstruct the original matrix m:" << std::endl;
 		std::cout << P_inv * L * U * Q_inv << std::endl;
+		debugDisp("\n\n");
 
 
-		// 3. 矩阵的奇异值分解——
+		// 3. 矩阵的奇异值分解（SVD）——
 		m = Eigen::MatrixXf::Random(3, 3);
 		std::cout << "m == \n" << m << std::endl;
-		JacobiSVD<Eigen::MatrixXf> svd(m, ComputeThinU | ComputeThinV);
-		std::cout << "奇异值 == " << std::endl << svd.singularValues() << std::endl;
-		std::cout << "U == " << std::endl << svd.matrixU() << std::endl;
-		std::cout << "V == " << std::endl << svd.matrixV() << std::endl;
+		JacobiSVD<Eigen::MatrixXf> svdSolver(m, ComputeThinU | ComputeThinV);
+		std::cout << "奇异值 == " << std::endl << svdSolver.singularValues() << std::endl;
+		std::cout << "U == " << std::endl << svdSolver.matrixU() << std::endl;
+		std::cout << "V == " << std::endl << svdSolver.matrixV() << std::endl;
+		debugDisp("\n");
+
+		//		3.1 通过SVD求解线性方程组：
 		Eigen::Vector3f rhs(1, 0, 0);
-		std::cout << "使用奇异值分解解线性方程组：" << std::endl << svd.solve(rhs) << std::endl << std::endl;
+		std::cout << "使用奇异值分解解线性方程组：" << std::endl << svdSolver.solve(rhs) << std::endl << std::endl;
+		debugDisp("\n");
 
-		// 3+. 求秩：
-		std::cout << "svd.rank == " << svd.rank() << std::endl << std::endl;
+		//		3.2 通过SVD求矩阵的条件数：
+		double condNum = calcCondNum(m);
+		debugDisp("矩阵条件数：condNum == ", condNum);
+		debugDisp("\n\n");
 
-		// 4. 测试自己封装的使用QR分解的求解恰定稠密线性方程组的轮子：
+		// 4. 求秩：
+		std::cout << "svdSolver.rank == " << svdSolver.rank() << std::endl << std::endl;
+
+		// 5. 测试自己封装的使用QR分解的求解恰定稠密线性方程组的轮子：
 		A = Eigen::MatrixXd::Random(3, 3);
 		Eigen::MatrixXd B = Eigen::MatrixXd::Random(3, 3);
 		Vector3d b = Vector3d::Random();
@@ -410,8 +507,9 @@ namespace DENSEMAT
 		std::cout << "B == \n" << B << std::endl;
 		std::cout << "线性方程组Ax == b的解：" << std::endl << x << std::endl << std::endl;
 		std::cout << "线性方程组AX == B的解：" << std::endl << X << std::endl << std::endl;
+		debugDisp("\n\n");
 
-		// norm()——欧几里得范数，也是p==2时的lp范数。既所有元素平方和的开方。
+		// 6. norm()——欧几里得范数，也是p==2时的lp范数。既所有元素平方和的开方。
 		Eigen::Vector3f v1(1, 2, 3);
 		std::cout << "v1.norm() == " << v1.norm() << std::endl;	// 向量的范数等于向量的模长。
 		m.resize(3, 4);
@@ -421,7 +519,7 @@ namespace DENSEMAT
 		std::cout << "m.rowwise().norm() == \n" << m.rowwise().norm() << std::endl;		// 所有行向量求norm，返回一个列向量；
 		std::cout << "m.colwise().norm() == \n" << m.colwise().norm() << std::endl;
 
-		//			求行向量的模长：
+		//	6.1. 通过范数求行向量的模长：
 		Eigen::Matrix3f arrows;
 		arrows << 0, 1, 0, 0, 3, 4, 0, 5, 12;
 		Eigen::Vector3f arrowsLen = arrows.rowwise().norm();

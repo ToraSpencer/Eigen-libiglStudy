@@ -157,7 +157,15 @@ namespace DECIMATION
 
 #define IGL_COLLAPSE_EDGE_NULL -1
 
+
+	// 
+	/*
+		std::get<0>(q) == A;
+		std::get<0>(q) == d0 * n;
+		std::get<0>(q) == d0 ^ 2;
+	*/
 	using Quadric = std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double>;
+
 
 	// q矩阵重载运算符；
 	Quadric operator+(const Quadric& q1, const Quadric& q2)
@@ -1055,94 +1063,299 @@ namespace DECIMATION
 		std::cout << "finished." << std::endl;
 	}
 
- 
-	// 解析qslim()
-	void test0000()
+
+	// lambda——得到某一个面片的quadric
+	/*
+		 Inputs:
+		   va		1 by n row point on the subspace
+		   S		m by n matrix where rows coorespond to orthonormal spanning
+					vectors of the subspace to which we're measuring distance (usually a plane,  m=2)
+		   weight  scalar weight
+		 Returns quadric triple {A, b, c} so that A-2*b+c measures the quadric
+
+
+		 Weight face's quadric (v'*A*v + 2*b'*v + c) by area
+	*/
+	Quadric subspace_quadric(const Eigen::RowVector3d& va, const Eigen::RowVector3d& dir_ab, const Eigen::RowVector3d& dir_h, const double weight)
+	{ 
+		Eigen::MatrixXd A = Eigen::MatrixXd::Identity(3, 3)  - dir_ab.transpose() * dir_ab - dir_h.transpose() * dir_h;
+		Eigen::RowVector3d b = -va + va.dot(dir_ab) * dir_ab + va.dot(dir_h) * dir_h;
+		double c = va.dot(va) - pow(va.dot(dir_ab), 2) - pow(va.dot(dir_h), 2);
+
+		return Quadric{ weight * A,  weight * b,  weight * c };
+	};
+
+
+	// 计算顶点的Q矩阵：
+	 void getQuadrics(const Eigen::MatrixXd& vers, const Eigen::MatrixXi& tris,
+		const Eigen::MatrixXi& edgeUeInfo, const Eigen::MatrixXi& UeTrisInfo,
+		const Eigen::MatrixXi& EI, std::vector<std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double>>& quadrics)
 	{
-		Eigen::MatrixXd vers, versOut, vers0, versOri;
-		Eigen::MatrixXi tris, trisOut, trisTmp, trisOri;
-		Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
-		Eigen::VectorXi newOldVersInfo;
-		Eigen::VectorXi edgeUeInfo;
-		Eigen::MatrixXi edges, uEdges, ueEdgeInfo, UeTrisInfo, UeCornersInfo;
-		Eigen::VectorXi timeStamps;
-		Eigen::MatrixXd collapsedVers;
-		Eigen::VectorXd costs;
-		std::vector<Quadric> quadrics;													// 每个顶点的Q矩阵；
-		igl::min_heap<std::tuple<double, int, int> > pQueue;				// 优先队列；
-		Eigen::VectorXi _1, I2;											// 最后删除孤立点和内补三角片时用到；
-		bool clean_finish = false;
-		tiktok& tt = tiktok::getInstance();
+		using namespace std;
+		using Quadric = std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double>;
+		const int versCount = vers.rows();
+		Eigen::MatrixXd I = Eigen::MatrixXd::Identity(3, 3);
 
-		// for debug:
-		std::vector<triplet<double>> versMoni;
-		std::vector<triplet<int>>	trisMoni;
-		std::vector<doublet<int>> edgesMoni;
-		std::vector<int>			vecMoni;
-		int retIdx = -1;
 
-		tt.start();
-		igl::readOBJ("E:/材料/jawMeshDense.obj", versOri, trisOri);
-		tt.endCout("elapsed time of loading mesh is: ");
-		igl::writeOBJ("E:/meshIn.obj", versOri, trisOri);
+		// 所有Quadrics初始化为0；
+		quadrics.resize(versCount, Quadric{ Eigen::MatrixXd::Zero(3, 3), Eigen::RowVectorXd::Zero(3), 0 });      
 
-		unsigned versCount = versOri.rows();
-		unsigned trisCount = trisOri.rows();
-		int trisCountNew = trisCount;
-		int tarTrisCount = 30000;
+		// Rather initial with zeros,  initial with a small amount of energy pull toward original vertex position
+		const double w = 1e-10;
+		for (int i = 0; i < vers.rows(); i++)
+		{
+			std::get<0>(quadrics[i]) = w * I;
+			Eigen::RowVectorXd ver = vers.row(i); 
+			std::get<1>(quadrics[i]) = -w * ver;
+			std::get<2>(quadrics[i]) = w * ver.dot(ver);
+		}
 
-		// 0. 检测是否有非流形有向边，有则直接退出；
-		Eigen::MatrixXi nmnUedges;
-		nonManifoldUEs(nmnUedges, trisOri);
-		if (nmnUedges.size() > 0)
-			return;
-
-		// 1. 将网格处理成一个封闭网格——若存在边缘有向边，则将其和一个无限远点连接生成新三角片
-		connect_boundary_to_infinity(vers, tris, versOri, trisOri);
-
-		// 1.1 计算无向边信息：
-		getEdges(edges, tris);
-		getUedges(uEdges, edgeUeInfo, ueEdgeInfo, edges);
-		getUeInfos(UeTrisInfo, UeCornersInfo, edgeUeInfo, uEdges, tris);
-
-		// 2. 计算每个顶点的Q矩阵：
-		igl::per_vertex_point_to_plane_quadrics(vers, tris, edgeUeInfo, UeTrisInfo, UeCornersInfo, quadrics);
-
-		// 3. 计算每条无向边的cost值，以此为优先级存入优先队列
-		timeStamps = Eigen::VectorXi::Zero(uEdges.rows());
-		collapsedVers.resize(uEdges.rows(), vers.cols());
-		costs.resize(uEdges.rows());
-		igl::parallel_for(uEdges.rows(), [&](const int ueIdx)
+		// Generic nD qslim from "Simplifying Surfaces with Color and Texture using Quadric Error Metric" (follow up to original QSlim)
+		for (int i = 0; i < tris.rows(); i++)
+		{
+			// f1. don't know what the fuck is...
+			int infinite_corner = -1;
+			for (int k = 0; k < 3; k++)
 			{
-				// 以下是cost_and_placement()的内容：
-				double cost = ueIdx;
-				Eigen::RowVectorXd p(1, 3);
-
-				// Combined quadric
-				Quadric quadric_p;
-				quadric_p = quadrics[uEdges(ueIdx, 0)] + quadrics[uEdges(ueIdx, 1)];
-
-				// Quadric: p'Ap + 2b'p + c,  optimal point: Ap = -b, or rather because we have row vectors: pA=-b
-				const auto& A = std::get<0>(quadric_p);
-				const auto& b = std::get<1>(quadric_p);
-				const auto& c = std::get<2>(quadric_p);
-				p = -b * A.inverse();
-				cost = p.dot(p * A) + 2 * p.dot(b) + c;
-
-				// Force infs and nans to infinity
-				if (std::isinf(cost) || cost != cost)
+				if (std::isinf(vers(tris(i, k), 0)) || std::isinf(vers(tris(i, k), 1)) || std::isinf(vers(tris(i, k), 2)))
 				{
-					cost = std::numeric_limits<double>::infinity();
-					p.setConstant(0);
+					assert(infinite_corner == -1 && "Should only be one infinite corner");
+					infinite_corner = k;
+				}
+			}
+
+			// f2. 
+			int vaIdx = tris(i, 0);
+			int vbIdx = tris(i, 1);
+			int vcIdx = tris(i, 2);
+			if (infinite_corner == -1)
+			{
+				// Finite (non-boundary) face
+				Eigen::RowVector3d va = vers.row(vaIdx);
+				Eigen::RowVector3d vb = vers.row(vbIdx);
+				Eigen::RowVector3d vc = vers.row(vcIdx);
+				Eigen::RowVector3d ab = vb - va;
+				Eigen::RowVector3d ac = vc - va;
+				 
+				double area = (ab.cross(ac)).norm();										// 三角片面积的两倍;
+
+				Eigen::RowVector3d dir_ab = ab.normalized();
+				Eigen::RowVector3d dir_h = (ac - dir_ab.dot(ac) * dir_ab).normalized(); 
+				Quadric face_quadric = subspace_quadric(va, dir_ab, dir_h, area);
+
+				// for debug:
+				if (37640 == vaIdx || 37640 == vbIdx || 37640 == vcIdx)
+				{
+					debugDisp("pause");
+					Eigen::MatrixXd A = std::get<0>(face_quadric)/area;
+					Eigen::RowVectorXd b = std::get<1>(face_quadric) / area;
+					double c = std::get<2>(face_quadric) / area;
+					//debugDisp("A == \n", A, "\n");
+					//debugDisp("b == ", b, "\n");
+					//debugDisp("c == ", c);
+					//debugDisp("\n\n");
+
+					double d0 = std::sqrt(c);
+					Eigen::RowVector4d p{b(0), b(1), b(2), c};
+					p = (p / d0).eval();
+					debugDisp("p == ", p);
 				}
 
-				collapsedVers.row(ueIdx) = p;
-				costs(ueIdx) = cost;
-			},
-			10000);
+				// Throw at each corner 
+				quadrics[vaIdx] = quadrics[vaIdx] + face_quadric; 
+				quadrics[vbIdx] = quadrics[vbIdx] + face_quadric;
+				quadrics[vcIdx] = quadrics[vcIdx] + face_quadric;
+			}
+			else
+			{
+#if 0
+				// cth corner is infinite --> edge opposite cth corner is boundary				
+				const Eigen::RowVectorXd va = vers.row(tris(i, (infinite_corner + 1) % 3));		// Boundary edge vector
+				Eigen::RowVectorXd ev = vers.row(tris(i, (infinite_corner + 2) % 3)) - va;
+				const double length = ev.norm();
+				ev /= length;
+
+				// Face neighbor across boundary edge
+				int e = edgeUeInfo(i + tris.rows() * infinite_corner);
+				int opp = UeTrisInfo(e, 0) == i ? 1 : 0;
+				int n = UeTrisInfo(e, opp);
+				int nc = EI(e, opp);
+				assert(
+					((tris(i, (infinite_corner + 1) % 3) == tris(n, (nc + 1) % 3) &&
+						tris(i, (infinite_corner + 2) % 3) == tris(n, (nc + 2) % 3)) ||
+						(tris(i, (infinite_corner + 1) % 3) == tris(n, (nc + 2) % 3)
+							&& tris(i, (infinite_corner + 2) % 3) == tris(n, (nc + 1) % 3))) &&
+					"Edge flaps not agreeing on shared edge");
+
+				// Edge vector on opposite face
+				const Eigen::RowVectorXd eu = vers.row(tris(n, nc)) - va;
+				assert(!std::isinf(eu(0)));
+
+				// Matrix with vectors spanning plane as columns
+				Eigen::MatrixXd A(ev.size(), 2);
+				A << ev.transpose(), eu.transpose();
+
+				// Use QR decomposition to find basis for orthogonal space
+				Eigen::HouseholderQR<Eigen::MatrixXd> qr(A);
+				const Eigen::MatrixXd Q = qr.householderQ();
+				const Eigen::MatrixXd N = Q.topRightCorner(ev.size(), ev.size() - 2).transpose();
+				assert(N.cols() == ev.size());
+				assert(N.rows() == ev.size() - 2);
+
+				Eigen::MatrixXd S(N.rows() + 1, ev.size());
+				S << ev, N;
+				Quadric boundary_edge_quadric = subspace_quadric(va, S, length * length);
+				for (int k = 0; k < 3; k++) 
+					if (k != infinite_corner) 
+						quadrics[tris(i, k)] = quadrics[tris(i, k)] + boundary_edge_quadric; 
+#endif
+				assert("should not happen.");
+			}
+		}
+	}
+ 
+
+	// 解析qslim()
+	 void test0000()
+	 {
+		 Eigen::MatrixXd vers, versOut, vers0, versOri;
+		 Eigen::MatrixXi tris, trisOut, trisTmp, trisOri;
+		 Eigen::VectorXi newOldTrisInfo;						// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
+		 Eigen::VectorXi newOldVersInfo;
+		 Eigen::VectorXi edgeUeInfo;
+		 Eigen::MatrixXi edges, uEdges, ueEdgeInfo, UeTrisInfo, UeCornersInfo;
+		 Eigen::VectorXi timeStamps;
+		 Eigen::MatrixXd collapsedVers;
+		 Eigen::VectorXd costs;
+		 std::vector<Quadric> quadrics;													// 每个顶点的Q矩阵；
+		 igl::min_heap<std::tuple<double, int, int> > pQueue;				// 优先队列；
+		 Eigen::VectorXi _1, I2;											// 最后删除孤立点和内补三角片时用到；
+		 bool clean_finish = false;
+		 tiktok& tt = tiktok::getInstance();
+
+		 // for debug:
+		 std::vector<triplet<double>> versMoni;
+		 std::vector<triplet<int>>	trisMoni;
+		 std::vector<doublet<int>> edgesMoni;
+		 std::vector<int>			vecMoni;
+		 int retIdx = -1;
+
+		 tt.start();
+		 igl::readOBJ("E:/材料/jawBracket1.obj", versOri, trisOri);
+		 tt.endCout("elapsed time of loading mesh is: ");
+		 igl::writeOBJ("E:/meshIn.obj", versOri, trisOri);
+
+		 unsigned versCount = versOri.rows();
+		 unsigned trisCount = trisOri.rows();
+		 int trisCountNew = trisCount;
+		 int tarTrisCount = 37734;
+
+		 // 0. 检测是否有非流形有向边，有则直接退出；
+		 Eigen::MatrixXi nmnUedges;
+		 nonManifoldUEs(nmnUedges, trisOri);
+		 if (nmnUedges.size() > 0)
+			 return;
+
+		 // 1. 将网格处理成一个封闭网格——若存在边缘有向边，则将其和一个无限远点连接生成新三角片
+		 connect_boundary_to_infinity(vers, tris, versOri, trisOri);
+
+		 // 1.1 计算无向边信息：
+		 getEdges(edges, tris);
+		 getUedges(uEdges, edgeUeInfo, ueEdgeInfo, edges);
+		 getUeInfos(UeTrisInfo, UeCornersInfo, edgeUeInfo, uEdges, tris);
+
+		 // 2. 计算每个顶点的Q矩阵：
+		 getQuadrics(vers, tris, edgeUeInfo, UeTrisInfo, UeCornersInfo, quadrics);
+
+		 // 3. 计算每条无向边的cost值，以此为优先级存入优先队列
+		 timeStamps = Eigen::VectorXi::Zero(uEdges.rows());
+		 collapsedVers.resize(uEdges.rows(), vers.cols());
+		 costs.resize(uEdges.rows());
+		 igl::parallel_for(uEdges.rows(), [&](const int ueIdx)
+			 {
+				 // 以下是cost_and_placement()的内容：
+				 double cost = ueIdx;
+				 Eigen::RowVectorXd p(1, 3);
+
+				 // Combined quadric
+				 Quadric quadric_p;
+				 quadric_p = quadrics[uEdges(ueIdx, 0)] + quadrics[uEdges(ueIdx, 1)];
+
+				 // Quadric: p'Ap + 2b'p + c,  optimal point: Ap = -b, or rather because we have row vectors: pA=-b
+				 const auto& A = std::get<0>(quadric_p);
+				 const auto& b = std::get<1>(quadric_p);
+				 const auto& c = std::get<2>(quadric_p);
+				 p = -b * A.inverse();
+				 cost = p.dot(p * A) + 2 * p.dot(b) + c;
+
+				 // Force infs and nans to infinity
+				 if (std::isinf(cost) || cost != cost)
+				 {
+					 cost = std::numeric_limits<double>::infinity();
+					 p.setConstant(0);
+				 }
+
+				 collapsedVers.row(ueIdx) = p;
+				 costs(ueIdx) = cost;
+			 },
+			 10000);
+
+		 //// FOR DEBUG——打印sick edge：
+		 //double theCost = 0;
+		 //int a, b;
+		 //int theUeIdx = 0;
+		 //for (int i = 0; i < uEdges.rows(); ++i)
+		 //{
+			// a = uEdges(i, 0);
+			// b = uEdges(i, 1);
+
+			// if ((a == 37640 && b == 36394) || (a == 36394 && b == 37640))
+			// {
+			//	 theUeIdx = i;
+			//	 Eigen::RowVector3d verA = vers.row(a);
+			//	 Eigen::RowVector3d verB = vers.row(b);
+			//	 Eigen::RowVector3d newPos = collapsedVers.row(i);
+			//	 theCost = costs(i);
+			//	 debugDisp("verA == ", verA);
+			//	 debugDisp("verB == ", verB);
+			//	 debugDisp("newPos == ", newPos);
+			//	 debugDisp("the cost == ", theCost);
+			//	 break;
+			// }
+		 //}
+
+
+		 //// for debug——打印sick edge两端点的quadric:
+		 //for (int i = 0; i < vers.rows(); ++i)
+		 //{
+			// if (i == 37640 || i == 36394)
+			// {
+			//	 Quadric q = quadrics[i];
+			//	 debugDisp("index == ", i);
+			//	 debugDisp("A == ", std::get<0>(q));
+			//	 debugDisp("vec == ", std::get<1>(q));
+			//	 debugDisp("\n\n\n");
+			// }
+		 //}
+	 
 
 		for (int i = 0; i < uEdges.rows(); i++)
 			pQueue.emplace(costs(i), i, 0);
+
+
+		//// for debug——打印前十的cost
+		//auto pQueueCopy = pQueue;
+		//int order = 0; 
+		//auto ttt = pQueueCopy.top();
+		//while (order < 10) 
+		//{
+		//	debugDisp("cost == ", std::get<0>(ttt));
+		//	pQueueCopy.pop();
+		//	ttt = pQueueCopy.top();
+		//	order++;
+		//}
+		//debugDisp("order == ", order);
+
 
 		// 4. 边折叠的循环：
 		int uEdgeIdx0;							// 优先队列首部的边；
@@ -2986,35 +3199,17 @@ int main(int argc, char** argv)
 
 	// MESH_REPAIR::testCmd_triangleGrowOutterSurf(argc, argv);
 
-	TEST_MYEIGEN::test1111();
+	// TEST_MYEIGEN::test1111();
+
+	// DENSEMAT::test3();
 
 	// SPARSEMAT::test0(); 
 
 	// IGL_BASIC_PMP::test8();
 
-	// DECIMATION::testCmd_qslimDecimation(argc, argv);
+	DECIMATION::test0000();
 
-
-	//Eigen::MatrixXd vers;
-	//Eigen::MatrixXi tris;
-	//objReadMeshMat(vers, tris, "E:/材料/pillars.obj");
-
-	//Eigen::VectorXi connectedLabels, connectedCount;
-	//Eigen::SparseMatrix<int> adjSM_eIdx, adjSM_eCount, adjSM;
-	//adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
-	//adjSM = adjSM_eCount;
-	//traverseSparseMatrix(adjSM, [&adjSM](auto& iter)
-	//	{
-	//		if (iter.value() > 0)
-	//			iter.valueRef() = 1;
-	//	});
-	//int scCount1 = simplyConnectedRegion(adjSM, connectedLabels, connectedCount); 
-
-	//std::vector<int> connectedLabels1, connectedLabels2, connectedCount1, connectedCount2;
-	//connectedLabels1 = vec2Vec(connectedLabels);
-	//connectedCount1 = vec2Vec(connectedCount);
-	//int scCount2 = simplyConnectedRegion(connectedLabels2, connectedCount2, vers, tris);
-
+	 
 
 	std::cout << "main() finished." << std::endl;
 }

@@ -4,37 +4,42 @@
 static igl::opengl::glfw::Viewer viewer;				// libigl中的基于glfw的显示窗口；
 static std::string g_debugPath = "E:/";
 
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////////DEBUG接口：
-
-static void debugDisp()			// 递归终止
-{						//		递归终止设为无参或者一个参数的情形都可以。
-	std::cout << std::endl;
-	return;
-}
-
-template <typename T, typename... Types>
-static void debugDisp(const T& firstArg, const Types&... args)
+namespace MY_DEBUG 
 {
-	std::cout << firstArg << " ";
-	debugDisp(args...);
-}
+	static void debugDisp()			// 递归终止
+	{						//		递归终止设为无参或者一个参数的情形都可以。
+		std::cout << std::endl;
+		return;
+	}
 
-template<typename DerivedV>
-static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
-{
-	char path[512] = { 0 };
-	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-	objWriteVerticesMat(path, vers);
-}
+	template <typename T, typename... Types>
+	static void debugDisp(const T& firstArg, const Types&... args)
+	{
+		std::cout << firstArg << " ";
+		debugDisp(args...);
+	}
 
- 
-template<typename T>
-static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
-{
-	char path[512] = { 0 };
-	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-	objWriteMeshMat(path, vers, tris);
+	template<typename DerivedV>
+	static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteVerticesMat(path, vers);
+	}
+
+
+	template<typename T>
+	static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteMeshMat(path, vers, tris);
+	}
 }
+using namespace MY_DEBUG;
 
 
 
