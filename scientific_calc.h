@@ -6,6 +6,9 @@
 #include <Eigen/Sparse>
 #include <iostream>
 
+#include "HomoCoorTools/HomoCoorTools.h"
+#pragma comment(lib,"HomoCoorTools.lib")	
+
 namespace SCIENTIFICCALC
 {
 	const double pi = 3.14159;

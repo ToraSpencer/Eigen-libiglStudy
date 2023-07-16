@@ -209,17 +209,7 @@ template <typename DerivedV, typename	 DerivedI>
 void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers);
 template <typename DerivedV>
 void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, const Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers);
-void objReadVerticesHomoMat(Eigen::MatrixXf& vers, const char* fileName);
 
-void objWriteVerticesHomoMat(const char* fileName, const Eigen::MatrixXf& vers);
-
-void vers2homoVers(Eigen::MatrixXf& homoVers, const Eigen::MatrixXf& vers);
-
-Eigen::MatrixXf vers2homoVers(const Eigen::MatrixXf& vers);
-
-void homoVers2vers(Eigen::MatrixXf& vers, const Eigen::MatrixXf& homoVers);
-
-Eigen::MatrixXf homoVers2vers(const Eigen::MatrixXf& homoVers);
 template<typename T>
 bool spMatTranspose(Eigen::SparseMatrix<T>& smOut, const Eigen::SparseMatrix<T>& smIn);
 template<typename T, int N>
@@ -2083,19 +2073,6 @@ void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, cons
 
  
 
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////// 齐次坐标系相关接口
-void objReadVerticesHomoMat(Eigen::MatrixXf& vers, const char* fileName);
-
-void objWriteVerticesHomoMat(const char* fileName, const Eigen::MatrixXf& vers);
-
-void vers2homoVers(Eigen::MatrixXf& homoVers, const Eigen::MatrixXf& vers);
-
-Eigen::MatrixXf vers2homoVers(const Eigen::MatrixXf& vers);
-
-void homoVers2vers(Eigen::MatrixXf& vers, const Eigen::MatrixXf& homoVers);
-
-Eigen::MatrixXf homoVers2vers(const Eigen::MatrixXf& homoVers);
 
 
 

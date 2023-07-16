@@ -177,6 +177,165 @@ namespace DECIMATION
 		return result;
 	}
 
+	// lambda——得到某一个面片的quadric
+	/*
+		 Inputs:
+		   va		1 by n row point on the subspace
+		   S		m by n matrix where rows coorespond to orthonormal spanning
+					vectors of the subspace to which we're measuring distance (usually a plane,  m=2)
+		   weight  scalar weight
+		 Returns quadric triple {A, b, c} so that A-2*b+c measures the quadric
+
+
+		 Weight face's quadric (v'*A*v + 2*b'*v + c) by area
+	*/
+	Quadric subspace_quadric(const Eigen::RowVector3d& va, const Eigen::RowVector3d& dir_ab, const Eigen::RowVector3d& dir_h, const double weight)
+	{
+		Eigen::MatrixXd A = Eigen::MatrixXd::Identity(3, 3) - dir_ab.transpose() * dir_ab - dir_h.transpose() * dir_h;
+		Eigen::RowVector3d b = -va + va.dot(dir_ab) * dir_ab + va.dot(dir_h) * dir_h;
+		double c = va.dot(va) - pow(va.dot(dir_ab), 2) - pow(va.dot(dir_h), 2);
+
+		return Quadric{ weight * A,  weight * b,  weight * c };
+	};
+
+
+	// 计算顶点的Q矩阵：
+	void getQuadrics(const Eigen::MatrixXd& vers, const Eigen::MatrixXi& tris,
+		const Eigen::MatrixXi& edgeUeInfo, const Eigen::MatrixXi& UeTrisInfo,
+		const Eigen::MatrixXi& EI, std::vector<std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double>>& quadrics)
+	{
+		using namespace std;
+		using Quadric = std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double>;
+		const int versCount = vers.rows();
+		Eigen::MatrixXd I = Eigen::MatrixXd::Identity(3, 3);
+
+		// 所有Quadrics初始化为0；
+		quadrics.resize(versCount, Quadric{ Eigen::MatrixXd::Zero(3, 3), Eigen::RowVectorXd::Zero(3), 0 });
+
+		// Rather initial with zeros,  initial with a small amount of energy pull toward original vertex position
+		const double w = 1e-10;
+		for (int i = 0; i < vers.rows(); i++)
+		{
+			std::get<0>(quadrics[i]) = w * I;
+			Eigen::RowVectorXd ver = vers.row(i);
+			std::get<1>(quadrics[i]) = -w * ver;
+			std::get<2>(quadrics[i]) = w * ver.dot(ver);
+		}
+
+		// Generic nD qslim from "Simplifying Surfaces with Color and Texture using Quadric Error Metric" (follow up to original QSlim)
+		for (int i = 0; i < tris.rows(); i++)
+		{
+			// f1. don't know what the fuck is...
+			int infinite_corner = -1;
+			for (int k = 0; k < 3; k++)
+			{
+				if (std::isinf(vers(tris(i, k), 0)) || std::isinf(vers(tris(i, k), 1)) || std::isinf(vers(tris(i, k), 2)))
+				{
+					assert(infinite_corner == -1 && "Should only be one infinite corner");
+					infinite_corner = k;
+				}
+			}
+
+			// f2. 
+			int vaIdx = tris(i, 0);
+			int vbIdx = tris(i, 1);
+			int vcIdx = tris(i, 2);
+			if (infinite_corner == -1)
+			{
+				// Finite (non-boundary) face
+				Eigen::RowVector3d va = vers.row(vaIdx);
+				Eigen::RowVector3d vb = vers.row(vbIdx);
+				Eigen::RowVector3d vc = vers.row(vcIdx);
+				Eigen::RowVector3d ab = vb - va;
+				Eigen::RowVector3d ac = vc - va;
+
+				double area = (ab.cross(ac)).norm();										// 三角片面积的两倍;
+
+				Eigen::RowVector3d dir_ab = ab.normalized();
+				Eigen::RowVector3d dir_h = (ac - dir_ab.dot(ac) * dir_ab).normalized();
+				Quadric face_quadric = subspace_quadric(va, dir_ab, dir_h, area);
+
+				//// for debug:
+				//if (37640 == vaIdx || 37640 == vbIdx || 37640 == vcIdx)
+				//{ 
+				//	Eigen::MatrixXd A = std::get<0>(face_quadric) / area;
+				//	Eigen::RowVectorXd b = std::get<1>(face_quadric) / area;
+				//	double c = std::get<2>(face_quadric) / area;
+
+				//	double d0 = std::sqrt(c);
+				//	Eigen::RowVector4d p{ b(0), b(1), b(2), c };
+				//	p = (p / d0).eval();
+				//	debugDisp("p == ", p);
+				//	debugDisp("area == ", area);
+				//}
+
+				// for debug:
+				if (36394 == vaIdx || 36394 == vbIdx || 36394 == vcIdx)
+				{
+					Eigen::MatrixXd A = std::get<0>(face_quadric) / area;
+					Eigen::RowVectorXd b = std::get<1>(face_quadric) / area;
+					double c = std::get<2>(face_quadric) / area;
+
+					double d0 = std::sqrt(c);
+					Eigen::RowVector4d p{ b(0), b(1), b(2), c };
+					p = (p / d0).eval();
+					debugDisp("p == ", p);
+					debugDisp("area == ", area);
+				}
+
+				// Throw at each corner 
+				quadrics[vaIdx] = quadrics[vaIdx] + face_quadric;
+				quadrics[vbIdx] = quadrics[vbIdx] + face_quadric;
+				quadrics[vcIdx] = quadrics[vcIdx] + face_quadric;
+			}
+			else
+			{
+#if 0
+				// cth corner is infinite --> edge opposite cth corner is boundary				
+				const Eigen::RowVectorXd va = vers.row(tris(i, (infinite_corner + 1) % 3));		// Boundary edge vector
+				Eigen::RowVectorXd ev = vers.row(tris(i, (infinite_corner + 2) % 3)) - va;
+				const double length = ev.norm();
+				ev /= length;
+
+				// Face neighbor across boundary edge
+				int e = edgeUeInfo(i + tris.rows() * infinite_corner);
+				int opp = UeTrisInfo(e, 0) == i ? 1 : 0;
+				int n = UeTrisInfo(e, opp);
+				int nc = EI(e, opp);
+				assert(
+					((tris(i, (infinite_corner + 1) % 3) == tris(n, (nc + 1) % 3) &&
+						tris(i, (infinite_corner + 2) % 3) == tris(n, (nc + 2) % 3)) ||
+						(tris(i, (infinite_corner + 1) % 3) == tris(n, (nc + 2) % 3)
+							&& tris(i, (infinite_corner + 2) % 3) == tris(n, (nc + 1) % 3))) &&
+					"Edge flaps not agreeing on shared edge");
+
+				// Edge vector on opposite face
+				const Eigen::RowVectorXd eu = vers.row(tris(n, nc)) - va;
+				assert(!std::isinf(eu(0)));
+
+				// Matrix with vectors spanning plane as columns
+				Eigen::MatrixXd A(ev.size(), 2);
+				A << ev.transpose(), eu.transpose();
+
+				// Use QR decomposition to find basis for orthogonal space
+				Eigen::HouseholderQR<Eigen::MatrixXd> qr(A);
+				const Eigen::MatrixXd Q = qr.householderQ();
+				const Eigen::MatrixXd N = Q.topRightCorner(ev.size(), ev.size() - 2).transpose();
+				assert(N.cols() == ev.size());
+				assert(N.rows() == ev.size() - 2);
+
+				Eigen::MatrixXd S(N.rows() + 1, ev.size());
+				S << ev, N;
+				Quadric boundary_edge_quadric = subspace_quadric(va, S, length * length);
+				for (int k = 0; k < 3; k++)
+					if (k != infinite_corner)
+						quadrics[tris(i, k)] = quadrics[tris(i, k)] + boundary_edge_quadric;
+#endif
+				assert("should not happen.");
+			}
+		}
+	}
+
 
 	void circulation(const int uEdgeIdx,	const bool ccw, const Eigen::MatrixXi& tris,	const Eigen::VectorXi& edgeUeInfo,
 		const Eigen::MatrixXi& UeTrisInfo,	const Eigen::MatrixXi& UeCornersInfo,	std::vector<int>& nbrVersIdx, std::vector<int>& nbrTrisIdx)
@@ -339,8 +498,46 @@ namespace DECIMATION
 		const auto& A = std::get<0>(quadric_p);
 		const auto& b = std::get<1>(quadric_p);
 		const auto& c = std::get<2>(quadric_p);
+
+		// for debug
+#if 1
 		newPos = -b * A.inverse();
 		double cost = newPos.dot(newPos * A) + 2 * newPos.dot(b) + c;
+#else
+		Eigen::Matrix4d Qmat;
+		Qmat.block<3, 3>(0, 0) = A;
+		double d0 = std::sqrt(c); 
+		Qmat(3, 3) = c;
+		Qmat(0, 3) = b(0);
+		Qmat(1, 3) = b(1);
+		Qmat(2, 3) = b(2);
+		Qmat(3, 0) = b(0);
+		Qmat(3, 1) = b(1);
+		Qmat(3, 2) = b(2);
+
+		// 计算折叠后顶点：
+		Eigen::MatrixX4d Q_solve = Qmat;
+		Eigen::Vector4d new_vec;
+		Q_solve(3, 0) = 0.0, Q_solve(3, 1) = 0.0, Q_solve(3, 2) = 0.0, Q_solve(3, 3) = 1.0;
+		double det = Q_solve.determinant();					// Q_solve的行列式；
+		if (std::abs(det) < 1e-6)
+		{
+			// 若Q矩阵不满秩，使用边的中点作为新顶点
+			int vaIdx = uEdges(ueIdx, 0);
+			int vbIdx = uEdges(ueIdx, 1);
+			newPos = (vers.row(vaIdx) + vers.row(vbIdx)) / 2.0;
+		}
+		else
+		{
+			// 若Q矩阵满秩: new_vec = Q_solve.inverse() * {0, 0, 0, 1};
+			Eigen::Vector4d tmpArrow = { 0.0, 0.0, 0.0, 1.0 };
+			new_vec = Q_solve.inverse() * tmpArrow;
+			newPos = Eigen::Matrix<T, 1, 3>{ new_vec[0], new_vec[1], new_vec[2] };
+		}
+
+		// 计算cost值：
+		double cost = new_vec.transpose() * Qmat * new_vec;
+#endif
 
 		// Force infs and nans to infinity
 		if (std::isinf(cost) || cost != cost)
@@ -803,18 +1000,18 @@ namespace DECIMATION
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
 		std::string filePath = "E:/材料/";
-		std::string fileName = "gumMeshDense";
+		std::string fileName = "jawBracket1";
 		igl::readOBJ(filePath + fileName + std::string{ ".obj" }, vers, tris);
 
 		int trisCount = tris.rows();
-		int tarTrisCount = 10000;						// 精简目标三角片 
+		int tarTrisCount = 37734;						// 精简目标三角片 
 		Eigen::VectorXi newOldTrisInfo;				// newOldTrisInfo[i]是精简后的网格中第i个三角片对应的原网格的三角片索引；
 		Eigen::VectorXi newOldVersInfo;
 		if (!igl::qslim(vers, tris, tarTrisCount, versOut, trisOut, newOldTrisInfo, newOldVersInfo))
 			std::cout << "igl::qslim() failed!!!" << std::endl;
 
 		std::stringstream ss;
-		ss << "E:/" << fileName << "_qslim_" << tarTrisCount << ".obj";
+		ss << "E:/" << fileName << "_qslimOrigin_" << tarTrisCount << ".obj";
 		igl::writeOBJ(ss.str(), versOut, trisOut);
 
 
@@ -1064,157 +1261,6 @@ namespace DECIMATION
 	}
 
 
-	// lambda——得到某一个面片的quadric
-	/*
-		 Inputs:
-		   va		1 by n row point on the subspace
-		   S		m by n matrix where rows coorespond to orthonormal spanning
-					vectors of the subspace to which we're measuring distance (usually a plane,  m=2)
-		   weight  scalar weight
-		 Returns quadric triple {A, b, c} so that A-2*b+c measures the quadric
-
-
-		 Weight face's quadric (v'*A*v + 2*b'*v + c) by area
-	*/
-	Quadric subspace_quadric(const Eigen::RowVector3d& va, const Eigen::RowVector3d& dir_ab, const Eigen::RowVector3d& dir_h, const double weight)
-	{ 
-		Eigen::MatrixXd A = Eigen::MatrixXd::Identity(3, 3)  - dir_ab.transpose() * dir_ab - dir_h.transpose() * dir_h;
-		Eigen::RowVector3d b = -va + va.dot(dir_ab) * dir_ab + va.dot(dir_h) * dir_h;
-		double c = va.dot(va) - pow(va.dot(dir_ab), 2) - pow(va.dot(dir_h), 2);
-
-		return Quadric{ weight * A,  weight * b,  weight * c };
-	};
-
-
-	// 计算顶点的Q矩阵：
-	 void getQuadrics(const Eigen::MatrixXd& vers, const Eigen::MatrixXi& tris,
-		const Eigen::MatrixXi& edgeUeInfo, const Eigen::MatrixXi& UeTrisInfo,
-		const Eigen::MatrixXi& EI, std::vector<std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double>>& quadrics)
-	{
-		using namespace std;
-		using Quadric = std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd, double>;
-		const int versCount = vers.rows();
-		Eigen::MatrixXd I = Eigen::MatrixXd::Identity(3, 3);
-
-
-		// 所有Quadrics初始化为0；
-		quadrics.resize(versCount, Quadric{ Eigen::MatrixXd::Zero(3, 3), Eigen::RowVectorXd::Zero(3), 0 });      
-
-		// Rather initial with zeros,  initial with a small amount of energy pull toward original vertex position
-		const double w = 1e-10;
-		for (int i = 0; i < vers.rows(); i++)
-		{
-			std::get<0>(quadrics[i]) = w * I;
-			Eigen::RowVectorXd ver = vers.row(i); 
-			std::get<1>(quadrics[i]) = -w * ver;
-			std::get<2>(quadrics[i]) = w * ver.dot(ver);
-		}
-
-		// Generic nD qslim from "Simplifying Surfaces with Color and Texture using Quadric Error Metric" (follow up to original QSlim)
-		for (int i = 0; i < tris.rows(); i++)
-		{
-			// f1. don't know what the fuck is...
-			int infinite_corner = -1;
-			for (int k = 0; k < 3; k++)
-			{
-				if (std::isinf(vers(tris(i, k), 0)) || std::isinf(vers(tris(i, k), 1)) || std::isinf(vers(tris(i, k), 2)))
-				{
-					assert(infinite_corner == -1 && "Should only be one infinite corner");
-					infinite_corner = k;
-				}
-			}
-
-			// f2. 
-			int vaIdx = tris(i, 0);
-			int vbIdx = tris(i, 1);
-			int vcIdx = tris(i, 2);
-			if (infinite_corner == -1)
-			{
-				// Finite (non-boundary) face
-				Eigen::RowVector3d va = vers.row(vaIdx);
-				Eigen::RowVector3d vb = vers.row(vbIdx);
-				Eigen::RowVector3d vc = vers.row(vcIdx);
-				Eigen::RowVector3d ab = vb - va;
-				Eigen::RowVector3d ac = vc - va;
-				 
-				double area = (ab.cross(ac)).norm();										// 三角片面积的两倍;
-
-				Eigen::RowVector3d dir_ab = ab.normalized();
-				Eigen::RowVector3d dir_h = (ac - dir_ab.dot(ac) * dir_ab).normalized(); 
-				Quadric face_quadric = subspace_quadric(va, dir_ab, dir_h, area);
-
-				// for debug:
-				if (37640 == vaIdx || 37640 == vbIdx || 37640 == vcIdx)
-				{
-					debugDisp("pause");
-					Eigen::MatrixXd A = std::get<0>(face_quadric)/area;
-					Eigen::RowVectorXd b = std::get<1>(face_quadric) / area;
-					double c = std::get<2>(face_quadric) / area;
-					//debugDisp("A == \n", A, "\n");
-					//debugDisp("b == ", b, "\n");
-					//debugDisp("c == ", c);
-					//debugDisp("\n\n");
-
-					double d0 = std::sqrt(c);
-					Eigen::RowVector4d p{b(0), b(1), b(2), c};
-					p = (p / d0).eval();
-					debugDisp("p == ", p);
-				}
-
-				// Throw at each corner 
-				quadrics[vaIdx] = quadrics[vaIdx] + face_quadric; 
-				quadrics[vbIdx] = quadrics[vbIdx] + face_quadric;
-				quadrics[vcIdx] = quadrics[vcIdx] + face_quadric;
-			}
-			else
-			{
-#if 0
-				// cth corner is infinite --> edge opposite cth corner is boundary				
-				const Eigen::RowVectorXd va = vers.row(tris(i, (infinite_corner + 1) % 3));		// Boundary edge vector
-				Eigen::RowVectorXd ev = vers.row(tris(i, (infinite_corner + 2) % 3)) - va;
-				const double length = ev.norm();
-				ev /= length;
-
-				// Face neighbor across boundary edge
-				int e = edgeUeInfo(i + tris.rows() * infinite_corner);
-				int opp = UeTrisInfo(e, 0) == i ? 1 : 0;
-				int n = UeTrisInfo(e, opp);
-				int nc = EI(e, opp);
-				assert(
-					((tris(i, (infinite_corner + 1) % 3) == tris(n, (nc + 1) % 3) &&
-						tris(i, (infinite_corner + 2) % 3) == tris(n, (nc + 2) % 3)) ||
-						(tris(i, (infinite_corner + 1) % 3) == tris(n, (nc + 2) % 3)
-							&& tris(i, (infinite_corner + 2) % 3) == tris(n, (nc + 1) % 3))) &&
-					"Edge flaps not agreeing on shared edge");
-
-				// Edge vector on opposite face
-				const Eigen::RowVectorXd eu = vers.row(tris(n, nc)) - va;
-				assert(!std::isinf(eu(0)));
-
-				// Matrix with vectors spanning plane as columns
-				Eigen::MatrixXd A(ev.size(), 2);
-				A << ev.transpose(), eu.transpose();
-
-				// Use QR decomposition to find basis for orthogonal space
-				Eigen::HouseholderQR<Eigen::MatrixXd> qr(A);
-				const Eigen::MatrixXd Q = qr.householderQ();
-				const Eigen::MatrixXd N = Q.topRightCorner(ev.size(), ev.size() - 2).transpose();
-				assert(N.cols() == ev.size());
-				assert(N.rows() == ev.size() - 2);
-
-				Eigen::MatrixXd S(N.rows() + 1, ev.size());
-				S << ev, N;
-				Quadric boundary_edge_quadric = subspace_quadric(va, S, length * length);
-				for (int k = 0; k < 3; k++) 
-					if (k != infinite_corner) 
-						quadrics[tris(i, k)] = quadrics[tris(i, k)] + boundary_edge_quadric; 
-#endif
-				assert("should not happen.");
-			}
-		}
-	}
- 
-
 	// 解析qslim()
 	 void test0000()
 	 {
@@ -1300,29 +1346,29 @@ namespace DECIMATION
 			 },
 			 10000);
 
-		 //// FOR DEBUG——打印sick edge：
-		 //double theCost = 0;
-		 //int a, b;
-		 //int theUeIdx = 0;
-		 //for (int i = 0; i < uEdges.rows(); ++i)
-		 //{
-			// a = uEdges(i, 0);
-			// b = uEdges(i, 1);
+		 // FOR DEBUG——打印sick edge：
+		 double theCost = 0;
+		 int a, b;
+		 int theUeIdx = 0;
+		 for (int i = 0; i < uEdges.rows(); ++i)
+		 {
+			 a = uEdges(i, 0);
+			 b = uEdges(i, 1);
 
-			// if ((a == 37640 && b == 36394) || (a == 36394 && b == 37640))
-			// {
-			//	 theUeIdx = i;
-			//	 Eigen::RowVector3d verA = vers.row(a);
-			//	 Eigen::RowVector3d verB = vers.row(b);
-			//	 Eigen::RowVector3d newPos = collapsedVers.row(i);
-			//	 theCost = costs(i);
-			//	 debugDisp("verA == ", verA);
-			//	 debugDisp("verB == ", verB);
-			//	 debugDisp("newPos == ", newPos);
-			//	 debugDisp("the cost == ", theCost);
-			//	 break;
-			// }
-		 //}
+			 if ((a == 37640 && b == 36394) || (a == 36394 && b == 37640))
+			 {
+				 theUeIdx = i;
+				 Eigen::RowVector3d verA = vers.row(a);
+				 Eigen::RowVector3d verB = vers.row(b);
+				 Eigen::RowVector3d newPos = collapsedVers.row(i);
+				 theCost = costs(i);
+				 //debugDisp("verA == ", verA);
+				 //debugDisp("verB == ", verB);
+				 //debugDisp("newPos == ", newPos);
+				 debugDisp("the cost == ", theCost);
+				 break;
+			 }
+		 }
 
 
 		 //// for debug——打印sick edge两端点的quadric:
@@ -3206,6 +3252,8 @@ int main(int argc, char** argv)
 	// SPARSEMAT::test0(); 
 
 	// IGL_BASIC_PMP::test8();
+
+	DECIMATION::test0();
 
 	DECIMATION::test0000();
 
