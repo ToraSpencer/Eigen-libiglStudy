@@ -306,10 +306,11 @@ namespace TEST_MYEIGEN
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
-		objReadMeshMat(vers, tris, "E:/²ÄÁÏ/jawMeshDense_algSimp_60000.obj");
-		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
+		objReadMeshMat(vers, tris, "E:/²ÄÁÏ/meshWrongTriDir.obj");
+		
+		debugWriteMesh("meshInput", vers, tris);
 
-		int corrCount = correctTriDirs(trisOut, vers, tris, 0);
+		int corrCount = correctTriDirs(trisOut, vers, tris);
 		debugDisp("correctTriDirs == ", corrCount);
 		debugWriteMesh("meshsOut", vers, trisOut);
 		

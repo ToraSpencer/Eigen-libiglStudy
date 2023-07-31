@@ -66,88 +66,93 @@ static std::mutex g_mutex;						// 全局的互斥锁；
 
 
 ////////////////////////////////////////////////////////////////////////////// 基于WINAPI的一些接口：
-
-// 读取某个目录下所有文件名、目录名；
-void getFileNames(std::string path, std::vector<std::string>& files, bool blRecur = true)
+namespace MY_WIN_API 
 {
-	std::string str;
-	struct _finddata_t fileinfo;			// 文件信息
-	intptr_t hFile = _findfirst(str.assign(path).append("/*").c_str(), &fileinfo);							// 文件句柄	
-	bool blFileValid = (hFile != -1);
-
-	if (blFileValid)
+	// 读取某个目录下所有文件名、目录名；
+	void getFileNames(std::string path, std::vector<std::string>& files, bool blRecur = true)
 	{
-		do
+		std::string str;
+		struct _finddata_t fileinfo;			// 文件信息。宏_finddata_t来自头文件<io.h>
+		intptr_t hFile = _findfirst(str.assign(path).append("/*").c_str(), &fileinfo);							// 文件句柄	
+		bool blFileValid = (hFile != -1);
+
+		if (blFileValid)
 		{
-			bool isSubDir = (fileinfo.attrib & _A_SUBDIR);
-			//如果是目录,递归查找；如果不是,把文件绝对路径存入vector中
-			if (isSubDir & blRecur)
+			do
 			{
-				if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
-					getFileNames(str.assign(path).append("/").append(fileinfo.name), files);
-			}
-			else
-				if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
-					files.push_back(str.assign(path).append("/").append(fileinfo.name));
-		} while (_findnext(hFile, &fileinfo) == 0);
-		_findclose(hFile);
+				bool isSubDir = (fileinfo.attrib & _A_SUBDIR);
+				//如果是目录,递归查找；如果不是,把文件绝对路径存入vector中
+				if (isSubDir & blRecur)
+				{
+					if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
+						getFileNames(str.assign(path).append("/").append(fileinfo.name), files);
+				}
+				else
+					if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)
+						files.push_back(str.assign(path).append("/").append(fileinfo.name));
+			} while (_findnext(hFile, &fileinfo) == 0);
+			_findclose(hFile);
+		}
 	}
-}
 
 
-// config文件路径字符串字面量 → std::wstring字符串；
-static void GetConfigDir(std::wstring& confDir, const TCHAR* pszConfFile)
-{
-#ifdef WIN32
-	std::wstring strRet(pszConfFile);
-	if ((std::string::npos != strRet.find(L"./")) ||
-		(std::string::npos != strRet.find(L".\\")))
+	// config文件路径字符串字面量 → std::wstring字符串；
+	static void GetConfigDir(std::wstring& confDir, const TCHAR* pszConfFile)
 	{
-		TCHAR szCurDir[256] = { 0 };
-		GetCurrentDirectory(256, szCurDir);
-		confDir = szCurDir;
-		confDir += strRet.substr(1, strRet.length());
+#ifdef WIN32
+		std::wstring strRet(pszConfFile);
+		if ((std::string::npos != strRet.find(L"./")) ||
+			(std::string::npos != strRet.find(L".\\")))
+		{
+			TCHAR szCurDir[256] = { 0 };
+			GetCurrentDirectory(256, szCurDir);
+			confDir = szCurDir;
+			confDir += strRet.substr(1, strRet.length());
 
+			return;
+		}
+		confDir = strRet;
+#endif
 		return;
 	}
-	confDir = strRet;
-#endif
-	return;
-}
 
 
-// 读取config文件中的某一个类型为float的键值
-float INIGetFloat(const TCHAR* pszKey, const TCHAR* pszConfFile)
-{
+	// 读取config文件中的某一个类型为float的键值
+	float INIGetFloat(const TCHAR* pszKey, const TCHAR* pszConfFile)
+	{
 #ifdef WIN32
-	std::wstring strFileName;
-	GetConfigDir(strFileName, pszConfFile);
-	TCHAR szValue[256] = { 0 };
-	GetPrivateProfileString(L"ZHENGYADENTALCONFIG", pszKey, L"", szValue, 256, strFileName.c_str());
+		std::wstring strFileName;
+		GetConfigDir(strFileName, pszConfFile);
+		TCHAR szValue[256] = { 0 };
+		GetPrivateProfileString(L"ZHENGYADENTALCONFIG", pszKey, L"", szValue, 256, strFileName.c_str());
 
 #ifdef UNICODE
-	return _wtof(szValue);
+		return _wtof(szValue);
 #else
-	return atof(szValue);
+		return atof(szValue);
 #endif
 #else
-	return 0.0f;
+		return 0.0f;
 #endif
 
-}
+	}
 
 
-// 读取config文件中的某一个类型为int的键值
-DWORD INIGetInt(const TCHAR* pszKey, const TCHAR* pszConfFile)
-{
+	// 读取config文件中的某一个类型为int的键值
+	DWORD INIGetInt(const TCHAR* pszKey, const TCHAR* pszConfFile)
+	{
 #ifdef WIN32
-	std::wstring strFileName;
-	GetConfigDir(strFileName, pszConfFile);
-	return GetPrivateProfileInt(L"ZHENGYADENTALCONFIG", pszKey, 0, strFileName.c_str());
+		std::wstring strFileName;
+		GetConfigDir(strFileName, pszConfFile);
+		return GetPrivateProfileInt(L"ZHENGYADENTALCONFIG", pszKey, 0, strFileName.c_str());
 #else
-	return 0;
+		return 0;
 #endif
+	}
+
+
 }
+using namespace MY_WIN_API;
 
 
 
@@ -3160,6 +3165,7 @@ namespace TEMP_TEST
 }
 
 
+
 ////////////////////////////////////////////////////////////////////////////// 生成控制台程序工具：
 
 
@@ -3232,6 +3238,64 @@ int testCmd_laplaceFaring(int argc, char** argv)
 }
  
 
+int testCmd_hausdorffDistance(int argc, char** argv)
+{ 
+	// 生成路径：
+	int   nPos;
+	CString   cPath;
+	GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
+	nPos = cPath.ReverseFind('\\');
+	cPath = cPath.Left(nPos);
+	std::string path{ CT2CA{cPath} };
+	std::string pathOBJ = path + "\\inputOBJ";
+	std::string pathOutput = path + "\\outputData";
+	CString fileConfig = cPath + "\\config.ini";
+
+	// 1. 读取部件网格  
+	std::cout << "读取输入网格..." << std::endl;
+	std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;
+	std::vector<Eigen::MatrixXd> meshesVers, outVers;
+	std::vector<Eigen::MatrixXi> meshesTris, outTris;
+
+	getFileNames(pathOBJ.c_str(), tmpStrVec, false);
+	const unsigned meshesCount = tmpStrVec.size();
+	if (2 != meshesCount)
+	{
+		debugDisp("error!!! 输入网格数必须为2");
+		return -1;
+	}
+
+	OBJfileNames.reserve(meshesCount);
+	for (const auto& str : tmpStrVec)
+	{
+		std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
+		if (".obj" == tailStr)
+		{
+			fileNames.push_back(str);
+			unsigned index = str.find_last_of("/");
+			std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
+			OBJfileNames.push_back(OBJfileName);
+		}
+	}
+	meshesVers.resize(meshesCount);
+	meshesTris.resize(meshesCount);
+	outVers.resize(meshesCount);
+	outTris.resize(meshesCount);
+	for (unsigned i = 0; i < meshesCount; ++i)
+		objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str()); 
+
+	// 2. 测量两个网格的hausdorff距离：
+	double hd = 0;
+	igl::hausdorff(meshesVers[0], meshesTris[0], meshesVers[1], meshesTris[1], hd);
+	debugDisp("hausdorff distance == ", hd);
+
+	debugDisp("finished.");
+	getchar();
+
+	return 0;
+}
+
+
 
 int main(int argc, char** argv)
 {
@@ -3245,7 +3309,7 @@ int main(int argc, char** argv)
 
 	// MESH_REPAIR::testCmd_triangleGrowOutterSurf(argc, argv);
 
-	// TEST_MYEIGEN::test1111();
+	// TEST_MYEIGEN::test111();
 
 	// DENSEMAT::test3();
 
@@ -3253,11 +3317,14 @@ int main(int argc, char** argv)
 
 	// IGL_BASIC_PMP::test8();
 
-	DECIMATION::test0();
+	//DECIMATION::test0();
 
-	DECIMATION::test0000();
+	//DECIMATION::test0000();
 
-	 
+	SCIENTIFIC_CALC::test1();
+ 
+	// testCmd_hausdorffDistance(argc, argv);
+
 
 	std::cout << "main() finished." << std::endl;
 }

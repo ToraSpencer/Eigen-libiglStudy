@@ -6,86 +6,90 @@ static std::mutex g_mutex;
 
 
 /// /////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
-
-static std::string g_debugPath = "E:/";
-
-static void debugDisp()			// 递归终止
-{						//		递归终止设为无参或者一个参数的情形都可以。
-	std::cout << std::endl;
-	return;
-}
-
-template <typename T, typename... Types>
-static void debugDisp(const T& firstArg, const Types&... args)
+namespace MY_DEBUG 
 {
-	std::cout << firstArg << " ";
-	debugDisp(args...);
+	static std::string g_debugPath = "E:/";
+
+	static void debugDisp()			// 递归终止
+	{						//		递归终止设为无参或者一个参数的情形都可以。
+		std::cout << std::endl;
+		return;
+	}
+
+	template <typename T, typename... Types>
+	static void debugDisp(const T& firstArg, const Types&... args)
+	{
+		std::cout << firstArg << " ";
+		debugDisp(args...);
+	}
+
+
+	template <typename T, int M, int N>
+	static void dispData(const Eigen::Matrix<T, M, N>& m)
+	{
+		auto dataPtr = m.data();
+		unsigned elemsCount = m.size();
+
+		for (unsigned i = 0; i < elemsCount; ++i)
+			std::cout << dataPtr[i] << ", ";
+
+		std::cout << std::endl;
+	}
+
+
+	template <typename Derived>
+	static void dispData(const Eigen::PlainObjectBase<Derived>& m)
+	{
+		int m0 = m.RowsAtCompileTime;
+		int n0 = m.ColsAtCompileTime;
+
+		auto dataPtr = m.data();
+		unsigned elemsCount = m.size();
+
+		for (unsigned i = 0; i < elemsCount; ++i)
+			std::cout << dataPtr[i] << ", ";
+
+		std::cout << std::endl;
+	}
+
+
+	template <typename Derived>
+	static void dispElem(const Eigen::MatrixBase<Derived>& m)
+	{
+		const Derived& mm = m.derived();
+		std::cout << mm(1, 1) << std::endl;
+	}
+
+
+	template<typename DerivedV>
+	static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteVerticesMat(path, vers);
+	}
+
+
+	template<typename T>
+	static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteMeshMat(path, vers, tris);
+	}
+
+
+	template<typename DerivedV>
+	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteEdgesMat(path, edges, vers);
+	}
+
+
 }
-
-
-template <typename T, int M, int N>
-static void dispData(const Eigen::Matrix<T, M, N>& m)
-{
-	auto dataPtr = m.data();
-	unsigned elemsCount = m.size();
-
-	for (unsigned i = 0; i < elemsCount; ++i)
-		std::cout << dataPtr[i] << ", ";
-
-	std::cout << std::endl;
-}
-
-
-template <typename Derived>
-static void dispData(const Eigen::PlainObjectBase<Derived>& m)
-{
-	int m0 = m.RowsAtCompileTime;
-	int n0 = m.ColsAtCompileTime;
-
-	auto dataPtr = m.data();
-	unsigned elemsCount = m.size();
-
-	for (unsigned i = 0; i < elemsCount; ++i)
-		std::cout << dataPtr[i] << ", ";
-
-	std::cout << std::endl;
-}
-
-
-template <typename Derived>
-static void dispElem(const Eigen::MatrixBase<Derived>& m)
-{
-	const Derived& mm = m.derived();
-	std::cout << mm(1, 1) << std::endl;
-}
-
-
-template<typename DerivedV>
-static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
-{
-	char path[512] = { 0 };
-	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-	objWriteVerticesMat(path, vers);
-}
-
-
-template<typename T>
-static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
-{
-	char path[512] = { 0 };
-	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-	objWriteMeshMat(path, vers, tris);
-}
- 
-
-template<typename DerivedV>
-static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
-{
-	char path[512] = { 0 };
-	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-	objWriteEdgesMat(path, edges, vers);
-}
-
+using namespace MY_DEBUG;
 
 
 ////////////////////////////////////////////////////////////////////////////// libigl基本功能
@@ -2014,25 +2018,23 @@ namespace IGL_BASIC_PMP
 	{
 		Eigen::MatrixXd vers0, vers00, vers1, vers11, vers2, vers22;
 		Eigen::MatrixXi tris0, tris00, tris1, tris11, tris2, tris22;
-		double hd0, hd1, hd2, hd3, hd4;
-		hd0 = hd1 = hd2 = hd3 = hd4 = 0;
+		double hd0, hd00, hd1, hd2, hd3, hd4;
+		hd00 = hd0 = hd1 = hd2 = hd3 = hd4 = 0;
 
 		tiktok& tt = tiktok::getInstance();
 		tt.start();
-		objReadMeshMat(vers0, tris0, "E:/牙齿.obj");
-		objReadMeshMat(vers00, tris00, "E:/牙齿_remeshed.obj");
-		objReadMeshMat(vers1, tris1, "E:/rootTooth1.obj");
-		objReadMeshMat(vers11, tris11, "E:/rootTooth1_remeshed.obj");
-		objReadMeshMat(vers2, tris2, "E:/fatTeeth.obj"); 
-		objReadMeshMat(vers22, tris22, "E:/fatTeeth_remeshed.obj");
+		objReadMeshMat(vers0, tris0, "E:/材料/tooth.obj");
+		objReadMeshMat(vers00, tris00, "E:/材料/tooth1.obj");
+		objReadMeshMat(vers1, tris1, "E:/材料/rootTooth1.obj");
+		objReadMeshMat(vers11, tris11, "E:/材料/rootTooth2.obj"); 
 		tt.endCout("meshes loading finished:");
 
 		igl::hausdorff(vers0, tris0, vers00, tris00, hd0);
-		igl::hausdorff(vers1, tris1, vers11, tris11, hd1);
-		igl::hausdorff(vers2, tris2, vers22, tris22, hd2); 
+		igl::hausdorff(vers00, tris00, vers0, tris0, hd00);
+		igl::hausdorff(vers1, tris1, vers11, tris11, hd1); 
 		debugDisp("Hausdorff distance0 == ", hd0);
-		debugDisp("Hausdorff distance1 == ", hd1);
-		debugDisp("Hausdorff distance2 == ", hd2); 
+		debugDisp("Hausdorff distance00 == ", hd00);
+		debugDisp("Hausdorff distance1 == ", hd1); 
 
 		std::cout << "finished." << std::endl;
 	}

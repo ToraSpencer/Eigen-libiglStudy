@@ -9,7 +9,7 @@
 #include "HomoCoorTools/HomoCoorTools.h"
 #pragma comment(lib,"HomoCoorTools.lib")	
 
-namespace SCIENTIFICCALC
+namespace SCIENTIFIC_CALC
 {
 	const double pi = 3.14159;
 	void test0();

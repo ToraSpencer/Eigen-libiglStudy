@@ -79,6 +79,9 @@
     <ClInclude Include="MC_tables.h" />
     <ClInclude Include="triangulate.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="myEigen.tpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

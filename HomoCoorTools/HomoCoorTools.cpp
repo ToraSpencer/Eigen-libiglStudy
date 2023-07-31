@@ -102,22 +102,7 @@ void objWriteVerticesHomoMat(const char* fileName, const Eigen::MatrixXf& vers)
 	dstFile.close();
 }
 
-
-//	普通点云矩阵转换为齐次坐标系下的点云矩阵：
-void vers2homoVers(Eigen::MatrixXf& homoVers, const Eigen::MatrixXf& vers)
-{
-	homoVers = Eigen::MatrixXf::Ones(4, vers.rows());
-	homoVers.topRows(3) = vers.transpose();
-}
-
-
-Eigen::MatrixXf vers2homoVers(const Eigen::MatrixXf& vers)
-{
-	Eigen::MatrixXf homoVers = Eigen::MatrixXf::Ones(4, vers.rows());
-	homoVers.topRows(3) = vers.transpose();
-	return homoVers;
-}
-
+ 
 
 // 齐次坐标系下的点云矩阵变换为普通点云矩阵
 void homoVers2vers(Eigen::MatrixXf& vers, const Eigen::MatrixXf& homoVers)
@@ -133,3 +118,78 @@ Eigen::MatrixXf homoVers2vers(const Eigen::MatrixXf& homoVers)
 	Eigen::MatrixXf vers = tempMat.leftCols(3);
 	return vers;
 }
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////// 模板函数实现：
+
+template	<typename T>
+void objWriteHomoMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& homoVers, const Eigen::MatrixXi& tris)
+{
+	std::ofstream dstFile(fileName);
+	if (homoVers.rows() != 4 || tris.cols() != 3)
+		return;
+
+	for (int j = 0; j < homoVers.cols(); j++)
+	{
+		char szBuf[1024] = { 0 };
+		sprintf_s(szBuf, 1024, "v %.17g %.17g %.17g", homoVers(0, j), homoVers(1, j), homoVers(2, j));
+		dstFile << szBuf << "\n";
+	}
+
+	for (unsigned j = 0; j < tris.rows(); ++j)
+	{
+		char szBuf[256] = { 0 };
+		sprintf_s(szBuf, 256, "f %d %d %d", tris(j, 0) + 1, tris(j, 1) + 1, tris(j, 2) + 1);
+		dstFile << szBuf << "\n";
+	}
+};
+
+
+template <typename Derived>
+Eigen::MatrixXf vers2homoVersF(const Eigen::PlainObjectBase<Derived>& vers)
+{
+	const int versCount = vers.rows();
+	Eigen::MatrixXf tmpVers = vers.transpose().cast<float>();
+
+	Eigen::MatrixXf homoVers(4, versCount);
+	homoVers.setOnes();
+	homoVers.topRows(3) = tmpVers;
+
+	return homoVers;
+}
+
+
+template <typename Derived>
+Eigen::MatrixXd vers2homoVersD(const Eigen::PlainObjectBase<Derived>& vers)
+{
+	const int versCount = vers.rows();
+	Eigen::MatrixXd tmpVers = vers.transpose().cast<double>();
+
+	Eigen::MatrixXd homoVers(4, versCount);
+	homoVers.setOnes();
+	homoVers.topRows(3) = tmpVers;
+
+	return homoVers;
+}
+
+
+
+// 模板函数需要特化之后才能在静态库中输出： 
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////// 模板特化：
+template void objWriteHomoMeshMat<double>(const char*, const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>&, \
+	const Eigen::MatrixXi& tris);
+template void objWriteHomoMeshMat<float>(const char*, const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>&, \
+	const Eigen::MatrixXi& tris);
+
+template Eigen::MatrixXf vers2homoVersF<Eigen::Matrix<double, -1, -1, 0, -1, -1>>(\
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>& vers);
+template Eigen::MatrixXf vers2homoVersF<Eigen::Matrix<float, -1, -1, 0, -1, -1>>(\
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>& vers);
+
+template Eigen::MatrixXd vers2homoVersD<Eigen::Matrix<double, -1, -1, 0, -1, -1>>(\
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>& vers);
+template Eigen::MatrixXd vers2homoVersD<Eigen::Matrix<float, -1, -1, 0, -1, -1>>(\
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>& vers);

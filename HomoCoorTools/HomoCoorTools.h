@@ -36,15 +36,17 @@
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 齐次坐标系相关接口
+template	<typename T>
+void objWriteHomoMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& homoVers, \
+	const Eigen::MatrixXi& tris);
+template <typename Derived>
+Eigen::MatrixXf vers2homoVersF(const Eigen::PlainObjectBase<Derived>& vers);
+template <typename Derived>
+Eigen::MatrixXd vers2homoVersD(const Eigen::PlainObjectBase<Derived>& vers);
+
+
 void objReadVerticesHomoMat(Eigen::MatrixXf& vers, const char* fileName);
-
 void objWriteVerticesHomoMat(const char* fileName, const Eigen::MatrixXf& vers);
-
-void vers2homoVers(Eigen::MatrixXf& homoVers, const Eigen::MatrixXf& vers);
-
-Eigen::MatrixXf vers2homoVers(const Eigen::MatrixXf& vers);
-
 void homoVers2vers(Eigen::MatrixXf& vers, const Eigen::MatrixXf& homoVers);
-
 Eigen::MatrixXf homoVers2vers(const Eigen::MatrixXf& homoVers);
-
+ 
