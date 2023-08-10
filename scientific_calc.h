@@ -6,6 +6,8 @@
 #include <Eigen/Sparse>
 #include <iostream>
 
+
+// 齐次坐标系相关静态库
 #include "HomoCoorTools/HomoCoorTools.h"
 #pragma comment(lib,"HomoCoorTools.lib")	
 

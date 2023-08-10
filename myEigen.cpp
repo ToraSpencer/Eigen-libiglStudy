@@ -92,36 +92,7 @@ using namespace MY_DEBUG;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////// й╣ож
 
-unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize) 
-{
-	unsigned nIndx = 0;
 
-	while ((pszBuf[0] == ' ') ||
-		(pszBuf[0] == '\n') ||
-		(pszBuf[0] == '\t') ||
-		(pszBuf[0] == '\r'))
-	{
-		pszBuf++;
-		nCount++;
-	}
-
-	while ((pszBuf[0] != ' ') &&
-		(pszBuf[0] != '\n') &&
-		(pszBuf[0] != '\t') &&
-		(pszBuf[0] != '\r') &&
-		(pszBuf[0] != '\null') &&
-		(pszBuf[0] != 0) &&
-		(nIndx < nMaxSize))
-	{
-		validData[nIndx++] = pszBuf[0];
-		pszBuf++;
-		nCount++;
-	}
-
-	validData[nIndx] = 0;
-	return nIndx;
-};
- 
 
 void printDirEigen(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& dir)
 {

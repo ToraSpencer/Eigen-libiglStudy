@@ -33,9 +33,10 @@
 #include "Eigen/Sparse"
 
 
-const double pi = 3.14159265359;
+#include "myEigenIO/myEigenIO.h"
+#pragma comment(lib,"myEigenIO.lib")	
 
-
+  
 /////////////////////////////////////////////////////////////////////////////////////////////////// debug全局变量
 static Eigen::MatrixXd g_debugVers;
 
@@ -120,7 +121,6 @@ template<typename T, int N>
 void dispVecSeg(const Eigen::Matrix<T, N, 1>& vec, const int start, const int end);
 template<typename T, int N>
 void dispVecSeg(const Eigen::Matrix<T, 1, N>& vec, const int start, const int end);
-
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// basic math tools:
@@ -209,24 +209,9 @@ template <typename T>
 void concatMeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers1, const Eigen::MatrixXi& tris1);
 
-unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize);
-template <typename T>
-void vecWriteToFile(const char* fileName, const std::vector<T>& vec);
-template<typename T>
-void vecReadFromFile(std::vector<T>& vec, const char* fileName, const unsigned elemCount);
-template<typename T>
-bool matWriteToFile(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat);
-template<typename T>
-bool matReadFromFile(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const char* fileName);
-template	<typename Scalar, typename Index>
-void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::Matrix<Index, Eigen::Dynamic, \
-	Eigen::Dynamic>& tris, const char* fileName);
-template	<typename T>
-void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
-template	<typename Scalar>
-void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, const char* fileName);
-template	<typename DerivedV>
-void objWriteVerticesMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers);
+
+
+
 void printDirEigen(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& dir);
 void printCoordinateEigen(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& xdir, \
 	const Eigen::RowVector3f& ydir, const Eigen::RowVector3f& zdir);
