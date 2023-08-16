@@ -317,6 +317,122 @@ void objWriteVerticesMat(const char* fileName, const Eigen::PlainObjectBase<Deri
 }
 
 
+// 边数据写入到OBJ文件中：
+template	<typename DerivedV, typename DerivedI>
+void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<DerivedI>& edges, \
+	const Eigen::PlainObjectBase<DerivedV>& vers)
+{
+	if (0 == edges.rows() || 0 == vers.rows())
+		return;
+	std::ofstream dstFile(pathName);
+	for (int i = 0; i < vers.rows(); ++i)
+		dstFile << "v " << vers.coeffRef(i, 0) << " " << vers.coeffRef(i, 1) << " " << vers.coeffRef(i, 2) << std::endl;
+
+	for (int i = 0; i < edges.rows(); ++i)
+		dstFile << "l " << edges.coeffRef(i, 0) + static_cast<typename DerivedI::Scalar>(1) << " " \
+		<< edges.coeffRef(i, 1) + static_cast<typename DerivedI::Scalar>(1) << std::endl;
+
+	dstFile.close();
+}
+
+
+// objWritePath() 路径数据写入到OBJ文件中：
+template <typename DerivedV, typename	 IndexType>
+void objWritePath(const char* pathName, const std::vector<IndexType>& path, \
+	const Eigen::PlainObjectBase<DerivedV>& vers)
+{
+	if (path.size() <= 1)
+		return;
+
+	unsigned edgesCount = path.size() - 1;
+	Eigen::MatrixXi pathEdges(edgesCount, 2);
+
+	for (unsigned i = 0; i < edgesCount; ++i)
+		pathEdges(i, 0) = static_cast<int>(path[i]);
+	for (unsigned i = 0; i < edgesCount; ++i)
+		pathEdges(i, 1) = static_cast<int>(path[i + 1]);
+
+	objWriteEdgesMat(pathName, pathEdges, vers);
+}
+
+
+// objWirteTreePath()——输入树向量或路径向量，写入到OBJ文件中：
+template <typename DerivedV>
+void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, const Eigen::PlainObjectBase<DerivedV>& vers)
+{
+	// 路径被视为树的特例；
+
+	// 树中索引为i的顶点的前驱顶点索引为treeVec(i), 若其没有前驱顶点（父节点），则treeVec(i) == -1;
+	if (treeVec.size() <= 1)
+		return;
+
+	unsigned edgesCount = 0;
+	for (int i = 0; i < treeVec.rows(); ++i)
+		if (treeVec(i) >= 0)
+			edgesCount++;
+
+	Eigen::MatrixXi edges(edgesCount, 2);
+	int rowIdx = 0;
+	for (int i = 0; i < treeVec.rows(); ++i)
+	{
+		if (treeVec(i) >= 0)
+		{
+			edges(rowIdx, 0) = treeVec(i);
+			edges(rowIdx, 1) = i;
+			rowIdx++;
+		}
+	}
+
+	objWriteEdgesMat(pathName, edges, vers);
+}
+ 
+
+void objWriteDirection(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& dir)
+{
+	Eigen::MatrixXf line;
+
+	const float SR = 0.5;			// 空间采样率SR——相邻两个采样点的距离（单位mm）
+	const float length = 10;
+	int versCount = std::round(length / SR);
+	line.resize(versCount + 1, 3);
+	line.row(0) = origin;
+	for (int i = 1; i <= versCount; i++)
+		line.row(i) = line.row(0) + SR * dir * i;
+
+	objWriteVerticesMat(pathName, line);
+};
+
+
+void objWriteCoorSys(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& xdir, \
+	const Eigen::RowVector3f& ydir, const Eigen::RowVector3f& zdir)
+{
+	const float SR = 0.5;			// 空间采样率SR——相邻两个采样点的距离（单位mm）
+	const float length = 10;
+	int versCount = std::round(length / SR);
+	Eigen::MatrixXf line1(versCount, 3), line2(versCount, 3), line3(versCount, 3);
+	for (int i = 0; i < versCount; i++)
+		line1.row(i) = origin + SR * xdir * (i + 1);
+	for (int i = 0; i < versCount; i++)
+		line2.row(i) = origin + SR * ydir * (i + 1);
+	for (int i = 0; i < versCount; i++)
+		line3.row(i) = origin + SR * zdir * (i + 1);
+
+	Eigen::MatrixXf line = origin;
+	int rows = line.rows();
+	line.conservativeResize(line.rows() + line1.rows() + line2.rows() + line3.rows(), 3);
+	for (int i = 0; i < line1.rows(); ++i)
+		line.row(rows + i) = line1.row(i);
+	rows = line.rows();
+	for (int i = 0; i < line2.rows(); ++i)
+		line.row(rows + i) = line2.row(i);
+	rows = line.rows();
+	for (int i = 0; i < line3.rows(); ++i)
+		line.row(rows + i) = line3.row(i);
+	 
+	objWriteVerticesMat(pathName, line);
+}
+
+
 
 // 模板函数需要特化之后才能在静态库中输出： 
 
@@ -359,3 +475,24 @@ template	void objWriteVerticesMat<Eigen::Matrix<float, 1, 3, 1, 1, 3>>(const cha
 template	void objWriteVerticesMat<Eigen::Matrix<double, 1, 3, 1, 1, 3>>(const char* fileName, \
 	const Eigen::PlainObjectBase<Eigen::Matrix<double, 1, 3, 1, 1, 3>>& vers);
 
+template void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<Eigen::Matrix<int, -1, -1, 0, -1, -1>>& edges, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>& vers);
+template void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<Eigen::Matrix<int, -1, -1, 0, -1, -1>>& edges, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>& vers);
+template void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<Eigen::RowVector2i>& edges, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>& vers);
+
+template void objWritePath(const char* pathName, const std::vector<int>& path, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>& vers);
+template void objWritePath(const char* pathName, const std::vector<int>& path, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>& vers);
+template void objWritePath(const char* pathName, const std::vector<unsigned>& path, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>& vers);
+template void objWritePath(const char* pathName, const std::vector<unsigned>& path, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>& vers);
+
+
+template void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>& vers);
+template void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>& vers);

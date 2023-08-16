@@ -814,7 +814,7 @@ namespace DENSEMAT
 		objWriteMeshMat("E:/tooth_ori.obj", vers, tris);
 		objWriteVerticesMat("E:/gumline_ori.obj", gumline);
 
-		printCoordinateEigen("E:/coordinate_ori.obj", RowVector3f::Zero(), axis.row(0), axis.row(1), axis.row(2));
+		objWriteCoorSys("E:/coordinate_ori.obj", RowVector3f::Zero(), axis.row(0), axis.row(1), axis.row(2));
 
 		// 原世界坐标系对应着一个线性空间omega1，三轴方向向量组成的矩阵是一个单位矩阵：M1 == I;
 		Eigen::Matrix3f M1 = Eigen::Matrix3f::Identity();
@@ -836,7 +836,7 @@ namespace DENSEMAT
 		axisNew.transposeInPlace();
 		objWriteMeshMat("E:/tooth_new.obj", versNew, tris);
 		objWriteVerticesMat("E:/gumline_new.obj", gumlineNew);
-		printCoordinateEigen("E:/coordinate_new.obj", RowVector3f::Zero(), axisNew.row(0), axisNew.row(1), axisNew.row(2));
+		objWriteCoorSys("E:/coordinate_new.obj", RowVector3f::Zero(), axisNew.row(0), axisNew.row(1), axisNew.row(2));
 	}
 
 

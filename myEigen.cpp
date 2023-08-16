@@ -94,44 +94,6 @@ using namespace MY_DEBUG;
 
 
 
-void printDirEigen(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& dir)
-{
-	Eigen::MatrixXf line;
-
-	const float SR = 0.5;			// 空间采样率SR——相邻两个采样点的距离（单位mm）
-	const float length = 10;
-	int versCount = std::round(length / SR);
-	line.resize(versCount + 1, 3);
-	line.row(0) = origin;
-	for (int i = 1; i <= versCount; i++)
-		line.row(i) = line.row(0) + SR * dir * i;
-
-	objWriteVerticesMat(pathName, line);
-};
-
-
-void printCoordinateEigen(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& xdir, \
-	const Eigen::RowVector3f& ydir, const Eigen::RowVector3f& zdir)
-{
-	const float SR = 0.5;			// 空间采样率SR——相邻两个采样点的距离（单位mm）
-	const float length = 10;
-	int versCount = std::round(length / SR);
-	Eigen::MatrixXf line1(versCount, 3), line2(versCount, 3), line3(versCount, 3);
-	for (int i = 0; i < versCount; i++)
-		line1.row(i) = origin + SR * xdir * (i + 1);
-	for (int i = 0; i < versCount; i++)
-		line2.row(i) = origin + SR * ydir * (i + 1);
-	for (int i = 0; i < versCount; i++)
-		line3.row(i) = origin + SR * zdir * (i + 1);
-
-	Eigen::MatrixXf line = origin;
-	matInsertRows<float>(line, line1);
-	matInsertRows<float>(line, line2);
-	matInsertRows<float>(line, line3);
-	objWriteVerticesMat(pathName, line);
-}
-
-
 // 布尔向量转化为索引向量；
 Eigen::VectorXi flagVec2IdxVec(const Eigen::VectorXi& flag)
 {

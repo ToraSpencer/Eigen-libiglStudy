@@ -3315,13 +3315,13 @@ int main(int argc, char** argv)
 
 	// SPARSEMAT::test0(); 
 
-	// IGL_BASIC_PMP::test8();
+	IGL_BASIC_PMP::test8();
 
 	//DECIMATION::test0();
 
 	//DECIMATION::test0000();
 
-	SCIENTIFIC_CALC::test1();
+	// SCIENTIFIC_CALC::test1();
  
 	// testCmd_hausdorffDistance(argc, argv);
 

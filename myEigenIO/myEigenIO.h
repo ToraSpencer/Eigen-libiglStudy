@@ -42,3 +42,14 @@ template	<typename Scalar>
 void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, const char* fileName);
 template	<typename DerivedV>
 void objWriteVerticesMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers);
+template	<typename DerivedV, typename DerivedI>
+void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<DerivedI>& edges, \
+	const Eigen::PlainObjectBase<DerivedV>& vers);
+template <typename DerivedV, typename	 DerivedI>
+void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const Eigen::PlainObjectBase<DerivedV>& vers);
+template <typename DerivedV>
+void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, const Eigen::PlainObjectBase<DerivedV>& vers);
+
+void objWriteDirection(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& dir);
+void objWriteCoorSys(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& xdir, \
+	const Eigen::RowVector3f& ydir, const Eigen::RowVector3f& zdir);
