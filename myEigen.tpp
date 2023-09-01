@@ -160,329 +160,240 @@ void traverseSparseMatrix(spMat& sm, F f)
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// debug接口：
-
-// 顶点或三角片矩阵转换为triplet向量的形式；
-template <typename T>
-std::vector<triplet<T>> mat2triplets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat)
+namespace MY_DEBUG 
 {
-	std::vector<triplet<T>> vec;
-	if (0 == mat.rows() || 3 != mat.cols())
-		return vec;
-
-	vec.resize(mat.rows());
-	for (unsigned i = 0; i < mat.rows(); ++i)
+	// 顶点或三角片矩阵转换为triplet向量的形式；
+	template <typename T>
+	std::vector<triplet<T>> mat2triplets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat)
 	{
-		vec[i].x = mat(i, 0);
-		vec[i].y = mat(i, 1);
-		vec[i].z = mat(i, 2);
-	}
+		std::vector<triplet<T>> vec;
+		if (0 == mat.rows() || 3 != mat.cols())
+			return vec;
 
-	return vec;
-}
-
-
-template <typename T>
-std::vector<doublet<T>> mat2doublets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat)
-{
-	std::vector<doublet<T>> vec;
-	if (0 == mat.rows() || 2 != mat.cols())
-		return vec;
-
-	vec.resize(mat.rows());
-	for (unsigned i = 0; i < mat.rows(); ++i)
-	{
-		vec[i].x = mat(i, 0);
-		vec[i].y = mat(i, 1);
-	}
-
-	return vec;
-}
-
-
-template <typename T>
-triplet<T> vec2triplet(const Eigen::Matrix<T, 1, 3>& vec)
-{
-	triplet<T> t{ vec(0), vec(1), vec(2) };
-	return t;
-}
-
-
-template <typename T>
-doublet<T> vec2doublet(const Eigen::Matrix<T, 1, 2>& vec)
-{
-	doublet<T> d{ vec(0), vec(1) };
-	return d;
-}
-
-
-// 遍历搜索triplet向量，若索引为index的triplet元素使得谓词f返回值为true，则返回index; 若找不到或出错则返回-1；
-template <typename T, typename F>
-int findTriplet(const std::vector<triplet<T>>& trips, F f)
-{
-	// 谓词F的形式为bool foo(const triplet<T>& t);
-	if (trips.empty())
-		return -1;
-	for (unsigned i = 0; i < trips.size(); ++i)
-		if (f(trips[i]))
-			return static_cast<int>(i);
-
-	return -1;
-}
-
-
-template <typename T, typename F>
-int findTriplet(const std::vector<doublet<T>>& doubs, F f)
-{
-	// 谓词F的形式为bool foo(const doublet<T>& d);
-	if (doubs.empty())
-		return -1;
-	for (unsigned i = 0; i < doubs.size(); ++i)
-		if (f(doubs[i]))
-			return static_cast<int>(i);
-
-	return -1;
-}
-
-
-
-// lambda——打印std::cout支持的类型变量。
-template <typename T>
-auto disp = [](const T& arg)
-{
-	std::cout << arg << ", ";
-};
-
-
-template <typename T1, typename T2>
-void dispPair(const std::pair<T1, T2>& pair)
-{
-	std::cout << "(" << pair.first << ", " << pair.second << ")" << std::endl;
-}
-
-
-template<typename T>
-void dispQuat(const Eigen::Quaternion<T>& q)
-{
-	std::cout << q.w() << std::endl;
-	std::cout << q.vec() << std::endl;
-}
-
-
-template <typename Derived>
-void dispMat(const Eigen::PlainObjectBase<Derived>& mat)
-{
-	std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
-	for (int i = 0; i < mat.rows(); ++i)
-	{
-		std::cout << i << " ---\t";
-		for (int j = 0; j < mat.cols(); ++j)
-			std::cout << mat.coeff(i, j) << ", ";
-		std::cout << std::endl;
-	}
-	std::cout << std::endl;
-}
-
-
-template <typename Derived>
-void dispMatBlock(const Eigen::PlainObjectBase<Derived>& mat, const int rowStart, const int rowEnd, const int colStart, const int colEnd)
-{
-	if (rowEnd > mat.rows() - 1 || rowStart < 0 || rowStart >= rowEnd)
-		return;
-	if (colEnd > mat.cols() - 1 || colStart < 0 || colStart >= colEnd)
-		return;
-
-	std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
-	for (int i = rowStart; i <= rowEnd; ++i)
-	{
-		std::cout << i << " ---\t";
-		for (int j = colStart; j <= colEnd; ++j)
-			std::cout << mat(i, j) << ", ";
-		std::cout << std::endl;
-	}
-	std::cout << std::endl;
-}
-
-
-// 打印稀疏矩阵中的所有非零元素：
-template<typename spMat>				// 如果模板参数为T, 函数参数为Eigen::SparseMatrix<T>，编译会报错，不知道什么缘故；
-void dispSpMat(const spMat& sm, const unsigned startCol, const unsigned endCol)
-{
-	std::cout << "rows == " << sm.rows() << ", cols == " << sm.cols() << std::endl;
-	for (unsigned i = startCol; i <= endCol; ++i)
-		for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
-			std::cout << "(" << iter.row() << ", " << iter.col() << ") " << iter.value() << std::endl;
-	std::cout << std::endl;
-}
-
-
-template<typename spMat>
-void dispSpMat(const spMat& sm, const unsigned startCol, const unsigned endCol, const unsigned showElemsCount)
-{
-	unsigned count = 0;
-	std::cout << "rows == " << sm.rows() << ", cols == " << sm.cols() << std::endl;
-	for (unsigned i = startCol; i <= endCol; ++i)
-		for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
+		vec.resize(mat.rows());
+		for (unsigned i = 0; i < mat.rows(); ++i)
 		{
-			std::cout << "(" << iter.row() << ", " << iter.col() << ") " << iter.value() << std::endl;
-			count++;
-			if (count >= showElemsCount)
-				break;
+			vec[i].x = mat(i, 0);
+			vec[i].y = mat(i, 1);
+			vec[i].z = mat(i, 2);
 		}
-	std::cout << std::endl;
-}
 
-
-template<typename spMat>
-void dispSpMat(const spMat& sm)
-{
-	dispSpMat(sm, 0, sm.rows() - 1);
-}
-
-
-template<typename T, int N>
-void dispVec(const Eigen::Matrix<T, N, 1>& vec)
-{
-	std::cout << ": rows == " << vec.rows() << std::endl;
-	for (int i = 0; i < vec.rows(); ++i)
-		std::cout << i << "---\t" << vec(i) << std::endl;
-	std::cout << std::endl;
-}
-
-
-template<typename T, int N>
-void dispVec(const Eigen::Matrix<T, 1, N>& vec)
-{
-	std::cout << ": cols == " << vec.cols() << std::endl;
-	for (int i = 0; i < vec.cols(); ++i)
-		std::cout << i << "---\t" << vec(i) << std::endl;
-	std::cout << std::endl;
-}
-
-
-template<typename T, int N>
-void dispVecSeg(const Eigen::Matrix<T, N, 1>& vec, const int start, const int end)
-{
-	if (start < 0 || start >= end)
-	{
-		std::cout << "input error." << std::endl;
-		return;
+		return vec;
 	}
 
-	int endIdx = (vec.rows() - 1 < end) ? (vec.rows() - 1) : end;
-	std::cout << ": rows == " << vec.rows() << std::endl;
-	for (int i = start; i <= endIdx; ++i)
-		std::cout << i << "---\t" << vec(i) << std::endl;
-	std::cout << std::endl;
-}
 
-
-template<typename T, int N>
-void dispVecSeg(const Eigen::Matrix<T, 1, N>& vec, const int start, const int end)
-{
-	if (start < 0 || start >= end)
+	template <typename T>
+	std::vector<doublet<T>> mat2doublets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat)
 	{
-		std::cout << "input error." << std::endl;
-		return;
-	}
-	int endIdx = (vec.cols() - 1 < end) ? (vec.cols() - 1) : end;
-	std::cout << ": cols == " << vec.cols() << std::endl;
-	for (int i = start; i <= endIdx; ++i)
-		std::cout << i << "---\t" << vec(i) << std::endl;
-	std::cout << std::endl;
-}
+		std::vector<doublet<T>> vec;
+		if (0 == mat.rows() || 2 != mat.cols())
+			return vec;
 
+		vec.resize(mat.rows());
+		for (unsigned i = 0; i < mat.rows(); ++i)
+		{
+			vec[i].x = mat(i, 0);
+			vec[i].y = mat(i, 1);
+		}
 
-
-/////////////////////////////////////////////////////////////////////////////////////////////////// basic math interface
-
-//		二维笛卡尔坐标系转换为极坐标系
-template <typename T>
-std::pair<double, double> cart2polar(const T x, const T y)
-{
-	// theta坐标范围为[0, 2*pi]；
-	double x0 = static_cast<double>(x);
-	double y0 = static_cast<double>(y);
-	const double pi = 3.14159;
-	double eps = 10e-9;
-
-	double radius = std::sqrt(x0 * x0 + y0 * y0);
-
-	if (std::abs(x0) < eps)
-	{
-		if (std::abs(y0) < eps)
-			return { radius, NAN };
-		else if (y > 0)
-			return { radius, pi / 2 };
-		else
-			return { radius, 3 * pi / 2 };
+		return vec;
 	}
 
-	if (std::abs(y0) < eps)
+
+	template <typename T>
+	triplet<T> vec2triplet(const Eigen::Matrix<T, 1, 3>& vec)
 	{
-		if (x > 0)
-			return { radius, 0 };
-		else
-			return { radius, -pi };
+		triplet<T> t{ vec(0), vec(1), vec(2) };
+		return t;
 	}
 
-	// 若radius接近0， 将其对应的theta置0；
-	if (radius < eps)
-		return { 0, 0 };
 
-	double theta = std::acos(x / radius);
-	if (y < 0)
-		theta = 2 * pi - theta;
+	template <typename T>
+	doublet<T> vec2doublet(const Eigen::Matrix<T, 1, 2>& vec)
+	{
+		doublet<T> d{ vec(0), vec(1) };
+		return d;
+	}
 
-	return { radius, theta };
+
+	// 遍历搜索triplet向量，若索引为index的triplet元素使得谓词f返回值为true，则返回index; 若找不到或出错则返回-1；
+	template <typename T, typename F>
+	int findTriplet(const std::vector<triplet<T>>& trips, F f)
+	{
+		// 谓词F的形式为bool foo(const triplet<T>& t);
+		if (trips.empty())
+			return -1;
+		for (unsigned i = 0; i < trips.size(); ++i)
+			if (f(trips[i]))
+				return static_cast<int>(i);
+
+		return -1;
+	}
+
+
+	template <typename T, typename F>
+	int findTriplet(const std::vector<doublet<T>>& doubs, F f)
+	{
+		// 谓词F的形式为bool foo(const doublet<T>& d);
+		if (doubs.empty())
+			return -1;
+		for (unsigned i = 0; i < doubs.size(); ++i)
+			if (f(doubs[i]))
+				return static_cast<int>(i);
+
+		return -1;
+	}
+
+
+	// lambda——打印std::cout支持的类型变量。
+	template <typename T>
+	auto disp = [](const T& arg)
+	{
+		std::cout << arg << ", ";
+	};
+
+
+	template <typename T1, typename T2>
+	void dispPair(const std::pair<T1, T2>& pair)
+	{
+		std::cout << "(" << pair.first << ", " << pair.second << ")" << std::endl;
+	}
+
+
+	template<typename T>
+	void dispQuat(const Eigen::Quaternion<T>& q)
+	{
+		std::cout << q.w() << std::endl;
+		std::cout << q.vec() << std::endl;
+	}
+
+
+	template <typename Derived>
+	void dispMat(const Eigen::PlainObjectBase<Derived>& mat)
+	{
+		std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
+		for (int i = 0; i < mat.rows(); ++i)
+		{
+			std::cout << i << " ---\t";
+			for (int j = 0; j < mat.cols(); ++j)
+				std::cout << mat.coeff(i, j) << ", ";
+			std::cout << std::endl;
+		}
+		std::cout << std::endl;
+	}
+
+
+	template <typename Derived>
+	void dispMatBlock(const Eigen::PlainObjectBase<Derived>& mat, const int rowStart, const int rowEnd, const int colStart, const int colEnd)
+	{
+		if (rowEnd > mat.rows() - 1 || rowStart < 0 || rowStart >= rowEnd)
+			return;
+		if (colEnd > mat.cols() - 1 || colStart < 0 || colStart >= colEnd)
+			return;
+
+		std::cout << ": rows == " << mat.rows() << ",  cols == " << mat.cols() << std::endl;
+		for (int i = rowStart; i <= rowEnd; ++i)
+		{
+			std::cout << i << " ---\t";
+			for (int j = colStart; j <= colEnd; ++j)
+				std::cout << mat(i, j) << ", ";
+			std::cout << std::endl;
+		}
+		std::cout << std::endl;
+	}
+
+
+	// 打印稀疏矩阵中的所有非零元素：
+	template<typename spMat>				// 如果模板参数为T, 函数参数为Eigen::SparseMatrix<T>，编译会报错，不知道什么缘故；
+	void dispSpMat(const spMat& sm, const unsigned startCol, const unsigned endCol)
+	{
+		std::cout << "rows == " << sm.rows() << ", cols == " << sm.cols() << std::endl;
+		for (unsigned i = startCol; i <= endCol; ++i)
+			for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
+				std::cout << "(" << iter.row() << ", " << iter.col() << ") " << iter.value() << std::endl;
+		std::cout << std::endl;
+	}
+
+
+	template<typename spMat>
+	void dispSpMat(const spMat& sm, const unsigned startCol, const unsigned endCol, const unsigned showElemsCount)
+	{
+		unsigned count = 0;
+		std::cout << "rows == " << sm.rows() << ", cols == " << sm.cols() << std::endl;
+		for (unsigned i = startCol; i <= endCol; ++i)
+			for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
+			{
+				std::cout << "(" << iter.row() << ", " << iter.col() << ") " << iter.value() << std::endl;
+				count++;
+				if (count >= showElemsCount)
+					break;
+			}
+		std::cout << std::endl;
+	}
+
+
+	template<typename spMat>
+	void dispSpMat(const spMat& sm)
+	{
+		dispSpMat(sm, 0, sm.rows() - 1);
+	}
+
+
+	template<typename T, int N>
+	void dispVec(const Eigen::Matrix<T, N, 1>& vec)
+	{
+		std::cout << ": rows == " << vec.rows() << std::endl;
+		for (int i = 0; i < vec.rows(); ++i)
+			std::cout << i << "---\t" << vec(i) << std::endl;
+		std::cout << std::endl;
+	}
+
+
+	template<typename T, int N>
+	void dispVec(const Eigen::Matrix<T, 1, N>& vec)
+	{
+		std::cout << ": cols == " << vec.cols() << std::endl;
+		for (int i = 0; i < vec.cols(); ++i)
+			std::cout << i << "---\t" << vec(i) << std::endl;
+		std::cout << std::endl;
+	}
+
+
+	template<typename T, int N>
+	void dispVecSeg(const Eigen::Matrix<T, N, 1>& vec, const int start, const int end)
+	{
+		if (start < 0 || start >= end)
+		{
+			std::cout << "input error." << std::endl;
+			return;
+		}
+
+		int endIdx = (vec.rows() - 1 < end) ? (vec.rows() - 1) : end;
+		std::cout << ": rows == " << vec.rows() << std::endl;
+		for (int i = start; i <= endIdx; ++i)
+			std::cout << i << "---\t" << vec(i) << std::endl;
+		std::cout << std::endl;
+	}
+
+
+	template<typename T, int N>
+	void dispVecSeg(const Eigen::Matrix<T, 1, N>& vec, const int start, const int end)
+	{
+		if (start < 0 || start >= end)
+		{
+			std::cout << "input error." << std::endl;
+			return;
+		}
+		int endIdx = (vec.cols() - 1 < end) ? (vec.cols() - 1) : end;
+		std::cout << ": cols == " << vec.cols() << std::endl;
+		for (int i = start; i <= endIdx; ++i)
+			std::cout << i << "---\t" << vec(i) << std::endl;
+		std::cout << std::endl;
+	}
+
+
 }
 
-
-template <typename T>
-std::pair<double, double> polar2cart(const T radius, const T theta)
-{
-	return { radius * cos(theta), radius * sin(theta) };
-}
-
- 
-///////////////////////////////////////////////////////////////////////////////////////////////////// 空间变换接口：
-
-// 注！！！计算出的旋转矩阵全部默认为作用于列向量；若v,u为列向量，r,s为行向量：R * v == u; 等价于 r * R.transpose() == s;
-
-// getRotationMat() 重载1——输入旋转轴向量，旋转角度，返回旋转矩阵：
-template <typename T>
-Eigen::Matrix<T, 3, 3> getRotationMat(const Eigen::Matrix<T, 1, 3>& axisArrow, const float theta)
-{
-	Eigen::Matrix<T, 3, 1> axis = axisArrow.transpose().normalized();
-	return Eigen::AngleAxis<T>(theta, axis).toRotationMatrix();
-}
-
-
-// getRotationMat() 重载2——得到将originArrow旋转到targetArrow的旋转矩阵
-template <typename T>
-Eigen::Matrix<T, 3, 3> getRotationMat(const Eigen::Matrix<T, 1, 3>& originArrow, const Eigen::Matrix<T, 1, 3>& targetArrow)
-{
-	Eigen::Matrix<T, 3, 3> rotation = Eigen::Matrix<T, 3, 3>::Zero();
-	if (0 == originArrow.norm() || 0 == targetArrow.norm())
-		return rotation;
-
-	Eigen::Matrix<T, 1, 3> axisArrow = originArrow.cross(targetArrow);		// 旋转轴；
-
-	if (0 == axisArrow.norm())
-		return Eigen::Matrix<T, 3, 3>::Identity();
-
-	axisArrow.normalize();
-	T x0 = axisArrow(0);
-	T y0 = axisArrow(1);
-	T z0 = axisArrow(2);
-	T cosTheta = originArrow.dot(targetArrow) / (originArrow.norm() * targetArrow.norm());
-	T sinTheta = std::sqrt(1 - cosTheta * cosTheta);
-
-	// 等价于Eigen::AngleAxis<T>(theta, axis).toRotationMatrix()，计算绕任意轴向量旋转theta角度；
-	rotation << cosTheta + (1 - cosTheta) * x0 * x0, (1 - cosTheta)* x0* y0 - sinTheta * z0, (1 - cosTheta)* x0* z0 + sinTheta * y0, \
-		(1 - cosTheta)* y0* x0 + sinTheta * z0, cosTheta + (1 - cosTheta) * y0 * y0, (1 - cosTheta)* y0* z0 - sinTheta * x0, \
-		(1 - cosTheta)* z0* x0 - sinTheta * y0, (1 - cosTheta)* z0* y0 + sinTheta * x0, cosTheta + (1 - cosTheta) * z0 * z0;
-	return rotation;
-}
 
 
 
@@ -939,149 +850,6 @@ bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen:
 #endif
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////// 不同数据类型的变换
-
-// 根据索引向量从源矩阵中提取元素生成输出矩阵。
-template <typename Derived>
-bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec)
-{
-	Derived& matOut = matBaseOut.derived();
-	matOut.resize(vec.size(), matBaseIn.cols());
-	for (unsigned i = 0; i < vec.rows(); ++i)
-	{
-		const int& index = vec(i);
-		matOut.row(i) = matBaseIn.row(index);
-	}
-
-	return true;
-}
-
-
-template <typename Derived, typename Index>
-bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const std::vector<Index>& vec)
-{
-	Derived& matOut = matBaseOut.derived();
-	matOut.resize(vec.size(), matBaseIn.cols());
-	for (unsigned i = 0; i < vec.size(); ++i)
-	{
-		const Eigen::Index& index = vec[i];
-		matOut.row(i) = matBaseIn.row(index);
-	}
-
-	return true;
-}
-
-
-// 根据容器中的索引从源矩阵中提取元素生成输出矩阵。
-template <typename Derived, typename IndexContainer>
-bool subFromIdxCon(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const IndexContainer& con)
-{
-	Derived& matOut = matBaseOut.derived();
-	matOut.resize(con.size(), matBaseIn.cols());
-
-	auto iter = con.begin();
-	for (unsigned i = 0; iter != con.end(); ++i)
-	{
-		const Eigen::Index& index = *iter++;
-		matOut.row(i) = matBaseIn.row(index);
-	}
-
-	return true;
-}
-
-
-// 根据flag向量从源矩阵中提取元素生成输出矩阵。
-template <typename Derived>
-bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec)
-{
-	Derived& matOut = matBaseOut.derived();
-	matOut.resize(vec.sum(), matBaseIn.cols());
-
-	int count = 0;
-	for (unsigned i = 0; i < vec.rows(); ++i)
-		if (vec(i) > 0)
-			matOut.row(count++) = matBaseIn.row(i);
-
-	return true;
-}
-
-
-template <typename Derived>
-bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, std::vector<int>& oldNewIdxInfo, std::vector<int>& newOldIdxInfo, \
-	const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& flag)
-{
-	if (flag.rows() != matBaseIn.rows())
-		return false;
-
-	// 1. 抽取flag标记为1的层数：
-	const int N = flag.rows();
-	const int M = flag.sum();
-	int count = 0;
-	Derived& matOut = matBaseOut.derived();
-	matOut.resize(0, 0);
-	oldNewIdxInfo.clear();
-	newOldIdxInfo.clear();
-	matOut.resize(M, matBaseIn.cols());
-	for (unsigned i = 0; i < flag.rows(); ++i)
-		if (flag(i) > 0)
-			matOut.row(count++) = matBaseIn.row(i);
-
-	// 2. 生成新老索引映射表：
-	oldNewIdxInfo.resize(N, -1);
-	newOldIdxInfo.reserve(M);
-	int index = 0;
-	for (int k = 0; k < N; ++k)
-	{
-		int oldIdx = k;
-		if (flag(oldIdx) > 0)
-		{
-			int newIdx = index++;
-			oldNewIdxInfo[oldIdx] = newIdx;
-			newOldIdxInfo.push_back(oldIdx);
-		}
-	}
-
-	return true;
-}
-
-
-
-// eigen的向量和std::vector<T>相互转换
-template<typename T, int N>
-std::vector<T>  vec2Vec(const Eigen::Matrix<T, N, 1>& vIn)
-{
-	unsigned elemCount = vIn.rows();
-	std::vector<T> vOut(elemCount, 1);
-	std::memcpy(&vOut[0], vIn.data(), sizeof(T) * elemCount);
-
-	return vOut;
-}
-
-
-template<typename T, int N>
-Eigen::Matrix<T, N, 1> vec2Vec(const std::vector<T>& vIn)
-{
-	unsigned elemCount = vIn.size();
-	Eigen::Matrix<T, N, 1> vOut;
-	vOut.resize(elemCount, 1);
-	std::memcpy(vOut.data(), &vIn[0], sizeof(T) * elemCount);
-
-	return vOut;
-}
-
-
-template<typename T>
-Eigen::Matrix<T, Eigen::Dynamic, 1> vec2Vec(const std::vector<T>& vIn)
-{
-	unsigned elemCount = vIn.size();
-	Eigen::Matrix<T, Eigen::Dynamic, 1> vOut;
-	vOut.resize(elemCount, 1);
-	std::memcpy(vOut.data(), &vIn[0], sizeof(T) * elemCount);
-
-	return vOut;
-}
-
-
 template <typename DerivedI>
 void edges2mat(Eigen::PlainObjectBase<DerivedI>& mat, const std::vector<std::pair<int, int>>& edges)
 {
@@ -1184,100 +952,6 @@ void findRepTris(std::vector<int>& repIdxes, const Eigen::PlainObjectBase<Derive
 
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////// 矩阵的增删查改
-
-// 向量插入数据
-template<typename T>
-bool vecInsertNum(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec, const T num)
-{
-	vec.conservativeResize(vec.rows() + 1, 1);
-	vec(vec.rows() - 1) = num;
-	return true;
-}
-
-
-// 向量插入向量
-template<typename T>
-bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix<T, Eigen::Dynamic, 1>& vec2)
-{
-	unsigned currentRows = vec1.rows();
-	unsigned addRows = vec2.rows();
-	unsigned finalRows = currentRows + addRows;
-	vec1.conservativeResize(finalRows);
-
-	// 拷贝数据：
-	T* dataPtr = vec1.data();
-	dataPtr += currentRows;
-	std::memcpy(dataPtr, vec2.data(), sizeof(T) * addRows);
-
-	return true;
-}
-
-
-//	矩阵末端插入矩阵
-template<typename T>
-bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat1)
-{
-	unsigned cols = mat1.cols();
-	unsigned currentRows = mat.rows();
-	unsigned addRows = mat1.rows();
-	mat.conservativeResize(currentRows + addRows, cols);
-	for (unsigned i = 0; i < addRows; ++i)
-		mat.row(currentRows + i) = mat1.row(i);
-
-	return true;
-}
-
-
-//	矩阵末端插入行向量
-template<typename T, int N>					// N为列数；
-bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, 1, N>& rowVec)
-{
-	unsigned cols = N;
-	unsigned currentRows = mat.rows();
-
-	if (0 == rowVec.cols())
-		return false;
-
-	if (N != mat.cols() && mat.rows() != 0)
-		return false;
-
-	mat.conservativeResize(currentRows + 1, cols);
-	mat.row(currentRows) = rowVec;
-
-	return true;
-}
-
-
-// 返回一个flag列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；若程序出错则retVec所有元素为-1
-template <typename Derived1, typename Derived2>
-Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& rowVec)
-{
-	int rows = mat.rows();
-	int cols = mat.cols();
-
-	Eigen::VectorXi retVec(rows);
-	if (rowVec.cols() != cols)
-	{
-		retVec = -Eigen::VectorXi::Ones(rows);
-		return retVec;
-	}
-
-	// 逐列比较：
-	Eigen::MatrixXi tempMat(rows, cols);
-	for (int i = 0; i < cols; ++i)
-		tempMat.col(i) = (mat.col(i).array() == rowVec(i)).select(Eigen::VectorXi::Ones(rows), Eigen::VectorXi::Zero(rows));
-
-	retVec = tempMat.col(0);
-
-	if (cols > 1)
-		for (int i = 1; i < cols; ++i)
-			retVec = retVec.array() * tempMat.col(i).array();			// 逐列相乘：
-
-	return retVec;
-}
-
-
 // 网格串联——合并两个孤立的网格到一个网格里
 template <typename T>
 void concatMeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
@@ -1309,245 +983,6 @@ void repmat(Eigen::PlainObjectBase<DerivedB>& B, const Eigen::PlainObjectBase<De
 			B.block(i * A.rows(), j * A.cols(), A.rows(), A.cols()) = A;
 }
 
-// MATLAB——sparse()
-template <class IndexVectorI, class IndexVectorJ, class ValueVector, typename T>
-void sparse(Eigen::SparseMatrix<T>& SM, const IndexVectorI& I, const IndexVectorJ& J,
-	const ValueVector& values, const size_t m, const size_t n)
-{
-	assert((int)I.maxCoeff() < (int)m);
-	assert((int)I.minCoeff() >= 0);
-	assert((int)J.maxCoeff() < (int)n);
-	assert((int)J.minCoeff() >= 0);
-	assert(I.size() == J.size());
-	assert(J.size() == values.size());
-
-	// Really we just need .size() to be the same, but this is safer
-	assert(I.rows() == J.rows());
-	assert(J.rows() == values.rows());
-	assert(I.cols() == J.cols());
-	assert(J.cols() == values.cols());
-
-	std::vector<Eigen::Triplet<T>> IJV;
-	IJV.reserve(I.size());
-	for (int x = 0; x < I.size(); x++)
-		IJV.push_back(Eigen::Triplet<T>(I(x), J(x), values(x)));
-	SM.resize(m, n);
-	SM.setFromTriplets(IJV.begin(), IJV.end());
-}
-
-
-
-
-//////////////////////////////////////////////////////////////////////////////////////////// 科学计算相关
-
-// 稀疏矩阵转置；Eigen::SparseMatrix自带的transpose()方法太垃圾了
-template<typename T>
-bool spMatTranspose(Eigen::SparseMatrix<T>& smOut, const Eigen::SparseMatrix<T>& smIn)
-{
-	smOut.resize(0, 0);
-	smOut.resize(smIn.cols(), smIn.rows());
-	std::vector<Eigen::Triplet<T>> trips;
-	trips.reserve(smIn.nonZeros());
-	traverseSparseMatrix(smIn, [&smIn, &trips](auto& iter)
-		{
-			trips.push_back(Eigen::Triplet<T>{static_cast<int>(iter.col()), static_cast<int>(iter.row()), iter.value()});
-		});
-	smOut.setFromTriplets(trips.begin(), trips.end());
-
-	return true;
-}
-
-
-// 解恰定的稠密线性方程组Ax == b;
-template<typename T, int N>
-bool solveLinearEquation(Eigen::Matrix<T, N, 1>& x, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, const Eigen::Matrix<T, N, 1>& b)
-{
-	// 解线性方程组Ax == b;
-	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	x = svdSolver.solve(b);
-
-	return true;
-}
-
-
-// 解一系列恰定的稠密线性方程组AX == B;
-template <typename T>
-bool solveLinearEquations(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& B)
-{
-	if (A.rows() != B.rows())
-		return false;
-
-	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	X.resize(A.cols(), B.cols());
-	for (int i = 0; i < B.cols(); ++i)
-	{
-		Eigen::Matrix < T, Eigen::Dynamic, 1> x = svdSolver.solve(B.col(i));
-		X.col(i) = x;
-	}
-
-	return true;
-}
-
-
-// 通过SVD求稠密矩阵的条件数：
-template<typename T>
-double calcCondNum(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& m)
-{
-	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(m, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	Eigen::Matrix<T, Eigen::Dynamic, 1> sValues = svdSolver.singularValues();
-	T sMax = sValues.maxCoeff();
-	T sMin = sValues.minCoeff();
-	return static_cast<double>(sMax / sMin);
-}
-
-
-// 霍纳方法（秦九昭算法）求多项式的值
-template<typename T, int N>
-double hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const double x)
-{
-	// coeffs是{a0, a1, a2, ..., an}组成的(n+1)列向量，多项式为p == a0 + a1*x + a2*x^2 + ... + an* x^n; 
-	int n = coeffs.rows() - 1;
-	if (n < 0)
-		return NAN;
-
-	double result = coeffs(n);
-	for (int i = n; i - 1 >= 0; i--)
-	{
-		result *= x;
-		result += coeffs(i - 1);
-	}
-
-	return result;
-}
-
-
-// 求多项式的一阶微分
-template<typename T, int N>
-float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
-{
-	// 多项式p == a0 + a1*x + a2*x^2 + ... + an* x^n 一阶微分为：p' == a1 + 2*a2*x + 3*a3*x^2 ... n*an*x^(n-1)
-	int coeffsCount = coeffs.rows() * coeffs.cols();
-	if (coeffsCount <= 0)
-		return NAN;
-
-	if (coeffsCount == 1)
-		return 1.0f;
-
-	Eigen::VectorXf diffCoeffs(coeffsCount - 1);
-	for (int i = 0; i < diffCoeffs.rows(); ++i)
-		diffCoeffs(i) = (i + 1) * coeffs(i + 1);
-
-	float result = hornersPoly(diffCoeffs, x);
-
-	return result;
-}
-
-
-// 计算稠密矩阵的克罗内克积（Kronecker product）
-template <typename T, typename Derived1, typename Derived2>
-void kron(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& result, \
-	const Eigen::MatrixBase<Derived1>& mm1, \
-	const Eigen::MatrixBase<Derived2>& mm2)
-{
-	// A(m×n) tensor B(p×q) == C(m*p × n*q);
-	/*
-		其中C.block(i * m, j* n, p, q) == Aij * B;
-		如：
-		1 2 3
-		4 5 6
-
-		tensor
-
-		100 10
-		1		0.1
-
-		==
-		100,	10,	200,		20,	 300,		 30,
-		1,		0.1,		2,		0.2,		 3,		0.3,
-		400,	 40,	500,		 50,	 600, 	60,
-		4,		 0.4,		5,		0.5,		 6,		0.6,
-
-	*/
-	const Derived1& m1 = mm1.derived();
-	const Derived2& m2 = mm2.derived();
-
-	unsigned m = m1.rows();
-	unsigned n = m1.cols();
-	unsigned p = m2.rows();
-	unsigned q = m2.cols();
-
-	result.resize(0, 0);						// 重新分配内存；
-	result.resize(m * p, n * q);
-	Eigen::VectorXi rowIdxVec = Eigen::VectorXi::LinSpaced(0, m - 1, m - 1);
-	auto calcKronCol = [&](const unsigned colIdx, const std::tuple<unsigned>& pt)
-	{
-		unsigned rowIdx0 = std::get<0>(pt);
-		result.block(rowIdx0 * p, colIdx * q, p, q) = static_cast<T>(m1(rowIdx0, colIdx)) * m2.array().cast<T>();		// 转换成输出矩阵中的数据类型；
-	};
-
-	auto calcKronRow = [&](const unsigned rowIdx)
-	{
-		std::tuple<unsigned> pt0 = std::make_tuple(rowIdx);
-		PARALLEL_FOR(0, n, calcKronCol, pt0);
-	};
-
-	PARALLEL_FOR(0, m, calcKronRow);
-}
-
-
-template <typename Derived1, typename Derived2>
-Eigen::MatrixXd kron(const Eigen::MatrixBase<Derived1>& mm1, \
-	const Eigen::MatrixBase<Derived2>& mm2)
-{
-	Eigen::MatrixXd result;
-	kron(result, mm1, mm2);
-	return result;
-}
-
-
-// 多项式插值
-void polyInterpolation();
-
-
-// 高斯插值
-void gaussInterpolation();
-
-
-// 最小二乘多项式拟合曲线：
-void leastSquarePolyFitting();
-
-
-// 岭回归多项式拟合曲线
-template <typename T>
-void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, unsigned m = 4)
-{
-	/*
-		void ridgeRegressionPolyFitting(
-					Eigen::VectorXd & theta,							拟合的多项式函数
-					const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers			离散样本点
-					const unsigned m						拟合的多项式项数；
-					)
-	*/
-
-	const double lambda = 0.1;
-
-	int versCount = vers.rows();
-	if (versCount == 0)
-		return;
-	if (m >= versCount)
-		m = versCount - 1;
-
-	Eigen::MatrixXd X(versCount, m);
-	for (int i = 0; i < versCount; ++i)
-		for (int j = 0; j < m; ++j)
-			X(i, j) = std::powf(static_cast<double>(vers(i, 0)), j);
-
-	Eigen::VectorXd Y = vers.col(1).cast<double>();
-	Eigen::MatrixXd Id(m, m);
-	Id.setIdentity();
-	theta = (X.transpose() * X + Id * lambda).inverse() * X.transpose() * Y;
-}
 
 
 
@@ -1610,8 +1045,6 @@ Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Ei
 
 	return x;
 }
-
-
 
 
 
@@ -4686,8 +4119,7 @@ bool simplyConnectedSplitMesh(std::vector<Eigen::Matrix<T, Eigen::Dynamic, Eigen
 	int scCount = 0;							// 顶点单连通区域个数；
 	int sctCount = 0;							// 三角片单连通区域个数；
 	Eigen::VectorXi connectedLabels, connectedCount;
-
-#if 1				
+ 		
 	Eigen::SparseMatrix<int> adjSM, adjSM_eCount, adjSM_eIdx;
 	adjMatrix(adjSM_eCount, adjSM_eIdx, tris0);
 	adjSM = adjSM_eCount;
@@ -4696,13 +4128,7 @@ bool simplyConnectedSplitMesh(std::vector<Eigen::Matrix<T, Eigen::Dynamic, Eigen
 			if (iter.value() > 0)
 				iter.valueRef() = 1;
 		});
-	scCount = simplyConnectedRegion(adjSM, connectedLabels, connectedCount);
-#else
-	std::vector<int> connectedLabelsVec, connectedCountVec;
-	scCount = simplyConnectedRegion(connectedLabelsVec, connectedCountVec, vers, tris);
-	connectedLabels = vec2Vec<int>(connectedLabelsVec);
-	connectedCount = vec2Vec<int>(connectedCountVec);
-#endif
+	scCount = simplyConnectedRegion(adjSM, connectedLabels, connectedCount); 
 
 	// 2. 生成顶点单连通网格：
 	compVers.resize(scCount);
@@ -5175,17 +4601,17 @@ bool massMatrix_baryCentric(Eigen::SparseMatrix<Tm>& MM, const Eigen::Matrix<Tv,
 	Eigen::VectorXd dblA;
 	trisArea(dblA, vers, tris);
 	dblA.array() *= 2;
-	Eigen::MatrixXi MI;
-	Eigen::MatrixXi MJ;
-	Eigen::MatrixXd MV;
+	Eigen::VectorXi MI, MJ;
+	Eigen::VectorXd MV;
 
 	// diagonal entries for each face corner
-	MI.resize(trisCount * 3, 1);
-	MJ.resize(trisCount * 3, 1);
-	MV.resize(trisCount * 3, 1);
-	MI.block(0 * trisCount, 0, trisCount, 1) = tris.col(0);
-	MI.block(1 * trisCount, 0, trisCount, 1) = tris.col(1);
-	MI.block(2 * trisCount, 0, trisCount, 1) = tris.col(2);
+	MI.resize(trisCount * 3);
+	MJ.resize(trisCount * 3);
+	MV.resize(trisCount * 3);
+	 
+	MI.segment(0, trisCount) = tris.col(0);
+	MI.segment(trisCount, trisCount) = tris.col(1);
+	MI.segment(2 * trisCount, trisCount) = tris.col(2);
 	MJ = MI;
 	repmat(MV, dblA, 3, 1);
 	MV.array() /= 6.0;
@@ -5198,7 +4624,8 @@ bool massMatrix_baryCentric(Eigen::SparseMatrix<Tm>& MM, const Eigen::Matrix<Tv,
 // laplace光顺 
 template <typename T>
 bool laplaceFaring(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const float deltaLB, const unsigned loopCount)
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, \
+	const float deltaLB, const unsigned loopCount)
 {
 	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
 	using Matrix3T = Eigen::Matrix<T, 3, 3>;

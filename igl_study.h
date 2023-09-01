@@ -67,7 +67,7 @@
 #include <igl/bounding_box_diagonal.h>
 #include <igl/point_mesh_squared_distance.h>
 #include <igl/voxel_grid.h>
-#include <igl/signed_distance.h>
+#include <igl/signed_distance.h>								// ·ûºÅ¾àÀë³¡
 #include <igl/marching_cubes.h>
 #include <igl/march_cube.h>
 #include "MC_tables.h"
@@ -104,6 +104,7 @@ namespace IGL_BASIC
 	void test4();
 	void test5();
 	void test55();
+	void test555();
 	void test6();
 	void test7();
 	void test77();
@@ -207,6 +208,7 @@ namespace IGL_BASIC_PMP
 	void test4();
 	void test44();
 	void test5();
+	void test55();
 	void test6();
 	void test7();
 	void test77();
@@ -230,6 +232,7 @@ namespace IGL_MODELLING
 	void test1(); 
 	void test2();
 	void test3(); 
+	void test33();
 	void test4(); 
 	void test5();
 	void test6();

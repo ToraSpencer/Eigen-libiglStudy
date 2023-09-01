@@ -91,10 +91,17 @@ template<typename DerivedV>
 static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
 {
 	char path[512] = { 0 };
-	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-	objWriteVerticesMat(path, vers);
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name); 
+	objWriteVerticesMat(path, vers); 
 }
 
+template<typename DerivedV>
+static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+{
+	char path[512] = { 0 };
+	sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+	objWriteVerticesMat2D(path, vers);
+}
 
 template<typename T>
 static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)

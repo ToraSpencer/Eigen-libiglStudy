@@ -36,6 +36,9 @@
 #include "myEigenIO/myEigenIO.h"
 #pragma comment(lib,"myEigenIO.lib")	
 
+#include "myEigenBasicMath/myEigenBasicMath.h"
+#pragma comment(lib, "myEigenBasicMath.lib")
+
   
 /////////////////////////////////////////////////////////////////////////////////////////////////// debug全局变量
 static Eigen::MatrixXd g_debugVers;
@@ -74,66 +77,117 @@ struct doublet
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// debug接口：
+namespace MY_DEBUG
+{
+	// 顶点或三角片矩阵转换为triplet向量的形式；
+	template <typename T>
+	std::vector<triplet<T>> mat2triplets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat);
+
+	template <typename T>
+	std::vector<doublet<T>> mat2doublets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat);
+
+	template <typename T>
+	triplet<T> vec2triplet(const Eigen::Matrix<T, 1, 3>& vec);
+
+	template <typename T>
+	doublet<T> vec2doublet(const Eigen::Matrix<T, 1, 2>& vec);
 
 
-// 顶点或三角片矩阵转换为triplet向量的形式；
-template <typename T>
-std::vector<triplet<T>> mat2triplets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat);
+	// 遍历搜索triplet向量，若索引为index的triplet元素使得谓词f返回值为true，则返回index; 若找不到或出错则返回-1；
+	template <typename T, typename F>
+	int findTriplet(const std::vector<triplet<T>>& trips, F f);
 
-template <typename T>
-std::vector<doublet<T>> mat2doublets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat);
+	template <typename T, typename F>
+	int findTriplet(const std::vector<doublet<T>>& doubs, F f);
 
-template <typename T>
-triplet<T> vec2triplet(const Eigen::Matrix<T, 1, 3>& vec);
+	template <typename T1, typename T2>
+	void dispPair(const std::pair<T1, T2>& pair);
+	template<typename T>
+	void dispQuat(const Eigen::Quaternion<T>& q);
+	template <typename Derived>
+	void dispMat(const Eigen::PlainObjectBase<Derived>& mat);
+	template <typename Derived>
+	void dispMatBlock(const Eigen::PlainObjectBase<Derived>& mat, const int rowStart, const int rowEnd, const int colStart, const int colEnd);
 
-template <typename T>
-doublet<T> vec2doublet(const Eigen::Matrix<T, 1, 2>& vec);
+	template<typename spMat>				// 如果模板参数为T, 函数参数为Eigen::SparseMatrix<T>，编译会报错，不知道什么缘故；
+	void dispSpMat(const spMat& sm, const unsigned startCol, const unsigned endCol);
+	template<typename spMat>
+	void dispSpMat(const spMat& sm, const unsigned startCol, const unsigned endCol, const unsigned showElemsCount);
+	template<typename spMat>
+	void dispSpMat(const spMat& sm);
+
+	template<typename T, int N>
+	void dispVec(const Eigen::Matrix<T, N, 1>& vec);
+	template<typename T, int N>
+	void dispVec(const Eigen::Matrix<T, 1, N>& vec);
+	template<typename T, int N>
+	void dispVecSeg(const Eigen::Matrix<T, N, 1>& vec, const int start, const int end);
+	template<typename T, int N>
+	void dispVecSeg(const Eigen::Matrix<T, 1, N>& vec, const int start, const int end);
+
+	// 自定义计时器，使用WINDOWS计时API
+	class tiktok
+	{
+	private:
+		tiktok() = default;
+		tiktok(const tiktok&) {}
+		~tiktok() = default;
+
+	public:
+		DWORD startTik;
+		DWORD endTik;
+		unsigned recordCount;
+		std::vector<DWORD> records;
+
+		static tiktok& getInstance()
+		{
+			static tiktok tt_instance;
+			return tt_instance;
+		}
+
+		void start()
+		{
+			this->startTik = GetTickCount();
+			this->recordCount = 0;
+			this->records.clear();
+		}
+
+		void endCout(const char* str)
+		{
+			this->endTik = GetTickCount();
+			std::cout << str << endTik - startTik << std::endl;
+		}
+
+		DWORD endGetCount()
+		{
+			this->endTik = GetTickCount();
+			return endTik - startTik;
+		}
+
+		bool endWrite(const char* fileName, const char* str)
+		{
+			this->endTik = GetTickCount();
+			std::ofstream file(fileName, std::ios_base::out | std::ios_base::app);
+			if (!file)
+				return false;
+
+			file << str << endTik - startTik << std::endl;
+			file.close();
+			return true;
+		}
+
+		void takeArecord()
+		{
+			this->records.push_back(GetTickCount());
+			recordCount++;
+		}
+	};
+}
+using namespace MY_DEBUG;
 
 
-// 遍历搜索triplet向量，若索引为index的triplet元素使得谓词f返回值为true，则返回index; 若找不到或出错则返回-1；
-template <typename T, typename F>
-int findTriplet(const std::vector<triplet<T>>& trips, F f);
 
-template <typename T, typename F>
-int findTriplet(const std::vector<doublet<T>>& doubs, F f);
-
-template <typename T1, typename T2>
-void dispPair(const std::pair<T1, T2>& pair);
-template<typename T>
-void dispQuat(const Eigen::Quaternion<T>& q);
-template <typename Derived>
-void dispMat(const Eigen::PlainObjectBase<Derived>& mat);
-template <typename Derived>
-void dispMatBlock(const Eigen::PlainObjectBase<Derived>& mat, const int rowStart, const int rowEnd, const int colStart, const int colEnd);
-
-template<typename spMat>				// 如果模板参数为T, 函数参数为Eigen::SparseMatrix<T>，编译会报错，不知道什么缘故；
-void dispSpMat(const spMat& sm, const unsigned startCol, const unsigned endCol);
-template<typename spMat>
-void dispSpMat(const spMat& sm, const unsigned startCol, const unsigned endCol, const unsigned showElemsCount);
-template<typename spMat>
-void dispSpMat(const spMat& sm);
-
-template<typename T, int N>
-void dispVec(const Eigen::Matrix<T, N, 1>& vec);
-template<typename T, int N>
-void dispVec(const Eigen::Matrix<T, 1, N>& vec);
-template<typename T, int N>
-void dispVecSeg(const Eigen::Matrix<T, N, 1>& vec, const int start, const int end);
-template<typename T, int N>
-void dispVecSeg(const Eigen::Matrix<T, 1, N>& vec, const int start, const int end);
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////// basic math tools:
-template <typename T>
-std::pair<double, double> cart2polar(const T x, const T y);
-template <typename T>
-std::pair<double, double> polar2cart(const T radius, const T theta);
-
-template <typename T>
-Eigen::Matrix<T, 3, 3> getRotationMat(const Eigen::Matrix<T, 1, 3>& axisArrow, const float theta);
-template <typename T>
-Eigen::Matrix<T, 3, 3> getRotationMat(const Eigen::Matrix<T, 1, 3>& originArrow, const Eigen::Matrix<T, 1, 3>& targetArrow);
-
+/////////////////////////////////////////////////////////////////////////////////////////////////// modeling tools;
 template <typename T>
 bool interpolateToLine(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::Matrix<T, 1, 3>& start, \
 	const Eigen::Matrix<T, 1, 3>& end, const float SR, const bool SE);
@@ -156,31 +210,16 @@ template <typename T>
 bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, \
 	const bool isCovered);
+
 template <typename T>
 bool genAlignedCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, \
 	const bool isCovered);
+
 template <typename T>
 bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circVers);
 
-template <typename Derived>
-bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
-template <typename Derived, typename Index>
-bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const std::vector<Index>& vec);
-template <typename Derived, typename IndexContainer>
-bool subFromIdxCon(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const IndexContainer& con);
-template <typename Derived>
-bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
-template <typename Derived>
-bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, std::vector<int>& oldNewIdxInfo, std::vector<int>& newOldIdxInfo, \
-	const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
-template<typename T, int N>
-std::vector<T>  vec2Vec(const Eigen::Matrix<T, N, 1>& vIn);
-template<typename T, int N>
-Eigen::Matrix<T, N, 1> vec2Vec(const std::vector<T>& vIn);
-template<typename T>
-Eigen::Matrix<T, Eigen::Dynamic, 1> vec2Vec(const std::vector<T>& vIn);
 template <typename DerivedI>
 void edges2mat(Eigen::PlainObjectBase<DerivedI>& mat, const std::vector<std::pair<int, int>>& edges);
 template <typename Index>
@@ -195,45 +234,10 @@ std::vector<int> decodeTrianagle(const std::uint64_t code);
 template <typename DerivedI>
 void findRepTris(std::vector<int>& repIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
 
-template<typename T>
-bool vecInsertNum(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec, const T num);
-template<typename T>
-bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix<T, Eigen::Dynamic, 1>& vec2);
-template<typename T>
-bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat1);
-template<typename T, int N>					// N为列数；
-bool matInsertRows(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const Eigen::Matrix<T, 1, N>& rowVec);
-template <typename Derived1, typename Derived2>
-Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& rowVec);
 template <typename T>
 void concatMeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers1, const Eigen::MatrixXi& tris1);
 
-template<typename T>
-bool spMatTranspose(Eigen::SparseMatrix<T>& smOut, const Eigen::SparseMatrix<T>& smIn);
-template<typename T, int N>
-bool solveLinearEquation(Eigen::Matrix<T, N, 1>& x, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, const Eigen::Matrix<T, N, 1>& b);
-template <typename T>
-bool solveLinearEquations(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& B); 
-template<typename T>
-double calcCondNum(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& m);
-template<typename T, int N>
-double hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const double x);
-template<typename T, int N>
-float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x);
-template <typename T, typename Derived1, typename Derived2>
-void kron(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& result, \
-	const Eigen::MatrixBase<Derived1>& mm1, \
-	const Eigen::MatrixBase<Derived2>& mm2);
-template <typename Derived1, typename Derived2>
-Eigen::MatrixXd kron(const Eigen::MatrixBase<Derived1>& mm1, \
-	const Eigen::MatrixBase<Derived2>& mm2);
-void polyInterpolation();
-void gaussInterpolation();
-void leastSquarePolyFitting();
-template <typename T>
-void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, unsigned);
 template<typename T>
 Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& sampleVers);
 
@@ -245,6 +249,7 @@ bool getEdgeIdxMap(std::unordered_multimap<std::int64_t, int>& map, const Eigen:
 template <typename DerivedV, typename DerivedF, typename DerivedN>
 bool getTriNorms(Eigen::PlainObjectBase<DerivedN>& triNorms, const Eigen::MatrixBase<DerivedV>& vers, \
 	const Eigen::MatrixBase<DerivedF>& tris);
+
 template <typename DerivedV>
 void getEdgeArrows(Eigen::PlainObjectBase<DerivedV>& arrows, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers);
 template<typename T, typename DerivedV, typename DerivedI>
@@ -377,54 +382,7 @@ template<typename T>
 bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, const float param);
 
 
-///////////////////////////////////////////////////////////////////////////////////////// debug 接口：
 
-// 自定义计时器，使用WINDOWS计时API
-class tiktok
-{
-private:
-	tiktok() = default;
-	tiktok(const tiktok&) {}
-	~tiktok() = default;
-
-public:
-	DWORD startTik;
-	DWORD endTik;
-
-	static tiktok& getInstance()
-	{
-		static tiktok tt_instance;
-		return tt_instance;
-	}
-
-	void start()
-	{
-		this->startTik = GetTickCount();
-	}
-
-	void endCout(const char* str)
-	{
-		this->endTik = GetTickCount();
-		std::cout << str << endTik - startTik << std::endl;
-	}
-
-
-	bool endWrite(const char* fileName, const char* str)
-	{
-		this->endTik = GetTickCount();
-		std::ofstream file(fileName, std::ios_base::out | std::ios_base::app);
-		if (!file)
-		{
-			return false;
-		}
-
-		file << str << endTik - startTik << std::endl;
-		file.close();
-		return true;
-	}
-};
-
- 
 
 namespace TEST_MYEIGEN
 {

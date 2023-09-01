@@ -5,7 +5,7 @@
 #include <Eigen/Sparse>
 #include <iostream>
 
-namespace DENSEMAT
+namespace TEST_DENSE_MAT
 {
 	const double pi = 3.14159;
 	void test0();

@@ -15,12 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="HomoCoorTools.h">
+    <ClInclude Include="myEigenHomoCoor.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="HomoCoorTools.cpp">
+    <ClCompile Include="myEigenHomoCoor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

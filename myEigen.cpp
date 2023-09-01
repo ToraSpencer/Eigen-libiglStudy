@@ -67,6 +67,14 @@ namespace MY_DEBUG
 		objWriteVerticesMat(path, vers);
 	}
 
+	template<typename DerivedV>
+	static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteVerticesMat2D(path, vers);
+	}
+
 
 	template<typename T>
 	static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
@@ -93,61 +101,6 @@ using namespace MY_DEBUG;
 ///////////////////////////////////////////////////////////////////////////////////////////////// 实现
 
 
-
-// 布尔向量转化为索引向量；
-Eigen::VectorXi flagVec2IdxVec(const Eigen::VectorXi& flag)
-{
-	Eigen::VectorXi idxVec;
-
-	for (unsigned i = 0; i < flag.rows(); ++i)
-		if (0 != flag(i) && 1 != flag(i))
-			return idxVec;
-
-	std::vector<int> tempVec;
-	tempVec.reserve(flag.rows());
-	for (unsigned i = 0; i< flag.rows(); ++i) 
-		if (flag(i) > 0)
-			tempVec.push_back(i);
-	idxVec = vec2Vec<int>(tempVec);
-	
-	return idxVec;
-}
-
-
-// 索引向量转化为布尔向量；
-Eigen::VectorXi IdxVec2FlagVec(const Eigen::VectorXi& idxVec, const unsigned size)
-{
-	Eigen::VectorXi flag;
-
-	if (idxVec.rows() > size)
-		return flag;
-
-	for (unsigned i = 0; i < idxVec.rows(); ++i) 
-		if (idxVec(i) >= size)
-			return flag;
-
-	flag = Eigen::VectorXi::Zero(size);
-	for (unsigned i = 0; i < idxVec.rows(); ++i)
-		flag(idxVec(i)) = 1;
-
-	return flag;
-}
-
-
-// 多项式插值
-void polyInterpolation() 
-{
-
-}
-
-
-// 高斯插值
-void gaussInterpolation() {}
-
-
-// 最小二乘多项式拟合曲线：
-void leastSquarePolyFitting()
-{}
 
 
 std::pair<int, int> decodeEdge(const std::int64_t code)

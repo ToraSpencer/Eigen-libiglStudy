@@ -69,6 +69,13 @@ namespace MY_DEBUG
 		objWriteVerticesMat(path, vers);
 	}
 
+	template<typename DerivedV>
+	static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteVerticesMat2D(path, vers);
+	}
 
 	template<typename T>
 	static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
@@ -170,8 +177,8 @@ namespace IGL_BASIC
 		Eigen::RowVector3i tri00 = tris.row(UeTrisInfo(0, 0));
 		Eigen::RowVector3i tri01 = tris.row(UeTrisInfo(0, 1));
 		Eigen::MatrixXi tmpTris;
-		matInsertRows<int, 3>(tmpTris, tri00);
-		matInsertRows<int, 3>(tmpTris, tri01);
+		matInsertRows(tmpTris, tri00);
+		matInsertRows(tmpTris, tri01);
 		objWriteMeshMat("E:/uEdge0relaTris.obj", vers, tmpTris);
 
 		Eigen::MatrixXd oppVers(2, 3);
@@ -204,7 +211,8 @@ namespace IGL_BASIC
 
 		// igl::doubleArea()——计算输入网格每个三角片面积的两倍：
 		igl::doublearea(vers, tris, dbArea);
-		std::vector<double> dbAreaVec = vec2Vec(dbArea);
+ 
+		std::vector<double> dbAreaVec = eigenVec2Vec(dbArea);
 		std::sort(dbAreaVec.begin(), dbAreaVec.end());
 		std::cout << "finished." << std::endl;
 	}
@@ -314,185 +322,6 @@ namespace IGL_BASIC
 
 		igl::writeOBJ("E:/gridCenters.obj", gridCenters, Eigen::MatrixXi{});
 
-		std::cout << "finished." << std::endl;
-	}
-
-
-	// test5. 计算符号距离场、marching cubes提取等值面网格；
-	void test5()
-	{
-		Eigen::MatrixXi tris;
-		Eigen::MatrixXd vers;
-		igl::readOBJ("E:/材料/jawMesh.obj", vers, tris);
-
-		tiktok& tt = tiktok::getInstance();
-		double gridStep = 0.5;			
-		double range[3];
-		for (unsigned i = 0; i < 3; ++i)
-		{
-			Eigen::VectorXd coors = vers.col(i);
-			range[i] = coors.maxCoeff() - coors.minCoeff();
-		}
-
-		// 1. 生成栅格：
-		double largestRange = std::max({ range[0], range[1], range[2] });
-		int num = std::ceil((largestRange/gridStep));              // 跨度最大的那个维度(xyz中的一个)的栅格数；
-		double gridsOffset = (gridStep * num - largestRange) / 2.;
-		
-		Eigen::MatrixXd gridCenters;
-		Eigen::RowVector3i gridCounts;
-		tt.start();
-		igl::voxel_grid(vers, gridsOffset, num, 1, gridCenters, gridCounts);
-		tt.endCout("Elapsed time of igl::voxel_grid() is ");
-
-
-		// ！！！注：libigl中的计算SDF接口igl::signed_distance生成的距离场貌似没有SDFgen中的好用，有时候会出错；
-		Eigen::VectorXd SDF, signValues;
-		{
-			Eigen::VectorXi I;                     // useless
-			Eigen::MatrixXd C, N;              // useless
-
-			// 2. 计算符号距离场
-			tt.start();
-			igl::signed_distance(gridCenters, vers, tris, igl::SignedDistanceType::SIGNED_DISTANCE_TYPE_PSEUDONORMAL, SDF, I, C, N);
-			tt.endCout("Elapsed time of igl::signed_distance() is ");
-
-			// 3. 符号距离场改写为符号场——网格内为-1，网格面上为0，外面为1：
-			signValues = SDF;
-			std::for_each(signValues.data(), signValues.data() + signValues.size(), [](double& b)\
-			{
-				b = (b > 0 ? 1 : (b < 0 ? -1 : 0));
-			});
-		}
-
-		// 4. marching cubes算法生成最终曲面：
-		Eigen::MatrixXd versResult_SDF, versResults_signs;
-		Eigen::MatrixXi trisResult_SDF, trisResults_signs;
-		double selectedSDF = -1.;
-		tt.start();
-		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
-		tt.endCout("Elapsed time of igl::marching_cubes() is ");
-		
-		// igl::marching_cubes(signValues, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 0, versResults_signs, trisResults_signs);
-		igl::writeOBJ("E:/shrinkedMesh.obj", versResult_SDF, trisResult_SDF);
-
-
-		std::cout << "finished." << std::endl;
-	}
-
-
-	// 读取SDFGen.exe生成的.sdf距离场数据，使用igl::marching_cubes()提取等值面网格：
-
-	//解析.sdf文本文件：
-	double parseSDF(std::vector<int>& stepCounts, Eigen::RowVector3d& gridsOri, Eigen::VectorXd& SDF, const char* filePath)
-	{
-		/*
-			double parseSDF(												返回距离场的采样步长；
-					std::vector<int>& stepCounts,					xyz三个方向上的步数
-					Eigen::RowVector3d& gridsOri,					距离场空间的原点
-					Eigen::VectorXd& SDF,								距离场数据
-					const char* filePath										SDF文件目录
-					)
-		
-		*/
-		double SDFstep = -1;
-		stepCounts.resize(3);
-		std::string readStr(1024, '\0');
-		std::ifstream sdfFile(filePath);
-		if (!sdfFile)
-			return SDFstep;
-
-		// 第一行：步数
-		{
-			std::string tmpStr;
-			sdfFile.getline(&readStr[0], 1024);
-
-			unsigned index = 0;
-			for (const auto& ch : readStr)
-			{
-				if (ch >= '0' && ch <= '9' || ch == '.' || ch == '+' || ch == '-')
-					tmpStr.push_back(ch);
-				else
-				{
-					if (tmpStr.size() > 0)
-					{
-						stepCounts[index] = std::stoi(tmpStr);
-						index++;
-						tmpStr.clear();
-					}
-				}
-			}
-		}
-
-		// 第二行：栅格原点
-		{
-			std::string tmpStr;
-			sdfFile.getline(&readStr[0], 1024);
-
-			unsigned index = 0;
-			for (const auto& ch : readStr)
-			{
-				if (ch >= '0' && ch <= '9' || ch == '.' || ch == '+' || ch == '-')
-					tmpStr.push_back(ch);
-				else
-				{
-					if (tmpStr.size() > 0)
-					{
-						gridsOri(index) = std::stod(tmpStr);
-						index++;
-						tmpStr.clear();
-					}
-				}
-			}
-		}
-
-		// 第三行：距离场空间步长：
-		sdfFile.getline(&readStr[0], 1024);
-		SDFstep = std::stod(readStr);
-
-		// 第三行之后：距离场数据：
-		unsigned dataCount = stepCounts[0] * stepCounts[1] * stepCounts[2];
-		SDF.resize(dataCount);
-		for (unsigned i = 0; i < dataCount; ++i)
-		{
-			sdfFile.getline(&readStr[0], 1024);
-			SDF(i) = std::stod(readStr);
-		}
-		sdfFile.close();
-
-		return SDFstep;
-	}
-
-
-	// test55. 读取SDFgen生成的符号距离场数据，使用marching cubes生成网格：
-	void test55() 
-	{
-		// 0. 解析SDFGen.exe生成的.sdf距离场数据文件：
-		std::vector<int> stepCounts(3);				// xyz三个维度上栅格数
-		Eigen::RowVector3d gridsOri;					// 栅格原点：
-		Eigen::VectorXd SDF;
-		const char* sdfFilePath = "E:/jawMeshUnionRepair1.sdf";
-		double SDFstep = parseSDF(stepCounts, gridsOri, SDF, sdfFilePath);
-
-		// 1. 生成栅格：
-		Eigen::RowVector3i gridCounts;
-		Eigen::MatrixXd gridCenters;
-		Eigen::RowVector3d minp = gridsOri - SDFstep * Eigen::RowVector3d(stepCounts[0] / 2.0, stepCounts[1] / 2.0, stepCounts[2] / 2.0);
-		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCounts[0] / 2.0, stepCounts[1] / 2.0, stepCounts[2] / 2.0);
-		Eigen::AlignedBox<double, 3> box(minp, maxp);
-		igl::voxel_grid(box, std::max({stepCounts[0], stepCounts[1], stepCounts[2]}), 0, gridCenters, gridCounts);
-		
-		// 2. marching cubes算法生成最终曲面：
-		tiktok& tt = tiktok::getInstance();
-		Eigen::MatrixXd versResult_SDF, versResults_signs;
-		Eigen::MatrixXi trisResult_SDF, trisResults_signs;
-		double selectedSDF = -1.;
-		tt.start();
-		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
-		tt.endCout("Elapsed time of igl::marching_cubes() is ");
-
-		igl::writeOBJ("E:/shrinkedMesh.obj", versResult_SDF, trisResult_SDF);
- 
 		std::cout << "finished." << std::endl;
 	}
 
@@ -783,9 +612,9 @@ namespace IGL_GRAPH
 		auto cornerState = (retCrev == disCoveredIdx);
 
 		std::vector<int> vec1, vec2, vec3;
-		vec1 = vec2Vec(disCoveredIdx);
-		vec2 = vec2Vec(closedIdx);
-		vec3 = vec2Vec(retCrev);
+		vec1 = eigenVec2Vec(disCoveredIdx);
+		vec2 = eigenVec2Vec(closedIdx);
+		vec3 = eigenVec2Vec(retCrev);
 
 		// bfs:
 		igl::bfs(adjList, startIdx, disCoveredIdx, bfsTreeVec);
@@ -818,7 +647,7 @@ namespace IGL_GRAPH
 		myDfs(startIdx, startIdx);
 		std::vector<int> tmpVec;
 		tmpVec.insert(tmpVec.end(), closedVersIdx.begin(), closedVersIdx.end());
-		Eigen::VectorXi myDfsTreeVec = vec2Vec(tmpVec);
+		Eigen::VectorXi myDfsTreeVec = vec2EigenVec(tmpVec);
 		objWriteTreePath("E:/myDfsTree.obj", myDfsTreeVec, vers);
 
  
@@ -1313,13 +1142,286 @@ namespace IGL_BASIC_PMP
 	}
 
 
+	// 补洞：opological_hole_fill()——当前有问题
+#if 0
+	void test4()
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris, bdrys;
+		igl::readOBJ("E:/材料/holeMesh.obj", vers, tris);
+		igl::writeOBJ("E:/meshInput.obj", vers, tris);		
+
+		const unsigned versCount = vers.rows();
+
+		// 计算洞的有序顶点索引
+		std::vector<std::vector<int>> holes, bdrySegs;
+		findHolesBdrySegs(holes, bdrySegs, vers, tris);
+
+		// 需要手动为原网格添加洞的中心点，而且貌似处理多个洞的情形会出错；
+		Eigen::MatrixXd holeVers;
+		subFromIdxVec(holeVers, vers, holes[0]);
+		Eigen::RowVector3d holeCenter = holeVers.colwise().mean();
+		Eigen::MatrixXd versOut(versCount + 1, 3);
+		versOut.topRows(versCount) = vers;
+		versOut.bottomRows(1) = holeCenter;
+
+		Eigen::MatrixXi trisOut;
+		igl::topological_hole_fill(tris, Eigen::VectorXi{}, holes, trisOut);
+		igl::writeOBJ("E:/meshFilled.obj", versOut, trisOut);
+		std::cout << "finished." << std::endl;
+	}
+#endif
+
+	// 测试网格单连通区域提取connected_components()
+	void test5() 
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		objReadMeshMat(vers, tris, "E:/材料/原型数据/originalMesh.obj");
+		unsigned versCount = vers.rows();
+		unsigned trisCount = tris.rows();
+
+
+		// 1. 生成邻接矩阵：
+		Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
+		adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
+
+		Eigen::SparseMatrix<int> adjSM = adjSM_eCount;
+		traverseSparseMatrix(adjSM, [&](auto& iter)
+			{
+				iter.valueRef() = 1;
+			});
+
+		// 2. 确定单连通区域——connected_components()
+		Eigen::VectorXi connectedLabels, connectedCount;
+		int conCount = igl::connected_components(adjSM, connectedLabels, connectedCount);
+
+		// 3. 提取最大的单连通区域中的顶点： 
+		std::vector<int> retVec1 = eigenVec2Vec(connectedLabels);
+		std::vector<int> retVec2 = eigenVec2Vec(connectedCount);
+
+		int mainLabel = 0;						// 包含最大联通顶点数的标签；
+		int mainLabelCount = 0;
+		for (int i = 0; i < conCount; ++i)
+		{
+			if (connectedCount(i) > mainLabelCount)
+			{
+				mainLabel = i;
+				mainLabelCount = connectedCount(i);
+			}
+		}
+
+		std::unordered_set<int> indexSet;
+		for (int i = 0; i < versCount; ++i)
+		{
+			if (mainLabel == connectedLabels(i))
+				indexSet.insert(i);
+		}
+
+		std::vector<int> indexVec;
+		indexVec.insert(indexVec.end(), indexSet.begin(), indexSet.end());
+		Eigen::MatrixXd versOut;
+		subFromIdxVec(versOut, vers, indexVec);
+
+		std::vector<int> oldNewIdxInfo(versCount, -1);
+		for (int i = 0; i < indexVec.size(); ++i)
+		{
+			int oldIdx = indexVec[i];
+			oldNewIdxInfo[oldIdx] = i;
+		}
+
+		// 4. 提取最大单连通区域中的三角片：
+		Eigen::MatrixXi trisCopy = tris;
+		int* intPtr = trisCopy.data();
+		for (int i = 0; i < trisCopy.size(); ++i)
+		{
+			int oldIdx = *intPtr;
+			*intPtr = oldNewIdxInfo[oldIdx];
+			intPtr++;
+		}
+
+		Eigen::MatrixXi trisOut = Eigen::MatrixXi::Zero(trisCount, 3);
+		int trisCountNew = 0;
+		for (int i = 0; i < trisCount; ++i)
+		{
+			if (trisCopy(i, 0) >= 0 && trisCopy(i, 1) >= 0 && trisCopy(i, 2) >= 0)
+			{
+				trisOut.row(trisCountNew) = trisCopy.row(i);
+				trisCountNew++;
+			}
+		}
+
+		trisOut.conservativeResize(trisCountNew, 3);
+		objWriteMeshMat("E:/mainConnectedMesh.obj", versOut, trisOut);
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// 自己实现的connected_conponents()
+	void test55()
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		objReadMeshMat(vers, tris, "E:/材料/原型数据/originalMesh.obj");
+		objWriteMeshMat("E:/meshInput.obj", vers, tris);
+
+		bool retFlag = simplyConnectedLargest(versOut, trisOut, vers, tris);
+		if (!retFlag)
+			std::cout << "function failed!!!" << std::endl;
+
+		objWriteMeshMat("E:/meshOut.obj", versOut, trisOut);
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+	// 测量两个网格之间的hausdorff distance
+	void test6() 
+	{
+		Eigen::MatrixXd vers0, vers00, vers1, vers11, vers2, vers22;
+		Eigen::MatrixXi tris0, tris00, tris1, tris11, tris2, tris22;
+		double hd0, hd00, hd1, hd2, hd3, hd4;
+		hd00 = hd0 = hd1 = hd2 = hd3 = hd4 = 0;
+
+		tiktok& tt = tiktok::getInstance();
+		tt.start();
+		objReadMeshMat(vers0, tris0, "E:/材料/tooth.obj");
+		objReadMeshMat(vers00, tris00, "E:/材料/tooth1.obj");
+		objReadMeshMat(vers1, tris1, "E:/材料/rootTooth1.obj");
+		objReadMeshMat(vers11, tris11, "E:/材料/rootTooth2.obj"); 
+		tt.endCout("meshes loading finished:");
+
+		igl::hausdorff(vers0, tris0, vers00, tris00, hd0);
+		igl::hausdorff(vers00, tris00, vers0, tris0, hd00);
+		igl::hausdorff(vers1, tris1, vers11, tris11, hd1); 
+		debugDisp("Hausdorff distance0 == ", hd0);
+		debugDisp("Hausdorff distance00 == ", hd00);
+		debugDisp("Hausdorff distance1 == ", hd1); 
+
+		std::cout << "finished." << std::endl;
+	}
+ 
+}
+
+
+/////////////////////////////////////////////////////////////////////////////// IGL实现的生成数字模型相关算法;
+namespace IGL_MODELLING
+{ 
+	//解析.sdf文本文件：
+	double parseSDF(std::vector<int>& stepCounts, Eigen::RowVector3d& gridsOri, Eigen::VectorXd& SDF, const char* filePath)
+	{
+		/*
+			double parseSDF(												返回距离场的采样步长；
+					std::vector<int>& stepCounts,					xyz三个方向上的步数
+					Eigen::RowVector3d& gridsOri,					距离场空间的原点
+					Eigen::VectorXd& SDF,								距离场数据
+					const char* filePath										SDF文件目录
+					)
+
+		*/
+		double SDFstep = -1;
+		stepCounts.resize(3);
+		std::string readStr(1024, '\0');
+		std::ifstream sdfFile(filePath);
+		if (!sdfFile)
+			return SDFstep;
+
+		// 第一行：步数
+		{
+			std::string tmpStr;
+			sdfFile.getline(&readStr[0], 1024);
+
+			unsigned index = 0;
+			for (const auto& ch : readStr)
+			{
+				if (ch >= '0' && ch <= '9' || ch == '.' || ch == '+' || ch == '-')
+					tmpStr.push_back(ch);
+				else
+				{
+					if (tmpStr.size() > 0)
+					{
+						stepCounts[index] = std::stoi(tmpStr);
+						index++;
+						tmpStr.clear();
+					}
+				}
+			}
+		}
+
+		// 第二行：栅格原点
+		{
+			std::string tmpStr;
+			sdfFile.getline(&readStr[0], 1024);
+
+			unsigned index = 0;
+			for (const auto& ch : readStr)
+			{
+				if (ch >= '0' && ch <= '9' || ch == '.' || ch == '+' || ch == '-')
+					tmpStr.push_back(ch);
+				else
+				{
+					if (tmpStr.size() > 0)
+					{
+						gridsOri(index) = std::stod(tmpStr);
+						index++;
+						tmpStr.clear();
+					}
+				}
+			}
+		}
+
+		// 第三行：距离场空间步长：
+		sdfFile.getline(&readStr[0], 1024);
+		SDFstep = std::stod(readStr);
+
+		// 第三行之后：距离场数据：
+		unsigned dataCount = stepCounts[0] * stepCounts[1] * stepCounts[2];
+		SDF.resize(dataCount);
+		for (unsigned i = 0; i < dataCount; ++i)
+		{
+			sdfFile.getline(&readStr[0], 1024);
+			SDF(i) = std::stod(readStr);
+		}
+		sdfFile.close();
+
+		return SDFstep;
+	}
+
+
+	//解析SDFgenerator输出的存储SDF数据的.txt文件：
+	double parseSDFtxt(Eigen::VectorXd& SDF, const int xCount, const int yCount, const int zCount, const Eigen::RowVector3d& minp, \
+		const Eigen::RowVector3d& maxp, const char* filePath)
+	{
+		/*
+
+		*/
+		Eigen::RowVector3d arrow = maxp - minp;
+		double SDFstep = arrow(0) / xCount;
+		std::ifstream file;
+		const long long valueCount = xCount * yCount * zCount;
+		file.open(filePath);
+		SDF.resize(valueCount);
+
+		double tmp = 0;
+		file >> tmp;
+		file >> tmp;
+		file >> tmp;
+		for (long long i = 0; i < valueCount; ++i)
+			file >> SDF(i);
+		file.close();
+
+		return SDFstep;
+	}
+
+
 	// marching cubes:
 	template <typename Derivedres, typename DerivedV>
-		IGL_INLINE void grid(const Eigen::MatrixBase<Derivedres>& res,
-			Eigen::PlainObjectBase<DerivedV>& GV)
+	IGL_INLINE void grid(const Eigen::MatrixBase<Derivedres>& res,
+		Eigen::PlainObjectBase<DerivedV>& GV)
 	{
 		using namespace Eigen;
-		typedef typename DerivedV::Scalar Scalar;
+		using Scalar = typename DerivedV::Scalar;							// 使用从属名称，需要加上"typename"前缀；
 		GV.resize(res.array().prod(), res.size());
 		const auto lerp = [&res](const Scalar di, const int d)->Scalar {return di / (Scalar)(res(d) - 1); };
 
@@ -1350,13 +1452,13 @@ namespace IGL_BASIC_PMP
 
 
 	//		输入AABB，生成栅格；——from libigl
-	template <typename Scalar, typename DerivedV,	typename DerivedI>
-	bool genGrids(const Eigen::AlignedBox<Scalar, 3>& box, const int largestCount,	const int pad_count,\
-			Eigen::PlainObjectBase<DerivedV>& gridCenters, Eigen::PlainObjectBase<DerivedI>& gridCounts)
+	template <typename Scalar, typename DerivedV, typename DerivedI>
+	bool genGrids(const Eigen::AlignedBox<Scalar, 3>& box, const int largestCount, const int pad_count, \
+		Eigen::PlainObjectBase<DerivedV>& gridCenters, Eigen::PlainObjectBase<DerivedI>& gridCounts)
 	{
 		/*bool genGrids(																		成功返回true
 				const Eigen::AlignedBox<Scalar, 3>&box,						输入的AABB对象；
-				const int largestCount,													跨度最大的那个维度(xyz中的一个)的栅格数；		
+				const int largestCount,													跨度最大的那个维度(xyz中的一个)的栅格数；
 				const int pad_count,														超出包围盒边界的栅格数；
 				Eigen::PlainObjectBase<DerivedV>&gridCenters,			栅格中心；
 				Eigen::PlainObjectBase<DerivedI>&gridCounts				xyz三个维度上栅格的数量；
@@ -1414,8 +1516,8 @@ namespace IGL_BASIC_PMP
 
 		return true;
 	}
- 
- 
+
+
 	//		marchingCubes算法中生成一个cube的三角片：
 	template <typename DerivedGV, typename Scalar, typename Index, typename ScalarV, typename IndexF>
 	void handleCube(const DerivedGV& gridCenters, const Eigen::Matrix<Scalar, 8, 1>& cornerSDF, \
@@ -1539,7 +1641,7 @@ namespace IGL_BASIC_PMP
 			DerivedGV			栅格数据的类型
 			ScalarV					顶点坐标的数据类型；
 			IndexF					面片中的顶点索引的数据类型；
-		
+
 
 			const Eigen::MatrixBase<DerivedS>& scalarFied,							符号距离场数据
 			const Eigen::MatrixBase<DerivedGV>& gridCenters,					栅格数据
@@ -1630,10 +1732,10 @@ namespace IGL_BASIC_PMP
 		}
 		return true;
 	}
+	 
 
-
-	// test4——测试生成栅格、marchingCubes算法：
-	void test4()
+	// 测试生成栅格、marchingCubes算法：
+	void test1()
 	{
 		tiktok& tt = tiktok::getInstance();
 		Eigen::MatrixXd vers;
@@ -1645,13 +1747,13 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXd gridCenters;				//	 所有栅格中点坐标的矩阵，每行都是一个中点坐标；存储优先级是x, y, z
 		Eigen::MatrixXd	boxVers;				// 栅格对应的包围盒的顶点；
 		Eigen::MatrixXi boxTris;
-		double selectedSDF = 0.75;						// 提取的水平集对应的距离场值；
+		double selectedSDF = 1.0;						// 提取的水平集对应的距离场值；
 
 		// 0. 解析SDFGen.exe生成的.sdf距离场数据文件：
-		std::string fileName = "E:/材料/jawMesh6";
+		std::string fileName = "E:/材料/jawBracket";
 		std::string sdfFilePath = fileName + std::string{ ".sdf" };
 		std::string objFilePath = fileName + std::string{ ".obj" };
-		double SDFstep = IGL_BASIC::parseSDF(stepCounts, gridsOri, SDF, sdfFilePath.c_str());
+		double SDFstep = parseSDF(stepCounts, gridsOri, SDF, sdfFilePath.c_str());
 		int xCount = stepCounts[0];
 		int yCount = stepCounts[1];
 		int zCount = stepCounts[2];
@@ -1663,16 +1765,15 @@ namespace IGL_BASIC_PMP
 		Eigen::MatrixXd maskGauss(3, 3);
 		maskGauss << 0.0113, 0.0838, 0.0113, 0.0838, 0.6193, 0.0838, 0.0113, 0.0838, 0.0113;
 		int sliceSize = xCount * yCount;
-		/*PARALLEL_FOR(0, zCount, [&](int i)*/
-		for(int i = 0; i<zCount; ++i)
-			{
-				Eigen::VectorXd slice = SDF.segment(sliceSize * i, sliceSize);
-				Eigen::MatrixXd sliceMat = Eigen::Map<Eigen::MatrixXd>(slice.data(), xCount, yCount);
-				Eigen::MatrixXd filteredMat;
-				linearSpatialFilter(filteredMat, sliceMat, maskGauss);
-				slice = Eigen::Map<Eigen::VectorXd>(filteredMat.data(), sliceSize, 1);
-				SDF.segment(sliceSize * i, sliceSize) = slice;
-			}
+		for (int i = 0; i < zCount; ++i)
+		{
+			Eigen::VectorXd slice = SDF.segment(sliceSize * i, sliceSize);
+			Eigen::MatrixXd sliceMat = Eigen::Map<Eigen::MatrixXd>(slice.data(), xCount, yCount);
+			Eigen::MatrixXd filteredMat;
+			linearSpatialFilter(filteredMat, sliceMat, maskGauss);
+			slice = Eigen::Map<Eigen::VectorXd>(filteredMat.data(), sliceSize, 1);
+			SDF.segment(sliceSize * i, sliceSize) = slice;
+		}
 		tt.endCout("elapsed time of gaussian filtering is : ");
 
 		// 1. 生成栅格：
@@ -1682,7 +1783,6 @@ namespace IGL_BASIC_PMP
 		genGrids(box, std::max({ stepCounts[0], stepCounts[1], stepCounts[2] }), 0, gridCenters, gridCounts);
 		genAABBmesh(boxVers, boxTris, box);
 		objWriteMeshMat("E:/AABB.obj", boxVers, boxTris);
-
 		{
 			//			栅格数据的分布：
 			/*
@@ -1737,7 +1837,7 @@ namespace IGL_BASIC_PMP
 		tt.start();
 		marchingCubes(versResult_SDF, trisResult_SDF, SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF);
 		tt.endCout("Elapsed time of my marching_cubes() is ");
-		igl::writeOBJ("E:/shrinkedMesh.obj", versResult_SDF, trisResult_SDF);
+		igl::writeOBJ("E:/scaledMesh.obj", versResult_SDF, trisResult_SDF);
 
 		// 原始的marching cubes
 		versResult_SDF.resize(0, 0);
@@ -1745,141 +1845,14 @@ namespace IGL_BASIC_PMP
 		tt.start();
 		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
 		tt.endCout("Elapsed time of igl::marching_cubes() is ");
-		igl::writeOBJ("E:/shrinkedMeshOri.obj", versResult_SDF, trisResult_SDF);
- 
-		std::cout << "finished." << std::endl;
-	}
-
-
-	// test44
-	void test44()
-	{
-		tiktok& tt = tiktok::getInstance();
-
-		Eigen::VectorXd SDF;
-		Eigen::RowVector3i gridCounts;			// xyz三个维度上的栅格数量；
-		Eigen::MatrixXd gridCenters;				//	 所有栅格中点坐标的矩阵，每行都是一个中点坐标；存储优先级是x, y, z
-		Eigen::MatrixXd	boxVers;						// 栅格对应的包围盒的顶点；
-		Eigen::MatrixXi boxTris;
-		double selectedSDF = 0.75;						// 提取的水平集对应的距离场值；
-
-		std::vector<int> stepCounts{ 126, 132, 39 };														// xyz三个维度上栅格数
-		Eigen::RowVector3d gridsOri{ -23.4242516, -40.1728897, -1.50000501 };					// 栅格原点：
-		double SDFstep = 0.5;
-		int xCount = stepCounts[0];
-		int yCount = stepCounts[1];
-		int zCount = stepCounts[2];
- 
-		// 0. 生成栅格：
-		Eigen::RowVector3d minp = gridsOri;
-		Eigen::RowVector3d maxp = gridsOri + SDFstep * Eigen::RowVector3d(stepCounts[0] - 1, stepCounts[1] - 1, stepCounts[2] - 1);
-		Eigen::AlignedBox<double, 3> box(minp, maxp);		// 栅格对应的包围盒；
-		genGrids(box, std::max({ stepCounts[0], stepCounts[1], stepCounts[2] }), 0, gridCenters, gridCounts);
-		genAABBmesh(boxVers, boxTris, box);
-		objWriteMeshMat("E:/AABB.obj", boxVers, boxTris);
-		{
-			//			栅格数据的分布：
-			/*
-				按索引增大排列的栅格中心点为：
-				gc(000), gc(100), gc(200), gc(300),...... gc(010), gc(110), gc(210), gc(310),...... gc(001), gc(101), gc(201).....
-
-
-				x坐标：
-				x0, x1, x2, x3......x0, x1, x2, x3......x0, x1, x2, x3......
-				周期为xCount;
-				重复次数为(yCount * zCount)
-
-				y坐标：
-				y0, y0, y0...y1, y1, y1...y2, y2, y2.........y0, y0, y0...y1, y1, y1...
-				周期为(xCount * yCount);
-				重复次数为zCount;
-				单个元素重复次数为xCount
-
-				z坐标：
-				z0, z0, z0......z1, z1, z1......z2, z2, z2......
-				单个元素重复次数为(xCount * yCount)
-			*/
-			Eigen::MatrixXd gridCenters0;				// for try——尝试自己生成栅格数据：
-			Eigen::RowVector3i gridCounts0{ stepCounts[0], stepCounts[1], stepCounts[2] };
-			Eigen::VectorXd xPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(0), minp(0), maxp(0));
-			Eigen::VectorXd yPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(1), minp(1), maxp(1));
-			Eigen::VectorXd zPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(2), minp(2), maxp(2));
-
-			Eigen::MatrixXd tmpVec0, tmpVec1, tmpVec2;
-			kron(tmpVec0, Eigen::VectorXd::Ones(gridCounts(1) * gridCounts(2)), xPeriod);
-			Eigen::VectorXd tmpVec11 = kron(yPeriod, Eigen::VectorXi::Ones(gridCounts(0)));
-			kron(tmpVec1, Eigen::VectorXi::Ones(gridCounts(2)), tmpVec11);
-			kron(tmpVec2, zPeriod, Eigen::VectorXd::Ones(gridCounts(0) * gridCounts(1)));
-			gridCenters0.resize(stepCounts[0] * stepCounts[1] * stepCounts[2], 3);
-			gridCenters0.col(0) = tmpVec0;
-			gridCenters0.col(1) = tmpVec1;
-			gridCenters0.col(2) = tmpVec2;
-
-			//				提取栅格中SDF值小于0的顶点：
-			Eigen::MatrixXd tmpVers(SDF.rows(), 3);
-			int index = 0;
-			for (int i = 0; i < SDF.rows(); ++i)
-				if (SDF(i) <= 0)
-					tmpVers.row(index++) = gridCenters0.row(i);
-			tmpVers.conservativeResize(index, 3);
-			igl::writeOBJ("E:/tmpVers.obj", tmpVers, Eigen::MatrixXi{});
-		}
-
-
-		// 1. 生成SDF数据：
-		unsigned spVersCount = gridCenters.rows();
-		SDF.resize(spVersCount);
-		for (unsigned i = 0; i < spVersCount; ++i)
-			SDF(i) = gridCenters(i, 2);
-
-		gaussFilterSDFdata(SDF, xCount, yCount, zCount);
-
-		// 2原始的marching cubes
-		Eigen::MatrixXd versResult;
-		Eigen::MatrixXi trisResult;
-		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 0, versResult, trisResult);
-		igl::writeOBJ("E:/meshXOY.obj", versResult, trisResult);
-
-		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), 1.7, versResult, trisResult);
-		igl::writeOBJ("E:/meshSDF1.7.obj", versResult, trisResult);
-
+		igl::writeOBJ("E:/scaledMeshOri.obj", versResult_SDF, trisResult_SDF);
 
 		std::cout << "finished." << std::endl;
 	}
 
-
-	// 补洞：opological_hole_fill()——当前有问题
-#if 0
-	void test5()
-	{
-		Eigen::MatrixXd vers;
-		Eigen::MatrixXi tris, bdrys;
-		igl::readOBJ("E:/材料/holeMesh.obj", vers, tris);
-		igl::writeOBJ("E:/meshInput.obj", vers, tris);		
-
-		const unsigned versCount = vers.rows();
-
-		// 计算洞的有序顶点索引
-		std::vector<std::vector<int>> holes, bdrySegs;
-		findHolesBdrySegs(holes, bdrySegs, vers, tris);
-
-		// 需要手动为原网格添加洞的中心点，而且貌似处理多个洞的情形会出错；
-		Eigen::MatrixXd holeVers;
-		subFromIdxVec(holeVers, vers, holes[0]);
-		Eigen::RowVector3d holeCenter = holeVers.colwise().mean();
-		Eigen::MatrixXd versOut(versCount + 1, 3);
-		versOut.topRows(versCount) = vers;
-		versOut.bottomRows(1) = holeCenter;
-
-		Eigen::MatrixXi trisOut;
-		igl::topological_hole_fill(tris, Eigen::VectorXi{}, holes, trisOut);
-		igl::writeOBJ("E:/meshFilled.obj", versOut, trisOut);
-		std::cout << "finished." << std::endl;
-	}
-#endif
 
 	// 缠绕数winding number:
-	void test6() 
+	void test2()
 	{
 		Eigen::MatrixXd vers0, vers1;
 		Eigen::MatrixXi tris0, tris1;
@@ -1889,11 +1862,11 @@ namespace IGL_BASIC_PMP
 
 		igl::winding_number(vers0, tris0, vers1, wNums);			// 网格外部则缠绕数为0；
 
-		std::vector<double> wNumsVec = vec2Vec(wNums);
+		std::vector<double> wNumsVec = eigenVec2Vec(wNums);
 		std::vector<int> vec;
 		vec.reserve(wNums.rows());
 		const double eps = 1e-6;
-		for (unsigned i = 0; i< wNums.rows(); ++i) 
+		for (unsigned i = 0; i < wNums.rows(); ++i)
 		{
 			if (std::abs(wNums(i)) < eps)
 				vec.push_back(i);
@@ -1908,148 +1881,108 @@ namespace IGL_BASIC_PMP
 	}
 
 
-	// 测试网格单连通区域提取connected_components()
-	void test7() 
+	// libigl生成符号距离场——角度权重伪法线方法；
+	void test3()
 	{
-		Eigen::MatrixXd vers;
 		Eigen::MatrixXi tris;
-		objReadMeshMat(vers, tris, "E:/材料/原型数据/originalMesh.obj");
-		unsigned versCount = vers.rows();
-		unsigned trisCount = tris.rows();
-
-
-		// 1. 生成邻接矩阵：
-		Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
-		adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
-
-		Eigen::SparseMatrix<int> adjSM = adjSM_eCount;
-		traverseSparseMatrix(adjSM, [&](auto& iter)
-			{
-				iter.valueRef() = 1;
-			});
-
-		// 2. 确定单连通区域——connected_components()
-		Eigen::VectorXi connectedLabels, connectedCount;
-		int conCount = igl::connected_components(adjSM, connectedLabels, connectedCount);
-
-		// 3. 提取最大的单连通区域中的顶点：
-		std::vector<int> retVec1, retVec2;
-		retVec1 = vec2Vec(connectedLabels);
-		retVec2 = vec2Vec(connectedCount);
-
-		int mainLabel = 0;						// 包含最大联通顶点数的标签；
-		int mainLabelCount = 0;
-		for (int i = 0; i < conCount; ++i)
-		{
-			if (connectedCount(i) > mainLabelCount)
-			{
-				mainLabel = i;
-				mainLabelCount = connectedCount(i);
-			}
-		}
-
-		std::unordered_set<int> indexSet;
-		for (int i = 0; i < versCount; ++i)
-		{
-			if (mainLabel == connectedLabels(i))
-				indexSet.insert(i);
-		}
-
-		std::vector<int> indexVec;
-		indexVec.insert(indexVec.end(), indexSet.begin(), indexSet.end());
-		Eigen::MatrixXd versOut;
-		subFromIdxVec(versOut, vers, indexVec);
-
-		std::vector<int> oldNewIdxInfo(versCount, -1);
-		for (int i = 0; i < indexVec.size(); ++i)
-		{
-			int oldIdx = indexVec[i];
-			oldNewIdxInfo[oldIdx] = i;
-		}
-
-		// 4. 提取最大单连通区域中的三角片：
-		Eigen::MatrixXi trisCopy = tris;
-		int* intPtr = trisCopy.data();
-		for (int i = 0; i < trisCopy.size(); ++i)
-		{
-			int oldIdx = *intPtr;
-			*intPtr = oldNewIdxInfo[oldIdx];
-			intPtr++;
-		}
-
-		Eigen::MatrixXi trisOut = Eigen::MatrixXi::Zero(trisCount, 3);
-		int trisCountNew = 0;
-		for (int i = 0; i < trisCount; ++i)
-		{
-			if (trisCopy(i, 0) >= 0 && trisCopy(i, 1) >= 0 && trisCopy(i, 2) >= 0)
-			{
-				trisOut.row(trisCountNew) = trisCopy.row(i);
-				trisCountNew++;
-			}
-		}
-
-		trisOut.conservativeResize(trisCountNew, 3);
-		objWriteMeshMat("E:/mainConnectedMesh.obj", versOut, trisOut);
-
-		std::cout << "finished." << std::endl;
-	}
-
-
-	// 自己实现的connected_conponents()
-	void test77()
-	{
-		Eigen::MatrixXd vers, versOut;
-		Eigen::MatrixXi tris, trisOut;
-		objReadMeshMat(vers, tris, "E:/材料/原型数据/originalMesh.obj");
-		objWriteMeshMat("E:/meshInput.obj", vers, tris);
-
-		bool retFlag = simplyConnectedLargest(versOut, trisOut, vers, tris);
-		if (!retFlag)
-			std::cout << "function failed!!!" << std::endl;
-
-		objWriteMeshMat("E:/meshOut.obj", versOut, trisOut);
-
-		std::cout << "finished." << std::endl;
-	}
-
-
-	// 测量两个网格之间的hausdorff distance
-	void test8() 
-	{
-		Eigen::MatrixXd vers0, vers00, vers1, vers11, vers2, vers22;
-		Eigen::MatrixXi tris0, tris00, tris1, tris11, tris2, tris22;
-		double hd0, hd00, hd1, hd2, hd3, hd4;
-		hd00 = hd0 = hd1 = hd2 = hd3 = hd4 = 0;
-
+		Eigen::MatrixXd vers;
 		tiktok& tt = tiktok::getInstance();
+		DWORD tikCount = 0;
+
+		// 0. 读取网格：
 		tt.start();
-		objReadMeshMat(vers0, tris0, "E:/材料/tooth.obj");
-		objReadMeshMat(vers00, tris00, "E:/材料/tooth1.obj");
-		objReadMeshMat(vers1, tris1, "E:/材料/rootTooth1.obj");
-		objReadMeshMat(vers11, tris11, "E:/材料/rootTooth2.obj"); 
-		tt.endCout("meshes loading finished:");
+		igl::readOBJ("E:/材料/jawMesh.obj", vers, tris);
+		tikCount += tt.endGetCount();
+		debugWriteMesh("meshInput", vers, tris);
 
-		igl::hausdorff(vers0, tris0, vers00, tris00, hd0);
-		igl::hausdorff(vers00, tris00, vers0, tris0, hd00);
-		igl::hausdorff(vers1, tris1, vers11, tris11, hd1); 
-		debugDisp("Hausdorff distance0 == ", hd0);
-		debugDisp("Hausdorff distance00 == ", hd00);
-		debugDisp("Hausdorff distance1 == ", hd1); 
+		// 1. 生成栅格：
+		tt.start();
+		double gridStep = 0.5;
+		double range[3];
+		for (unsigned i = 0; i < 3; ++i)
+		{
+			Eigen::VectorXd coors = vers.col(i);
+			range[i] = coors.maxCoeff() - coors.minCoeff();
+		}
+		double largestRange = std::max({ range[0], range[1], range[2] });
+		int num = std::ceil((largestRange / gridStep));									 // 跨度最大的那个维度(xyz中的一个)的栅格数；
+		double gridsOffset = (gridStep * num - largestRange) / 2.;
+		Eigen::MatrixXd gridCenters;
+		Eigen::RowVector3i gridCounts; 
+		igl::voxel_grid(vers, gridsOffset, num, 1, gridCenters, gridCounts);
 
-		std::cout << "finished." << std::endl;
-	}
- 
-}
+		// ！！！注：libigl中的计算SDF接口igl::signed_distance生成的距离场貌似没有SDFgen中的好用，有时候会出错；
+
+		// 2. 计算符号距离场
+		Eigen::VectorXd SDF;
+		{
+			Eigen::VectorXi I;                     // useless
+			Eigen::MatrixXd C, N;              // useless 
+			igl::signed_distance(gridCenters, vers, tris, igl::SignedDistanceType::SIGNED_DISTANCE_TYPE_PSEUDONORMAL, SDF, I, C, N);
+		}
+		tikCount += tt.endGetCount();
+		debugDisp("角度权重伪法线方法计算符号距离场：读网格+计算SDF总耗时：", tikCount);
+
+		// 3. 提取水平集
+		Eigen::MatrixXi trisResult_SDF;
+		Eigen::MatrixXd versResult_SDF;
+		double selectedSDF = -1; 
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
+		debugWriteMesh("shrinkedMesh1", versResult_SDF, trisResult_SDF); 
+
+		debugDisp("finished.");
+	} 
 
 
-/////////////////////////////////////////////////////////////////////////////// IGL实现的生成数字模型相关算法;
-namespace IGL_MODELLING
-{
-	// 计算三角网格的符号距离场SDF
-	void test0() 
+	// libigl生成符号距离场——快速缠绕数方法；
+	void test33()
 	{
+		Eigen::MatrixXi tris;
+		Eigen::MatrixXd vers;
+		tiktok& tt = tiktok::getInstance();
+		DWORD tikCount = 0;
 
+		// 0. 读取网格：
+		tt.start();
+		igl::readOBJ("E:/材料/jawMesh.obj", vers, tris);
+		tikCount += tt.endGetCount();
+		debugWriteMesh("meshInput", vers, tris);
 
+		// 1. 生成栅格：
+		tt.start();
+		double gridStep = 0.5;
+		double range[3];
+		for (unsigned i = 0; i < 3; ++i)
+		{
+			Eigen::VectorXd coors = vers.col(i);
+			range[i] = coors.maxCoeff() - coors.minCoeff();
+		}
+		double largestRange = std::max({ range[0], range[1], range[2] });
+		int num = std::ceil((largestRange / gridStep));									 // 跨度最大的那个维度(xyz中的一个)的栅格数；
+		double gridsOffset = (gridStep * num - largestRange) / 2.;
+		Eigen::MatrixXd gridCenters;
+		Eigen::RowVector3i gridCounts;
+		igl::voxel_grid(vers, gridsOffset, num, 1, gridCenters, gridCounts);
+
+		// ！！！注：libigl中的计算SDF接口igl::signed_distance生成的距离场貌似没有SDFgen中的好用，有时候会出错；
+
+		// 2. 计算符号距离场
+		Eigen::VectorXd SDF;
+		{
+			Eigen::VectorXi I;                     // useless
+			Eigen::MatrixXd C, N;              // useless 
+			igl::signed_distance(gridCenters, vers, tris, igl::SignedDistanceType::SIGNED_DISTANCE_TYPE_FAST_WINDING_NUMBER, SDF, I, C, N);
+		}
+		tikCount += tt.endGetCount();
+		debugDisp("快速缠绕数方法计算符号距离场：读网格+计算SDF总耗时：", tikCount);
+
+		// 3. 提取水平集
+		Eigen::MatrixXi trisResult_SDF;
+		Eigen::MatrixXd versResult_SDF;
+		double selectedSDF = -1;
+		igl::marching_cubes(SDF, gridCenters, gridCounts(0), gridCounts(1), gridCounts(2), selectedSDF, versResult_SDF, trisResult_SDF);
+		debugWriteMesh("shrinkedMesh2", versResult_SDF, trisResult_SDF);
+
+		debugDisp("finished.");
 	}
-
 }

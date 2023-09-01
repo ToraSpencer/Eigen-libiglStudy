@@ -1,6 +1,6 @@
 #include "dense_mat.h"
 
-namespace DENSEMAT
+namespace TEST_DENSE_MAT
 {
 #define MAXLEN 1024
 	using namespace Eigen;
@@ -127,6 +127,14 @@ namespace DENSEMAT
 			char path[512] = { 0 };
 			sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 			objWriteVerticesMat(path, vers);
+		}
+
+		template<typename DerivedV>
+		static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+		{
+			char path[512] = { 0 };
+			sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+			objWriteVerticesMat2D(path, vers);
 		}
 
 
@@ -537,14 +545,12 @@ namespace DENSEMAT
 		std::cout << "m1 == \n" << std::endl;
 		dispMat(m1);
 
-
-		// setConstant()方法——块赋值：
+		// 1. setConstant()方法——块赋值：
 		m1.setConstant(1.0);
 		m1.topRightCorner(2, 3).setConstant(2.0);
 		dispMat(m1);
 
-
-		// VectorXT::segment<>()方法——提取向量的子向量片段，返回其左值引用。两个重载
+		//	2. VectorXT::segment<>()方法——提取向量的子向量片段，返回其左值引用。两个重载
 		Eigen::VectorXi v1(9);
 		v1 << 1, 2, 3, 4, 5, 6, 7, 8, 8;
 
@@ -558,8 +564,12 @@ namespace DENSEMAT
 		v1.segment<5>(2) = 999 * Eigen::VectorXi::Ones(5);
 		std::cout << "v1 == \n" << v1 << std::endl << std::endl;
 
+		// 2+. 向量的head(), tail()方法——行为上看是返回向量片段的引用；
+		v1.head(3) = Eigen::Vector3i{-1, -1, -1};
+		v1.tail(2) = Eigen::RowVector2i{88, 88};
+		debugDisp("v1 == \n", v1);
 
-		// block()方法——提取子矩阵块，返回其左值引用。有两个重载
+		// 3. block()方法——提取子矩阵块，返回其左值引用。有两个重载
 		std::cout << "block()方法" << std::endl;
 
 		//			重载1：block<rows, cols>(startRow, startCol)——静态block，矩阵块的尺寸必须是编译期已知的，必须是constExpr
@@ -581,19 +591,18 @@ namespace DENSEMAT
 		std::cout << "m1 == \n" << m1 << std::endl;
 
 
-		// row(), col()——提取某一行或者某一列
+		// 4. row(), col()——提取某一行或者某一列
 		std::cout << "row(), col()——提取某一行或者某一列\n m1.col(3) == \n" << m1.col(3) << std::endl;
 
 		//			提取出的行、列是原数据的引用，不是新的拷贝，并且是左值。
 		m1.col(3) << 1, 2, 3, 4, 5;
 		std::cout << "m1.col(3) == \n" << m1.col(3) << std::endl;
 
-		// topRows(), bottomRows(), leftCols(), rightCols();
+		// 5. topRows(), bottomRows(), leftCols(), rightCols();
 		std::cout << "m1.leftCols(2) ==   \n" << m1.leftCols(2) << std::endl;
 		std::cout << "m1.topRows(2) == \n" << m1.topRows(2) << std::endl;
  
-
-		//	minCoeff()求最值对矩阵分块也同样适用
+		//	6. minCoeff()求最值对矩阵分块也同样适用
 		Eigen::MatrixXf::Index maxRow, maxCol;
 		Eigen::MatrixXf::Index minRow, minCol;
 		float min = m1.col(1).minCoeff(&minRow, &minCol);
@@ -608,8 +617,7 @@ namespace DENSEMAT
 		std::cout << "maxRow == " << maxRow << std::endl;
 		std::cout << "maxCol == " << maxCol << std::endl;
 
-
-		// rowwise(), colwise()对矩阵逐行、列的操作：
+		// 7. rowwise(), colwise()对矩阵逐行、列的操作：
 		m1.resize(3, 3);
 		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9;
 		std::cout << m1 << std::endl << std::endl;

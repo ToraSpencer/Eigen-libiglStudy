@@ -1,4 +1,4 @@
-﻿#include "HomoCoorTools.h"
+﻿#include "myEigenHomoCoor.h"
 
  
 // 读取点云OBJ文件中的数据，存储到齐次坐标系表示的点云矩阵中；注：顶点在矩阵中是列表示的，第四维的元素始终为1；

@@ -8,8 +8,8 @@
 
 
 // 齐次坐标系相关静态库
-#include "HomoCoorTools/HomoCoorTools.h"
-#pragma comment(lib,"HomoCoorTools.lib")	
+#include "myEigenHomoCoor/myEigenHomoCoor.h"
+#pragma comment(lib,"myEigenHomoCoor.lib")	
 
 namespace SCIENTIFIC_CALC
 {

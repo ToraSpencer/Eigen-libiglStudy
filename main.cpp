@@ -2566,7 +2566,7 @@ namespace MESH_REPAIR
 				}
 			}
 			trisCopy.row(oppTriIdx) = Eigen::RowVector3i{vbIdx, vcIdx, vxIdx};
-			matInsertRows<int , 3>(trisCopy, Eigen::RowVector3i{vcIdx, vaIdx, vxIdx});
+			matInsertRows(trisCopy, Eigen::RowVector3i{vcIdx, vaIdx, vxIdx});
 		}
  
 		// 4. 删除被标记的退化三角片：
@@ -3166,8 +3166,43 @@ namespace TEMP_TEST
 
 
 
-////////////////////////////////////////////////////////////////////////////// 生成控制台程序工具：
+////////////////////////////////////////////////////////////////////////////// TEST: 生成二维环路点集的SDF:
+namespace TEST_SDF2D 
+{
+	// 计算XOY平面上的二维环路点集的符号距离场；要求环路右手螺旋方向平行于z轴正向；
+	template<typename DerivedV>
+	bool genSDF2d(std::vector<double>& SDFvalues, Eigen::MatrixXd& gridVers, const Eigen::PlainObjectBase<DerivedV>& vers, \
+		const double step) 
+	{
+		/*
+			bool genSDF2d(
+				std::vector<double>& SDFvalues,											输出的符号距离场值；
+				Eigen::MatrixXd& gridVers,														采样点点集；
+				const Eigen::PlainObjectBase<DerivedV>& vers,					环路点集, vers.cols() == 2;
+				const double step																	采样步长；
+				) 		
+		*/
+		assert(2 == vers.cols(), "Error!!! input vertices should be 2D vertices.");
 
+
+
+		return true;
+	}
+
+	void test0() 
+	{
+		Eigen::MatrixXd vers, vers2D;
+		objReadVerticesMat(vers, "E:/材料/bdryUpper2D.obj");
+		vers2D = vers.leftCols(2);
+		debugWriteVers2D("versInput", vers2D);
+
+		debugDisp("finished.");
+	}
+
+}
+
+
+////////////////////////////////////////////////////////////////////////////// 生成控制台程序工具：
 
 // 批量读取本地网格执行laplace光顺：
 int testCmd_laplaceFaring(int argc, char** argv)
@@ -3298,33 +3333,15 @@ int testCmd_hausdorffDistance(int argc, char** argv)
 
 
 int main(int argc, char** argv)
-{
-	// MESH_REPAIR::testCmd_meshDefectsDetect(argc, argv);
+{ 
+	// TEST_SDF2D::test0();
 
-	// MESH_REPAIR::test6();
+	IGL_MODELLING::test3();
 
-	// MESH_REPAIR::testCmd_meshFix(argc, argv);
-
-	// MESH_REPAIR::testCmd_fillSmallHoles(argc, argv);
-
-	// MESH_REPAIR::testCmd_triangleGrowOutterSurf(argc, argv);
-
-	// TEST_MYEIGEN::test111();
-
-	// DENSEMAT::test3();
-
-	// SPARSEMAT::test0(); 
-
-	IGL_BASIC_PMP::test8();
-
-	//DECIMATION::test0();
-
-	//DECIMATION::test0000();
-
-	// SCIENTIFIC_CALC::test1();
- 
-	// testCmd_hausdorffDistance(argc, argv);
-
+	// testCmd_laplaceFaring(argc, argv);
+	 
+	// TEST_DENSE_MAT::test4();
+	 
 
 	std::cout << "main() finished." << std::endl;
 }

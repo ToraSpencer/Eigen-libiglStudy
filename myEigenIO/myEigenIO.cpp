@@ -306,11 +306,27 @@ void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& v
 template	<typename DerivedV>
 void objWriteVerticesMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers)
 {
+	assert(3 == vers.cols(), "error!!! vers mat column size should be 3.");
 	std::ofstream dstFile(fileName);
 	for (int j = 0; j < vers.rows(); j++)
 	{
 		char szBuf[1024] = { 0 };
 		sprintf_s(szBuf, 1024, "v %.17g %.17g %.17g", vers(j, 0), vers(j, 1), vers(j, 2));
+		dstFile << szBuf << "\n";
+	}
+	dstFile.close();
+}
+
+
+template	<typename DerivedV>
+void objWriteVerticesMat2D(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers)
+{
+	assert(2 == vers.cols(), "error!!! 2D vers mat column size should be 2.");
+	std::ofstream dstFile(fileName);
+	for (int j = 0; j < vers.rows(); j++)
+	{
+		char szBuf[1024] = { 0 };
+		sprintf_s(szBuf, 1024, "v %.17g %.17g %.17g", vers(j, 0), vers(j, 1), 0);
 		dstFile << szBuf << "\n";
 	}
 	dstFile.close();
@@ -474,6 +490,15 @@ template	void objWriteVerticesMat<Eigen::Matrix<float, 1, 3, 1, 1, 3>>(const cha
 	const Eigen::PlainObjectBase<Eigen::Matrix<float, 1, 3, 1, 1, 3>>& vers);
 template	void objWriteVerticesMat<Eigen::Matrix<double, 1, 3, 1, 1, 3>>(const char* fileName, \
 	const Eigen::PlainObjectBase<Eigen::Matrix<double, 1, 3, 1, 1, 3>>& vers);
+
+template	void objWriteVerticesMat2D<Eigen::Matrix<float, -1, -1, 0, -1, -1>>(const char* fileName, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>& vers);
+template	void objWriteVerticesMat2D<Eigen::Matrix<double, -1, -1, 0, -1, -1>>(const char* fileName, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>& vers);
+template	void objWriteVerticesMat2D<Eigen::Matrix<float, 1, 2, 1, 1, 2>>(const char* fileName, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, 1, 2, 1, 1, 2>>& vers);
+template	void objWriteVerticesMat2D<Eigen::Matrix<double, 1, 2, 1, 1, 2>>(const char* fileName, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, 1, 2, 1, 1, 2>>& vers);
 
 template void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<Eigen::Matrix<int, -1, -1, 0, -1, -1>>& edges, \
 	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>& vers);
