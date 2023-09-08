@@ -3189,6 +3189,7 @@ namespace TEST_SDF2D
 		return true;
 	}
 
+
 	void test0() 
 	{
 		Eigen::MatrixXd vers, vers2D;
@@ -3336,12 +3337,13 @@ int main(int argc, char** argv)
 { 
 	// TEST_SDF2D::test0();
 
-	IGL_MODELLING::test3();
+	// IGL_MODELLING::test3();
 
 	// testCmd_laplaceFaring(argc, argv);
 	 
 	// TEST_DENSE_MAT::test4();
 	 
+	TEST_DENSE_MAT::test3();
 
 	std::cout << "main() finished." << std::endl;
 }

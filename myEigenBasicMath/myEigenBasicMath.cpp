@@ -1,6 +1,17 @@
 #include "myEigenBasicMath.h"
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////// supportive
+
+// 传入函数子遍历稀疏矩阵中的非零元素，函数子接受的参数是Eigen::SparseMatrix<T>::InnerIterator&
+template<typename spMat, typename F>
+void traverseSparseMatrix(spMat& sm, F f)
+{
+	for (unsigned i = 0; i < sm.outerSize(); ++i)
+		for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
+			f(iter);
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////// 非模板函数的实现
 
 // 布尔向量转化为索引向量；
@@ -56,6 +67,7 @@ std::vector<typename Derived::Scalar>  eigenVec2Vec(const Eigen::PlainObjectBase
 
 	return vOut;
 }
+
 
 // eigen的向量和std::vector<T>相互转换，重载2：std::vector转换为Eigen列向量；
 template<typename T>
@@ -370,6 +382,58 @@ void sparse(Eigen::SparseMatrix<T>& SM, const Eigen::VectorXi& I, const Eigen::V
 		IJV.push_back(Eigen::Triplet<T>(I(x), J(x), values(x)));
 	SM.resize(m, n);
 	SM.setFromTriplets(IJV.begin(), IJV.end());
+}
+
+
+// 稀疏矩阵转置；Eigen::SparseMatrix自带的transpose()方法太垃圾了
+template<typename T>
+bool spMatTranspose(Eigen::SparseMatrix<T>& smOut, const Eigen::SparseMatrix<T>& smIn)
+{
+	smOut.resize(0, 0);
+	smOut.resize(smIn.cols(), smIn.rows());
+	std::vector<Eigen::Triplet<T>> trips;
+	trips.reserve(smIn.nonZeros());
+	traverseSparseMatrix(smIn, [&smIn, &trips](auto& iter)
+		{
+			trips.push_back(Eigen::Triplet<T>{static_cast<int>(iter.col()), static_cast<int>(iter.row()), iter.value()});
+		});
+	smOut.setFromTriplets(trips.begin(), trips.end());
+
+	return true;
+}
+
+
+// 解恰定的稠密线性方程组Ax == b;
+template<typename T, int N>
+bool solveLinearEquation(Eigen::Matrix<T, N, 1>& x, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, \
+	const Eigen::Matrix<T, N, 1>& b)
+{
+	// 解线性方程组Ax == b;
+	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	x = svdSolver.solve(b);
+
+	return true;
+}
+
+
+// 解一系列恰定的稠密线性方程组AX == B;
+template <typename T>
+bool solveLinearEquations(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& B)
+{
+	if (A.rows() != B.rows())
+		return false;
+
+	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	X.resize(A.cols(), B.cols());
+	for (int i = 0; i < B.cols(); ++i)
+	{
+		Eigen::Matrix < T, Eigen::Dynamic, 1> x = svdSolver.solve(B.col(i));
+		X.col(i) = x;
+	}
+
+	return true;
 }
 
 

@@ -22,6 +22,7 @@
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
 
+
 /////////////////////////////////////////////////////////////////////////////////////////////////// basic math tools:
 template <typename T>
 std::pair<double, double> cart2polar(const T x, const T y);
@@ -52,6 +53,7 @@ bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, std::vector<int>& ol
 	const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
  
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////// 矩阵的增删查改
 template<typename T>
 bool vecInsertNum(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec, const T num);
 template<typename T>
