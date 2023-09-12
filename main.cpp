@@ -1,8 +1,7 @@
 ﻿#include "dense_mat.h"
 #include "sparse_mat.h"
 #include "scientific_calc.h"
-#include "igl_study.h"
-#include "myTmesh.h"
+#include "igl_study.h" 
 
 #include<stdio.h>
 #include<assert.h>
@@ -10,6 +9,7 @@
 #include <fstream>
 #include <iomanip>
 #include <string>
+#include <typeinfo>
 
 #include <windows.h>
 #include <atlstr.h>					// 包含CString类。属于microsoft ATL(活动模板库avtive template library)
@@ -153,6 +153,101 @@ namespace MY_WIN_API
 
 }
 using namespace MY_WIN_API;
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
+namespace MY_DEBUG
+{
+	static std::string g_debugPath = "E:/";
+
+
+	static void debugDisp()			// 递归终止
+	{						//		递归终止设为无参或者一个参数的情形都可以。
+		std::cout << std::endl;
+		return;
+	}
+
+	template <typename T, typename... Types>
+	static void debugDisp(const T& firstArg, const Types&... args)
+	{
+		std::cout << firstArg << " ";
+		debugDisp(args...);
+	}
+
+
+	template <typename T, int M, int N>
+	static void dispData(const Eigen::Matrix<T, M, N>& m)
+	{
+		auto dataPtr = m.data();
+		unsigned elemsCount = m.size();
+
+		for (unsigned i = 0; i < elemsCount; ++i)
+			std::cout << dataPtr[i] << ", ";
+
+		std::cout << std::endl;
+	}
+
+
+	template <typename Derived>
+	static void dispData(const Eigen::PlainObjectBase<Derived>& m)
+	{
+		int m0 = m.RowsAtCompileTime;
+		int n0 = m.ColsAtCompileTime;
+
+		auto dataPtr = m.data();
+		unsigned elemsCount = m.size();
+
+		for (unsigned i = 0; i < elemsCount; ++i)
+			std::cout << dataPtr[i] << ", ";
+
+		std::cout << std::endl;
+	}
+
+
+	template <typename Derived>
+	static void dispElem(const Eigen::MatrixBase<Derived>& m)
+	{
+		const Derived& mm = m.derived();
+		std::cout << mm(1, 1) << std::endl;
+	}
+
+
+	template<typename DerivedV>
+	static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteVerticesMat(path, vers);
+	}
+
+	template<typename DerivedV>
+	static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteVerticesMat2D(path, vers);
+	}
+
+
+	template<typename T>
+	static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteMeshMat(path, vers, tris);
+	}
+
+
+	template<typename DerivedV>
+	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteEdgesMat(path, edges, vers);
+	}
+}
+using namespace MY_DEBUG;
 
 
 
@@ -2582,417 +2677,7 @@ namespace MESH_REPAIR
 		std::cout << "finished." << std::endl;
 	}
 
-
-	// 批量读取inputOBJ文件夹中的网格，调用MESHFIX修复——不能输入非流形网格，否则修复阶段可能会死循环；
-	int testCmd_meshFix(int argc, char** argv)
-	{
-		tiktok& tt = tiktok::getInstance(); 
-		CString   cPath, fileConfig;
-		std::string path, pathOBJ, pathOutput;
-		std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;  
-		bool debugFlag = false;
-		int meshesCount = 0;
-		std::stringstream ss;
-
-		// 0. 读取路径、参数；
-		{
-			GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
-			int nPos = cPath.ReverseFind('\\');
-			cPath = cPath.Left(nPos);
-			path = CT2CA{ cPath };
-			pathOBJ = path + "\\inputOBJ";
-			pathOutput = path + "\\outputData";
-			fileConfig = cPath + "\\config.ini";
-
-			// 读取配置文件中的参数：
-			unsigned debugInt = INIGetInt(TEXT("debugFlag"), fileConfig);
-			debugFlag = debugInt > 0 ? true : false;
-			if (debugFlag)
-				debugDisp("Debug mode: ");
-
-			getFileNames(pathOBJ.c_str(), tmpStrVec, false);
-			meshesCount = tmpStrVec.size();
-			OBJfileNames.reserve(meshesCount);
-			for (const auto& str : tmpStrVec)
-			{
-				std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
-				if (".obj" == tailStr)
-				{
-					fileNames.push_back(str);
-					unsigned index = str.find_last_of("/");
-					std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
-					OBJfileNames.push_back(OBJfileName);
-				}
-			}
-		}
-
-		// 1. 读取网格 
-		std::vector<Eigen::MatrixXd> meshesVers;
-		std::vector<Eigen::MatrixXi> meshesTris;
-		{
-			tt.start();
-			std::cout << "读取输入网格..." << std::endl; 
-			meshesVers.resize(meshesCount);
-			meshesTris.resize(meshesCount); 
-			for (int i = 0; i < meshesCount; ++i)
-				objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str());
-			tt.endCout("读取输入网格耗时：");
-		}
-
-		// 2. 执行meshFix，输出： 
-		debugDisp("执行meshFix：");
-		bool flagClean = false;
-		int max_iters = 20;					// 大循环次数；
-		int inner_loops = 6;					// 每次大循环中去除退化三角片、去除自交的迭代次数；
-		bool flagIsct = false;
-		bool flagDeg = false;
-		for (int i = 0; i < meshesCount; ++i)
-		{
-			// f0. 表象转换：
-			T_MESH::TMesh::init();												// ？？？This is mandatory
-			T_MESH::Basic_TMesh tMesh;
-			T_MESH::TMesh::quiet = false;						// true——不要在控制台上打印修复信息；
-
-			Eigen::MatrixXd versOut;
-			Eigen::MatrixXi trisOut;
-			meshMat2tMesh(tMesh, meshesVers[i], meshesTris[i]);
-			int versCount = tMesh.V.numels();
-			int trisCount = tMesh.T.numels();
-
-			// f1. 提取最大单连通网格；
-			int removedCount = tMesh.removeSmallestComponents();					// d_boundaries, d_handles, d_shells赋值
-
-			// f2. 补洞
-			int holesCount = tMesh.boundaries();				
-			int patchedCount = 0;
-			if (holesCount > 0)
-			{
-				patchedCount = tMesh.fillSmallBoundaries(0, true);
-				holesCount = tMesh.boundaries();
-			}
-
-			// f4. meshClean()——去除退化结构和三角片自交——默认max_iters == 10, inner_loops == 3；
-			T_MESH::Triangle* t;
-			T_MESH::Node* m;
-
-			//		f4.1. 
-			tMesh.deselectTriangles();
-			tMesh.invertSelection();
-
-			//		f4.2.修复流程的大循环 
-			flagDeg = false;
-			flagClean = false;
-			for (int k = 0; k < max_iters; k++)
-			{
-				//		ff1. 去除退化三角片；
-				flagDeg = tMesh.strongDegeneracyRemoval(inner_loops);			// 全部清除成功返回true， 否则返回false
-
-				//		ff2. 
-				tMesh.deselectTriangles();
-				tMesh.invertSelection();
-
-				//		ff3. 去除自交三角片，补洞；
-				flagIsct = tMesh.strongIntersectionRemoval(inner_loops);			// 自交全部清除返回true，否则返回false;
-
-				//		ff4. 若前两项全部清除成功，进一步检查确认：
-				if (flagIsct && flagDeg)
-				{
-					// 遍历三角片检测是否有退化；
-					for (m = tMesh.T.head(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL; m != NULL; m = m->next(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL)
-						if (t->isExactlyDegenerate())
-							flagIsct = false;
-
-					// 若进一步检查没有问题，退出大循环；
-					if (flagIsct)
-					{
-						flagClean = true;
-						break;
-					}
-				}
-			}
- 
-			//		f4.3 检测是否已经修复完全——无自交、无退化三角片；
-			if (!flagClean)
-				debugDisp("warning!!! ", OBJfileNames[i], ".obj meshclean() is not completed.");
-
-			// f5. 写输出数据
-			TMesh2MeshMat(versOut, trisOut, tMesh);
-			ss.str("");
-			ss << pathOutput << OBJfileNames[i] << "_meshFixed.obj";
-			objWriteMeshMat(ss.str().c_str(), versOut, trisOut);
-			if (debugFlag)
-			{
-				ss.str("");
-				ss << OBJfileNames[i] << "_meshFixed";
-				debugWriteMesh(ss.str().c_str(), versOut, trisOut);
-			}
-		} 
-
-		debugDisp("finished.");
-		getchar();
-
-		return 0;
-	}
-
-
-	// 批量读取inputOBJ文件夹中的网格，调用MESHFIX补洞和去除退化三角片：
-	int testCmd_meshFix_fixHolesDegTris(int argc, char** argv)
-	{
-		tiktok& tt = tiktok::getInstance();
-		CString   cPath, fileConfig;
-		std::string path, pathOBJ, pathOutput;
-		std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;
-		bool debugFlag = false;
-		int meshesCount = 0;
-		std::stringstream ss;
-
-		// 0. 读取路径、参数；
-		{
-			GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
-			int nPos = cPath.ReverseFind('\\');
-			cPath = cPath.Left(nPos);
-			path = CT2CA{ cPath };
-			pathOBJ = path + "\\inputOBJ";
-			pathOutput = path + "\\outputData";
-			fileConfig = cPath + "\\config.ini";
-
-			// 读取配置文件中的参数：
-			unsigned debugInt = INIGetInt(TEXT("debugFlag"), fileConfig);
-			debugFlag = debugInt > 0 ? true : false;
-			if (debugFlag)
-				debugDisp("Debug mode: ");
-
-			getFileNames(pathOBJ.c_str(), tmpStrVec, false);
-			meshesCount = tmpStrVec.size();
-			OBJfileNames.reserve(meshesCount);
-			for (const auto& str : tmpStrVec)
-			{
-				std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
-				if (".obj" == tailStr)
-				{
-					fileNames.push_back(str);
-					unsigned index = str.find_last_of("/");
-					std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
-					OBJfileNames.push_back(OBJfileName);
-				}
-			}
-		}
-
-		// 1. 读取网格 
-		std::vector<Eigen::MatrixXd> meshesVers;
-		std::vector<Eigen::MatrixXi> meshesTris;
-		{
-			tt.start();
-			std::cout << "读取输入网格..." << std::endl;
-			meshesVers.resize(meshesCount);
-			meshesTris.resize(meshesCount);
-			for (int i = 0; i < meshesCount; ++i)
-				objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str());
-			tt.endCout("读取输入网格耗时：");
-		}
-
-		// 2. 去除退化三角片和补洞的循环：
-		debugDisp("执行meshFix："); 
-		int max_iters = 20;					// 大循环次数；
-		int inner_loops = 6;					// 每次大循环中去除退化三角片、去除自交的迭代次数； 
-		bool flagDeg = false;
-		for (int i = 0; i < meshesCount; ++i)
-		{
-			// f0. 表象转换：
-			T_MESH::TMesh::init();												// ？？？This is mandatory
-			T_MESH::Basic_TMesh tMesh;
-			T_MESH::TMesh::quiet = false;						// true——不要在控制台上打印修复信息；
-
-			Eigen::MatrixXd versOut;
-			Eigen::MatrixXi trisOut;
-			meshMat2tMesh(tMesh, meshesVers[i], meshesTris[i]);
-			int versCount = tMesh.V.numels();
-			int trisCount = tMesh.T.numels();
-
-			// f1. 提取最大单连通网格；
-			int removedCount = tMesh.removeSmallestComponents();					// d_boundaries, d_handles, d_shells赋值
-
-			// f2. 补洞
-			int holesCount = tMesh.boundaries();
-			int patchedCount = 0;
-			if (holesCount > 0)
-			{
-				patchedCount = tMesh.fillSmallBoundaries(0, true);
-				holesCount = tMesh.boundaries();
-			}
-
-			// f3. 去除退化结构——默认max_iters == 10, inner_loops == 3；
-			T_MESH::Triangle* t = nullptr;
-			T_MESH::Node* m = nullptr;
-
-			//		f3.1. 
-			tMesh.deselectTriangles();
-			tMesh.invertSelection();
-
-			//		f3.2.修复流程的大循环 
-			flagDeg = false; 
-			for (int k = 0; k < max_iters; k++)
-			{
-				//		ff1. 去除退化三角片；
-				flagDeg = tMesh.strongDegeneracyRemoval(inner_loops);			// 全部清除成功返回true， 否则返回false
-
-				//		ff2. 
-				tMesh.deselectTriangles();
-				tMesh.invertSelection();
-
-				//		ff3. 检测是否有洞、尝试补洞；
-				holesCount = tMesh.boundaries();
-				if (holesCount > 0)
-				{
-					patchedCount = tMesh.fillSmallBoundaries(0, true);
-					holesCount = tMesh.boundaries();
-				}
-
-				//		ff4. 若前两项全部清除成功，进一步检查确认：
-				if (flagDeg && 0 == holesCount)
-				{
-					// 遍历三角片检测是否有退化；
-					for (m = tMesh.T.head(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL; m != NULL; m = m->next(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL)
-						if (t->isExactlyDegenerate())
-							flagDeg = false; 
-				}
-			} 
-			if (!flagDeg)
-				debugDisp("！！！输出网格存在退化三角片。");
-			if(holesCount > 0)
-				debugDisp("！！！输出网格有洞。");
-
-			// f5. 写输出数据
-			TMesh2MeshMat(versOut, trisOut, tMesh);
-			ss.str("");
-			ss << pathOutput << OBJfileNames[i] << "_holesDegTrisFree.obj";
-			objWriteMeshMat(ss.str().c_str(), versOut, trisOut);
-			if (debugFlag)
-			{
-				ss.str("");
-				ss << OBJfileNames[i] << "_holesDegTrisFree";
-				debugWriteMesh(ss.str().c_str(), versOut, trisOut);
-			}
-		}
-
-		debugDisp("finished.");
-		getchar();
-
-		return 0;
-	}
-
-
-	// 使用meshFix去除退化三角片、补洞；
-	void test4() 
-	{
-		T_MESH::TMesh::init();																// ？？？This is mandatory
-		T_MESH::Basic_TMesh mesh;
-		Eigen::MatrixXd versMat;
-		Eigen::MatrixXi trisMat;
-		objReadMeshMat(versMat, trisMat, "E:/材料/meshDegEdges.obj");				// TMesh的load方法担心会有精度问题，反正save方法肯定有；
-		meshMat2tMesh(mesh, versMat, trisMat);		 
-		mesh.save("E:/meshFixInput.obj"); 
-		debugWriteMesh("meshFixInput_matRepr", versMat, trisMat); 
-
-		tiktok& tt = tiktok::getInstance();
-		unsigned versCount = mesh.V.numels();
-		unsigned trisCount = mesh.T.numels();
-
-		// 1. 提取最大单连通网格；
-		int removedCount = mesh.removeSmallestComponents();					// d_boundaries, d_handles, d_shells赋值
-		if (removedCount > 1)
-			std::cout << "！！！输入网格有" << removedCount << "个单连通区域。" << std::endl;
-
-		// 2. 补洞
-		int holesCount = mesh.boundaries();				// ？？？
-		int patchedCount = 0;
-		if (holesCount)
-		{
-			std::cout << "！！！输入网格环形边界数+环柄数 == " << holesCount << "。" << std::endl;
-			T_MESH::TMesh::warning("Patching holes\n");
-			patchedCount = mesh.fillSmallBoundaries(0, true);
-		}
-
-		// 3. meshclean前计算环形边界数、环柄数；
-		holesCount = mesh.boundaries();
-		if (holesCount > 0)
-			std::cout << "网格补洞后边界数+环柄数 == " << holesCount << "。" << std::endl;
-
-		// 4. 
-		bool flagClean = false;
-		int max_iters = 20;
-		int inner_loops = 6;			 
-		bool flagDeg = false;
-		bool flagNoHoles = false;
-		T_MESH::Triangle* t;
-		T_MESH::Node* m;
-
-		//		4.1. 
-		mesh.deselectTriangles();
-		mesh.invertSelection();
-
-		//		4.2.修复流程的大循环 
-		for (int i = 0; i < max_iters; i++)
-		{
-			//		f1. 去除退化三角片；
-			flagDeg = mesh.strongDegeneracyRemoval(inner_loops);			// 全部清除成功返回true， 否则返回false
-
-			//		f2. 
-			mesh.deselectTriangles();
-			mesh.invertSelection();
- 
-			//		f4. 若前两项全部清除成功，进一步检查确认：
-			if (flagDeg)
-			{
-				// 检查是否有洞
-				holesCount = mesh.boundaries();				 
-				if (holesCount)
-				{ 
-					T_MESH::TMesh::warning("Patching holes\n");
-					mesh.fillSmallBoundaries(0, true);
-					continue;
-				}
-
-				// 遍历三角片检测是否有退化；
-				for (m = mesh.T.head(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL; m != NULL; m = m->next(), t = (m) ? ((T_MESH::Triangle*)m->data) : NULL)
-					if (t->isExactlyDegenerate())
-						flagDeg = false;
-
-				// 若进一步检查没有问题，退出大循环；
-				if (flagDeg)
-				{
-					flagClean = true;
-					break;
-				}
-			}
-
-
-		}
-
-#ifdef LOCAL_DEBUG
-		if (flagClean)
-			std::cout << "meshclean() succeeded." << std::endl;
-		else
-			std::cout << "!!!meshclean() is not completed!!!" << std::endl;
-#endif
-
-		// 5. meshclean最后计算环形边界数、环柄数；
-		holesCount = mesh.boundaries();
-		if (holesCount > 0)
-			std::cout << "输出网格边界数+环柄数 == " << holesCount << "。" << std::endl;
-
-		// 6. 输出：
-		mesh.save("E:/meshFixOutput.obj");
-
-		versMat.resize(0, 0);
-		trisMat.resize(0, 0);
-		TMesh2MeshMat(versMat, trisMat, mesh);
-		debugWriteMesh("meshFixOutput_matRepr", versMat, trisMat);
-
-		std::cout << "finished." << std::endl;
-	}
-
-
+	 
 	// 修复边折叠精简之后的网格——寻找重叠三角片 
 	void test5() 
 	{
@@ -3203,6 +2888,7 @@ namespace TEST_SDF2D
 }
 
 
+
 ////////////////////////////////////////////////////////////////////////////// 生成控制台程序工具：
 
 // 批量读取本地网格执行laplace光顺：
@@ -3330,21 +3016,14 @@ int testCmd_hausdorffDistance(int argc, char** argv)
 
 	return 0;
 }
-
+ 
 
 
 int main(int argc, char** argv)
 { 
-	// TEST_SDF2D::test0();
-
-	// IGL_MODELLING::test3();
-
-	// testCmd_laplaceFaring(argc, argv);
+	IGL_DEFORMATION::test0();
 	 
-	// TEST_DENSE_MAT::test4();
-	 
-	TEST_DENSE_MAT::test3();
-
+	
 	std::cout << "main() finished." << std::endl;
 }
 

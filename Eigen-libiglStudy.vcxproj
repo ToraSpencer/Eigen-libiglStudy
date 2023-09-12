@@ -19,61 +19,18 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Algorithms\checkAndRepair.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Algorithms\detectIntersections.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Algorithms\holeFilling.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Algorithms\marchIntersections.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Algorithms\subdivision.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\coordinates.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\graph.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\heap.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\jqsort.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\list.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\matrix.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\orientation.c" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\point.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\Kernel\tmesh.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\TMesh\edge.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\TMesh\io.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\TMesh\tin.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\TMesh\triangle.cpp" />
-    <ClCompile Include="..\MeshFix-V2.1-master\src\TMesh\vertex.cpp" />
     <ClCompile Include="dense_mat.cpp" />
-    <ClCompile Include="HW1_MST_dijkstra.cpp" />
-    <ClCompile Include="HW2_curvature.cpp" />
     <ClCompile Include="igl_study.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="myEigen.cpp" />
-    <ClCompile Include="myTmesh.cpp" />
     <ClCompile Include="scientific_calc.cpp" />
     <ClCompile Include="sparse_mat.cpp" />
     <ClCompile Include="triangulate.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\basics.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\coordinates.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\graph.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\heap.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\jqsort.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\list.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\matrix.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\point.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\Kernel\tmesh_kernel.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\detectIntersections.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\edge.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\marchIntersections.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\tin.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\tmesh.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\triangle.h" />
-    <ClInclude Include="..\MeshFix-V2.1-master\include\TMesh\vertex.h" />
     <ClInclude Include="dense_mat.h" />
-    <ClInclude Include="Fu%27s_homework.h" />
-    <ClInclude Include="HW1_MST_dijkstra.h" />
-    <ClInclude Include="HW2_curvature.h" />
     <ClInclude Include="igl_study.h" />
     <ClInclude Include="myEigen.h" />
-    <ClInclude Include="myIgl.h" />
-    <ClInclude Include="myTmesh.h" />
     <ClInclude Include="scientific_calc.h" />
     <ClInclude Include="sparse_mat.h" />
     <ClInclude Include="MC_tables.h" />
@@ -146,12 +103,12 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)..\libigl_CGAL_openGL\external\eigen;$(ProjectDir)..\libigl_CGAL_openGL\external\glad\include;$(ProjectDir)..\libigl_CGAL_openGL\external\glfw\include;$(ProjectDir)..\libigl_CGAL_openGL\tutorial;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\include;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\external\eigen;..\MeshFix-V2.1-master\include\TMesh;..\MeshFix-V2.1-master\include\Kernel;$(ProjectDir)</IncludePath>
+    <IncludePath>$(ProjectDir)..\libigl_CGAL_openGL\external\glad\include;$(ProjectDir)..\libigl_CGAL_openGL\external\glfw\include;$(ProjectDir)..\libigl_CGAL_openGL\tutorial;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\include;..\MeshFix-V2.1-master\include\TMesh;..\MeshFix-V2.1-master\include\Kernel;$(ProjectDir)</IncludePath>
     <LibraryPath>$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glad;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glfw\src;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\$(Configuration);$(SolutionDir)$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)..\libigl_CGAL_openGL\external\eigen;$(ProjectDir)..\libigl_CGAL_openGL\external\glad\include;$(ProjectDir)..\libigl_CGAL_openGL\external\glfw\include;$(ProjectDir)..\libigl_CGAL_openGL\tutorial;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\include;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\external\eigen;..\MeshFix-V2.1-master\include\TMesh;..\MeshFix-V2.1-master\include\Kernel;$(ProjectDir)</IncludePath>
+    <IncludePath>$(ProjectDir)..\libigl_CGAL_openGL\external\glad\include;$(ProjectDir)..\libigl_CGAL_openGL\external\glfw\include;$(ProjectDir)..\libigl_CGAL_openGL\tutorial;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\include;..\MeshFix-V2.1-master\include\TMesh;..\MeshFix-V2.1-master\include\Kernel;$(ProjectDir)</IncludePath>
     <LibraryPath>$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glad;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\glfw\src;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild;$(ProjectDir)..\libigl_CGAL_openGL\tutorialBuild\$(Configuration);$(SolutionDir)$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -197,7 +154,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>ANSI_DECLARATORS;_CONSOLE;_DEBUG;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"IGL_VIEWER_VIEWER_QUIET;_CRT_SECURE_NO_WARNINGS;LOCAL_DEBUG;NO_TIMER;REDUCED;CDT_ONLY;TRILIBRARY</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_HAS_STD_BYTE=0;NOMINMAX;ANSI_DECLARATORS;_CONSOLE;_DEBUG;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"IGL_VIEWER_VIEWER_QUIET;_CRT_SECURE_NO_WARNINGS;LOCAL_DEBUG;NO_TIMER;REDUCED;CDT_ONLY;TRILIBRARY</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalOptions>/bigobj</AdditionalOptions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -209,6 +166,7 @@
       <SupportJustMyCode>false</SupportJustMyCode>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -229,11 +187,11 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>ANSI_DECLARATORS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"IGL_VIEWER_VIEWER_QUIET;LOCAL_DEBUG;NO_TIMER;REDUCED;CDT_ONLY;TRILIBRARY;ANSI_DECLARATORS;_CRT_SECURE_NO_WARNINGS;</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_HAS_STD_BYTE=0;NOMINMAX;ANSI_DECLARATORS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"IGL_VIEWER_VIEWER_QUIET;LOCAL_DEBUG;NO_TIMER;REDUCED;CDT_ONLY;TRILIBRARY;ANSI_DECLARATORS;_CRT_SECURE_NO_WARNINGS;</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <Optimization>MaxSpeed</Optimization>
-      <LanguageStandard>Default</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

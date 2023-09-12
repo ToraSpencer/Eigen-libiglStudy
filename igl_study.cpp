@@ -106,7 +106,6 @@ namespace IGL_BASIC
 	Eigen::MatrixXi tris;
 	Eigen::SparseMatrix<double> L;
 
-
 	// igl中基础的矩阵算子：
 	void test00() 
 	{
@@ -360,6 +359,7 @@ namespace IGL_BASIC
 }
 
 
+
 ////////////////////////////////////////////////////////////////////////////// libigl中的微分几何相关
 namespace IGL_DIF_GEO 
 {
@@ -490,6 +490,7 @@ namespace IGL_DIF_GEO
 	}
 
 }
+
 
 
 /////////////////////////////////////////////////////////////////////////////// 图算法
@@ -683,6 +684,7 @@ namespace IGL_GRAPH
 }
 
 
+
 /////////////////////////////////////////////////////////////////////////////// 空间划分
 namespace IGL_SPACE_PARTITION
 {
@@ -714,6 +716,7 @@ namespace IGL_SPACE_PARTITION
 	}
 
 }
+
 
 
 /////////////////////////////////////////////////////////////////////////////// IGL实现的基础三角网格处理算法；
@@ -1305,6 +1308,7 @@ namespace IGL_BASIC_PMP
 }
 
 
+
 /////////////////////////////////////////////////////////////////////////////// IGL实现的生成数字模型相关算法;
 namespace IGL_MODELLING
 { 
@@ -1812,10 +1816,10 @@ namespace IGL_MODELLING
 			Eigen::VectorXd zPeriod = Eigen::VectorXd::LinSpaced(gridCounts0(2), minp(2), maxp(2));
 
 			Eigen::MatrixXd tmpVec0, tmpVec1, tmpVec2;
-			kron(tmpVec0, Eigen::VectorXd::Ones(gridCounts(1) * gridCounts(2)), xPeriod);
+			tmpVec0 = kron(Eigen::VectorXd::Ones(gridCounts(1) * gridCounts(2)), xPeriod); 
 			Eigen::VectorXd tmpVec11 = kron(yPeriod, Eigen::VectorXi::Ones(gridCounts(0)));
-			kron(tmpVec1, Eigen::VectorXi::Ones(gridCounts(2)), tmpVec11);
-			kron(tmpVec2, zPeriod, Eigen::VectorXd::Ones(gridCounts(0) * gridCounts(1)));
+			tmpVec1 = kron(Eigen::VectorXi::Ones(gridCounts(2)), tmpVec11); 
+			tmpVec2 = kron(zPeriod, Eigen::VectorXd::Ones(gridCounts(0) * gridCounts(1))); 
 			gridCenters0.resize(stepCounts[0] * stepCounts[1] * stepCounts[2], 3);
 			gridCenters0.col(0) = tmpVec0;
 			gridCenters0.col(1) = tmpVec1;
@@ -1985,4 +1989,142 @@ namespace IGL_MODELLING
 
 		debugDisp("finished.");
 	}
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////// IGL中网格变形相关：
+namespace IGL_DEFORMATION 
+{
+#define TUTORIAL_SHARED_PATH "G:\\gitRepositories\\libigl_CGAL_openGL\\tutorial\\data"
+	using RotationList = std::vector<Eigen::Quaterniond, Eigen::aligned_allocator<Eigen::Quaterniond> >;
+	const Eigen::RowVector3d sea_green(70. / 255., 252. / 255., 167. / 255.);
+	Eigen::MatrixXd vers0, vers;
+	Eigen::MatrixXi tris0;
+	Eigen::VectorXi S, b;
+	Eigen::RowVector3d mid;
+	double anim_t = 0.0;
+	double anim_t_dir = 0.03;
+	igl::ARAPData arap_data;
+
+
+	bool pre_draw(igl::opengl::glfw::Viewer& viewer)
+	{
+		using namespace Eigen;
+		using namespace std;
+
+		MatrixXd bc(b.size(), vers0.cols());
+		for (int i = 0; i < b.size(); i++)
+		{
+			bc.row(i) = vers0.row(b(i));
+			switch (S(b(i)))
+			{
+			case 0:
+			{
+				const double r = mid(0) * 0.25;
+				bc(i, 0) += r * sin(0.5 * anim_t * 2. * igl::PI);
+				bc(i, 1) -= r + r * cos(igl::PI + 0.5 * anim_t * 2. * igl::PI);
+				break;
+			}
+
+			case 1:
+			{
+				const double r = mid(1) * 0.15;
+				bc(i, 1) += r + r * cos(igl::PI + 0.15 * anim_t * 2. * igl::PI);
+				bc(i, 2) -= r * sin(0.15 * anim_t * 2. * igl::PI);
+				break;
+			}
+
+			case 2:
+			{
+				const double r = mid(1) * 0.15;
+				bc(i, 2) += r + r * cos(igl::PI + 0.35 * anim_t * 2. * igl::PI);
+				bc(i, 0) += r * sin(0.35 * anim_t * 2. * igl::PI);
+				break;
+			}
+
+			default:
+				break;
+			}
+		}
+
+		igl::arap_solve(bc, arap_data, vers);
+		viewer.data().set_vertices(vers);
+		viewer.data().compute_normals();
+		if (viewer.core().is_animating)
+			anim_t += anim_t_dir;
+
+		return false;
+	}
+
+
+	bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int mods)
+	{
+		switch (key)
+		{
+		case ' ':
+			viewer.core().is_animating = !viewer.core().is_animating;
+			return true;
+		}
+		return false;
+	}
+
+
+	// ARAP变形：
+	void test0()
+	{
+		using namespace Eigen;
+		using namespace std;
+
+		igl::readOFF(TUTORIAL_SHARED_PATH "/decimated-knight.off", vers0, tris0);
+
+		vers = vers0;
+		igl::readDMAT(TUTORIAL_SHARED_PATH "/decimated-knight-selection.dmat", S);
+		std::vector<int> Svec = eigenVec2Vec(S);
+
+
+		// vertices in selection
+		igl::colon<int>(0, vers0.rows() - 1, b);
+		b.conservativeResize(stable_partition(b.data(), b.data() + b.size(), \
+			[](int i)->bool
+			{
+				return S(i) >= 0;
+			}) - b.data());
+
+		// Centroid
+		mid = 0.5 * (vers0.colwise().maxCoeff() + vers0.colwise().minCoeff());
+
+		// Precomputation
+		arap_data.max_iter = 100;
+		igl::arap_precomputation(vers0, tris0, vers0.cols(), b, arap_data);
+
+		// Set color based on selection
+		MatrixXd C(tris0.rows(), 3);
+		RowVector3d purple(80.0 / 255.0, 64.0 / 255.0, 255.0 / 255.0);
+		RowVector3d gold(255.0 / 255.0, 228.0 / 255.0, 58.0 / 255.0);
+		for (int f = 0; f < tris0.rows(); f++)
+		{
+			if (S(tris0(f, 0)) >= 0 && S(tris0(f, 1)) >= 0 && S(tris0(f, 2)) >= 0)
+				C.row(f) = purple;
+			else
+				C.row(f) = gold;
+		}
+
+		// Plot the mesh with pseudocolors
+		igl::opengl::glfw::Viewer viewer;
+		viewer.data().set_mesh(vers, tris0);
+		viewer.data().set_colors(C);
+		viewer.callback_pre_draw = &pre_draw;
+		viewer.callback_key_down = &key_down;
+		viewer.core().is_animating = false;
+		viewer.core().animation_max_fps = 30.;
+
+		std::cout << "Press [space] to toggle animation" << endl;
+
+		viewer.launch();
+
+		debugDisp("finished.");
+	}
+
+
 }

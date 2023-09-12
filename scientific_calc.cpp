@@ -96,16 +96,29 @@ namespace SCIENTIFIC_CALC
 	}
 
 
-	// 测试霍纳方法（秦九昭算法）计算多项式：
+	// 测试霍纳方法（秦九昭算法）计算多项式：减少乘法调用次数，提高运行速率；
 	void test2()
 	{
-		Eigen::Vector4f coeff(9, -1, 3, 1);
-		Eigen::RowVector4f coeffTrans = coeff.transpose();
-		float x = 3.0;
-		Eigen::Vector4f X(1, x, std::powf(x, 2), std::powf(x, 3));
+		// x^4 + 3x^3 + 2x^2 + x + c = c + x(1 + x(2*x + x(3 + x)));
+		double x = 3.0;
+		Eigen::Vector4d coeff(9, -1, 3, 1);
+		std::cout << "霍纳方法计算：result == " << hornersPoly(coeff, x) << std::endl;
 
-		std::cout << "result == " << hornersPoly(coeff, x) << std::endl;
-		std::cout << "real result == " << coeffTrans * X << std::endl;
+		Eigen::RowVector4d coeffTrans = coeff.transpose();
+		Eigen::Vector4d X(1, x, std::powf(x, 2), std::powf(x, 3));
+		std::cout << "传统方法计算多项式：result == " << coeffTrans * X << std::endl;
+
+		x = 5.2;
+		Eigen::VectorXd coeff2(6);
+		coeff2 << 2, 4, 5, 6, 8, 9;
+		std::cout << "霍纳方法计算：result == " << hornersPoly(coeff2, x) << std::endl;
+
+		Eigen::RowVectorXd coeffTrans2 = coeff2.transpose();
+		Eigen::VectorXd X2(6);
+		X2 << 1, x, std::powf(x, 2), std::powf(x, 3), std::powf(x, 4), std::powf(x, 5);
+		std::cout << "传统方法计算多项式：result == " << coeffTrans2 * X2 << std::endl;
+
+		debugDisp("finished.");
 	}
 
 
@@ -136,25 +149,26 @@ namespace SCIENTIFIC_CALC
 	void test6()
 	{
 		Eigen::MatrixXd result, m1, m2;
-		Eigen::VectorXd vec = Eigen::VectorXd::LinSpaced(100, 1, 100);
+		Eigen::Matrix2d m22;
+		Eigen::VectorXd vec = Eigen::VectorXd::LinSpaced(9, 1, 9);
+		m1 = Eigen::Map<Eigen::MatrixXd>(vec.data(), 3, 3);
 
-		m1 = Eigen::Map<Eigen::MatrixXd>(vec.data(), 10, 10);
 		m2.resize(2, 2);
 		m2 << 1, 1.1, 1, 1;
-		Eigen::Matrix2d m22;
 		m22 << 1, 1.1, 1, 1;
+		
+		result = kron(m1, m2);
+		debugDisp("m1 == \n", m1);
+		debugDisp("m2 == \n", m2);
+		debugDisp("kron(m1, m2) == \n", result, "\n");
 
-		kron(result, m1, m2);
-		dispMat(m1);
-		dispMat(result);
-
-		kron(result, m1, m22);
-		dispMat(result);
+		result = kron(m1, m22); 
+		debugDisp("kron(m1, m22) == \n", result, "\n");
 
 		Eigen::Vector3f v1(1, 2, 3);
 		Eigen::Vector4f v2{ Eigen::Vector4f::Ones() };
-		kron(result, v1, v2);
-		dispMat(result);
+		result = kron(v1, v2); 
+		debugDisp("kron(v1, v2) == \n", result, "\n");
 
 		std::cout << "finished." << std::endl;
 	}
@@ -305,21 +319,7 @@ namespace IGL_MATH
 	{
 
 	}
-
-	// 克罗内克积：
-	void test1() 
-	{
-		Eigen::MatrixXi m1(2, 3);
-		Eigen::Matrix2d m2;
-		Eigen::MatrixXd result;
-		m1 << 1, 2, 3, 4, 5, 6;
-		m2 << 100, 10, 1, 0.1;
-		dispMat(m1);
-		dispMat(m2);
-		dispMat(kron(m1, m2));
-
-		std::cout << "finished." << std::endl;
-	}
+	 
 }
 
 

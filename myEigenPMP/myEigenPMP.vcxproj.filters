@@ -15,16 +15,21 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="myEigenBasicMath.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="myEigenBasicMath.cpp">
+    <ClCompile Include="myEigenPMP.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="templateSpecialization.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="myEigenPMP.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="temp.tpp">
+      <Filter>源文件</Filter>
+    </None>
   </ItemGroup>
 </Project>

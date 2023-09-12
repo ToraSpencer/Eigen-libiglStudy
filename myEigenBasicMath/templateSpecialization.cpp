@@ -393,3 +393,32 @@ template bool solveLinearEquations(Eigen::Matrix<float, Eigen::Dynamic, Eigen::D
 template bool solveLinearEquations(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& X, \
 	const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& A, \
 	const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& B);
+
+template double calcCondNum(const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& m);
+template double calcCondNum(const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& m);
+ 
+template double hornersPoly(const Eigen::Matrix<float, 2, 1>& coeffs, const double x);
+template double hornersPoly(const Eigen::Matrix<float, 3, 1>& coeffs, const double x);
+template double hornersPoly(const Eigen::Matrix<float, 4, 1>& coeffs, const double x); 
+template double hornersPoly(const Eigen::Matrix<float, -1, 1>& coeffs, const double x);
+template double hornersPoly(const Eigen::Matrix<double, 2, 1>& coeffs, const double x);
+template double hornersPoly(const Eigen::Matrix<double, 3, 1>& coeffs, const double x);
+template double hornersPoly(const Eigen::Matrix<double, 4, 1>& coeffs, const double x);
+template double hornersPoly(const Eigen::Matrix<double, -1, 1>& coeffs, const double x);
+
+template float polyDiff(const Eigen::Matrix<float, 2, 1>& coeffs, const float x);
+template float polyDiff(const Eigen::Matrix<float, 3, 1>& coeffs, const float x);
+template float polyDiff(const Eigen::Matrix<float, 4, 1>& coeffs, const float x);
+template float polyDiff(const Eigen::Matrix<float, -1, 1>& coeffs, const float x);
+template float polyDiff(const Eigen::Matrix<double, 2, 1>& coeffs, const float x);
+template float polyDiff(const Eigen::Matrix<double, 3, 1>& coeffs, const float x);
+template float polyDiff(const Eigen::Matrix<double, 4, 1>& coeffs, const float x);
+template float polyDiff(const Eigen::Matrix<double, -1, 1>& coeffs, const float x);
+
+template void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, \
+	const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& vers, unsigned m);
+template void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, \
+	const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& vers, unsigned m);
+ 
+template Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& sampleVers);
+template Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& sampleVers);

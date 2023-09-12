@@ -1,0 +1,270 @@
+﻿#include "myEigenPMP.h"
+
+static const double pi = 3.14159265359;
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////// 非模板接口的实现
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////// modeling接口：
+
+// 输入起点、终点、空间采样率，插值生成一条直线点云；
+template <typename T>
+bool interpolateToLine(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::Matrix<T, 1, 3>& start, \
+	const Eigen::Matrix<T, 1, 3>& end, const float SR, const bool SE)
+{
+	if (vers.rows() > 0)
+		return false;
+
+	Eigen::Matrix<T, 1, 3> dir = end - start;
+	float length = dir.norm();
+	dir.normalize();
+
+	if (length <= SR)
+		return true;
+
+	if (SE)
+		matInsertRows(vers, start);
+
+	float lenth0 = 0;
+	for (unsigned i = 1; (length - lenth0) > 0.8 * SR; i++)			// 确保最后一个点距离终点不能太近。
+	{
+		Eigen::Matrix<T, 1, 3> temp = start + SR * i * dir;
+		matInsertRows(vers, temp);
+		lenth0 = SR * (i + 1);		// 下一个temp的长度。
+	}
+
+	if (SE)
+		matInsertRows(vers, end);
+
+	return true;
+};
+
+
+// 生成XOY平面内的圆圈点集：
+template <typename T>
+bool getCircleVers(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, \
+	const unsigned versCount)
+{
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	double deltaTheta = 2 * pi / versCount;
+	vers.resize(versCount, 3);
+	vers.setZero();
+	for (unsigned i = 0; i < versCount; ++i)
+	{
+		double theta = deltaTheta * i;
+		vers(i, 0) = radius * cos(theta);
+		vers(i, 1) = radius * sin(theta);
+	}
+
+	return true;
+}
+
+
+// 生成中心在原点，边长为1，三角片数为12的正方体网格； 
+template	<typename T>
+void genCubeMesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris)
+{
+	vers.resize(0, 0);
+	tris.resize(0, 0);
+	vers.resize(8, 3);
+	vers << -0.5000000, -0.5000000, -0.5000000, -0.5000000, 0.5000000, -0.5000000, \
+		0.5000000, -0.5000000, -0.5000000, 0.5000000, 0.5000000, -0.5000000, \
+		0.5000000, -0.5000000, 0.5000000, 0.5000000, 0.5000000, 0.5000000, \
+		- 0.5000000, -0.5000000, 0.5000000, -0.5000000, 0.5000000, 0.5000000;
+
+	tris.resize(12, 3);
+	tris << 1, 2, 0, 1, 3, 2, 3, 4, 2, 3, 5, 4, 0, 4, 6, 0, 2, 4, 7, 3, 1, 7, 5, 3, 7, 0, 6, 7, 1, 0, 5, 6, 4, 5, 7, 6;
+}
+
+
+// 生成轴向包围盒的三角网格；
+template <typename T>
+void genAABBmesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::AlignedBox<T, 3>& aabb)
+{
+	vers.resize(0, 0);
+	tris.resize(0, 0);
+	Eigen::Matrix<T, 3, 1> minp = aabb.min();
+	Eigen::Matrix<T, 3, 1> maxp = aabb.max();
+	Eigen::Matrix<T, 3, 1> newOri = (minp + maxp) / 2.0;
+	Eigen::Matrix<T, 3, 1> sizeVec = maxp - minp;
+
+	genCubeMesh(vers, tris);
+	vers.col(0) *= sizeVec(0);
+	vers.col(1) *= sizeVec(1);
+	vers.col(2) *= sizeVec(2);
+	vers.rowwise() += newOri.transpose();
+}
+
+
+// 对环路点集进行不插点三角剖分——手动缝合方法；
+template <typename IndexType>
+bool circuitGetTris(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tris, \
+	const std::vector<int>& indexes, const bool regularTri)
+{
+	/*
+		bool circuitGetTris(
+			Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tris,		三角剖分生成的triangle soup
+			const std::vector<int>& indexes,				单个环路点集，顶点需要有序排列。
+			const bool regularTri																				true——右手螺旋方向为生成面片方向；false——反向；
+			)
+
+	*/
+	using MatrixXI = Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>;
+	using RowVector3I = Eigen::Matrix<IndexType, 1, 3>;
+
+	int versCount = static_cast<int>(indexes.size());
+	if (versCount < 3)
+		return false;						// invalid input
+
+	// lambda——环路中的顶点索引转换；
+	auto getIndex = [versCount](const int index0) -> IndexType
+	{
+		int index = index0;
+		if (index >= versCount)
+			while (index >= versCount)
+				index -= versCount;
+		else if (index < 0)
+			while (index < 0)
+				index += versCount;
+		return static_cast<IndexType>(index);
+	};
+
+	tris.resize(versCount - 2, 3);
+	int count = 0;
+	int k = 0;
+	if (regularTri)
+	{
+		while (count < versCount - 2)
+		{
+			tris.row(count++) = RowVector3I{ indexes[getIndex(-k - 1)], indexes[getIndex(-k)], indexes[getIndex(k + 1)] };
+			if (count == versCount - 2)
+				break;
+
+			tris.row(count++) = RowVector3I{ indexes[getIndex(-k - 1)], indexes[getIndex(k + 1)], indexes[getIndex(k + 2)] };
+			k++;
+		}
+	}
+	else
+	{
+		while (count < versCount - 2)
+		{
+			tris.row(count++) = RowVector3I{ indexes[getIndex(-k - 1)], indexes[getIndex(k + 1)], indexes[getIndex(-k)] };
+			if (count == versCount - 2)
+				break;
+
+			tris.row(count++) = RowVector3I{ indexes[getIndex(-k - 1)], indexes[getIndex(k + 2)], indexes[getIndex(k + 1)] };
+			k++;
+		}
+	}
+
+	return true;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////// 表象转换接口：
+
+template <typename DerivedI>
+void edges2mat(Eigen::PlainObjectBase<DerivedI>& mat, const std::vector<std::pair<int, int>>& edges)
+{
+	mat.resize(edges.size(), 2);
+	for (unsigned i = 0; i < edges.size(); ++i)
+	{
+		mat(i, 0) = edges[i].first;
+		mat(i, 1) = edges[i].second;
+	}
+}
+
+
+// 生成边编码——边两个端点的索引对映射成一个64位整型数
+template <typename Index>
+std::int64_t encodeEdge(const Index vaIdx, const Index vbIdx)
+{
+	std::int64_t a = static_cast<std::int64_t>(vaIdx);
+	std::int64_t b = static_cast<std::int64_t>(vbIdx);
+	std::int64_t code = 0;
+	code |= (a << 32);
+	code |= b;
+	return code;
+}
+
+
+// 生成无向边编码——边两个端点的索引对整理成前小后大的顺序，映射成一个64位整型数
+template <typename Index>
+std::int64_t encodeUedge(const Index vaIdx, const Index vbIdx)
+{
+	Index vaIdx0 = (vaIdx < vbIdx ? vaIdx : vbIdx);
+	Index vbIdx0 = (vaIdx < vbIdx ? vbIdx : vaIdx);
+	std::int64_t a = static_cast<std::int64_t>(vaIdx0);
+	std::int64_t b = static_cast<std::int64_t>(vbIdx0);
+	std::int64_t code = 0;
+	code |= (a << 32);
+	code |= b;
+	return code;
+}
+
+
+// 生成三角片编码——三个顶点索引排序后映射成64位无符号整型数
+template <typename Index>
+std::uint64_t encodeTriangle(const Index vaIdx, const Index vbIdx, const Index vcIdx)
+{
+	std::uint64_t triIdxLimit = 0x1FFFFF;								// 最多为21位全1, 0x1FFFFF ==  2097181, 两百多万三角片；
+	std::uint64_t vaIdx0 = static_cast<std::uint64_t>(vaIdx);
+	std::uint64_t vbIdx0 = static_cast<std::uint64_t>(vbIdx);
+	std::uint64_t vcIdx0 = static_cast<std::uint64_t>(vcIdx);
+
+	assert(vaIdx0 <= triIdxLimit && vbIdx0 <= triIdxLimit && vcIdx0 <= triIdxLimit, "triangle index out of range !!!");
+	assert(vaIdx0 != vbIdx0 && vaIdx0 != vcIdx0 && vbIdx0 != vcIdx0, "invalid triangle index !!!");
+
+	// 区分正反面——即(a, b, c)和(a, c, b)会映射成不同的编码；但是(a,b,c)(b,c,a)(c,a,b)映射成相同的编码；
+	std::uint64_t A, B, C;
+	if (vaIdx0 < vbIdx0 && vaIdx0 < vcIdx0)
+	{
+		A = vaIdx0; B = vbIdx0; C = vcIdx0;						// abc
+	}
+	else if (vbIdx0 < vaIdx0 && vbIdx0 < vcIdx0)
+	{
+		A = vbIdx0; B = vcIdx0; C = vaIdx0;						// bca
+	}
+	else
+	{
+		A = vcIdx0; B = vaIdx0; C = vbIdx0;						// cab;
+	}
+	std::uint64_t code = 0;
+	code |= (A << 42);
+	code |= (B << 21);
+	code |= C;
+	return code;
+}
+
+
+// 解码边编码；
+std::pair<int, int> decodeEdge(const std::int64_t code)
+{
+	int a = static_cast<int>(code >> 32);
+	int b = static_cast<int>(code - (static_cast<std::int64_t>(a) << 32));
+	return std::make_pair(a, b);
+}
+ 
+
+// 解码三角片编码：
+std::vector<int> decodeTrianagle(const std::uint64_t code)
+{
+	std::uint64_t a = code >> 42;
+	std::uint64_t resi = code - (a << 42);
+	std::uint64_t b = resi >> 21;
+	std::uint64_t c = resi - (b << 21);
+	return std::vector<int>{static_cast<int>(a), static_cast<int>(b), static_cast<int>(c)};
+}
+
+
+
+ 
+
+// 模板特化输出：
+#include "templateSpecialization.cpp"

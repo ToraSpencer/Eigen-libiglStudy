@@ -157,7 +157,6 @@ namespace TEST_DENSE_MAT
 		}
 	}
 	using namespace MY_DEBUG;
- 
 
 	// test0——eigen库的基本数据结构
 	void test0()
@@ -167,6 +166,10 @@ namespace TEST_DENSE_MAT
 			基本模板——Matrix<typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
 			堆矩阵——typedef Matrix<double, Dynamic, Dynamic> Eigen::MatrixXd;
 			堆向量——typedef Matrix<int, Dynamic, 1> Eigen::VectorXi;
+
+			继承关系： 
+				Matrix<> → PlainObjectBase<>
+				MatrixBase<> → DenseBase<>
 
 			Options_:
 					Eigen::RowMajor		行优先存储；
@@ -395,12 +398,11 @@ namespace TEST_DENSE_MAT
 		std::cout << aa << std::endl << std::endl;;
 		std::cout << bb << std::endl << std::endl;
 
-		Eigen::MatrixXf aaa, bbbb;
-		kron(aaa, RowVector3f::Ones(), a);
-		kron(bbbb, Matrix2i::Ones(), b);
+		Eigen::MatrixXd aaa, bbbb;
+		aaa = kron(RowVector3f::Ones(), a); 
+		bbbb = kron(Matrix2i::Ones(), b); 
 		std::cout << aaa << std::endl << std::endl;;
 		std::cout << bbbb << std::endl << std::endl;
-
 
 		// reverse();
 		m1.resize(3, 3);

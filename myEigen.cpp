@@ -2,7 +2,6 @@
  
 
 ////////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
-
 namespace MY_DEBUG 
 {
 	static std::string g_debugPath = "E:/";
@@ -83,8 +82,7 @@ namespace MY_DEBUG
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 		objWriteMeshMat(path, vers, tris);
 	}
-
-
+ 
 
 	template<typename DerivedV>
 	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
@@ -98,28 +96,8 @@ using namespace MY_DEBUG;
 
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////// 实现
 
-
-
-
-std::pair<int, int> decodeEdge(const std::int64_t code)
-{
-	int a = static_cast<int>(code >> 32);
-	int b = static_cast<int>(code - (static_cast<std::int64_t>(a) << 32));
-	return std::make_pair(a, b);
-}
-
-
-std::vector<int> decodeTrianagle(const std::uint64_t code)
-{
-	std::uint64_t a = code >> 42;
-	std::uint64_t resi = code - (a << 42);
-	std::uint64_t b = resi >> 21;
-	std::uint64_t c = resi - (b << 21);
-	return std::vector<int>{static_cast<int>(a), static_cast<int>(b), static_cast<int>(c)};
-}
-
+///////////////////////////////////////////////////////////////////////////////////////////////// 测试函数
 
 // 测试myEigen中的接口
 namespace TEST_MYEIGEN 

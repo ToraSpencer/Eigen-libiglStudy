@@ -33,13 +33,17 @@
 #include "Eigen/Sparse"
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////// 自己写的各个静态库：
 #include "myEigenIO/myEigenIO.h"
 #pragma comment(lib,"myEigenIO.lib")	
 
 #include "myEigenBasicMath/myEigenBasicMath.h"
 #pragma comment(lib, "myEigenBasicMath.lib")
 
-  
+#include "myEigenPMP/myEigenPMP.h"
+#pragma comment(lib, "myEigenPMP.lib")
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////////// debug全局变量
 static Eigen::MatrixXd g_debugVers;
 
@@ -57,6 +61,7 @@ template <typename Derived, typename F>
 void traverseMatrix(Eigen::PlainObjectBase<Derived>& m, F f);
 template<typename spMat, typename F>
 void traverseSparseMatrix(spMat& sm, F f);
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 辅助结构：
 template <typename T>
@@ -187,200 +192,372 @@ using namespace MY_DEBUG;
 
 
 
-/////////////////////////////////////////////////////////////////////////////////////////////////// modeling tools;
-template <typename T>
-bool interpolateToLine(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::Matrix<T, 1, 3>& start, \
-	const Eigen::Matrix<T, 1, 3>& end, const float SR, const bool SE);
-template <typename T>
-bool getCircleVers(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, const unsigned versCount);
-template	<typename DerivedV, typename DerivedI>
-void genCubeMesh(Eigen::Matrix<DerivedV, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::Matrix<DerivedI, Eigen::Dynamic, Eigen::Dynamic>& tris);
-template <typename _Scalar, int _AmbientDim>
-void genAABBmesh(Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::AlignedBox<_Scalar, _AmbientDim>& aabb);
-template <typename T>
-bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& btmVers, \
-	const bool isCovered);
-template <typename T>
-bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const float radius, const double deltaTheta, const bool isCovered);
+/////////////////////////////////////////////////////////////////////////////////////////////////// 暂时不知道如何分类：
+template<typename Tv, typename Tl>
+bool cotLaplacian(Eigen::SparseMatrix<Tl>& L, const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
 
+
+// 生成质量矩阵：
+template <typename Tm, typename Tv>
+bool massMatrix_baryCentric(Eigen::SparseMatrix<Tm>& MM, const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+	const Eigen::MatrixXi& tris);
+
+
+// laplace光顺 
 template <typename T>
-bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, \
-	const bool isCovered);
+bool laplaceFaring(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, \
+	const float deltaLB, const unsigned loopCount);
 
-template <typename T>
-bool genAlignedCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, \
-	const bool isCovered);
 
-template <typename T>
-bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circVers);
+template<typename T>
+bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOut, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matIn, const Eigen::MatrixXd& mask);
 
-template <typename DerivedI>
-void edges2mat(Eigen::PlainObjectBase<DerivedI>& mat, const std::vector<std::pair<int, int>>& edges);
-template <typename Index>
-std::int64_t encodeEdge(const Index vaIdx, const Index vbIdx);
-template <typename Index>
-std::int64_t encodeUedge(const Index vaIdx, const Index vbIdx);
-std::pair<int, int> decodeEdge(const std::int64_t code);
-template <typename Index>
-std::uint64_t encodeTriangle(const Index vaIdx, const Index vbIdx, const Index vcIdx);
-std::vector<int> decodeTrianagle(const std::uint64_t code);
+ 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////// 网格缺陷检查和修复
 template <typename DerivedI>
 void findRepTris(std::vector<int>& repIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
+
+template <typename DerivedV, typename DerivedI>
+int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx, const double thetaThreshold);
+
+template<typename DerivedI>
+int nonManifoldEdges(Eigen::MatrixXi& nmnEdges, const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
+template<typename DerivedI>
+int nonManifoldEdges(Eigen::MatrixXi& nmnEdges, std::vector<std::pair<std::pair<int, int>, int>>& nmnInfos, \
+	const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
+template <typename T>
+int nonManifoldUEs(Eigen::MatrixXi& nmnUedges, const Eigen::SparseMatrix<T>& adjSM_eCount, \
+	const Eigen::SparseMatrix<T>& adjSM_ueCount);
+
+
+template <typename DerivedI>
+int nonManifoldUEs(Eigen::MatrixXi& nmnUedges, const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
+template<typename DerivedI>
+int nonManifoldUEs(Eigen::MatrixXi& nmnUedges, std::vector<std::pair<int, std::pair<int, int>>>& nmnEdgeInfos, \
+	const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
+template<typename DerivedV>
+int nonManifoldVers(std::vector<int>& nmnVerIdxes, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
+
+
+template <typename IndexType>
+bool fillSmallHoles(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& newTris, \
+	const std::vector<Eigen::Matrix<IndexType, Eigen::Dynamic, 1>>& holes);
+
+template <typename DerivedV>
+std::vector<unsigned> checkIsoVers(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
+
+
+template <typename DerivedV>
+bool removeIsoVers(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::MatrixXi& trisOut, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const std::vector<unsigned>& isoVerIdxes);
+
+
+template <typename DerivedV>
+Eigen::VectorXi checkDegEdges(const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& edgeArrows, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const double threshold);
+
+
+template <typename DerivedV>
+int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::MatrixXi& newTris, \
+	const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& edgeArrows, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const Eigen::VectorXi& degEdgeFlags);
+
+
+template <typename DerivedV, typename DerivedI>
+int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris, const double thetaThreshold);
+
+template<typename T>
+int removeSickDupTris(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris);
+
+
+template <typename DerivedV, typename DerivedI>
+int findHoles(std::vector<std::vector<int>>& holes, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
+template <typename DerivedI>
+bool checkSickTris(std::vector<int>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////// 网格编辑：
+
+template<typename T>
+bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, const float param);
+
 
 template <typename T>
 void concatMeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers1, const Eigen::MatrixXi& tris1);
 
-template<typename T>
-Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& sampleVers);
+template <typename IndexT>
+bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, const std::vector<IndexT>& sickTriIdxes);
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////// 区域生长算法：
+
+template <typename DerivedV, typename DerivedI>
+bool triangleGrow(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx);
+
+
+template <typename DerivedV>
+bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eigen::MatrixXi>& meshesTrisOut, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
+
+
+template <typename T>
+bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso, const int startIdx);
+
+
+template <typename T>
+bool robustTriangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso);
+
 
 template <typename DerivedI>
+bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi >& segs, \
+	const Eigen::PlainObjectBase<DerivedI>& uEdges);
+
+template <typename Index>
+int simplyConnectedRegion(const Eigen::SparseMatrix<Index>& adjSM,
+	Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount);
+
+
+template <typename T>
+int simplyConnectedRegion(std::vector<int>& connectedLabels, std::vector<int>& connectedCount, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
+
+
+template <typename DerivedI>
+int simplyTrisConnectedRegion(Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount, \
+	const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
+template <typename DerivedV, typename DerivedI>
+bool simplyConnectedLargest(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
+template <typename T>
+bool simplyConnectedSplitMesh(std::vector<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>>& compVers,\
+	std::vector<Eigen::MatrixXi>& compTris, 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+	const Eigen::MatrixXi& tris);
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////// 网格属性：
+
+// 输入网格三角片数据，得到有向边数据：
+template <typename DerivedI>
 bool getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
 template <typename DerivedI>
 bool getEdgeIdxMap(std::unordered_multimap<std::int64_t, int>& map, const Eigen::PlainObjectBase<DerivedI>& edges);
+
 
 template <typename DerivedV, typename DerivedF, typename DerivedN>
 bool getTriNorms(Eigen::PlainObjectBase<DerivedN>& triNorms, const Eigen::MatrixBase<DerivedV>& vers, \
 	const Eigen::MatrixBase<DerivedF>& tris);
 
+
 template <typename DerivedV>
-void getEdgeArrows(Eigen::PlainObjectBase<DerivedV>& arrows, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers);
+void getEdgeArrows(Eigen::PlainObjectBase<DerivedV>& arrows, const Eigen::MatrixXi& edges, \
+	const Eigen::PlainObjectBase<DerivedV>& vers);
+
+
+template <typename Tv, typename DerivedF, typename DerivedL>
+void squared_edge_lengths(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers,
+	const Eigen::MatrixBase<DerivedF>& tris, Eigen::PlainObjectBase<DerivedL>& lenMat2);
+
+
+template <typename Tv, typename Tl>
+void trisCotValues(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers,
+	const Eigen::MatrixXi& tris, Eigen::Matrix<Tl, Eigen::Dynamic, Eigen::Dynamic>& cotValues);
+
+
 template<typename T, typename DerivedV, typename DerivedI>
-bool trianglesBarycenter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& barys, const Eigen::PlainObjectBase<DerivedV>& vers, \
-	const Eigen::PlainObjectBase<DerivedI>& tris);
+bool trianglesBarycenter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& barys, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, 	const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
 template<typename T, typename DerivedV, typename DerivedI>
 bool trianglesNorm(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& triNorms, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
 template<typename DerivedV, typename DerivedI>
 bool trianglesPlane(Eigen::MatrixXd& planeCoeff, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
 template<typename Scalar, typename Ta, typename DerivedI>
 bool trisArea(Eigen::Matrix<Ta, Eigen::Dynamic, 1>& trisAreaVec, const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
 	const Eigen::MatrixBase<DerivedI>& tris);
+
+
 template<typename DerivedV, typename DerivedI>
 double meshVolume(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
 template<typename Index>
 bool adjMatrix(Eigen::SparseMatrix<Index>& adjSM_eCount, \
 	Eigen::SparseMatrix<Index>& adjSM_eIdx, const Eigen::MatrixXi& tris, const Eigen::MatrixXi& edges0);
+
+
 template<typename DerivedI>
 bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
 template<typename DerivedI>
 bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, std::vector<int>& bdryTriIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
-template<typename DerivedI>
-int nonManifoldEdges(Eigen::MatrixXi& nmnEdges, const Eigen::PlainObjectBase<DerivedI>& tris);
-template<typename DerivedI>
-int nonManifoldEdges(Eigen::MatrixXi& nmnEdges, std::vector<std::pair<std::pair<int, int>, int>>& nmnInfos, const Eigen::PlainObjectBase<DerivedI>& tris);
-template <typename T>
-int nonManifoldUEs(Eigen::MatrixXi& nmnUedges, const Eigen::SparseMatrix<T>& adjSM_eCount, \
-	const Eigen::SparseMatrix<T>& adjSM_ueCount);
-template <typename DerivedI>
-int nonManifoldUEs(Eigen::MatrixXi& nmnUedges, const Eigen::PlainObjectBase<DerivedI>& tris);
-template<typename DerivedI>
-int nonManifoldUEs(Eigen::MatrixXi& nmnUedges, std::vector<std::pair<int, std::pair<int, int>>>& nmnEdgeInfos, \
-	const Eigen::PlainObjectBase<DerivedI>& tris);
-template<typename DerivedV>
-int nonManifoldVers(std::vector<int>& nmnVerIdxes, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
+
+
 
 using tVec = std::vector<std::vector<int>>;
 template <typename DerivedI>
 bool buildAdjacency(Eigen::MatrixXi& ttAdj_mnEdge, std::vector<tVec>& ttAdj_nmnEdge, std::vector<tVec>& ttAdj_nmnOppEdge, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
+
+
 template <typename DerivedI>
 bool buildAdjacency_new(Eigen::MatrixXi& ttAdj_mnEdge, std::vector<tVec>& ttAdj_nmnEdge, std::vector<tVec>& ttAdj_nmnOppEdge, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
-template <typename DerivedV, typename DerivedI>
-bool triangleGrow(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx);
-template <typename DerivedV>
-bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eigen::MatrixXi>& meshesTrisOut, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
-template <typename T>
-bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso, const int startIdx);
-template <typename T>
-bool robustTriangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso);
-template <typename DerivedV, typename DerivedI>
-int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::PlainObjectBase<DerivedV>& vers, \
-	const Eigen::PlainObjectBase<DerivedI>& tris, const double thetaThreshold);
-template <typename DerivedV, typename DerivedI>
-int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::PlainObjectBase<DerivedV>& vers, \
-	const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx, const double thetaThreshold);
-template <typename DerivedI>
-bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi >& segs, \
-	const Eigen::PlainObjectBase<DerivedI>& uEdges);
-template <typename DerivedV, typename DerivedI>
-int findHoles(std::vector<std::vector<int>>& holes, const Eigen::PlainObjectBase<DerivedV>& vers, \
-	const Eigen::PlainObjectBase<DerivedI>& tris);
-template <typename DerivedI>
-bool checkSickTris(std::vector<int>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
-template <typename Index>
-int simplyConnectedRegion(const Eigen::SparseMatrix<Index>& adjSM,
-	Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount);
-template <typename T>
-int simplyConnectedRegion(std::vector<int>& connectedLabels, std::vector<int>& connectedCount, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
-template <typename DerivedI>
-int simplyTrisConnectedRegion(Eigen::VectorXi& connectedLabels, Eigen::VectorXi& connectedCount, \
-	const Eigen::PlainObjectBase<DerivedI>& tris);
-template <typename DerivedV, typename DerivedI>
-bool simplyConnectedLargest(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris);
-template <typename T>
-bool simplyConnectedSplitMesh(std::vector<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>>& compVers, std::vector<Eigen::MatrixXi>& compTris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
-template <typename IndexT>
-bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, const std::vector<IndexT>& sickTriIdxes);
-template <typename DerivedV>
-std::vector<unsigned> checkIsoVers(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
-template <typename DerivedV>
-bool removeIsoVers(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::MatrixXi& trisOut, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const std::vector<unsigned>& isoVerIdxes);
-template <typename DerivedV>
-Eigen::VectorXi checkDegEdges(const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& edgeArrows, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const double threshold);
-template <typename DerivedV>
-int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::MatrixXi& newTris, \
-	const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& edgeArrows, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const Eigen::VectorXi& degEdgeFlags);
-template<typename T>
-bool genGrids(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, const Eigen::Matrix<T, 1, 3>& origin, \
-	const float step, const std::vector<unsigned>& gridCounts);
-template<typename T>
-int removeSickDupTris(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris);
-template <typename Tv, typename DerivedF, typename DerivedL>
-void squared_edge_lengths(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers,
-	const Eigen::MatrixBase<DerivedF>& tris, Eigen::PlainObjectBase<DerivedL>& lenMat2);
-template <typename Tv, typename DerivedF, typename Tl>
-void trisAreaDB(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixBase<DerivedF>& tris,
-	Eigen::Matrix<Tl, Eigen::Dynamic, 1>& dbArea);
-template <typename Tl>
-void trisAreaDB(const Eigen::Matrix<Tl, Eigen::Dynamic, 3>& lenMat,
-	const double nan_replacement, Eigen::Matrix<Tl, Eigen::Dynamic, 1>& dbArea);
-template <typename Tv, typename Tl>
-void trisCotValues(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers,
-	const Eigen::MatrixXi& tris, Eigen::Matrix<Tl, Eigen::Dynamic, Eigen::Dynamic>& cotValues);
-template<typename Tv, typename Tl>
-bool cotLaplacian(Eigen::SparseMatrix<Tl>& L, const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
-template<typename T>
-bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOut, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matIn, \
-	const Eigen::MatrixXd& mask);
-template <typename IndexType>
-bool circuitGetTris(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tris, \
-	const std::vector<int>& indexes, const bool regularTri);
-template <typename IndexType>
-bool fillSmallHoles(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& newTris, \
-	const std::vector<Eigen::Matrix<IndexType, Eigen::Dynamic, 1>>& holes);
-template<typename T>
-bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, const float param);
 
+
+
+
+// class——方向包围盒类OBB（本质上是中点在原点的AABB加上一个仿射变换）；
+template <typename _Scalar>
+class OBB : public Eigen::AlignedBox<_Scalar, 3>
+{
+	// 成员数据：注！！！继承自Eigen::AlignedBox中的m_min, m_max是列向量，下面两个是行向量；
+public:
+	Eigen::Matrix<_Scalar, 1, 3> m_dir;
+	Eigen::Matrix<_Scalar, 1, 3> m_center;
+	Eigen::Matrix3d m_rotation;
+
+	// constructor:
+public:
+	inline OBB() :m_dir(0, 0, 1), m_center(Eigen::Matrix<_Scalar, 1, 3>::Zero(3)), m_rotation(Eigen::Matrix3d::Identity()) {}
+
+
+	inline OBB(const Eigen::AlignedBox<_Scalar, 3>& aabb)
+	{
+		auto minp = aabb.m_min;
+		auto maxp = aabb.m_max;
+		this->center = (minp + maxp) / 2.0;
+		this->m_dir = Eigen::Matrix<_Scalar, 1, 3>(0, 0, 1);
+		this->m_rotation = Eigen::Matrix3d::Identity();
+
+		this->m_min = minp - this->center.transpose();
+		this->m_max = maxp - this->center.transpose();
+	}
+
+
+	inline OBB(const Eigen::AlignedBox<_Scalar, 3>& aabb, const Eigen::Matrix<_Scalar, 1, 3>& dir, \
+		const Eigen::Matrix<_Scalar, 1, 3>& center) : m_dir(dir), m_center(center)
+	{
+		// 注：方向包围盒的方向取dir和-dir没有区别，所以控制dir和z轴正向夹角不大于pi/2;
+		const double epsilon = 1e-6;
+		assert((dir.norm() - 1) < epsilon && "input dir is invalid.");
+
+		double dotValue = Eigen::Matrix<_Scalar, 1, 3>(0, 0, 1).dot(dir);
+		if (dotValue < 0)
+			this->m_dir = -dir;
+		Eigen::Matrix<_Scalar, 1, 3> crossValue = Eigen::Matrix<_Scalar, 1, 3>(0, 0, 1).cross(this->m_dir);		// 旋转轴；
+
+		auto minp = aabb.min();
+		auto maxp = aabb.max();
+		Eigen::Matrix<_Scalar, 1, 3> centerOri = (minp + maxp) / 2.0;
+		this->m_min = minp - centerOri.transpose();
+		this->m_max = maxp - centerOri.transpose();
+
+		// 若指定方向和z轴平行：
+		if (crossValue.norm() < epsilon)
+		{
+			this->m_rotation = Eigen::Matrix3d::Identity();
+			return;
+		}
+
+		Eigen::Matrix<_Scalar, 1, 3> zNew = this->m_dir;
+		Eigen::Matrix<_Scalar, 1, 3> xNew = -crossValue.normalized();
+		Eigen::Matrix<_Scalar, 1, 3> yNew = zNew.cross(xNew);
+
+		for (int i = 0; i < 3; ++i)
+		{
+			this->m_rotation(i, 0) = static_cast<double>(xNew(i));
+			this->m_rotation(i, 1) = static_cast<double>(yNew(i));
+			this->m_rotation(i, 2) = static_cast<double>(zNew(i));
+		}
+	}
+
+
+	inline OBB(const Eigen::AlignedBox<_Scalar, 3>& aabb, const Eigen::Matrix<_Scalar, 1, 3>& center, \
+		const Eigen::Matrix3d& rotation) : m_center(center), m_rotation(rotation)
+	{
+		const double epsilon = 1e-6;
+		auto minp = aabb.min();
+		auto maxp = aabb.max();
+		Eigen::Matrix<_Scalar, 1, 3> centerOri = (minp + maxp) / 2.0;
+		this->m_min = minp - centerOri.transpose();
+		this->m_max = maxp - centerOri.transpose();
+
+		this->m_dir = (rotation * Eigen::Matrix<_Scalar, 3, 1>(0, 0, 1)).transpose();
+	}
+
+
+	template<typename Derived>
+	inline bool contains(const Eigen::MatrixBase<Derived>& ver) const
+	{
+		Eigen::Vector3d minp = this->m_min.cast<double>();
+		Eigen::Vector3d maxp = this->m_max.cast<double>();
+
+		const Derived& ver0 = ver.derived();
+		assert((ver0.rows() == 1 && ver0.cols() == 3) || (ver0.cols() == 1 && ver0.rows() == 3) && "Input vertice must be a 3D vector!");
+
+		// 顶点逆仿射变换到AABB的空间：
+		auto dataPtr = ver0.data();
+		Eigen::Vector3d p00(static_cast<double>(dataPtr[0]), static_cast<double>(dataPtr[1]), static_cast<double>(dataPtr[2]));
+		Eigen::Vector3d p0 = this->m_rotation.inverse() * (p00 - this->m_center.transpose());
+		return (minp.array() <= p0.array()).all() && (p0.array() <= maxp.array()).all();
+	}
+};
+
+
+template <typename _Scalar>
+void genOBBmesh(const OBB<_Scalar>& obb, Eigen::Matrix<_Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+	Eigen::MatrixXi& tris)
+{
+	Eigen::Matrix<_Scalar, 3, 1> minp = obb.min();
+	Eigen::Matrix<_Scalar, 3, 1> maxp = obb.max();
+	Eigen::Matrix<_Scalar, 3, 1> sizeVec = maxp - minp;
+
+	genCubeMesh(vers, tris);
+	vers.col(0) *= sizeVec(0);
+	vers.col(1) *= sizeVec(1);
+	vers.col(2) *= sizeVec(2);
+
+	vers = ((obb.m_rotation * vers.transpose()).eval()).transpose().eval();
+	vers.rowwise() += obb.m_center;
+}
 
 
 
