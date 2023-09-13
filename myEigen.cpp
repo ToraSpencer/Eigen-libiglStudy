@@ -94,9 +94,7 @@ namespace MY_DEBUG
 }
 using namespace MY_DEBUG;
 
-
-
-
+ 
 ///////////////////////////////////////////////////////////////////////////////////////////////// 测试函数
 
 // 测试myEigen中的接口
@@ -534,7 +532,6 @@ namespace TEST_MYEIGEN
 		debugDisp("finished.");
 	}
 }
-
 
 
 // 测试图像处理：

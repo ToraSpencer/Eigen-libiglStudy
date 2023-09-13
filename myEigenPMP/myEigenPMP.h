@@ -26,67 +26,6 @@
 #pragma comment(lib, "myEigenBasicMath.lib")
 
 
-
-///////////////////////////////////////////////////////////////////////////////////////////////////// modeling接口：
-
-// 顶点插值得到直线段点云
-template <typename T>
-bool interpolateToLine(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::Matrix<T, 1, 3>& start, \
-	const Eigen::Matrix<T, 1, 3>& end, const float SR, const bool SE = true);
-
-// 生成XOY平面内的圆圈点集：
-template <typename T>
-bool getCircleVers(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, \
-	const unsigned versCount = 20);
-
-// 生成中心在原点，边长为1，三角片数为12的正方体网格；
-template	<typename T>
-void genCubeMesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris);
-
-// 生成轴向包围盒的三角网格；
-template <typename T>
-void genAABBmesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::AlignedBox<T, 3>& aabb);
-
-// 生成栅格采样点：
-template<typename T>
-bool genGrids(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, const Eigen::Matrix<T, 1, 3>& origin, \
-	const float step, const std::vector<unsigned>& gridCounts);
-
-// 对环路点集进行不插点三角剖分——手动缝合方法；
-template <typename IndexType>
-bool circuitGetTris(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tris, \
-	const std::vector<int>& indexes, const bool regularTri);
-
-
-#ifdef USE_TRIANGLE_H
-template <typename T>
-bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& btmVers, \
-	const bool isCovered);
-
-template <typename T>
-bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const float radius, const double deltaTheta, const bool isCovered);
-
-template <typename T>
-bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, \
-	const bool isCovered);
-
-template <typename T>
-bool genAlignedCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, \
-	const bool isCovered);
-
-
-template <typename T>
-bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circVers);
-#endif
-
-
-
 /////////////////////////////////////////////////////////////////////////////////////////////////// 表象转换接口：
 
 // std::vector<std::pair<int, int>>表示的边数据转换为矩阵表示：
@@ -114,6 +53,22 @@ std::vector<int> decodeTrianagle(const std::uint64_t code);
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 网格属性：
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////// 网格编辑：
+
+template<typename T>
+bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, const float param);
+
+
+template <typename T>
+void concatMeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers1, const Eigen::MatrixXi& tris1);
+
+
+template <typename IndexT>
+bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, const std::vector<IndexT>& sickTriIdxes);
 
 
 

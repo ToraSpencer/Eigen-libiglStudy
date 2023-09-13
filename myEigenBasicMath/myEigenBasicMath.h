@@ -25,11 +25,135 @@
 
 // Index:
 /*
+	auxiliary interfaces
 	basic math tools
 	矩阵的增删查改和运算
 	拟合、插值
 
 */
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary interfaces:
+
+// 并行for循环
+template<typename Func>
+void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, const unsigned int serial_if_less_than = 12)
+{
+	/*
+		PARALLEL_FOR(
+			unsigned int   beg,                                     起始元素索引
+			unsigned int  end,                                      尾元素索引
+			const unsigned int  serial_if_less_than,      如果需要处理的元素不小于该值，则使用并行化；
+			const Func & func										操作元素的函数子；
+			)
+	*/
+	unsigned int elemCount = end - beg + 1;
+
+	if (elemCount < serial_if_less_than)
+		for (unsigned int i = beg; i < end; ++i)
+			func(i);
+	else
+	{
+		// 确定起的线程数；
+		const static unsigned n_threads_hint = std::thread::hardware_concurrency();
+		const static unsigned n_threads = (n_threads_hint == 0u) ? 8u : n_threads_hint;
+
+		// for循环的范围分解成几段；
+		unsigned int slice = (unsigned int)std::round(elemCount / static_cast<double>(n_threads));
+		slice = std::max(slice, 1u);
+
+		// 线程函数：
+		auto subTraverse = [&func](unsigned int head, unsigned int tail)
+		{
+			for (unsigned int k = head; k < tail; ++k)
+				func(k);
+		};
+
+		// 生成线程池，执行并发for循环；
+		std::vector<std::thread> pool;              // 线程池；
+		pool.reserve(n_threads);
+		unsigned int head = beg;
+		unsigned int tail = std::min(beg + slice, end);
+		for (unsigned int i = 0; i + 1 < n_threads && head < end; ++i)
+		{
+			pool.emplace_back(subTraverse, head, tail);
+			head = tail;
+			tail = std::min(tail + slice, end);
+		}
+		if (head < end)
+			pool.emplace_back(subTraverse, head, end);
+
+		// 线程同步；
+		for (std::thread& t : pool)
+		{
+			if (t.joinable())
+				t.join();
+		}
+	}
+}
+
+
+// 变参并行for循环——索引以外的参数使用std::tuple传入；
+template<typename Func, typename paramTuple>
+void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, \
+	const paramTuple& pt, const unsigned int serial_if_less_than = 12)
+{
+	/*
+		PARALLEL_FOR(
+			unsigned int   beg,                                     起始元素索引
+			unsigned int  end,                                      尾元素索引
+			const unsigned int  serial_if_less_than,      如果需要处理的元素不小于该值，则使用并行化；
+			const paramTuple& pt								索引以外的其他参数；
+			const Func & func										操作元素的函数子；
+			)
+	*/
+	unsigned int elemCount = end - beg + 1;
+
+	if (elemCount < serial_if_less_than)
+		for (unsigned int i = beg; i < end; ++i)
+			func(i, pt);
+	else
+	{
+		// 确定起的线程数；
+		const static unsigned n_threads_hint = std::thread::hardware_concurrency();
+		const static unsigned n_threads = (n_threads_hint == 0u) ? 8u : n_threads_hint;
+
+		// for循环的范围分解成几段；
+		unsigned int slice = (unsigned int)std::round(elemCount / static_cast<double>(n_threads));
+		slice = std::max(slice, 1u);
+
+		// 线程函数：
+		auto subTraverse = [&func, &pt](unsigned int head, unsigned int tail)
+		{
+			for (unsigned int k = head; k < tail; ++k)
+				func(k, pt);
+		};
+
+		// 生成线程池，执行并发for循环；
+		std::vector<std::thread> pool;              // 线程池；
+		pool.reserve(n_threads);
+		unsigned int head = beg;
+		unsigned int tail = std::min(beg + slice, end);
+		for (unsigned int i = 0; i + 1 < n_threads && head < end; ++i)
+		{
+			pool.emplace_back(subTraverse, head, tail);
+			head = tail;
+			tail = std::min(tail + slice, end);
+		}
+		if (head < end)
+			pool.emplace_back(subTraverse, head, end);
+
+		// 线程同步；
+		for (std::thread& t : pool)
+		{
+			if (t.joinable())
+				t.join();
+		}
+	}
+}
+
+
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// basic math tools:
 
@@ -121,9 +245,9 @@ void sparse(Eigen::SparseMatrix<T>& SM, const Eigen::VectorXi& I, const Eigen::V
 template<typename T>
 bool spMatTranspose(Eigen::SparseMatrix<T>& smOut, const Eigen::SparseMatrix<T>& smIn);
 
-// 计算稠密矩阵的克罗内克积（Kronecker product）——可能的参数组合太多了，懒得写模板特化了 
-template <typename Derived1, typename Derived2>
-Eigen::MatrixXd kron(const Eigen::MatrixBase<Derived1>& m11, \
+// 计算稠密矩阵的克罗内克积（Kronecker product）：重载1——可能的参数组合太多了，懒得写模板特化了 
+template <typename Derived0, typename Derived1, typename Derived2>
+bool kron(Eigen::PlainObjectBase<Derived0>& result, const Eigen::MatrixBase<Derived1>& m11, \
 	const Eigen::MatrixBase<Derived2>& m22)
 {
 	// A(m×n) tensor B(p×q) == C(m*p × n*q);
@@ -145,20 +269,24 @@ Eigen::MatrixXd kron(const Eigen::MatrixBase<Derived1>& m11, \
 		4,		 0.4,		5,		0.5,		 6,		0.6,
 
 	*/
+	using Scalar = typename Derived0::Scalar;							// 使用从属名称，需要加上"typename"前缀；
 	Derived1 m1 = m11.derived();
 	Derived2 m2 = m22.derived();;
 	unsigned m = m1.rows();
 	unsigned n = m1.cols();
 	unsigned p = m2.rows();
 	unsigned q = m2.cols();
+	unsigned rows = m * p;
+	unsigned cols = n * q;
 
-	Eigen::MatrixXd result(m * p, n * q);
+	result.resize(0, 0);
+	result.resize(rows, cols);
 	Eigen::VectorXi rowIdxVec = Eigen::VectorXi::LinSpaced(0, m - 1, m - 1);
 	auto calcKronCol = [&](const unsigned colIdx, const std::tuple<unsigned>& pt)
 	{
 		unsigned rowIdx0 = std::get<0>(pt);
 		result.block(rowIdx0 * p, colIdx * q, p, q) = \
-			static_cast<double>(m1(rowIdx0, colIdx)) * m2.array().cast<double>();		// 转换成输出矩阵中的数据类型；
+			static_cast<Scalar>(m1(rowIdx0, colIdx)) * m2.array().cast<Scalar>();		// 转换成输出矩阵中的数据类型；
 	};
 
 	auto calcKronRow = [&](const unsigned rowIdx)
@@ -168,6 +296,18 @@ Eigen::MatrixXd kron(const Eigen::MatrixBase<Derived1>& m11, \
 	};
 
 	PARALLEL_FOR(0, m, calcKronRow);
+
+	return true;
+}
+
+
+// 计算稠密矩阵的克罗内克积（Kronecker product）：重载2
+template <typename Derived1, typename Derived2>
+Eigen::MatrixXd kron(const Eigen::MatrixBase<Derived1>& m11, \
+	const Eigen::MatrixBase<Derived2>& m22)
+{ 
+	Eigen::MatrixXd result;
+	kron(result, m11, m22);
 
 	return result;
 }

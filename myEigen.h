@@ -40,6 +40,9 @@
 #include "myEigenBasicMath/myEigenBasicMath.h"
 #pragma comment(lib, "myEigenBasicMath.lib")
 
+#include "myEigenModeling/myEigenModeling.h"
+#pragma comment(lib, "myEigenModeling.lib")
+
 #include "myEigenPMP/myEigenPMP.h"
 #pragma comment(lib, "myEigenPMP.lib")
 
@@ -279,6 +282,7 @@ template <typename DerivedV, typename DerivedI>
 int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris, const double thetaThreshold);
 
+
 template<typename T>
 int removeSickDupTris(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris);
 
@@ -292,19 +296,6 @@ template <typename DerivedI>
 bool checkSickTris(std::vector<int>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
 
 
-
-/////////////////////////////////////////////////////////////////////////////////////////////////// Íø¸ñ±à¼­£º
-
-template<typename T>
-bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, const float param);
-
-
-template <typename T>
-void concatMeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers1, const Eigen::MatrixXi& tris1);
-
-template <typename IndexT>
-bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, const std::vector<IndexT>& sickTriIdxes);
 
 
 
