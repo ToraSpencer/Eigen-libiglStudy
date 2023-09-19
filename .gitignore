@@ -22,6 +22,8 @@
 *.pdf
 *.docx
 
+*.ilk
+
 # PreCompiled Header，就是预先编译好的头文件，在编译时指定/Yu开关时编译器自动生成
 *.pch
 	
