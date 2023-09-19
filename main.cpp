@@ -1269,8 +1269,10 @@ int testCmd_laplaceFaring(int argc, char** argv)
 
 int main(int argc, char** argv)
 { 
-	return testCmd_laplaceFaring(argc, argv);
+	// return testCmd_laplaceFaring(argc, argv);
 	
+	TEST_MYEIGEN::test5();
+
 	std::cout << "main() finished." << std::endl;
 }
 

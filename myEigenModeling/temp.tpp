@@ -109,7 +109,8 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 // genCylinder()重载2——生成圆柱体网格
 template <typename T>
 bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const float radius, const double deltaTheta = 2 * pi / 30, const bool isCovered = true)
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const float radius,\
+	const double deltaTheta = 2 * pi / 30, const bool isCovered = true)
 {
 	// 生成XOY平面上采样角度步长为的圆圈顶点：
 	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
@@ -134,15 +135,14 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 // genCylinder()重载3——生成方柱体网格
 template <typename T>
 bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR = 0.5, \
-	const bool isCovered = true)
-{
-	// 生成XOY平面上采样角度步长为的圆圈顶点：
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, \
+	const std::pair<float, float> sizePair, const float SR = 0.5, const bool isCovered = true)
+{ 
 	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
 	using Matrix3T = Eigen::Matrix<T, 3, 3>;
 	using RowVector3T = Eigen::Matrix<T, 1, 3>;
 
-	// 生成XOY平面内的方框顶点：
+	// 1. 生成XOY平面内的方框顶点：
 	float length = sizePair.first;
 	float width = sizePair.second;
 	std::vector<RowVector3T> corners(4);
@@ -150,7 +150,6 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 	corners[1] = RowVector3T{ -length / 2, width / 2, 0 };
 	corners[2] = RowVector3T{ -length / 2, -width / 2, 0 };
 	corners[3] = RowVector3T{ length / 2, -width / 2, 0 };
-
 	MatrixXT circuit, tmpVers1, tmpVers2, tmpVers3, tmpVers4;
 	interpolateToLine(tmpVers1, corners[0], corners[1], SR, true);
 	interpolateToLine(tmpVers2, corners[1], corners[2], SR, false);
@@ -161,6 +160,10 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 	matInsertRows(circuit, tmpVers3);
 	matInsertRows(circuit, tmpVers4);
 
+	// for debug
+	objWriteVerticesMat("E:/squareVers.obj", circuit);
+
+	// 2. 
 	genCylinder(vers, tris, axisVers, circuit);
 
 	return true;
@@ -315,9 +318,9 @@ bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen:
 	vers = (vers * rotation.transpose()).eval();
 
 	// 3. 旋转后的点数据写入到triangulate()接口的输入结构体中。
-	Eigen::MatrixXd vers2D;
+	Eigen::MatrixXf vers2D;
 	Eigen::MatrixXi edges2D;
-	vers2D = vers.transpose().topRows(2).cast<double>();
+	vers2D = vers.transpose().topRows(2).cast<float>();
 	edges2D.resize(2, versCount);
 	for (unsigned i = 0; i < versCount; i++)
 	{
@@ -325,9 +328,10 @@ bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen:
 		edges2D(1, i) = (i + 1) % versCount + 1;
 	}
 
-	triangulateio triIn, triOut;
+	triangulateio triIn;
+	triangulateio triOut;
 	triIn.numberofpoints = versCount;
-	triIn.pointlist = (double*)vers2D.data();
+	triIn.pointlist = vers2D.data();
 	triIn.numberofpointattributes = 0;
 	triIn.pointattributelist = NULL;
 	triIn.pointmarkerlist = NULL;

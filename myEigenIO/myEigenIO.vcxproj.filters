@@ -18,10 +18,18 @@
     <ClCompile Include="myEigenIO.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="templateSpecialization.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="myEigenIO.h">
       <Filter>头文件</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="temp.tpp">
+      <Filter>源文件</Filter>
+    </None>
   </ItemGroup>
 </Project>

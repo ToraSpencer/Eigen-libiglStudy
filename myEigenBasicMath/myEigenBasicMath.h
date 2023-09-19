@@ -157,6 +157,27 @@ void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, \
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// basic math tools:
 
+template <typename Derived, typename F>
+void traverseMatrix(Eigen::PlainObjectBase<Derived>& m, F f)
+{
+	auto dataPtr = m.data();
+	int elemCount = m.rows() * m.cols();
+	for (int i = 0; i < elemCount; ++i)
+		f(*dataPtr++);
+}
+
+
+// 传入函数子遍历稀疏矩阵中的非零元素，函数子接受的参数是Eigen::SparseMatrix<T>::InnerIterator&
+template<typename spMat, typename F>
+void traverseSparseMatrix(spMat& sm, F f)
+{
+	for (unsigned i = 0; i < sm.outerSize(); ++i)
+		for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
+			f(iter);
+}
+
+
+
 // 二维笛卡尔坐标转换为极坐标；
 template <typename T>
 std::pair<double, double> cart2polar(const T x, const T y);
@@ -173,11 +194,19 @@ double hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const double x);
 template<typename T, int N>
 float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x);
 
-// eigen向量转换为std向量
+// eigen向量转换为std向量, 重载1
+template<typename T, typename Derived>
+void eigenVec2Vec(std::vector<T>& vOut, const Eigen::PlainObjectBase<Derived>& vIn);
+
+// eigen向量转换为std向量，重载2
 template<typename Derived>
 std::vector<typename Derived::Scalar> eigenVec2Vec(const Eigen::PlainObjectBase<Derived>& vIn);
 
-// std::向量转换为eigen列向量：
+// std::向量转换为eigen列向量， 重载1；
+template<typename Derived, typename T>
+void vec2EigenVec(Eigen::PlainObjectBase<Derived>& vOut, const std::vector<T>& vIn);
+
+// std::向量转换为eigen列向量， 重载2；
 template<typename T>
 Eigen::Matrix<T, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<T>& vIn);
 

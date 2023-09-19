@@ -251,26 +251,39 @@ namespace IGL_BASIC
 	}
 
 
-	// libigl中的显示窗口类Viewer
+	// libigl中的显示窗口类Viewer——基本用法：
 	void test1() 
 	{
-		igl::readOBJ("bunny.obj", vers, tris);
+		igl::readOBJ("E:/材料/bunny.obj", vers, tris);
 
 		// Viewer::data()——返回viewer中数据对象的引用；
 
 		// ViewerData::set_mesh()——输入顶点和三角片矩阵生成网格数据，写入到ViewerData的成员变量中；
-		viewer.data().set_mesh(vers, tris);		// 窗口中装载数据；
 
+		// 1. 窗口中装载数据；
+		viewer.data().set_mesh(vers, tris);		
 
-		 // 默认是两轴旋转，set_rotation_type()方法可以指定其他旋转风格
-		viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL);				// 三轴旋转
+		 // 2. 设定三轴旋转；默认是两轴旋转，set_rotation_type()方法可以指定其他旋转风格
+		viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL);			 
 
-		viewer.data().show_lines = 0;			// show_lines指定是否画出网格线；
+		// 3. show_lines指定是否画出网格线；
+		viewer.data().show_lines = 0;			
 
+		// 4. 进入渲染循环：
 		viewer.launch();
 	}
 
+
+	// libigl中的显示窗口类Viewer——动画：
+	void test11() 
+	{
+
+
+
+		debugDisp("finished.");
+	}
  
+
 	// 计算梯度
 	void test2()
 	{

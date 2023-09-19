@@ -26,6 +26,15 @@
 #pragma comment(lib, "myEigenBasicMath.lib")
 
 
+//  64位环境下，triangulate.cpp里" x = vertexloop[0] = pointlist[coordindex++];"这一句会抛出异常，需要研究
+#ifndef _WIN64
+#define USE_TRIANGLE_H
+#endif
+
+#ifdef  USE_TRIANGLE_H
+#include "triangulate.h"
+#endif
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////// modeling接口：
 

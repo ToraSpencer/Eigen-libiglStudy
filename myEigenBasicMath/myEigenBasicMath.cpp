@@ -1,19 +1,6 @@
 #include "myEigenBasicMath.h"
 
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////// supportive
-
-// 传入函数子遍历稀疏矩阵中的非零元素，函数子接受的参数是Eigen::SparseMatrix<T>::InnerIterator&
-template<typename spMat, typename F>
-void traverseSparseMatrix(spMat& sm, F f)
-{
-	for (unsigned i = 0; i < sm.outerSize(); ++i)
-		for (auto iter = spMat::InnerIterator(sm, i); iter; ++iter)
-			f(iter);
-}
-
-
-
 /////////////////////////////////////////////////////////////////////////////////////////////////// basic math tools:
 
 //		二维笛卡尔坐标系转换为极坐标系
@@ -65,12 +52,25 @@ std::pair<double, double> polar2cart(const T radius, const T theta)
 }
 
 
-// eigen的向量和std::vector<T>相互转换，重载1: Eigen向量转换为std::vector
+// Eigen向量转换为std::vector，重载1: 
+template<typename T, typename Derived>
+void eigenVec2Vec(std::vector<T>& vOut, const Eigen::PlainObjectBase<Derived>& vIn)
+{
+	assert(1 == vIn.rows() || 1 == vIn.cols(), "assert!!! Input arg vIn should be a vector.");
+	unsigned elemCount = vIn.rows() * vIn.cols();
+	vOut.clear();
+	vOut.resize(elemCount);
+	for (unsigned i = 0; i < elemCount; ++i)
+		vOut[i] = static_cast<T>(vIn(i));
+}
+
+
+// Eigen向量转换为std::vector，重载2: 
 template<typename Derived>
 std::vector<typename Derived::Scalar>  eigenVec2Vec(const Eigen::PlainObjectBase<Derived>& vIn)
 {
 	using Scalar = typename Derived::Scalar;
-	assert(1 == vIn.rows() || 1 == vIn.cols(), "Error!!! Input arg vIn should be a vector.");
+	assert(1 == vIn.rows() || 1 == vIn.cols(), "assert!!! Input arg vIn should be a vector.");
 
 	unsigned elemCount = vIn.rows() * vIn.cols();
 	std::vector<Scalar> vOut(elemCount, 1);
@@ -80,7 +80,20 @@ std::vector<typename Derived::Scalar>  eigenVec2Vec(const Eigen::PlainObjectBase
 }
 
 
-// eigen的向量和std::vector<T>相互转换，重载2：std::vector转换为Eigen列向量；
+// std::向量转换为eigen向量， 重载1；
+template<typename Derived, typename T>
+void vec2EigenVec(Eigen::PlainObjectBase<Derived>& vOut, const std::vector<T>& vIn)
+{
+	using Scalar = typename Derived::Scalar; 
+	unsigned elemCount = vIn.size();
+	vOut.resize(0);
+	vOut.resize(elemCount);
+	for (unsigned i = 0; i < elemCount; ++i)
+		vOut(i) = static_cast<Scalar>(vIn[i]);
+}
+
+
+// std::向量转换为eigen向量， 重载2——返回列向量；
 template<typename T>
 Eigen::Matrix<T, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<T>& vIn)
 {
@@ -355,7 +368,7 @@ bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix
 template <typename Derived1, typename Derived2>
 bool matInsertRows(Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& mat1)
 {
-	assert(mat.cols() == mat1.cols(), "Error!!! Matrix size not match.");
+	assert((0 == mat.cols())||(mat.cols() == mat1.cols()), "Error!!! Matrix size not match.");
 	unsigned cols = mat1.cols();
 	unsigned currentRows = mat.rows();
 	unsigned addRows = mat1.rows();

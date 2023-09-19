@@ -13,6 +13,7 @@ namespace MY_DEBUG
 		return;
 	}
 
+
 	template <typename T, typename... Types>
 	static void debugDisp(const T& firstArg, const Types&... args)
 	{
@@ -65,6 +66,7 @@ namespace MY_DEBUG
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 		objWriteVerticesMat(path, vers);
 	}
+
 
 	template<typename DerivedV>
 	static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
@@ -264,10 +266,17 @@ namespace TEST_MYEIGEN
 
 
 #ifdef USE_TRIANGLE_H
+
 	// 测试生成基础图形的接口：
 	void test5() 
 	{
 		Eigen::MatrixXf axis(15, 3);
+		Eigen::MatrixXd surfVers, circleVers;
+		Eigen::MatrixXi surfTris;
+		Eigen::MatrixXf cylinderVers;
+		Eigen::MatrixXi cylinderTris;
+
+		// 1. 生成柱体轴线；
 		axis.setZero();
 		double deltaTheta = pi / 10;
 		for (unsigned i = 0; i < 15; ++i)
@@ -275,30 +284,23 @@ namespace TEST_MYEIGEN
 			double theta = deltaTheta * i;
 			axis(i, 0) = 50 * cos(theta);
 			axis(i, 1) = 50 * sin(theta);
-		}
- 
+		} 
 		debugWriteVers("axis", axis);
-		std::cout << "finished." << std::endl;
 
-		// 三角剖分：
-		Eigen::MatrixXd surfVers, circleVers;
-		Eigen::MatrixXi surfTris;
+		// 2. 输入回路顶点三角剖分，得到圆形底面网格：
 		objReadVerticesMat(circleVers, "E:/材料/circleVers.obj");
 		circuit2mesh(surfVers, surfTris, circleVers);
 		debugWriteMesh("surfMesh", surfVers, surfTris);
 
-		// 生成柱体：
-		Eigen::MatrixXf cylinderVers;
-		Eigen::MatrixXi cylinderTris;
+		// 3. 生成圆柱体：
 		genCylinder(cylinderVers, cylinderTris, axis, 10);				// 生成圆柱
 		debugWriteMesh("cylinder", cylinderVers, cylinderTris);
 
-		cylinderVers.resize(0, 0);
-		cylinderTris.resize(0, 0);
+		// 4. 生成方柱体；
 		axis.resize(0, 0);
-		matInsertRows<float , 3>(axis, Eigen::RowVector3f{0, 0, 0});
-		matInsertRows<float , 3>(axis, Eigen::RowVector3f{ 0, 0, 1 });
-
+		interpolateToLine(axis, Eigen::RowVector3f{ 0, 0, 0 }, Eigen::RowVector3f{ 0, 0, 5}, 0.5);
+		cylinderVers.resize(0, 0);
+		cylinderTris.resize(0, 0); 
 		genCylinder(cylinderVers, cylinderTris, axis, std::make_pair(10.0, 20.0));
 		debugWriteMesh("pillar", cylinderVers, cylinderTris);
 
@@ -309,6 +311,8 @@ namespace TEST_MYEIGEN
 
 		std::cout << "finished." << std::endl;
 	}
+
+
 #endif
 	
 	// 测试空间变换相关的接口：

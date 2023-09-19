@@ -22,8 +22,48 @@
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary interface:
 unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize);
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////// disp interface
+
+template <typename Derived>
+void dispMat(const Eigen::PlainObjectBase<Derived>& mat);
+
+
+template <typename Derived>
+void dispMatBlock(const Eigen::PlainObjectBase<Derived>& mat, const int rowStart, const int rowEnd, \
+	const int colStart, const int colEnd);
+
+
+// 打印稀疏矩阵中的所有非零元素：
+template<typename spMat>				// 如果模板参数为T, 函数参数为Eigen::SparseMatrix<T>，编译会报错，不知道什么缘故； 
+void dispSpMat(const spMat& sm, const unsigned startCol, const unsigned endCol, const unsigned showElemsCount = 0);
+
+
+template<typename spMat>
+void dispSpMat(const spMat& sm);
+
+
+template<typename T, int N>
+void dispVec(const Eigen::Matrix<T, N, 1>& vec);
+
+
+template<typename T, int N>
+void dispVec(const Eigen::Matrix<T, 1, N>& vec);
+
+
+template<typename T, int N>
+void dispVecSeg(const Eigen::Matrix<T, N, 1>& vec, const int start, const int end);
+
+
+template<typename T, int N>
+void dispVecSeg(const Eigen::Matrix<T, 1, N>& vec, const int start, const int end);
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////// IO interface
 template <typename T>
 void vecWriteToFile(const char* fileName, const std::vector<T>& vec);
 template<typename T>
@@ -69,3 +109,6 @@ void objWriteDirection(const char* pathName, const Eigen::RowVector3f& origin, c
 
 void objWriteCoorSys(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& xdir, \
 	const Eigen::RowVector3f& ydir, const Eigen::RowVector3f& zdir);
+
+
+#include "temp.tpp"

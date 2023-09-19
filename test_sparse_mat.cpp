@@ -208,11 +208,7 @@ namespace SPARSEMAT
 		sm1.col(1) = sm2.col(1);
 		std::cout << "sm1 == \n" << sm1 << std::endl;
 		sm1.makeCompressed();
-		std::cout << "sm1.nonZeros()  == " << sm1.nonZeros() << std::endl;
-
-		// for debug;
-		dispSpMat(sm1);
-		dispSpMat(sm2);
+		std::cout << "sm1.nonZeros()  == " << sm1.nonZeros() << std::endl; 
 
 		// 使用sp2的某一行给sp1的某一列赋值时，必须将该行向量转置为列向量，否则会出错，且编译器不报异常；
 		sm1.col(0) = sm2.row(0).transpose();

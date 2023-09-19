@@ -26,9 +26,6 @@
     <ClCompile Include="test_sparse_mat.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="triangulate.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="myEigen.h">
@@ -44,9 +41,6 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="MC_tables.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="triangulate.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

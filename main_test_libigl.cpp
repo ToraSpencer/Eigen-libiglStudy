@@ -1120,7 +1120,7 @@ namespace DECIMATION
 	{
 		using namespace igl;
 		Eigen::MatrixXd vers;
-	Eigen:Eigen::MatrixXi tris;
+		Eigen:Eigen::MatrixXi tris;
 		igl::readOBJ("E:/²ÄÁÏ/tmpMesh.obj", vers, tris);
 
 		bool keepWorkingFlag = true;
@@ -1989,7 +1989,7 @@ int main(int argc, char** argv)
 
 	// IGL_MODELLING::test1();
 
-	IGL_BASIC_PMP::test7();
+	IGL_BASIC::test1();
 
 	std::cout << "main() finished." << std::endl;
 }

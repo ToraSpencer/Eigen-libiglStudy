@@ -12,12 +12,18 @@
     <ClInclude Include="myEigenModeling.h">
       <Filter>Head Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\triangulate.h">
+      <Filter>Head Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="myEigenModeling.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="templateSpecialization.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\triangulate.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
