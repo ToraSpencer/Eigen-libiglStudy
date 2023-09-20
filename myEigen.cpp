@@ -265,56 +265,6 @@ namespace TEST_MYEIGEN
 	}
 
 
-#ifdef USE_TRIANGLE_H
-
-	// 测试生成基础图形的接口：
-	void test5() 
-	{
-		Eigen::MatrixXf axis(15, 3);
-		Eigen::MatrixXd surfVers, circleVers;
-		Eigen::MatrixXi surfTris;
-		Eigen::MatrixXf cylinderVers;
-		Eigen::MatrixXi cylinderTris;
-
-		// 1. 生成柱体轴线；
-		axis.setZero();
-		double deltaTheta = pi / 10;
-		for (unsigned i = 0; i < 15; ++i)
-		{
-			double theta = deltaTheta * i;
-			axis(i, 0) = 50 * cos(theta);
-			axis(i, 1) = 50 * sin(theta);
-		} 
-		debugWriteVers("axis", axis);
-
-		// 2. 输入回路顶点三角剖分，得到圆形底面网格：
-		objReadVerticesMat(circleVers, "E:/材料/circleVers.obj");
-		circuit2mesh(surfVers, surfTris, circleVers);
-		debugWriteMesh("surfMesh", surfVers, surfTris);
-
-		// 3. 生成圆柱体：
-		genCylinder(cylinderVers, cylinderTris, axis, 10);				// 生成圆柱
-		debugWriteMesh("cylinder", cylinderVers, cylinderTris);
-
-		// 4. 生成方柱体；
-		axis.resize(0, 0);
-		interpolateToLine(axis, Eigen::RowVector3f{ 0, 0, 0 }, Eigen::RowVector3f{ 0, 0, 5}, 0.5);
-		cylinderVers.resize(0, 0);
-		cylinderTris.resize(0, 0); 
-		genCylinder(cylinderVers, cylinderTris, axis, std::make_pair(10.0, 20.0));
-		debugWriteMesh("pillar", cylinderVers, cylinderTris);
-
-		cylinderVers.resize(0, 0);
-		cylinderTris.resize(0, 0);
-		genAlignedCylinder(cylinderVers, cylinderTris, axis, std::make_pair(1.5, 1.5), 0.5); 
-		debugWriteMesh("AlignedPillar", cylinderVers, cylinderTris);
-
-		std::cout << "finished." << std::endl;
-	}
-
-
-#endif
-	
 	// 测试空间变换相关的接口：
 	void test6()
 	{
@@ -535,6 +485,73 @@ namespace TEST_MYEIGEN
 
 		debugDisp("finished.");
 	}
+}
+
+
+// 测试myEigenModeling中的接口
+namespace TEST_MYEIGEN_MODELING
+{
+#ifdef USE_TRIANGLE_H
+
+	// 测试生成柱体
+	void test1()
+	{
+		Eigen::MatrixXf axis(15, 3);
+		Eigen::MatrixXd surfVers, circleVers;
+		Eigen::MatrixXi surfTris;
+		Eigen::MatrixXf cylinderVers;
+		Eigen::MatrixXi cylinderTris;
+
+		// 1. 生成柱体轴线；
+		axis.setZero();
+		double deltaTheta = pi / 10;
+		for (unsigned i = 0; i < 15; ++i)
+		{
+			double theta = deltaTheta * i;
+			axis(i, 0) = 50 * cos(theta);
+			axis(i, 1) = 50 * sin(theta);
+		}
+		debugWriteVers("axis", axis);
+
+		// 2. 输入回路顶点三角剖分，得到圆形底面网格：
+		objReadVerticesMat(circleVers, "E:/材料/circleVers.obj");
+		circuit2mesh(surfVers, surfTris, circleVers);
+		debugWriteMesh("surfMesh", surfVers, surfTris);
+
+		// 3. 生成圆柱体：
+		genCylinder(cylinderVers, cylinderTris, axis, 10);				// 生成圆柱
+		debugWriteMesh("cylinder", cylinderVers, cylinderTris);
+
+		// 4. 生成方柱体；
+		axis.resize(0, 0);
+		interpolateToLine(axis, Eigen::RowVector3f{ 0, 0, 0 }, Eigen::RowVector3f{ 0, 0, 5 }, 0.5);
+		cylinderVers.resize(0, 0);
+		cylinderTris.resize(0, 0);
+		genCylinder(cylinderVers, cylinderTris, axis, std::make_pair(10.0, 20.0));
+		debugWriteMesh("pillar", cylinderVers, cylinderTris);
+
+		cylinderVers.resize(0, 0);
+		cylinderTris.resize(0, 0);
+		genAlignedCylinder(cylinderVers, cylinderTris, axis, std::make_pair(1.5, 1.5), 0.5);
+		debugWriteMesh("AlignedPillar", cylinderVers, cylinderTris);
+
+		// 5. 读取上下底面边界环路，生成柱体：
+		Eigen::MatrixXd topLoop, btmLoop;
+		cylinderVers.resize(0, 0);
+		cylinderTris.resize(0, 0);
+		axis.resize(0, 0);
+		objReadVerticesMat(topLoop, "E:/颌板/bdryUpper_final.obj");
+		objReadVerticesMat(btmLoop, "E:/颌板/bdryLower_final.obj");
+		interpolateToLine(axis, Eigen::RowVector3f{ 0, 0, 0 }, Eigen::RowVector3f{ 0, 0, 5 }, 1.0);
+		genCylinder(cylinderVers, cylinderTris, axis, topLoop, btmLoop, true);
+		debugWriteMesh("pillar2", cylinderVers, cylinderTris);
+
+		std::cout << "finished." << std::endl;
+	}
+
+
+#endif
+	 
 }
 
 

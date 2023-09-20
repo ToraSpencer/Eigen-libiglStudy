@@ -3,6 +3,7 @@
 
 
 #ifdef USE_TRIANGLE_H
+
 // genCylinder()重载1——生成（类）柱体：
 template <typename T>
 bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
@@ -165,6 +166,140 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 
 	// 2. 
 	genCylinder(vers, tris, axisVers, circuit);
+
+	return true;
+}
+
+
+// genCylinder()重载4——输入上底面和下底面的边界环路 ，生成柱体：
+template <typename T, typename DerivedVa, typename DerivedVt, typename DerivedVb>
+bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::PlainObjectBase<DerivedVa>& axisVers, const Eigen::PlainObjectBase<DerivedVt>& topLoop, \
+	const Eigen::PlainObjectBase<DerivedVb>& btmLoop, const bool isCovered)
+{
+	/*
+		bool genCylinder(
+				MatrixXT& vers,								输出网格顶点
+				Eigen::MatrixXi& tris,						输出网格三角片
+				const Eigen::PlainObjectBase<DerivedVa>& axisVers,			柱体轴线
+				const Eigen::PlainObjectBase<DerivedVt>& topLoop,			上底面边界环路
+				const Eigen::PlainObjectBase<DerivedVb>& btmLoop,			下底面边界环路
+				const bool isCovered																是否封底
+				)
+		注：上下底面边界环路都是在XOY平面中的点集，
+						且两者顶点数需要相同；
+						且从Z轴正向看环路顶点索引应该沿着顺时针方向增大；
+
+	*/
+	assert(btmLoop.rows() == topLoop.rows(), "assert!!! topLoop and btmLoop should have the same amount of vertices.");
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	// lambda——柱体侧面的三角片生长，会循环调用，调用一次生长一层；
+	auto growSurf = [](Eigen::MatrixXi& sideTris, const int circVersCount)->bool
+	{
+		// 会重复调用，tris容器不需要为空。
+		if (circVersCount < 3)
+			return false;
+
+		int currentTrisCount = sideTris.rows();
+		int currentVersCount = circVersCount + currentTrisCount / 2;
+		int startIdx = currentTrisCount / 2;							// 待生成表面的圆柱体底圈的第一个顶点的索引。
+		sideTris.conservativeResize(currentTrisCount + 2 * circVersCount, 3);
+
+		int triIdx = currentTrisCount;
+		sideTris.row(triIdx++) = Eigen::RowVector3i{ startIdx + circVersCount - 1, startIdx, startIdx + 2 * circVersCount - 1 };
+		sideTris.row(triIdx++) = Eigen::RowVector3i{ startIdx, startIdx + circVersCount, startIdx + 2 * circVersCount - 1 };
+		for (int i = startIdx + 1; i < startIdx + circVersCount; ++i)
+		{
+			sideTris.row(triIdx++) = Eigen::RowVector3i{ i - 1, i, i + circVersCount - 1 };
+			sideTris.row(triIdx++) = Eigen::RowVector3i{ i, i + circVersCount, i + circVersCount - 1 };
+		}
+
+		return true;
+	};
+
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	int circVersCount = topLoop.rows();					// 一圈横截面环路的顶点数；
+	int circCount = axisVers.rows();							// 圈数；
+	int versCount = circVersCount * circCount;
+	std::vector<MatrixXT> circuitsVec(circCount);							// 每个横截面的一圈顶点；
+	std::vector<RowVector3T> sectionNorms(circCount);				// 每个横截面的法向；
+
+	// 1. 计算每个横截面的环路点集——从底向上，中间的环路顶点应该是从底环路到顶环路的过渡；
+	MatrixXT topLoopCast, btmLoopCast;
+	topLoopCast.array() = topLoop.array().cast < T>();
+	btmLoopCast.array() = btmLoop.array().cast < T>();
+	circuitsVec.begin()->array() = btmLoopCast;
+	circuitsVec.rbegin()->array() = topLoopCast;
+	
+	//			插值生成中间的横截面环路：
+	if (circCount > 2)
+	{
+		const int stepCount = circCount - 1;
+		MatrixXT stepArrows(circVersCount, 3);
+		for (int i = 0; i < circVersCount; ++i)
+			stepArrows.row(i) = (topLoopCast.row(i) - btmLoopCast.row(i)) / stepCount;
+
+		for (int i = 1; i < circCount - 1; ++i)
+			circuitsVec[i] = btmLoopCast + i * stepArrows;
+	}
+	 
+
+	// 2. 计算柱体circCount个横截面的法向、每个横截面的顶点；
+	for (int i = 0; i < circCount - 1; ++i)
+	{
+		sectionNorms[i] = axisVers.row(i + 1) - axisVers.row(i);
+		sectionNorms[i].normalize();
+		Matrix3T rotation = getRotationMat(RowVector3T{ 0, 0, 1 }, sectionNorms[i]);
+
+		//		仿射变换：
+		circuitsVec[i] = (circuitsVec[i] * rotation.transpose()).eval();
+		circuitsVec[i].rowwise() += axisVers.row(i);
+	}
+
+	// 3. 计算最后一圈顶点：
+	RowVector3T deltaNormAve{ RowVector3T::Zero() };
+	for (int i = 0; i < circCount - 2; ++i)
+		deltaNormAve += (sectionNorms[i + 1] - sectionNorms[i]);
+	deltaNormAve.array() /= (circCount - 2);
+	sectionNorms[circCount - 1] = sectionNorms[circCount - 2] + deltaNormAve;
+	Matrix3T rotation = getRotationMat(RowVector3T{ 0, 0, 1 }, sectionNorms[circCount - 1]);
+
+	//		仿射变换：
+	circuitsVec[circCount - 1] = (circuitsVec[circCount - 1] * rotation.transpose()).eval();
+	circuitsVec[circCount - 1].rowwise() += axisVers.row(circCount - 1);
+
+	// 4. 生成柱体顶点：
+	vers.resize(versCount, 3);
+	for (int i = 0; i < circCount; ++i)
+		vers.block(0 + circVersCount * i, 0, circVersCount, 3) = circuitsVec[i];
+
+	// 4.生成侧面三角片：
+	for (int i = 1; i <= circCount - 1; ++i)
+		growSurf(tris, circVersCount);
+
+	// 5. 加盖： 
+	if (isCovered)
+	{
+		MatrixXT capVersTop, capVersBtm;
+		Eigen::MatrixXi capTrisTop, capTrisBtm;
+		circuit2mesh(capVersTop, capTrisTop, topLoopCast);
+		circuit2mesh(capVersBtm, capTrisBtm, btmLoopCast);
+		for (int i = 0; i < capTrisBtm.rows(); ++i)
+		{
+			int tmp = capTrisBtm(i, 2);
+			capTrisBtm(i, 2) = capTrisBtm(i, 1);
+			capTrisBtm(i, 1) = tmp;
+		}
+		capTrisTop.array() += versCount - circVersCount;
+		matInsertRows(tris, capTrisBtm);
+		matInsertRows(tris, capTrisTop);
+	} 
 
 	return true;
 }

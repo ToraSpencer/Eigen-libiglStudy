@@ -138,7 +138,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_HAS_STD_BYTE=0;NOMINMAX;ANSI_DECLARATORS;_CONSOLE;_DEBUG;%(PreprocessorDefinitions);IGL_STATIC_LIBRARY;NOMINMAX;TUTORIAL_SHARED_PATH="G:/gitRepositories/ligIgl/libigl_CGAL_openGL/cmake/../external/../tutorial/data";CMAKE_INTDIR="Release"IGL_VIEWER_VIEWER_QUIET;_CRT_SECURE_NO_WARNINGS;LOCAL_DEBUG;NO_TIMER;REDUCED;CDT_ONLY;TRILIBRARY</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalOptions>/bigobj</AdditionalOptions>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <AdditionalIncludeDirectories>
       </AdditionalIncludeDirectories>

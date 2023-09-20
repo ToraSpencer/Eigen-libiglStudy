@@ -194,8 +194,7 @@ bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOu
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matIn, const Eigen::MatrixXd& mask);
 
  
- 
- 
+
 
 // class——方向包围盒类OBB（本质上是中点在原点的AABB加上一个仿射变换）；
 template <typename _Scalar>
@@ -314,6 +313,8 @@ void genOBBmesh(const OBB<_Scalar>& obb, Eigen::Matrix<_Scalar, Eigen::Dynamic, 
 
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////// 测试函数：
+
 namespace TEST_MYEIGEN
 {
 	const double pi = 3.14159;
@@ -338,6 +339,23 @@ namespace TEST_MYEIGEN
 	void test14();
 	void test15();
 	void test16();
+}
+
+
+namespace TEST_MYEIGEN_MODELING
+{
+	const double pi = 3.14159;
+	void test0();
+	void test1(); 
+	void test2();
+	void test3();
+	void test4();
+	void test5();
+	void test6();
+	void test7();
+	void test8();
+	void test9(); 
+	void test10(); 
 }
 
 
