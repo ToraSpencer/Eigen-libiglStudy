@@ -1,6 +1,5 @@
 ﻿#include "myEigenIO.h"
-
-static const double pi = 3.14159265359;
+ 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary interface:
 unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize)

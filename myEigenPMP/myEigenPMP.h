@@ -27,8 +27,7 @@
 
 #include "myEigenIO/myEigenIO.h"
 #pragma comment(lib, "myEigenIO.lib")
-
-
+ 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 表象转换接口：
 
 // std::vector<std::pair<int, int>>表示的边数据转换为矩阵表示：
@@ -55,13 +54,19 @@ std::vector<int> decodeTrianagle(const std::uint64_t code);
 
 
 
-/////////////////////////////////////////////////////////////////////////////////////////////////// 网格属性：
+/////////////////////////////////////////////////////////////////////////////////////////////////// 图形属性：
 
 // 输入网格三角片数据，得到有向边数据：
 template <typename DerivedI>
 bool getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedI>& tris);
 
 
+// 生成环路的边数据；
+template <typename IndexType, typename DerivedI>
+bool getLoopEdges(Eigen::PlainObjectBase<DerivedI>& edges, const IndexType versCount);
+
+
+// 生成边-边编码的映射表：
 template <typename DerivedI>
 bool getEdgeIdxMap(std::unordered_multimap<std::int64_t, int>& map, const Eigen::PlainObjectBase<DerivedI>& edges);
 
@@ -137,7 +142,7 @@ bool buildAdjacency_new(Eigen::MatrixXi& ttAdj_mnEdge, std::vector<tVec>& ttAdj_
 
 
 
-/////////////////////////////////////////////////////////////////////////////////////////////////// 网格编辑：
+/////////////////////////////////////////////////////////////////////////////////////////////////// 图形编辑：
 
 template<typename T>
 bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, const float param);

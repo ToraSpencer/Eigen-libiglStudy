@@ -317,7 +317,6 @@ void genOBBmesh(const OBB<_Scalar>& obb, Eigen::Matrix<_Scalar, Eigen::Dynamic, 
 
 namespace TEST_MYEIGEN
 {
-	const double pi = 3.14159;
 	void test0();
 	void test1();
 	void test11();
@@ -342,9 +341,9 @@ namespace TEST_MYEIGEN
 }
 
 
+// 测试myEigenModeling中的接口
 namespace TEST_MYEIGEN_MODELING
 {
-	const double pi = 3.14159;
 	void test0();
 	void test1(); 
 	void test2();
@@ -356,6 +355,23 @@ namespace TEST_MYEIGEN_MODELING
 	void test8();
 	void test9(); 
 	void test10(); 
+}
+
+
+// 测试myEigenPMP中的接口
+namespace TEST_MYEIGEN_PMP 
+{
+	void test0();
+	void test1();
+	void test2();
+	void test3();
+	void test4();
+	void test5();
+	void test6();
+	void test7();
+	void test8();
+	void test9();
+	void test10();
 }
 
 

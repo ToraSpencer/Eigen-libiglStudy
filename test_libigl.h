@@ -108,8 +108,7 @@
 
 
 namespace IGL_BASIC
-{
-	const double pi = 3.14159;
+{ 
 	void test00();
 	void test000();
 	void test0();
@@ -143,7 +142,7 @@ namespace IGL_BASIC
 
 namespace IGL_DIF_GEO
 {
-	const double pi = 3.14159;
+	
 	void test0();
 	void test1();
 	void test2();
@@ -167,7 +166,7 @@ namespace IGL_DIF_GEO
 
 namespace IGL_GRAPH 
 {
-	const double pi = 3.14159;
+	
 	void test0();
 	void test1();
 	void test2();
@@ -190,7 +189,7 @@ namespace IGL_GRAPH
 
 namespace IGL_SPACE_PARTITION
 {
-	const double pi = 3.14159;
+	
 	void test0();
 	void test1();
 	void test2();
@@ -214,7 +213,7 @@ namespace IGL_SPACE_PARTITION
 // IGL实现的基础三角网格处理算法；
 namespace IGL_BASIC_PMP
 {
-	const double pi = 3.14159;
+	
 	void test0();
 	void test1();
 	void test11();
@@ -243,7 +242,7 @@ namespace IGL_BASIC_PMP
 // IGL实现的生成数字模型相关算法；
 namespace IGL_MODELLING
 {
-	const double pi = 3.14159;
+	
 	void test0();
 	void test1(); 
 	void test2();
@@ -268,7 +267,7 @@ namespace IGL_MODELLING
 // IGL中网格变形相关；
 namespace IGL_DEFORMATION
 {
-	const double pi = 3.14159;
+	
 	void test0();
 	void test1();
 	void test2();

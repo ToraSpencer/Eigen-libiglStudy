@@ -6,8 +6,7 @@
 #include <iostream>
 
 namespace TEST_DENSE_MAT
-{
-	const double pi = 3.14159;
+{ 
 	void test0();
 	void test1();
 	void test2();

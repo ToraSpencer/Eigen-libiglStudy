@@ -22,6 +22,7 @@
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
 
+const double pi = 3.14159265359;
 
 // Index:
 /*

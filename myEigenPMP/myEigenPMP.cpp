@@ -1,171 +1,5 @@
 ﻿#include "myEigenPMP.h"
-
-static const double pi = 3.14159265359;
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////// 非模板接口的实现
-
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////// modeling接口：
-
-// 输入起点、终点、空间采样率，插值生成一条直线点云；
-template <typename T>
-bool interpolateToLine(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::Matrix<T, 1, 3>& start, \
-	const Eigen::Matrix<T, 1, 3>& end, const float SR, const bool SE)
-{
-	if (vers.rows() > 0)
-		return false;
-
-	Eigen::Matrix<T, 1, 3> dir = end - start;
-	float length = dir.norm();
-	dir.normalize();
-
-	if (length <= SR)
-		return true;
-
-	if (SE)
-		matInsertRows(vers, start);
-
-	float lenth0 = 0;
-	for (unsigned i = 1; (length - lenth0) > 0.8 * SR; i++)			// 确保最后一个点距离终点不能太近。
-	{
-		Eigen::Matrix<T, 1, 3> temp = start + SR * i * dir;
-		matInsertRows(vers, temp);
-		lenth0 = SR * (i + 1);		// 下一个temp的长度。
-	}
-
-	if (SE)
-		matInsertRows(vers, end);
-
-	return true;
-};
-
-
-// 生成XOY平面内的圆圈点集：
-template <typename T>
-bool getCircleVers(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, \
-	const unsigned versCount)
-{
-	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
-	using Matrix3T = Eigen::Matrix<T, 3, 3>;
-	using RowVector3T = Eigen::Matrix<T, 1, 3>;
-
-	double deltaTheta = 2 * pi / versCount;
-	vers.resize(versCount, 3);
-	vers.setZero();
-	for (unsigned i = 0; i < versCount; ++i)
-	{
-		double theta = deltaTheta * i;
-		vers(i, 0) = radius * cos(theta);
-		vers(i, 1) = radius * sin(theta);
-	}
-
-	return true;
-}
-
-
-// 生成中心在原点，边长为1，三角片数为12的正方体网格； 
-template	<typename T>
-void genCubeMesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris)
-{
-	vers.resize(0, 0);
-	tris.resize(0, 0);
-	vers.resize(8, 3);
-	vers << -0.5000000, -0.5000000, -0.5000000, -0.5000000, 0.5000000, -0.5000000, \
-		0.5000000, -0.5000000, -0.5000000, 0.5000000, 0.5000000, -0.5000000, \
-		0.5000000, -0.5000000, 0.5000000, 0.5000000, 0.5000000, 0.5000000, \
-		- 0.5000000, -0.5000000, 0.5000000, -0.5000000, 0.5000000, 0.5000000;
-
-	tris.resize(12, 3);
-	tris << 1, 2, 0, 1, 3, 2, 3, 4, 2, 3, 5, 4, 0, 4, 6, 0, 2, 4, 7, 3, 1, 7, 5, 3, 7, 0, 6, 7, 1, 0, 5, 6, 4, 5, 7, 6;
-}
-
-
-// 生成轴向包围盒的三角网格；
-template <typename T>
-void genAABBmesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::AlignedBox<T, 3>& aabb)
-{
-	vers.resize(0, 0);
-	tris.resize(0, 0);
-	Eigen::Matrix<T, 3, 1> minp = aabb.min();
-	Eigen::Matrix<T, 3, 1> maxp = aabb.max();
-	Eigen::Matrix<T, 3, 1> newOri = (minp + maxp) / 2.0;
-	Eigen::Matrix<T, 3, 1> sizeVec = maxp - minp;
-
-	genCubeMesh(vers, tris);
-	vers.col(0) *= sizeVec(0);
-	vers.col(1) *= sizeVec(1);
-	vers.col(2) *= sizeVec(2);
-	vers.rowwise() += newOri.transpose();
-}
-
-
-// 对环路点集进行不插点三角剖分——手动缝合方法；
-template <typename IndexType>
-bool circuitGetTris(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tris, \
-	const std::vector<int>& indexes, const bool regularTri)
-{
-	/*
-		bool circuitGetTris(
-			Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& tris,		三角剖分生成的triangle soup
-			const std::vector<int>& indexes,				单个环路点集，顶点需要有序排列。
-			const bool regularTri																				true——右手螺旋方向为生成面片方向；false——反向；
-			)
-
-	*/
-	using MatrixXI = Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>;
-	using RowVector3I = Eigen::Matrix<IndexType, 1, 3>;
-
-	int versCount = static_cast<int>(indexes.size());
-	if (versCount < 3)
-		return false;						// invalid input
-
-	// lambda——环路中的顶点索引转换；
-	auto getIndex = [versCount](const int index0) -> IndexType
-	{
-		int index = index0;
-		if (index >= versCount)
-			while (index >= versCount)
-				index -= versCount;
-		else if (index < 0)
-			while (index < 0)
-				index += versCount;
-		return static_cast<IndexType>(index);
-	};
-
-	tris.resize(versCount - 2, 3);
-	int count = 0;
-	int k = 0;
-	if (regularTri)
-	{
-		while (count < versCount - 2)
-		{
-			tris.row(count++) = RowVector3I{ indexes[getIndex(-k - 1)], indexes[getIndex(-k)], indexes[getIndex(k + 1)] };
-			if (count == versCount - 2)
-				break;
-
-			tris.row(count++) = RowVector3I{ indexes[getIndex(-k - 1)], indexes[getIndex(k + 1)], indexes[getIndex(k + 2)] };
-			k++;
-		}
-	}
-	else
-	{
-		while (count < versCount - 2)
-		{
-			tris.row(count++) = RowVector3I{ indexes[getIndex(-k - 1)], indexes[getIndex(k + 1)], indexes[getIndex(-k)] };
-			if (count == versCount - 2)
-				break;
-
-			tris.row(count++) = RowVector3I{ indexes[getIndex(-k - 1)], indexes[getIndex(k + 2)], indexes[getIndex(k + 1)] };
-			k++;
-		}
-	}
-
-	return true;
-}
-
+ 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 表象转换接口：
 
@@ -264,7 +98,61 @@ std::vector<int> decodeTrianagle(const std::uint64_t code)
 
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////// 图形属性：
  
+// 得到三角网格的有向边数据
+template <typename DerivedI>
+bool getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedI>& tris)
+{
+	/*
+		bool getEdges(
+				Eigen::MatrixXi& edges,
+				const Eigen::PlainObjectBase<DerivedI>& tris
+				)
+
+		三条边在edges中的排列顺序为[bc; ca; ab]；其所对的顶点标记corner分别为0, 1, 2，即a,b,c;
+		边索引到三角片索引的映射——边eIdx0所在的三角片triIdx0 == eIdx0 % trisCount;
+		三角片triIdx0和corner0到边索引的映射——eIdx0 = corner0 * trisCount + triIdx0;
+		边索引到corner的映射——corner0 = eIdx0 / trisCount;
+	*/
+	const unsigned trisCount = tris.rows();
+	const unsigned edgesCount = 3 * trisCount;
+	const unsigned versCount = tris.maxCoeff() + 1;
+
+	edges = Eigen::MatrixXi::Zero(edgesCount, 2);
+	Eigen::MatrixXi vaIdxes = tris.col(0).array().cast<int>();
+	Eigen::MatrixXi vbIdxes = tris.col(1).array().cast<int>();
+	Eigen::MatrixXi vcIdxes = tris.col(2).array().cast<int>();
+	edges.block(0, 0, trisCount, 1) = vbIdxes;
+	edges.block(trisCount, 0, trisCount, 1) = vcIdxes;
+	edges.block(trisCount * 2, 0, trisCount, 1) = vaIdxes;
+	edges.block(0, 1, trisCount, 1) = vcIdxes;
+	edges.block(trisCount, 1, trisCount, 1) = vaIdxes;
+	edges.block(trisCount * 2, 1, trisCount, 1) = vbIdxes;
+
+	return true;
+}
+
+
+// 生成环路的边数据；
+template <typename IndexType, typename DerivedI>
+bool getLoopEdges(Eigen::PlainObjectBase<DerivedI>& edges, const IndexType versCount)
+{
+	using Index = typename DerivedI::Scalar;							// 使用从属名称，需要加上"typename"前缀；
+	const int versCount0 = static_cast<int>(versCount);
+	if (versCount0 < 2)
+		return false;
+
+	edges.resize(0, 0);
+	edges.resize(versCount0, 2);
+
+	edges.col(0) = Eigen::Matrix<Index, Eigen::Dynamic, 1>::LinSpaced(versCount, 0, versCount0 - 1);
+	edges.col(1) = Eigen::Matrix<Index, Eigen::Dynamic, 1>::LinSpaced(versCount, 1, versCount0);
+	edges(versCount0 - 1, 1) = 0;
+
+	return true;
+}
+
 
 // 模板特化输出：
 #include "templateSpecialization.cpp"

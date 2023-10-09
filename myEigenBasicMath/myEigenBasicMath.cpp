@@ -10,7 +10,7 @@ std::pair<double, double> cart2polar(const T x, const T y)
 	// theta×ø±ê·¶Î§Îª[0, 2*pi]£»
 	double x0 = static_cast<double>(x);
 	double y0 = static_cast<double>(y);
-	const double pi = 3.14159;
+	
 	double eps = 10e-9;
 
 	double radius = std::sqrt(x0 * x0 + y0 * y0);

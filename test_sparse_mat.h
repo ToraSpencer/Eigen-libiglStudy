@@ -7,7 +7,7 @@
 
 namespace SPARSEMAT
 {
-	const double pi = 3.14159;
+	
 	void test00();
 	void test0();
 	void test1();

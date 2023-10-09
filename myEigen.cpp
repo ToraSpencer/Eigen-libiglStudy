@@ -555,6 +555,26 @@ namespace TEST_MYEIGEN_MODELING
 }
 
 
+// 测试myEigenPMP中的接口
+namespace TEST_MYEIGEN_PMP
+{
+	void test0()
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi edges;
+		objReadVerticesMat(vers, "E:/材料/loop2D.obj"); 
+		debugWriteVers("versInput", vers);
+
+		const int versCount = vers.rows();
+		bool ret = getLoopEdges(edges, versCount);
+		debugWriteEdges("edges", edges, vers);
+
+		debugDisp("finished.");
+	}
+
+
+}
+
 // 测试图像处理：
 namespace TEST_DIP
 {

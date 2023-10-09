@@ -12,7 +12,7 @@
 
 namespace SCIENTIFIC_CALC
 {
-	const double pi = 3.14159;
+	
 	void test0();
 	void test1();
 	void test2();
@@ -36,7 +36,7 @@ namespace SCIENTIFIC_CALC
 
 namespace IGL_MATH
 {
-	const double pi = 3.14159;
+	
 	void test0();
 	void test1();
 	void test2();
@@ -61,7 +61,7 @@ namespace IGL_MATH
 // 测试自己写的多边形网格处理的轮子
 namespace TEST_PMP
 {
-	const double pi = 3.14159;
+	
 	void test0();
 	void test1();
 	void test2();

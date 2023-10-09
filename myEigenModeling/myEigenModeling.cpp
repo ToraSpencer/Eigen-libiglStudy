@@ -1,8 +1,5 @@
 ﻿#include "myEigenModeling.h"
-
-static const double pi = 3.14159265359;
  
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////// modeling接口：
 
 // 输入起点、终点、空间采样率，插值生成一条直线点云；
@@ -168,7 +165,6 @@ template<typename Tg, typename To>
 bool genGrids(Eigen::Matrix<Tg, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, const Eigen::Matrix<To, 1, 3>& origin, \
 	const float step, const std::vector<unsigned>& gridCounts)
 {
-
 	/*
 		bool genGrids(
 			Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& gridCenters,			// 输出的栅格点云
