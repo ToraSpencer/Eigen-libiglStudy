@@ -48,5 +48,6 @@
 !data/
 
 # 忽略的文件夹
+.vs/
 Release/
 x64/
