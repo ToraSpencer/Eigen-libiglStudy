@@ -222,8 +222,8 @@ void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers,
 };
 
 
-template	<typename T>
-void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+template	<typename DerivedV>
+void objWriteMeshMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 {
 	std::ofstream dstFile(fileName);
 	if (vers.cols() != 3 || tris.cols() != 3)

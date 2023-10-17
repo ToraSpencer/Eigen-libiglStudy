@@ -74,15 +74,15 @@ template<typename T>
 bool matWriteToFile(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat);
 template<typename T>
 bool matReadFromFile(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const char* fileName);
-template	<typename Scalar, typename Index>
 
 // OBJ文件读取网格
+template	<typename Scalar, typename Index>
 void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::Matrix<Index, Eigen::Dynamic, \
 	Eigen::Dynamic>& tris, const char* fileName);
 
 // 网格写入到OBJ文件
-template	<typename T>
-void objWriteMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
+template	<typename DerivedV>
+void objWriteMeshMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
 
 // OBJ文件读取顶点数据
 template	<typename Scalar>

@@ -25,10 +25,10 @@ template void objReadMeshMat<float, int>(Eigen::Matrix<float, Eigen::Dynamic, Ei
 template void objReadMeshMat<double, int>(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::Matrix<int, Eigen::Dynamic, \
 	Eigen::Dynamic>& tris, const char* fileName);
 
-template void objWriteMeshMat<float>(const char* fileName, const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& vers, \
-	const Eigen::MatrixXi& tris);
-template void objWriteMeshMat<double>(const char* fileName, const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& vers, \
-	const Eigen::MatrixXi& tris);
+template void objWriteMeshMat<Eigen::Matrix<float, -1, -1, 0, -1, -1>>(const char* fileName, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>& vers, const Eigen::MatrixXi& tris);
+template void objWriteMeshMat<Eigen::Matrix<double, -1, -1, 0, -1, -1>>(const char* fileName, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>& vers, const Eigen::MatrixXi& tris);
 
 template void objReadVerticesMat<float>(Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& vers, const char* fileName);
 template void objReadVerticesMat<double>(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& vers, const char* fileName);
