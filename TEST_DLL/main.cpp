@@ -4,6 +4,9 @@
 #pragma comment(lib, "smarteeDLL.lib")
 
 
+// 已禁用vcpkg;
+
+
 // ！！！注：在项目属性→调试→环境中给变量PATH赋值为DLL文件所在目录；
 /*
 	若不设置此项的话，程序只会在项目所在文件夹以及输出文件夹中搜索DLL文件；

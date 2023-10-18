@@ -48,7 +48,7 @@ namespace MY_DEBUG
 using namespace MY_DEBUG;
 
 
-
+ 
 namespace SCIENTIFIC_CALC
 {
 	// 齐次坐标表示下的坐标变换；
@@ -70,11 +70,13 @@ namespace SCIENTIFIC_CALC
 		Eigen::Matrix3f rotation;
 		Eigen::Vector3f moveVec(10, 0, 0);															// 朝着x正方向平移20mm;
 		Eigen::MatrixXf versDesc = vers.transpose();
+		
 		// scale(1, 1) = 2;																							// y方向上缩放因子为2；
-		rotation << cos(pi / 6), 0, sin(pi / 6), 0, 1, 0, -sin(pi / 6), 0, cos(pi / 6);	// 绕z轴逆时针旋转pi/6度。
+		rotation << cos(pi / 6), 0, sin(pi / 6), 0, 1, 0, -sin(pi / 6), 0, cos(pi / 6);		// 绕z轴逆时针旋转pi/6度。
 		versDesc = (rotation * scale * versDesc).eval();
 		versDesc = (versDesc.colwise() + moveVec).eval();
-		objWriteMeshMat<float>("E:/笛卡尔坐标下仿射变换后的bunny.obj", versDesc.transpose(), tris);
+		versDesc = versDesc.transpose().eval();
+		objWriteMeshMat("E:/笛卡尔坐标下仿射变换后的bunny.obj", versDesc, tris);
 
 		// 3. 齐次坐标下施加仿射变换——旋转、放缩， 最后平移：
 		Eigen::Matrix4f scaleHomo = Eigen::Matrix4f::Identity();
@@ -214,9 +216,12 @@ namespace SCIENTIFIC_CALC
 
 		debugDisp("finished.");
 	}
+	 
 }
 
+ 
 
+ 
 namespace TEST_PMP
 {
 
@@ -274,6 +279,7 @@ namespace TEST_PMP
 	}
 
 }
+ 
  
 
 

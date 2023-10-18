@@ -34,18 +34,24 @@
 #define WIN32_LEAN_AND_MEAN             // 从 Windows 头文件中排除极少使用的内容
  
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////// 齐次坐标系相关接口
+///////////////////////////////////////////////////////////////////////////////////////////////////////// IO
 template	<typename T>
 void objWriteHomoMeshMat(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& homoVers, \
 	const Eigen::MatrixXi& tris);
+
+void objReadVerticesHomoMat(Eigen::MatrixXf& vers, const char* fileName);
+
+void objWriteVerticesHomoMat(const char* fileName, const Eigen::MatrixXf& vers);
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////// 表象变换
 template <typename Derived>
 Eigen::MatrixXf vers2homoVersF(const Eigen::PlainObjectBase<Derived>& vers);
+
 template <typename Derived>
 Eigen::MatrixXd vers2homoVersD(const Eigen::PlainObjectBase<Derived>& vers);
 
-
-void objReadVerticesHomoMat(Eigen::MatrixXf& vers, const char* fileName);
-void objWriteVerticesHomoMat(const char* fileName, const Eigen::MatrixXf& vers);
 void homoVers2vers(Eigen::MatrixXf& vers, const Eigen::MatrixXf& homoVers);
+
 Eigen::MatrixXf homoVers2vers(const Eigen::MatrixXf& homoVers);
  

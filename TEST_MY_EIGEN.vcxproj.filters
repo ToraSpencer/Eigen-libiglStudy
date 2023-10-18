@@ -14,16 +14,16 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="test_dense_mat.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="myEigen.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="test_scientific_calc.cpp">
+    <ClCompile Include="test_dense_mat.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="test_sparse_mat.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="test_scientific_calc.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

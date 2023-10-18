@@ -249,8 +249,7 @@ namespace MY_DEBUG
 }
 using namespace MY_DEBUG;
 
-
-
+ 
 
 ////////////////////////////////////////////////////////////////////////////// TEST: 网格缺陷的检测和修复：
 namespace MESH_REPAIR 
@@ -1266,14 +1265,16 @@ int testCmd_laplaceFaring(int argc, char** argv)
 	return 0;
 }
   
+ 
+
 
 int main(int argc, char** argv)
 { 
 	// return testCmd_laplaceFaring(argc, argv);
 	
-	// TEST_MYEIGEN_MODELING::test1();
+	TEST_MYEIGEN_MODELING::test1();
 
-	TEST_MYEIGEN_PMP::test0();
+	// TEST_MYEIGEN_PMP::test0();
 
 	std::cout << "main() finished." << std::endl;
 }

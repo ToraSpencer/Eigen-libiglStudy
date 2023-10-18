@@ -37,14 +37,17 @@
 #include "myEigenIO/myEigenIO.h"
 #pragma comment(lib,"myEigenIO.lib")	
 
+ 
 #include "myEigenBasicMath/myEigenBasicMath.h"
 #pragma comment(lib, "myEigenBasicMath.lib")
 
+ 
 #include "myEigenModeling/myEigenModeling.h"
 #pragma comment(lib, "myEigenModeling.lib")
 
 #include "myEigenPMP/myEigenPMP.h"
 #pragma comment(lib, "myEigenPMP.lib")
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// debug全局变量
@@ -169,7 +172,7 @@ namespace MY_DEBUG
 }
 using namespace MY_DEBUG;
 
-
+ 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 暂时不知道如何分类：
 template<typename Tv, typename Tl>
@@ -385,6 +388,4 @@ namespace TEST_DIP
 
 #include "myEigen.tpp"
 
-
-
-
+ 

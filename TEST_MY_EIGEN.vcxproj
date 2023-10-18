@@ -19,9 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="test_dense_mat.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="myEigen.cpp" />
+    <ClCompile Include="test_dense_mat.cpp" />
     <ClCompile Include="test_scientific_calc.cpp" />
     <ClCompile Include="test_sparse_mat.cpp" />
   </ItemGroup>

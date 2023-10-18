@@ -96,6 +96,8 @@ namespace MY_DEBUG
 }
 using namespace MY_DEBUG;
 
+
+ 
  
 ///////////////////////////////////////////////////////////////////////////////////////////////// 测试函数
 
@@ -535,7 +537,7 @@ namespace TEST_MYEIGEN_MODELING
 		genAlignedCylinder(cylinderVers, cylinderTris, axis, std::make_pair(1.5, 1.5), 0.5);
 		debugWriteMesh("AlignedPillar", cylinderVers, cylinderTris);
 
-		// 5. 读取上下底面边界环路，生成柱体：
+		// 5. 读取上下底面2D边界环路，生成柱体：
 		Eigen::MatrixXd topLoop, btmLoop;
 		cylinderVers.resize(0, 0);
 		cylinderTris.resize(0, 0);
@@ -545,6 +547,17 @@ namespace TEST_MYEIGEN_MODELING
 		interpolateToLine(axis, Eigen::RowVector3f{ 0, 0, 0 }, Eigen::RowVector3f{ 0, 0, 5 }, 1.0);
 		genCylinder(cylinderVers, cylinderTris, axis, topLoop, btmLoop, true);
 		debugWriteMesh("pillar2", cylinderVers, cylinderTris);
+
+		// 5. 读取上下底面3D边界环路，生成柱体：
+		topLoop.resize(0, 0);
+		btmLoop.resize(0, 0);
+		cylinderVers.resize(0, 0);
+		cylinderTris.resize(0, 0);
+		axis.resize(0, 0);
+		objReadVerticesMat(topLoop, "G:\\gitRepositories\\matlabCode\\颌板\\data/curveFitUpper.obj");
+		objReadVerticesMat(btmLoop, "G:\\gitRepositories\\matlabCode\\颌板\\data/curveFitLower.obj");
+		genCylinder(cylinderVers, cylinderTris, topLoop, btmLoop, 5, true);
+		debugWriteMesh("pillar3", cylinderVers, cylinderTris);
 
 		std::cout << "finished." << std::endl;
 	}
@@ -575,6 +588,7 @@ namespace TEST_MYEIGEN_PMP
 
 }
 
+
 // 测试图像处理：
 namespace TEST_DIP
 {
@@ -597,5 +611,4 @@ namespace TEST_DIP
 
 }
 
- 
-
+  

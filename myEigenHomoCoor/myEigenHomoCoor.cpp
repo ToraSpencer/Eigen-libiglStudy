@@ -102,7 +102,6 @@ void objWriteVerticesHomoMat(const char* fileName, const Eigen::MatrixXf& vers)
 	dstFile.close();
 }
 
- 
 
 // 齐次坐标系下的点云矩阵变换为普通点云矩阵
 void homoVers2vers(Eigen::MatrixXf& vers, const Eigen::MatrixXf& homoVers)

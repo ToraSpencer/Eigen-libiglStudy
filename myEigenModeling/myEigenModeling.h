@@ -87,12 +87,18 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, \
 	const bool isCovered);
 
-// genCylinder()重载4——输入上底面和下底面的边界环路 ，生成柱体：
+// genCylinder()重载4——输入上底面和下底面的2D边界环路 ，生成柱体：
 template <typename T, typename DerivedVa, typename DerivedVt, typename DerivedVb>
 bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::PlainObjectBase<DerivedVa>& axisVers, const Eigen::PlainObjectBase<DerivedVt>& topLoop, \
 	const Eigen::PlainObjectBase<DerivedVb>& btmLoop, const bool isCovered);
 
+// genCylinder()重载5——输入上底面和下底面的3D边界环路 ，生成柱体：
+template <typename T, typename DerivedVt, typename DerivedVb>
+bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::PlainObjectBase<DerivedVt>& topLoop, 	const Eigen::PlainObjectBase<DerivedVb>& btmLoop, \
+	const int layersCount, const bool isCovered);
+ 
 
 //		生成方柱，旋转分两次，以确保侧面和XOY平面平行或垂直；
 template <typename T>
