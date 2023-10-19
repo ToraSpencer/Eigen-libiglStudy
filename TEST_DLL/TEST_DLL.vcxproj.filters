@@ -23,5 +23,8 @@
     <ClInclude Include="smarteeDLL.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="my_cgal_dll.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

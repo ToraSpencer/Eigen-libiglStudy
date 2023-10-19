@@ -49,7 +49,7 @@ using namespace MY_DEBUG;
 
 
  
-namespace SCIENTIFIC_CALC
+namespace TEST_SCIENTIFIC_CALC
 {
 	// 齐次坐标表示下的坐标变换；
 	void test1()

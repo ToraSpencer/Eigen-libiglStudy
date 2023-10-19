@@ -72,28 +72,28 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <LibraryPath>$(ProjectDir)../smarteeDLL/$(Platform)_$(Configuration)/;$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86)</LibraryPath>
+    <LibraryPath>$(ProjectDir)../MY_CGAL_DLL/$(Platform)_$(Configuration)/;$(ProjectDir)../smarteeDLL/$(Platform)_$(Configuration)/;$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86)</LibraryPath>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
     <OutDir>$(ProjectDir)/$(Platform)_$(Configuration)/</OutDir>
     <IntDir>$(ProjectDir)/$(Platform)_$(Configuration)/</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <LibraryPath>$(ProjectDir)../smarteeDLL/$(Platform)_$(Configuration)/;$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86)</LibraryPath>
+    <LibraryPath>$(ProjectDir)../MY_CGAL_DLL/$(Platform)_$(Configuration)/;$(ProjectDir)../smarteeDLL/$(Platform)_$(Configuration)/;$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86)</LibraryPath>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
     <OutDir>$(ProjectDir)/$(Platform)_$(Configuration)/</OutDir>
     <IntDir>$(ProjectDir)/$(Platform)_$(Configuration)/</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <LibraryPath>$(ProjectDir)../smarteeDLL/$(Platform)_$(Configuration)/;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <LibraryPath>$(ProjectDir)../MY_CGAL_DLL/$(Platform)_$(Configuration)/;$(ProjectDir)../smarteeDLL/$(Platform)_$(Configuration)/;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
     <OutDir>$(ProjectDir)/$(Platform)_$(Configuration)/</OutDir>
     <IntDir>$(ProjectDir)/$(Platform)_$(Configuration)/</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <LibraryPath>$(ProjectDir)../smarteeDLL/$(Platform)_$(Configuration)/;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <LibraryPath>$(ProjectDir)../MY_CGAL_DLL/$(Platform)_$(Configuration)/;$(ProjectDir)../smarteeDLL/$(Platform)_$(Configuration)/;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
     <OutDir>$(ProjectDir)/$(Platform)_$(Configuration)/</OutDir>
     <IntDir>$(ProjectDir)/$(Platform)_$(Configuration)/</IntDir>
@@ -172,6 +172,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="my_cgal_dll.h" />
     <ClInclude Include="smarteeDLL.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

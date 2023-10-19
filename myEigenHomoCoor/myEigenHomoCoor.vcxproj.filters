@@ -23,5 +23,8 @@
     <ClCompile Include="myEigenHomoCoor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="templateSpecialization.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

@@ -10,9 +10,8 @@
 #include "myEigenHomoCoor/myEigenHomoCoor.h"
 #pragma comment(lib,"myEigenHomoCoor.lib")	
 
-namespace SCIENTIFIC_CALC
+namespace TEST_SCIENTIFIC_CALC
 {
-	
 	void test0();
 	void test1();
 	void test2();

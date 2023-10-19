@@ -1265,16 +1265,17 @@ int testCmd_laplaceFaring(int argc, char** argv)
 	return 0;
 }
   
- 
 
 
 int main(int argc, char** argv)
 { 
 	// return testCmd_laplaceFaring(argc, argv);
 	
-	TEST_MYEIGEN_MODELING::test1();
+	// TEST_MYEIGEN_MODELING::test1();
 
 	// TEST_MYEIGEN_PMP::test0();
+	 
+	TEST_SCIENTIFIC_CALC::test1();
 
 	std::cout << "main() finished." << std::endl;
 }

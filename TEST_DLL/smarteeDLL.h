@@ -54,11 +54,30 @@ struct meshRayOut
 	std::vector<std::vector<unsigned>> isctTris;
 	std::vector<std::vector<unsigned>> isctOppTris;
 };
+
 template <typename DerivedV1, typename DerivedV2, typename Scalar>
 SMARTEE_DLL_API bool meshRayIntersect(meshRayOut& result, \
 	const Eigen::PlainObjectBase<DerivedV1>& srcVers, const Eigen::Matrix<Scalar, 1, 3>& dir, \
 	const Eigen::PlainObjectBase<DerivedV2>& meshVers, const Eigen::MatrixXi& meshTris);
 
+// 生成距离场数据：
+struct SDF_RESULT
+{
+	float step;
+	int interCounts;
+	Eigen::RowVector3f origin;
+	std::vector<unsigned> stepsCount;
+	std::vector<float> SDFvalues;
+};
+template <typename DerivedV>
+SMARTEE_DLL_API bool genSDF(SDF_RESULT& result, \
+	const Eigen::PlainObjectBase<DerivedV>& meshVers, const Eigen::MatrixXi& meshTris, \
+	const float step, const int interCounts = 5);
+
+template <typename DerivedV>
+SMARTEE_DLL_API bool marchingCubes(Eigen::PlainObjectBase<DerivedV>& versOut, \
+	Eigen::MatrixXi& trisOut, const SDF_RESULT& result, const float isoValue, \
+	const bool blFiltering = true, const bool blSClargest = true);
 
 #endif
 

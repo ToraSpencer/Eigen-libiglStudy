@@ -1,8 +1,9 @@
 #include "smarteeDLL.h"
+#include "my_cgal_dll.h"
 
 // 动态库的导入lib:
 #pragma comment(lib, "smarteeDLL.lib")
-
+#pragma comment(lib, "MY_CGAL_DLL.lib")
 
 // 已禁用vcpkg;
 
@@ -104,9 +105,9 @@ namespace TEST_MYDLL
 	// 测试射线求交功能：
 	void test3()
 	{
-		Eigen::MatrixXf srcVers, meshVers;
+		Eigen::MatrixXd srcVers, meshVers;
 		Eigen::MatrixXi srcTris, meshTris;
-		Eigen::RowVector3f dir{ 0, 0, -1 };
+		Eigen::RowVector3d dir{ 0, 0, -1 };
 		meshRayOut result;
 		readOBJ(srcVers, srcTris, "E:/材料/fatTeeth.obj");
 		readOBJ(meshVers, meshTris, "E:/材料/jawMesh.obj");
@@ -115,25 +116,52 @@ namespace TEST_MYDLL
 
 		meshRayIntersect(result, srcVers, dir, meshVers, meshTris);
 
-		std::vector<Eigen::RowVector3f> tmpVec;
+		std::vector<Eigen::RowVector3d> tmpVec;
 		tmpVec.reserve(srcVers.rows());
 		for (int i = 0; i < srcVers.rows(); ++i)
 		{
 			if (result.rayLen[i].size() > 0)
 			{
-				float projDepth = result.rayLen[i][0];
-				Eigen::RowVector3f tmpVer = srcVers.row(i) + projDepth * dir;
+				double projDepth = result.rayLen[i][0];
+				Eigen::RowVector3d tmpVer = srcVers.row(i) + projDepth * dir;
 				tmpVec.push_back(tmpVer);
 			}
 		}
 		tmpVec.shrink_to_fit();
 
-		Eigen::MatrixXf positiveProVers(tmpVec.size(), 3);
+		Eigen::MatrixXd positiveProVers(tmpVec.size(), 3);
 		for (int i = 0; i < positiveProVers.rows(); ++i)
 			positiveProVers.row(i) = tmpVec[i];
 
 		debugWriteVers("投影点", positiveProVers);
 
+		debugDisp("finished.");
+	}
+
+
+	// alpha shapes
+	void test4() 
+	{
+		Eigen::MatrixXf versIn, versOut;
+		readOBJ(versIn, "E:/颌板/2DbdryUpper.obj");
+		alphaShapes2D(versOut, versIn, 50);
+		debugWriteVers("versOut", versOut);
+		debugDisp("finished.");
+	}
+
+
+	// SDF, marching cubes
+	void test5() 
+	{
+		Eigen::MatrixXd vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		SDF_RESULT sdfResult;
+		
+		readOBJ(vers, tris, "E:/材料/tooth.obj");
+		genSDF(sdfResult, vers, tris, 0.5, 3);
+		marchingCubes(versOut, trisOut, sdfResult, 0.6);
+
+		debugWriteMesh("meshOut", versOut, trisOut);
 		debugDisp("finished.");
 	}
 }
@@ -142,7 +170,7 @@ namespace TEST_MYDLL
 
 int main(int argc, char** argv)
 {
-	TEST_MYDLL::test3();
+	TEST_MYDLL::test5();
 
 	debugDisp("main() finished.");
 
