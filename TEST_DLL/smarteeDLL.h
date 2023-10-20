@@ -5,7 +5,7 @@
 #include <windows.h>					// Windows 头文件: 
 
 #include <iostream>
-
+#include <vector>
 
 // 使用eigen库中的向量、矩阵表示顶点、点云、面片等信息；
 #include "Eigen/Dense"
@@ -27,6 +27,11 @@ SMARTEE_DLL_API void readOBJ(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynami
 // 从OBJ文件中读三角网格
 template	<typename Scalar>
 SMARTEE_DLL_API void readOBJ(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+	Eigen::MatrixXi& tris, const char* fileName);
+
+// 从STL文件中读三角网格
+template	<typename Scalar>
+SMARTEE_DLL_API void readSTL(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
 	Eigen::MatrixXi& tris, const char* fileName);
 
 // 点云写入到OBJ文件：
@@ -79,5 +84,11 @@ SMARTEE_DLL_API bool marchingCubes(Eigen::PlainObjectBase<DerivedV>& versOut, \
 	Eigen::MatrixXi& trisOut, const SDF_RESULT& result, const float isoValue, \
 	const bool blFiltering = true, const bool blSClargest = true);
 
+// 网格布尔操作： 
+template <typename DerivedV1, typename DerivedV2>
+SMARTEE_DLL_API bool meshCross(Eigen::MatrixXd& versOut, Eigen::MatrixXi& trisOut, \
+	const Eigen::PlainObjectBase<DerivedV1>& vers1, const Eigen::MatrixXi& tris1, \
+	const Eigen::PlainObjectBase<DerivedV2>& vers2, const Eigen::MatrixXi& tris2);
 #endif
+
 

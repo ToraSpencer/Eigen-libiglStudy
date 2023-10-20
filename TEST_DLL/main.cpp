@@ -151,17 +151,79 @@ namespace TEST_MYDLL
 
 
 	// SDF, marching cubes
-	void test5() 
+	void test5()
 	{
 		Eigen::MatrixXd vers, versOut;
 		Eigen::MatrixXi tris, trisOut;
 		SDF_RESULT sdfResult;
-		
+
 		readOBJ(vers, tris, "E:/²ÄÁÏ/tooth.obj");
 		genSDF(sdfResult, vers, tris, 0.5, 3);
 		marchingCubes(versOut, trisOut, sdfResult, 0.6);
 
 		debugWriteMesh("meshOut", versOut, trisOut);
+		debugDisp("finished.");
+	}
+
+
+	void test55() 
+	{
+		Eigen::MatrixXf vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
+		SDF_RESULT sdfResult;
+
+		readSTL(vers, tris, "E:/ò¢°å/zhangweiliang-S.stl");
+		genSDF(sdfResult, vers, tris, 0.3, 3);
+		marchingCubes(versOut, trisOut, sdfResult, 0.1);
+		debugWriteMesh("zhangweiliang-S_0.1", versOut, trisOut);
+
+		vers.resize(0, 0);
+		versOut.resize(0, 0);
+		tris.resize(0, 0);
+		trisOut.resize(0, 0);
+		readSTL(vers, tris, "E:/ò¢°å/zhangweiliang-X.stl");
+		genSDF(sdfResult, vers, tris, 0.3, 3);
+		marchingCubes(versOut, trisOut, sdfResult, 0.1);
+		debugWriteMesh("zhangweiliang-X_0.1", versOut, trisOut);
+
+		debugDisp("finished.");		 
+	}
+
+	// Íø¸ñ²¼¶ûÔËËã
+	void test6()
+	{
+		Eigen::MatrixXd versOut, vers1, vers2;
+		Eigen::MatrixXi trisOut, tris1, tris2;
+		readOBJ(vers1, tris1, "E:/²ÄÁÏ/tooth.obj");
+		readOBJ(vers2, tris2, "E:/²ÄÁÏ/cylinder1.obj");
+		meshCross(versOut, trisOut, vers1, tris1, vers2, tris2);
+
+		debugWriteMesh("meshOut", versOut, trisOut);
+
+		debugDisp("finished.");
+	}
+
+
+	void test66() 
+	{
+		Eigen::MatrixXd versOut, vers1, vers2;
+		Eigen::MatrixXi trisOut, tris1, tris2;
+
+		readOBJ(vers1, tris1, "E:/ò¢°å/palate.obj");
+		readOBJ(vers2, tris2, "E:/ò¢°å/zhangweiliang-S_0.1.obj");
+		meshCross(versOut, trisOut, vers1, tris1, vers2, tris2);
+		debugWriteMesh("meshCross1", versOut, trisOut);
+
+		vers1 = versOut;
+		tris1 = trisOut;
+		versOut.resize(0, 0);
+		trisOut.resize(0, 0);
+		vers2.resize(0, 0);
+		tris2.resize(0, 0);
+		readOBJ(vers2, tris2, "E:/ò¢°å/zhangweiliang-X_0.1.obj");
+		meshCross(versOut, trisOut, vers1, tris1, vers2, tris2);
+		debugWriteMesh("meshCross2", versOut, trisOut);
+
 		debugDisp("finished.");
 	}
 }
@@ -170,7 +232,8 @@ namespace TEST_MYDLL
 
 int main(int argc, char** argv)
 {
-	TEST_MYDLL::test5();
+	TEST_MYDLL::test66();
+
 
 	debugDisp("main() finished.");
 
