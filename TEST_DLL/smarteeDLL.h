@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 
+
 // 使用eigen库中的向量、矩阵表示顶点、点云、面片等信息；
 #include "Eigen/Dense"
 
@@ -16,9 +17,6 @@
 #else
 #define SMARTEE_DLL_API __declspec(dllimport)
 #endif
-
-
-// 导出函数；注！！！——函数实现开头也要加上宏SMARTEE_DLL_API：
 
 // 从OBJ文件中读点云
 template	<typename Scalar>
@@ -59,7 +57,6 @@ struct meshRayOut
 	std::vector<std::vector<unsigned>> isctTris;
 	std::vector<std::vector<unsigned>> isctOppTris;
 };
-
 template <typename DerivedV1, typename DerivedV2, typename Scalar>
 SMARTEE_DLL_API bool meshRayIntersect(meshRayOut& result, \
 	const Eigen::PlainObjectBase<DerivedV1>& srcVers, const Eigen::Matrix<Scalar, 1, 3>& dir, \
@@ -79,6 +76,7 @@ SMARTEE_DLL_API bool genSDF(SDF_RESULT& result, \
 	const Eigen::PlainObjectBase<DerivedV>& meshVers, const Eigen::MatrixXi& meshTris, \
 	const float step, const int interCounts = 5);
 
+// marching cubes
 template <typename DerivedV>
 SMARTEE_DLL_API bool marchingCubes(Eigen::PlainObjectBase<DerivedV>& versOut, \
 	Eigen::MatrixXi& trisOut, const SDF_RESULT& result, const float isoValue, \
@@ -89,6 +87,8 @@ template <typename DerivedV1, typename DerivedV2>
 SMARTEE_DLL_API bool meshCross(Eigen::MatrixXd& versOut, Eigen::MatrixXi& trisOut, \
 	const Eigen::PlainObjectBase<DerivedV1>& vers1, const Eigen::MatrixXi& tris1, \
 	const Eigen::PlainObjectBase<DerivedV2>& vers2, const Eigen::MatrixXi& tris2);
+
+
 #endif
 
 

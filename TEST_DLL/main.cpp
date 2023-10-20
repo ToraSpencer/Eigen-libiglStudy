@@ -5,6 +5,18 @@
 #pragma comment(lib, "smarteeDLL.lib")
 #pragma comment(lib, "MY_CGAL_DLL.lib")
 
+// myEigen静态库：
+#include "myEigenIO/myEigenIO.h"
+#pragma comment(lib, "myEigenIO.lib")
+#include "myEigenBasicMath/myEigenBasicMath.h"
+#pragma comment(lib, "myEigenBasicMath.lib")
+#include "myEigenModeling/myEigenModeling.h"
+#pragma comment(lib, "myEigenModeling.lib")
+#include "myEigenPMP/myEigenPMP.h"
+#pragma comment(lib, "myEigenPMP.lib")
+#include "myEigenHomoCoor/myEigenHomoCoor.h"
+#pragma comment(lib, "myEigenHomoCoor.lib")
+
 // 已禁用vcpkg;
 
 
@@ -188,6 +200,7 @@ namespace TEST_MYDLL
 
 		debugDisp("finished.");		 
 	}
+
 
 	// 网格布尔运算
 	void test6()
