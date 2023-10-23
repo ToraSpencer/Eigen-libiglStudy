@@ -3,18 +3,35 @@
 
 // 模板函数需要特化之后才能在静态库中输出： 
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////// 模板特化：
-template void objWriteHomoMeshMat<double>(const char*, const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>&, \
-	const Eigen::MatrixXi& tris);
-template void objWriteHomoMeshMat<float>(const char*, const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>&, \
-	const Eigen::MatrixXi& tris);
+/////////////////////////////////////////////////////////////////////////////////////////////////////////// 模板特化： 
+template bool vers2HomoVers<Eigen::Matrix<int, -1, -1, 0, -1, -1>, Eigen::Matrix<int, -1, -1, 0, -1, -1>>(\
+	Eigen::PlainObjectBase<Eigen::Matrix<int, -1, -1, 0, -1, -1>>&, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<int, -1, -1, 0, -1, -1>>&);
+template bool vers2HomoVers<Eigen::Matrix<float, -1, -1, 0, -1, -1>, Eigen::Matrix<float, -1, -1, 0, -1, -1>>(\
+	Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>&, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>&);
+template bool vers2HomoVers<Eigen::Matrix<double, -1, -1, 0, -1, -1>, Eigen::Matrix<double, -1, -1, 0, -1, -1>>(\
+	Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>&, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>&);
+template bool vers2HomoVers<Eigen::Matrix<float, -1, -1, 0, -1, -1>, Eigen::Matrix<double, -1, -1, 0, -1, -1>>(\
+	Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>&, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>&);
+template bool vers2HomoVers<Eigen::Matrix<double, -1, -1, 0, -1, -1>, Eigen::Matrix<float, -1, -1, 0, -1, -1>>(\
+	Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>&, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>&);
 
-template Eigen::MatrixXf vers2homoVersF<Eigen::Matrix<double, -1, -1, 0, -1, -1>>(\
-	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>& vers);
-template Eigen::MatrixXf vers2homoVersF<Eigen::Matrix<float, -1, -1, 0, -1, -1>>(\
-	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>& vers);
-
-template Eigen::MatrixXd vers2homoVersD<Eigen::Matrix<double, -1, -1, 0, -1, -1>>(\
-	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>& vers);
-template Eigen::MatrixXd vers2homoVersD<Eigen::Matrix<float, -1, -1, 0, -1, -1>>(\
-	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>& vers);
+template bool homoVers2Vers<Eigen::Matrix<int, -1, -1, 0, -1, -1>, Eigen::Matrix<int, -1, -1, 0, -1, -1>>(\
+	Eigen::PlainObjectBase<Eigen::Matrix<int, -1, -1, 0, -1, -1>>&, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<int, -1, -1, 0, -1, -1>>&);
+template bool homoVers2Vers<Eigen::Matrix<float, -1, -1, 0, -1, -1>, Eigen::Matrix<float, -1, -1, 0, -1, -1>>(\
+	Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>&, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>&);
+template bool homoVers2Vers<Eigen::Matrix<double, -1, -1, 0, -1, -1>, Eigen::Matrix<double, -1, -1, 0, -1, -1>>(\
+	Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>&, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>&);
+template bool homoVers2Vers<Eigen::Matrix<float, -1, -1, 0, -1, -1>, Eigen::Matrix<double, -1, -1, 0, -1, -1>>(\
+	Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>&, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>&);
+template bool homoVers2Vers<Eigen::Matrix<double, -1, -1, 0, -1, -1>, Eigen::Matrix<float, -1, -1, 0, -1, -1>>(\
+	Eigen::PlainObjectBase<Eigen::Matrix<double, -1, -1, 0, -1, -1>>&, \
+	const Eigen::PlainObjectBase<Eigen::Matrix<float, -1, -1, 0, -1, -1>>&);

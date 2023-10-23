@@ -161,6 +161,12 @@ namespace MY_DEBUG
 {
 	static std::string g_debugPath = "E:/";
 
+	// lambda——打印std::cout支持的类型变量。
+	template <typename T>
+	static auto disp = [](const T& arg)
+	{
+		std::cout << arg << ", ";
+	};
 
 	static void debugDisp()			// 递归终止
 	{						//		递归终止设为无参或者一个参数的情形都可以。
@@ -1271,7 +1277,7 @@ int main(int argc, char** argv)
 { 
 	// return testCmd_laplaceFaring(argc, argv);
 	
-	TEST_MYEIGEN_MODELING::test1();
+	TEST_MYEIGEN_MODELING::test2();
 
 	// TEST_MYEIGEN_PMP::test0();
 	 

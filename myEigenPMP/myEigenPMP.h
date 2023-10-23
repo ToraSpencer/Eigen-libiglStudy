@@ -25,6 +25,9 @@
 #include "myEigenBasicMath/myEigenBasicMath.h"
 #pragma comment(lib, "myEigenBasicMath.lib")
 
+#include "myEigenHomoCoor/myEigenHomoCoor.h"
+#pragma comment(lib, "myEigenHomoCoor.lib")
+
 #include "myEigenIO/myEigenIO.h"
 #pragma comment(lib, "myEigenIO.lib")
  

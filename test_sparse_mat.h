@@ -7,7 +7,6 @@
 
 namespace SPARSEMAT
 {
-	
 	void test00();
 	void test0();
 	void test1();

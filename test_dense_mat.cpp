@@ -13,6 +13,13 @@ namespace TEST_DENSE_MAT
 	{
 		static std::string g_debugPath = "E:/";
 
+		// lambda——打印std::cout支持的类型变量。
+		template <typename T>
+		static auto disp = [](const T& arg)
+		{
+			std::cout << arg << ", ";
+		};
+
 		// 写一个接口，将矩阵数据保存到.dat文件中，方便python读取然后画图
 		void writeData2D(const Eigen::VectorXd& x, const Eigen::VectorXd& y, const char* filename)
 		{

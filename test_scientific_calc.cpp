@@ -8,6 +8,15 @@ static std::string g_debugPath = "E:/";
 /////////////////////////////////////////////////////////////////////////////////////////////////DEBUG接口：
 namespace MY_DEBUG 
 {
+	static std::string g_debugPath = "E:/";
+
+	// lambda——打印std::cout支持的类型变量。
+	template <typename T>
+	static auto disp = [](const T& arg)
+	{
+		std::cout << arg << ", ";
+	};
+
 	static void debugDisp()			// 递归终止
 	{						//		递归终止设为无参或者一个参数的情形都可以。
 		std::cout << std::endl;
@@ -54,16 +63,36 @@ namespace TEST_SCIENTIFIC_CALC
 	// 齐次坐标表示下的坐标变换；
 	void test1()
 	{
-		Eigen::MatrixXf vers;
+		Eigen::MatrixXf vers, versTmpHomo;
+		Eigen::MatrixXd versTmp;
+
 		Eigen::MatrixXi tris;
 		objReadMeshMat(vers, tris, "E:/材料/bunny.obj"); 
+		debugWriteMesh("meshInput", vers, tris);
 
 		// 1. 顶点使用齐次坐标来表示——一个点是一个四元列向量(w*x, w*y, w*z, w)，w通常为1，为0时表示无穷远处的点。
-		Eigen::MatrixXf versHomo = vers2homoVersF(vers);
+		Eigen::MatrixXf versHomo;
+		vers2HomoVers(versHomo, vers); 
 		dispMatBlock(vers, 0, 3, 0, 2);
-		dispMatBlock(versHomo, 0, 3, 0, 3);
-		objWriteHomoMeshMat("E:/meshInput.obj", versHomo, tris);
+		dispMatBlock(versHomo, 0, 3, 0, 3); 
 
+		versTmp.resize(4, 3);
+		versTmp << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12;
+		dispMat(versTmp);
+		vers2HomoVers(versTmpHomo, versTmp);
+		dispMat(versTmpHomo);
+		homoVers2Vers(versTmp, versTmpHomo);
+		dispMat(versTmp);
+
+		versTmp.resize(0, 0);
+		versTmpHomo.resize(0, 0);
+		versTmp.resize(4, 2);
+		versTmp << 1, 2, 3, 4, 5, 6, 7, 8;
+		dispMat(versTmp);
+		vers2HomoVers(versTmpHomo, versTmp);
+		dispMat(versTmpHomo);
+		homoVers2Vers(versTmp, versTmpHomo);
+		dispMat(versTmp);
 
 		// 2. 笛卡尔坐标下施加仿射变换——旋转、放缩，最后平移：
 		Eigen::Matrix3f scale = Eigen::Matrix3f::Identity();
@@ -87,11 +116,13 @@ namespace TEST_SCIENTIFIC_CALC
 		rotationHomo.block<3, 3>(0, 0) = rotation;
 		moveMat.topRightCorner(3, 1) = moveVec;
 		 finalVersHomo = moveMat * rotationHomo * scaleHomo * versHomo;
-		 objWriteHomoMeshMat("E:/齐次坐标下仿射变换后的bunny.obj", finalVersHomo, tris); 
+		 homoVers2Vers(vers, finalVersHomo);
+		 debugWriteMesh("齐次坐标下仿射变换后的bunny", vers, tris); 
 
 		Eigen::MatrixXf transMat = moveMat * rotationHomo * scaleHomo;
 		Eigen::MatrixXf originVersHomo = transMat.inverse() * finalVersHomo;
-		objWriteHomoMeshMat("E:/齐次坐标下还原的bunny.obj", originVersHomo, tris); 
+		homoVers2Vers(vers, originVersHomo);
+		debugWriteMesh("齐次坐标下还原的bunny", vers, tris); 
 
 		std::cout << "finished" << std::endl;
 	}

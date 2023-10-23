@@ -106,14 +106,6 @@ namespace MY_DEBUG
 	}
 
 
-	// lambda——打印std::cout支持的类型变量。
-	template <typename T>
-	auto disp = [](const T& arg)
-	{
-		std::cout << arg << ", ";
-	};
-
-
 	template <typename T1, typename T2>
 	void dispPair(const std::pair<T1, T2>& pair)
 	{

@@ -6,6 +6,12 @@ namespace MY_DEBUG
 {
 	static std::string g_debugPath = "E:/";
 
+	// lambda——打印std::cout支持的类型变量。
+	template <typename T>
+	static auto disp = [](const T& arg)
+	{
+		std::cout << arg << ", ";
+	};
 
 	static void debugDisp()			// 递归终止
 	{						//		递归终止设为无参或者一个参数的情形都可以。
@@ -562,6 +568,24 @@ namespace TEST_MYEIGEN_MODELING
 		std::cout << "finished." << std::endl;
 	}
 
+
+	// 测试边界回路生成曲面网格
+	void test2() 
+	{
+		Eigen::MatrixXd vers, versLoop, versLoop2D;
+		Eigen::MatrixXi tris;
+
+		objReadVerticesMat(versLoop, "E:/材料/loopPerturbed.obj");
+		Eigen::RowVector3d center = versLoop.colwise().mean();
+		versLoop2D = versLoop.rowwise() - center;
+		versLoop2D = versLoop2D.leftCols(2).eval();
+
+		circuit2mesh(vers, tris, versLoop, Eigen::RowVector3d{0, 0, -1}, 1.0f);
+
+		debugWriteMesh("meshOut", vers, tris);
+ 
+		debugDisp("finished.");
+	}
 
 #endif
 	 

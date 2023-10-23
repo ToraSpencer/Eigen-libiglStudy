@@ -539,12 +539,11 @@ bool genAlignedCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, 
 
 
 
-//			circuitToMesh()重载1：triangle库三角剖分——封闭边界线点集得到面网格，可以是平面也可以是曲面，三角片尺寸不可控，不会在网格内部插点。
+//	重载1：封闭边界线点集得到面网格，可以是平面也可以是曲面，不在网格内部插点，三角片尺寸不可控。
 template <typename T>
 bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circVers)
 {
-	// ！！！貌似当前三角剖分有问题！！
 	using VectorXT = Eigen::Matrix<T, Eigen::Dynamic, 1>;
 	using RowVector3T = Eigen::Matrix<T, 1, 3>;
 	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
@@ -614,6 +613,94 @@ bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen:
 
 	return true;
 }
+
+
+// 重载2：会在回路内部插点，三角片面积上限由参数maxTriArea决定；
+template <typename DerivedV, typename DerivedL, typename T>
+bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::PlainObjectBase<DerivedL>& versLoop, \
+	const Eigen::Matrix<T, 1, 3>& normDir, const float maxTriArea)
+{ 
+	using ScalarV = typename DerivedV::Scalar;
+	const int versLoopCount = versLoop.rows();
+
+	// 1. 求一个仿射变换：
+	Eigen::RowVector3f loopCenter = versLoop.colwise().mean().array().cast<float>();
+	Eigen::Matrix4f rotationHomo{ Eigen::Matrix4f::Identity() };
+	Eigen::Matrix4f translationHomo{ Eigen::Matrix4f::Identity() };
+	Eigen::Matrix4f affineHomo, affineInvHomo;
+	Eigen::Matrix3f rotation = getRotationMat(Eigen::RowVector3f{ 0, 0, 1 }, Eigen::RowVector3f{normDir.array().cast<float>()});
+	rotationHomo.topLeftCorner(3, 3) = rotation;
+	translationHomo(0, 3) = loopCenter(0);
+	translationHomo(1, 3) = loopCenter(1);
+	translationHomo(2, 3) = loopCenter(2);
+	affineHomo = translationHomo * rotationHomo;
+	affineInvHomo = affineHomo.inverse();
+ 
+	// 1. 插点的三角剖分：
+	Eigen::MatrixXf vers2D = versLoop0.transpose().topRows(2);
+	Eigen::MatrixXi edges2D(2, versLoopCount); 
+	for (unsigned i = 0; i < versLoopCount; i++)
+	{
+		edges2D(0, i) = i + 1;
+		edges2D(1, i) = (i + 1) % versLoopCount + 1;
+	}
+
+	triangulateio triIn;
+	triangulateio triOut;
+	triIn.numberofpoints = versLoopCount;
+	triIn.pointlist = vers2D.data();
+	triIn.numberofpointattributes = 0;
+	triIn.pointattributelist = NULL;
+	triIn.pointmarkerlist = NULL;
+
+	triIn.numberofsegments = versLoopCount;
+	triIn.segmentlist = (int*)edges2D.data();
+	triIn.segmentmarkerlist = NULL;
+
+	triIn.numberoftriangles = 0;
+	triIn.numberofcorners = 0;
+	triIn.numberoftriangleattributes = 0;
+
+	triIn.numberofholes = 0;
+	triIn.holelist = NULL;
+
+	triIn.numberofregions = 0;
+	triIn.regionlist = NULL;
+	memset(&triOut, 0, sizeof(triangulateio));
+	 
+	char triStr[256];
+	//		"p" - 折线段; "a" - 最大三角片面积; "q" - Quality; "Y" - 边界上不插入点;
+	sprintf_s(triStr, "pq30.0a%fYY", maxTriArea);			 
+	triangulate(triStr, &triIn, &triOut, NULL);
+
+	// 2. 处理三角剖分后的结果；
+	Eigen::MatrixXf versOut, versOutHomo;
+	const int versCount = triOut.numberofpoints;						// 插点后的网格的点数； 
+	versOut.resize(versCount, 3);
+	versOut.setZero();
+	for (size_t i = 0; i < versCount; i++)
+	{ 
+		versOut(i, 0) = triOut.pointlist[i * 2];
+		versOut(i, 1) = triOut.pointlist[i * 2 + 1];
+	}
+	vers2HomoVers(versOutHomo, versOut);
+	versOutHomo = (affineHomo * versOutHomo).eval();
+	homoVers2Vers(versOut, versOutHomo);	 	  
+	versOut.topRows(versLoopCount) = versLoop.array().cast<float>();
+	vers = versOut.array().cast<ScalarV>();
+	tris.resize(3, triOut.numberoftriangles);
+	std::memcpy(tris.data(), triOut.trianglelist, sizeof(int) * 3 * triOut.numberoftriangles);
+	tris.transposeInPlace();
+	tris.array() -= 1;
+
+	// 3. 此时网格内部是个平面，边界和输入边界线相同，需要在保持边界线的情形下光顺网格：
+
+
+	return true;
+}
+ 
+
 #endif
 
 

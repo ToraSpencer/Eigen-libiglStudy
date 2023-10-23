@@ -1,5 +1,106 @@
 #include "test_sparse_mat.h"
 
+////////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
+namespace MY_DEBUG
+{
+	static std::string g_debugPath = "E:/";
+
+	// lambda——打印std::cout支持的类型变量。
+	template <typename T>
+	static auto disp = [](const T& arg)
+	{
+		std::cout << arg << ", ";
+	};
+
+	static void debugDisp()			// 递归终止
+	{						//		递归终止设为无参或者一个参数的情形都可以。
+		std::cout << std::endl;
+		return;
+	}
+
+
+	template <typename T, typename... Types>
+	static void debugDisp(const T& firstArg, const Types&... args)
+	{
+		std::cout << firstArg << " ";
+		debugDisp(args...);
+	}
+
+
+	template <typename T, int M, int N>
+	static void dispData(const Eigen::Matrix<T, M, N>& m)
+	{
+		auto dataPtr = m.data();
+		unsigned elemsCount = m.size();
+
+		for (unsigned i = 0; i < elemsCount; ++i)
+			std::cout << dataPtr[i] << ", ";
+
+		std::cout << std::endl;
+	}
+
+
+	template <typename Derived>
+	static void dispData(const Eigen::PlainObjectBase<Derived>& m)
+	{
+		int m0 = m.RowsAtCompileTime;
+		int n0 = m.ColsAtCompileTime;
+
+		auto dataPtr = m.data();
+		unsigned elemsCount = m.size();
+
+		for (unsigned i = 0; i < elemsCount; ++i)
+			std::cout << dataPtr[i] << ", ";
+
+		std::cout << std::endl;
+	}
+
+
+	template <typename Derived>
+	static void dispElem(const Eigen::MatrixBase<Derived>& m)
+	{
+		const Derived& mm = m.derived();
+		std::cout << mm(1, 1) << std::endl;
+	}
+
+
+	template<typename DerivedV>
+	static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteVerticesMat(path, vers);
+	}
+
+
+	template<typename DerivedV>
+	static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteVerticesMat2D(path, vers);
+	}
+
+
+	template<typename T>
+	static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteMeshMat(path, vers, tris);
+	}
+
+
+	template<typename DerivedV>
+	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteEdgesMat(path, edges, vers);
+	}
+}
+using namespace MY_DEBUG;
+
 namespace SPARSEMAT
 {
 	// 测试自己写的稀疏矩阵相关的轮子：

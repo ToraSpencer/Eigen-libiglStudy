@@ -25,6 +25,12 @@
 #include "myEigenBasicMath/myEigenBasicMath.h"
 #pragma comment(lib, "myEigenBasicMath.lib")
 
+#include "myEigenHomoCoor/myEigenHomoCoor.h"
+#pragma comment(lib, "myEigenHomoCoor.lib")
+
+#include "myEigenIO/myEigenIO.h"
+#pragma comment(lib, "myEigenIO.lib")
+
 
 //  64位环境下，triangulate.cpp里" x = vertexloop[0] = pointlist[coordindex++];"这一句会抛出异常，需要研究
 #ifndef _WIN64
@@ -107,10 +113,16 @@ bool genAlignedCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, 
 	const bool isCovered);
 
 
-//			circuitToMesh()重载1：triangle库三角剖分——封闭边界线点集得到面网格，可以是平面也可以是曲面，三角片尺寸不可控，不会在网格内部插点。
+//	重载1：封闭边界线点集得到面网格，可以是平面也可以是曲面，不在网格内部插点，三角片尺寸不可控。
 template <typename T>
 bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circVers);
+
+// 重载2：会在回路内部插点，三角片面积上限由参数maxTriArea决定；
+template <typename DerivedV, typename DerivedL, typename T>
+bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::PlainObjectBase<DerivedL>& versLoop, \
+	const Eigen::Matrix<T, 1, 3>& normDir, const float maxTriArea);
 #endif
 
 
