@@ -119,37 +119,17 @@ namespace MY_DEBUG
 		std::cout << q.w() << std::endl;
 		std::cout << q.vec() << std::endl;
 	}
-
-
-
+	 
 }
 
-
-
-
-
-// MATLAB——repmat();
-template <typename DerivedA, typename DerivedB>
-void repmat(Eigen::PlainObjectBase<DerivedB>& B, const Eigen::PlainObjectBase<DerivedA>& A, const int repRows, const int repCols)
-{
-	assert(repRows > 0);
-	assert(repCols > 0);
-	B.resize(repRows * A.rows(), repCols * A.cols());
-
-	// copy tiled blocks
-	for (int i = 0; i < repRows; i++)
-		for (int j = 0; j < repCols; j++)
-			B.block(i * A.rows(), j * A.cols(), A.rows(), A.cols()) = A;
-}
-
- 
-
+  
 
 //////////////////////////////////////////////////////////////////////////////////////////////// 三角网格处理：
 
 // 返回网格中顶点verIdx0的1领域三角片索引；
 template <typename DerivedV>
-std::unordered_set<int> oneRingTriIdxes(const int verIdx0, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+std::unordered_set<int> oneRingTriIdxes(const int verIdx0, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 {
 	std::unordered_set<int> nbrIdxes;
 	const int versCount = vers.rows();
@@ -168,9 +148,11 @@ std::unordered_set<int> oneRingTriIdxes(const int verIdx0, const Eigen::PlainObj
 	return nbrIdxes;
 }
 
+
 // 返回网格中顶点verIdx0的1领域顶点索引；
 template <typename DerivedV>
-std::unordered_set<int> oneRingVerIdxes(const int verIdx0, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+std::unordered_set<int> oneRingVerIdxes(const int verIdx0, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 {
 	std::unordered_set<int> nbrIdxes;
 	Eigen::MatrixXi seleTris;
@@ -196,10 +178,10 @@ std::unordered_set<int> oneRingVerIdxes(const int verIdx0, const Eigen::PlainObj
 }
 
 
-// 返回网格中顶点verIdx0的1领域三角片索引——按面片法线方向逆时针排列；
-#if 0
+// 返回网格中顶点verIdx0的1领域三角片索引——按面片法线方向逆时针排列； 
 template <typename DerivedV>
-std::vector<int> oneRingTriIdxesOrdered(const int verIdx0, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+std::vector<int> oneRingTriIdxesOrdered(const int verIdx0, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 {
 	std::vector<int> nbrIdxes = oneRingTriIdxes(verIdx0, vers, tris);
 	if (nbrIdxes.empty())
@@ -235,17 +217,14 @@ std::vector<int> oneRingTriIdxesOrdered(const int verIdx0, const Eigen::PlainObj
 			return nbrIdxes;
 		}
 	}
-
-
-
-
+	 
 	return nbrIdxes;
 }
-#endif
-
+ 
 
 template <typename DerivedI>
-bool sortLoopEdges(std::vector<int>& loopVerIdxes, const Eigen::PlainObjectBase<DerivedI>& loopEdges)
+bool sortLoopEdges(std::vector<int>& loopVerIdxes, \
+	const Eigen::PlainObjectBase<DerivedI>& loopEdges)
 {
 	loopVerIdxes.clear();
 	const int edgesCount = loopEdges.rows();
@@ -284,115 +263,92 @@ bool sortLoopEdges(std::vector<int>& loopVerIdxes, const Eigen::PlainObjectBase<
 }
 
 
-
-// 生成余切权的laplacian (同时也是刚度矩阵(stiffness matrix))——基于论文：Polygon Laplacian Made Simple [Bunge et al. 2020]
-template<typename Tv, typename Tl>
-bool cotLaplacian(Eigen::SparseMatrix<Tl>& L, const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+namespace LAPLACIAN_MASS_MATRIX
 {
-	const unsigned versCount = vers.rows();
-	const unsigned trisCount = tris.rows();
-	L.resize(versCount, versCount);
-	L.reserve(10 * versCount);
-
-	Eigen::MatrixXi edges(3, 2);
-	edges << 1, 2, 2, 0, 0, 1;
-
-	// Gather cotangents
-	Eigen::Matrix<Tl, Eigen::Dynamic, Eigen::Dynamic> C;
-	trisCotValues(vers, tris, C);
-
-	std::vector<Eigen::Triplet<Tl> > IJV;
-	IJV.reserve(tris.rows() * edges.rows() * 4);
-
-	// Loop over triangles
-	for (int i = 0; i < tris.rows(); i++)
+	// MATLAB——repmat();
+	template <typename DerivedA, typename DerivedB>
+	void repmat(Eigen::PlainObjectBase<DerivedB>& B, \
+		const Eigen::PlainObjectBase<DerivedA>& A, \
+		const int repRows, const int repCols)
 	{
-		// loop over edges of element
-		for (int e = 0; e < edges.rows(); e++)
+		assert(repRows > 0);
+		assert(repCols > 0);
+		B.resize(repRows * A.rows(), repCols * A.cols());
+
+		// copy tiled blocks
+		for (int i = 0; i < repRows; i++)
+			for (int j = 0; j < repCols; j++)
+				B.block(i * A.rows(), j * A.cols(), A.rows(), A.cols()) = A;
+	}
+
+	// 生成质量矩阵：
+	template <typename Tm, typename Tv>
+	bool massMatrix_baryCentric(Eigen::SparseMatrix<Tm>& MM, \
+		const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+		const Eigen::MatrixXi& tris)
+	{
+		const int versCount = vers.rows();
+		const int trisCount = tris.rows();
+		Eigen::MatrixXd lenMat;
+		edge_lengths(lenMat, vers, tris);
+
+		Eigen::VectorXd dblA;
+		trisArea(dblA, vers, tris);
+		dblA.array() *= 2;
+		Eigen::VectorXi MI, MJ;
+		Eigen::VectorXd MV;
+
+		// diagonal entries for each face corner
+		MI.resize(trisCount * 3);
+		MJ.resize(trisCount * 3);
+		MV.resize(trisCount * 3);
+
+		MI.segment(0, trisCount) = tris.col(0);
+		MI.segment(trisCount, trisCount) = tris.col(1);
+		MI.segment(2 * trisCount, trisCount) = tris.col(2);
+		MJ = MI;
+		repmat(MV, dblA, 3, 1);
+		MV.array() /= 6.0;
+		sparse(MM, MI, MJ, MV, versCount, versCount);
+
+		return true;
+	}
+
+	// laplace光顺——使用质量矩阵；
+	template <typename DerivedVo, typename DerivedVi>
+	bool laplaceFaring_old(Eigen::PlainObjectBase<DerivedVo>& versOut, \
+		const Eigen::PlainObjectBase<DerivedVi>& vers, \
+		const Eigen::MatrixXi& tris, const float deltaLB, const unsigned loopCount)
+	{
+		using ScalarO = typename DerivedVo::Scalar;
+		assert(3 == vers.cols() && "assert!!! Input mesh should be in 3-dimension space.");
+		const int versCount = vers.rows();
+		Eigen::SparseMatrix<ScalarO> I(versCount, versCount);
+		I.setIdentity();
+
+		// 1. 计算laplace矩阵：
+		Eigen::SparseMatrix<ScalarO> Lmat;
+		Eigen::Matrix<ScalarO, Eigen::Dynamic, Eigen::Dynamic> versCopy = vers.array().cast<ScalarO>();
+		cotLaplacian(Lmat, versCopy, tris);
+
+		// 2. 光顺的循环：
+		for (unsigned i = 0; i < loopCount; ++i)
 		{
-			int source = tris(i, edges(e, 0));
-			int dest = tris(i, edges(e, 1));
-			IJV.push_back(Eigen::Triplet<Tl>(source, dest, C(i, e)));
-			IJV.push_back(Eigen::Triplet<Tl>(dest, source, C(i, e)));
-			IJV.push_back(Eigen::Triplet<Tl>(source, source, -C(i, e)));
-			IJV.push_back(Eigen::Triplet<Tl>(dest, dest, -C(i, e)));
+			// f1. 计算当前质量矩阵：
+			Eigen::SparseMatrix<ScalarO> mass;
+			massMatrix_baryCentric(mass, versCopy, tris);
+
+			// f2. 解线性方程组 (mass - delta*L) * newVers = mass * newVers
+			const Eigen::SparseMatrix<ScalarO> A = (mass - deltaLB * Lmat);
+			Eigen::SimplicialLLT<Eigen::SparseMatrix<ScalarO>> solver(A);
+			assert(solver.info() == Eigen::Success);
+			versOut = solver.solve(mass * versCopy).eval();
+			versCopy = versOut;
 		}
+
+		return true;
 	}
-	L.setFromTriplets(IJV.begin(), IJV.end());
-
-	return true;
 }
-
-
-// 生成质量矩阵：
-template <typename Tm, typename Tv>
-bool massMatrix_baryCentric(Eigen::SparseMatrix<Tm>& MM, const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, \
-	const Eigen::MatrixXi& tris)
-{
-	const int versCount = vers.rows();
-	const int trisCount = tris.rows();
-	Eigen::MatrixXd lenMat;
-	edge_lengths(lenMat, vers, tris);
-
-	Eigen::VectorXd dblA;
-	trisArea(dblA, vers, tris);
-	dblA.array() *= 2;
-	Eigen::VectorXi MI, MJ;
-	Eigen::VectorXd MV;
-
-	// diagonal entries for each face corner
-	MI.resize(trisCount * 3);
-	MJ.resize(trisCount * 3);
-	MV.resize(trisCount * 3);
-	 
-	MI.segment(0, trisCount) = tris.col(0);
-	MI.segment(trisCount, trisCount) = tris.col(1);
-	MI.segment(2 * trisCount, trisCount) = tris.col(2);
-	MJ = MI;
-	repmat(MV, dblA, 3, 1);
-	MV.array() /= 6.0;
-	sparse(MM, MI, MJ, MV, versCount, versCount);
-
-	return true;
-}
-
-
-// laplace光顺 
-template <typename T>
-bool laplaceFaring(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, \
-	const float deltaLB, const unsigned loopCount)
-{
-	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
-	using Matrix3T = Eigen::Matrix<T, 3, 3>;
-	using RowVector3T = Eigen::Matrix<T, 1, 3>;
-
-	// 1. 计算laplace矩阵：
-	Eigen::SparseMatrix<T> Lmat;
-	cotLaplacian(Lmat, vers, tris);
-
-	// 2. 光顺的循环：
-	MatrixXT versCopy = vers;
-	for (unsigned i = 0; i < loopCount; ++i)
-	{
-		// f1. 计算当前质量矩阵：
-		Eigen::SparseMatrix<T> mass;
-		massMatrix_baryCentric(mass, vers, tris);
-
-		// f2. 解线性方程组 (mass - delta*L) * newVers = mass * newVers
-		const auto& S = (mass - deltaLB * Lmat);
-		Eigen::SimplicialLLT<Eigen::SparseMatrix<T>> solver(S);
-		assert(solver.info() == Eigen::Success);
-		versOut = solver.solve(mass * versCopy).eval();
-		versCopy = versOut;
-	}
-
-	return true;
-}
-
-
-
-
 
 
 

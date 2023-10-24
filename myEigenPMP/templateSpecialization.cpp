@@ -5,22 +5,57 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////// Ä£°åÌØ»¯£º
 
-template void edges2mat(Eigen::PlainObjectBase<Eigen::MatrixXi>& mat, const std::vector<std::pair<int, int>>& edges);
+template void edges2mat<Eigen::MatrixXi>(Eigen::PlainObjectBase<Eigen::MatrixXi>&,\
+	const std::vector<std::pair<int, int>>&);
 
-template std::int64_t encodeEdge(const int vaIdx, const int vbIdx);
-template std::int64_t encodeEdge(const unsigned int vaIdx, const unsigned int vbIdx);
-template std::int64_t encodeEdge(const std::int64_t vaIdx, const std::int64_t vbIdx);
+template std::int64_t encodeEdge<int>(const int, const int);
+template std::int64_t encodeEdge<unsigned>(const unsigned, const unsigned);
+template std::int64_t encodeEdge<std::int64_t>(const std::int64_t, const std::int64_t);
 
-template std::int64_t encodeUedge(const int vaIdx, const int vbIdx);
-template std::int64_t encodeUedge(const unsigned int vaIdx, const unsigned int vbIdx);
-template std::int64_t encodeUedge(const std::int64_t vaIdx, const std::int64_t vbIdx);
+template std::int64_t encodeUedge<int>(const int, const int);
+template std::int64_t encodeUedge<unsigned>(const unsigned, const unsigned);
+template std::int64_t encodeUedge<std::int64_t>(const std::int64_t, const std::int64_t);
  
-template std::uint64_t encodeTriangle(const int vaIdx, const int vbIdx, const int vcIdx);
-template std::uint64_t encodeTriangle(const unsigned int vaIdx, const unsigned int vbIdx, const unsigned int vcIdx);
-template std::uint64_t encodeTriangle(const std::int64_t vaIdx, const std::int64_t vbIdx, const std::int64_t vcIdx);
+template std::uint64_t encodeTriangle<int>(const int , const int, const int);
+template std::uint64_t encodeTriangle<unsigned>(const unsigned, const unsigned, const unsigned);
+template std::uint64_t encodeTriangle<std::int64_t>(const std::int64_t, const std::int64_t, const std::int64_t);
 
-template bool getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<Eigen::MatrixXi>& tris);
+template bool interpolateToLine<Eigen::MatrixXf, float>(Eigen::PlainObjectBase<Eigen::MatrixXf>&, \
+	const Eigen::Matrix<float, 1, 3>&, const Eigen::Matrix<float, 1, 3>&, const float, const bool);
+template bool interpolateToLine<Eigen::MatrixXd, double>(Eigen::PlainObjectBase<Eigen::MatrixXd>&, \
+	const Eigen::Matrix<double, 1, 3>&, const Eigen::Matrix<double, 1, 3>&, const float, const bool);
+template bool interpolateToLine<Eigen::MatrixXd, float>(Eigen::PlainObjectBase<Eigen::MatrixXd>&, \
+	const Eigen::Matrix<float, 1, 3>&, const Eigen::Matrix<float, 1, 3>&, const float, const bool);
+template bool interpolateToLine<Eigen::MatrixXf, double>(Eigen::PlainObjectBase<Eigen::MatrixXf>&, \
+	const Eigen::Matrix<double, 1, 3>&, const Eigen::Matrix<double, 1, 3>&, const float, const bool);
 
-template bool getLoopEdges(Eigen::PlainObjectBase<Eigen::MatrixXi>& edges, const int versCount);
-template bool getLoopEdges(Eigen::PlainObjectBase<Eigen::MatrixXi>& edges, const unsigned versCount);
+template bool getCircleVers(Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, const unsigned versCount);
+template bool getCircleVers(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, const unsigned versCount);
+
+template bool getEdges<Eigen::MatrixXi>(Eigen::MatrixXi&, const Eigen::PlainObjectBase<Eigen::MatrixXi>&);
+
+template bool getLoopEdges<Eigen::MatrixXi, int>(Eigen::PlainObjectBase<Eigen::MatrixXi>&, const int);
+template bool getLoopEdges<Eigen::MatrixXi, unsigned>(Eigen::PlainObjectBase<Eigen::MatrixXi>&, const unsigned);
+
+template bool cotLaplacian<float, Eigen::MatrixXf>(Eigen::SparseMatrix<float>&, \
+	const Eigen::PlainObjectBase<Eigen::MatrixXf>&, const Eigen::MatrixXi&);
+template bool cotLaplacian<double, Eigen::MatrixXd>(Eigen::SparseMatrix<double>&, \
+	const Eigen::PlainObjectBase<Eigen::MatrixXd>&, const Eigen::MatrixXi&);
+template bool cotLaplacian<float, Eigen::MatrixXd>(Eigen::SparseMatrix<float>&, \
+	const Eigen::PlainObjectBase<Eigen::MatrixXd>&, const Eigen::MatrixXi&);
+template bool cotLaplacian<double, Eigen::MatrixXf>(Eigen::SparseMatrix<double>&, \
+	const Eigen::PlainObjectBase<Eigen::MatrixXf>&, const Eigen::MatrixXi&);
+
+template bool laplaceFaring<Eigen::MatrixXf, Eigen::MatrixXf>(\
+	Eigen::PlainObjectBase<Eigen::MatrixXf>&, const Eigen::PlainObjectBase<Eigen::MatrixXf>&, \
+	const Eigen::MatrixXi&, const float, const unsigned, const std::vector<int>&);
+template bool laplaceFaring<Eigen::MatrixXd, Eigen::MatrixXd>(\
+	Eigen::PlainObjectBase<Eigen::MatrixXd>&, const Eigen::PlainObjectBase<Eigen::MatrixXd>&, \
+	const Eigen::MatrixXi&, const float, const unsigned, const std::vector<int>&);
+template bool laplaceFaring<Eigen::MatrixXd, Eigen::MatrixXf>(\
+	Eigen::PlainObjectBase<Eigen::MatrixXd>&, const Eigen::PlainObjectBase<Eigen::MatrixXf>&, \
+	const Eigen::MatrixXi&, const float, const unsigned, const std::vector<int>&);
+template bool laplaceFaring<Eigen::MatrixXf, Eigen::MatrixXd>(\
+	Eigen::PlainObjectBase<Eigen::MatrixXf>&, const Eigen::PlainObjectBase<Eigen::MatrixXd>&, \
+	const Eigen::MatrixXi&, const float, const unsigned, const std::vector<int>&);
  

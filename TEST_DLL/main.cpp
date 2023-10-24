@@ -242,11 +242,38 @@ namespace TEST_MYDLL
 }
 
 
+namespace TEST_JAW_PALATE 
+{
+	// 读取上下底面拟合曲线，生成胚子
+	void test0() 
+	{
+		Eigen::MatrixXd versLoopUpper, versLoopLower, versOut;
+		Eigen::MatrixXi trisOut;
+		readOBJ(versLoopUpper, "E:/颌板/curveFitUpper.obj");
+		readOBJ(versLoopLower, "E:/颌板/curveFitLower.obj");
+		debugWriteVers("versInput1", versLoopUpper);
+		debugWriteVers("versInput2", versLoopLower);
+
+		genCylinder(versOut, trisOut, versLoopUpper, versLoopLower, Eigen::RowVector3f(0, 0, 1), Eigen::RowVector3f(0, 0, -1), 3, 1, true);
+		debugWriteMesh("meshOut", versOut, trisOut);
+
+		Eigen::MatrixXf versUpperMesh, versLowerMesh;
+		Eigen::MatrixXi trisUpperMesh, trisLowerMesh;
+		circuit2mesh(versUpperMesh, trisUpperMesh, versLoopUpper, Eigen::RowVector3f(0, 0, 1), 1);
+		circuit2mesh(versLowerMesh, trisLowerMesh, versLoopLower, Eigen::RowVector3f(0, 0, 1), 1);
+		debugWriteMesh("meshUpper", versUpperMesh, trisUpperMesh);
+		debugWriteMesh("meshLower", versLowerMesh, trisLowerMesh);
+
+		debugDisp("finished.");
+	}
+
+}
+
 
 int main(int argc, char** argv)
 {
-	TEST_MYDLL::test66();
-
+	// TEST_MYDLL::test66();
+	TEST_JAW_PALATE::test0();
 
 	debugDisp("main() finished.");
 

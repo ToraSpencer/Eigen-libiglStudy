@@ -178,7 +178,6 @@ void traverseSparseMatrix(spMat& sm, F f)
 }
 
 
-
 // 二维笛卡尔坐标转换为极坐标；
 template <typename T>
 std::pair<double, double> cart2polar(const T x, const T y);
@@ -258,9 +257,37 @@ bool vecInsertNum(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec, const T num);
 template<typename T>
 bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix<T, Eigen::Dynamic, 1>& vec2);
  
-// 矩阵尾后插入行
+
+// 矩阵末尾插入矩阵/行向量：
 template <typename Derived1, typename Derived2>
-bool matInsertRows(Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& mat1);
+bool matInsertRows(Eigen::PlainObjectBase<Derived1>& mat, \
+	const Eigen::PlainObjectBase<Derived2>& mat1)
+{
+	assert((0 == mat.cols()) || (mat.cols() == mat1.cols()), "Error!!! Matrix size not match.");
+	unsigned cols = mat1.cols();
+	unsigned currentRows = mat.rows();
+	unsigned addRows = mat1.rows();
+	mat.conservativeResize(currentRows + addRows, cols);
+	for (unsigned i = 0; i < addRows; ++i)
+		mat.row(currentRows + i) = mat1.row(i);
+
+	return true;
+}
+
+
+template <typename Derived, typename Scalar, int N>
+bool matInsertRows(Eigen::PlainObjectBase<Derived>& mat, \
+	const Eigen::Matrix<Scalar, 1, N>& rVec)
+{
+	using ScalarO = typename Derived::Scalar;
+	assert((0 == mat.cols()) || (mat.cols() == rVec.cols()), "Error!!! Matrix size not match.");
+	unsigned cols = rVec.cols();
+	unsigned currentRows = mat.rows(); 
+	mat.conservativeResize(currentRows + 1, cols);
+	mat.row(currentRows) = rVec.array().cast<ScalarO>();
+
+	return true;
+}
  
 // 
 template <typename Derived1, typename Derived2>

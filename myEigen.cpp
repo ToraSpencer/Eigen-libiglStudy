@@ -610,6 +610,30 @@ namespace TEST_MYEIGEN_PMP
 	}
 
 
+	// 测试laplace光顺：
+	void test1() 
+	{
+		Eigen::MatrixXd versIn, versOut;
+		Eigen::MatrixXi trisIn;
+		objReadMeshMat(versIn, trisIn, "E:/材料/surfMeshNotSmooth.obj");
+		debugWriteMesh("meshIn", versIn, trisIn);
+
+		const float lambda = 0.1;
+		const int iterCount = 50;
+		std::vector<int> fixedVerIdxes(300);			// 前300个点是边缘点；
+		for (int i = 0; i < 300; ++i)
+			fixedVerIdxes[i] = i;
+		bool ret = laplaceFaring(versOut, versIn, trisIn, lambda,  iterCount, fixedVerIdxes);
+		if (!ret)
+		{
+			debugDisp("error!!! laplace faring failed.");
+			return;
+		}
+
+		debugWriteMesh("meshOut", versOut, trisIn);
+
+		debugDisp("finished.");
+	}
 }
 
 

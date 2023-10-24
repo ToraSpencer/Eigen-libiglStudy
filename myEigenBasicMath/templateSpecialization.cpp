@@ -308,31 +308,7 @@ template bool vecInsertNum(Eigen::Matrix<double, Eigen::Dynamic, 1>& vec, const 
 template bool vecInsertVec(Eigen::Matrix<int, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix<int, Eigen::Dynamic, 1>& vec2);
 template bool vecInsertVec(Eigen::Matrix<float, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix<float, Eigen::Dynamic, 1>& vec2);
 template bool vecInsertVec(Eigen::Matrix<double, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix<double, Eigen::Dynamic, 1>& vec2);
-  
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXi>& mat, const Eigen::PlainObjectBase<Eigen::MatrixXi>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXi>& mat, const Eigen::PlainObjectBase<Eigen::Matrix2i>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXi>& mat, const Eigen::PlainObjectBase<Eigen::Matrix3i>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXi>& mat, const Eigen::PlainObjectBase<Eigen::Matrix4i>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXi>& mat, const Eigen::PlainObjectBase<Eigen::RowVectorXi>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXi>& mat, const Eigen::PlainObjectBase<Eigen::RowVector2i>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXi>& mat, const Eigen::PlainObjectBase<Eigen::RowVector3i>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXi>& mat, const Eigen::PlainObjectBase<Eigen::RowVector4i>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXf>& mat, const Eigen::PlainObjectBase<Eigen::MatrixXf>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXf>& mat, const Eigen::PlainObjectBase<Eigen::Matrix2f>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXf>& mat, const Eigen::PlainObjectBase<Eigen::Matrix3f>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXf>& mat, const Eigen::PlainObjectBase<Eigen::Matrix4f>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXf>& mat, const Eigen::PlainObjectBase<Eigen::RowVectorXf>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXf>& mat, const Eigen::PlainObjectBase<Eigen::RowVector2f>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXf>& mat, const Eigen::PlainObjectBase<Eigen::RowVector3f>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXf>& mat, const Eigen::PlainObjectBase<Eigen::RowVector4f>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXd>& mat, const Eigen::PlainObjectBase<Eigen::MatrixXd>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXd>& mat, const Eigen::PlainObjectBase<Eigen::Matrix2d>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXd>& mat, const Eigen::PlainObjectBase<Eigen::Matrix3d>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXd>& mat, const Eigen::PlainObjectBase<Eigen::Matrix4d>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXd>& mat, const Eigen::PlainObjectBase<Eigen::RowVectorXd>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXd>& mat, const Eigen::PlainObjectBase<Eigen::RowVector2d>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXd>& mat, const Eigen::PlainObjectBase<Eigen::RowVector3d>& mat1);
-template bool matInsertRows(Eigen::PlainObjectBase<Eigen::MatrixXd>& mat, const Eigen::PlainObjectBase<Eigen::RowVector4d>& mat1);
+
 
 template Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Eigen::MatrixXi>& mat, \
 	const Eigen::PlainObjectBase<Eigen::RowVectorXi>& rowVec);

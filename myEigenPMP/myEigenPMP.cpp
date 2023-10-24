@@ -4,7 +4,8 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////// 表象转换接口：
 
 template <typename DerivedI>
-void edges2mat(Eigen::PlainObjectBase<DerivedI>& mat, const std::vector<std::pair<int, int>>& edges)
+void edges2mat(Eigen::PlainObjectBase<DerivedI>& mat, \
+	const std::vector<std::pair<int, int>>& edges)
 {
 	mat.resize(edges.size(), 2);
 	for (unsigned i = 0; i < edges.size(); ++i)
@@ -97,6 +98,126 @@ std::vector<int> decodeTrianagle(const std::uint64_t code)
 }
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////// 生成基础图元：
+
+// 输入起点、终点、空间采样率，插值生成一条直线点云；
+template <typename DerivedVo, typename ScalarVi>
+bool interpolateToLine(Eigen::PlainObjectBase<DerivedVo>& vers, \
+	const Eigen::Matrix<ScalarVi, 1, 3>& start, const Eigen::Matrix<ScalarVi, 1, 3>& end, \
+	const float SR, const bool SE)
+{
+	if (vers.rows() > 0)
+		return false;
+
+	Eigen::RowVector3d startD = start.array().cast<double>();
+	Eigen::RowVector3d endD = end.array().cast<double>();
+	Eigen::RowVector3d dir = endD - startD;
+	float length = dir.norm();
+	dir.normalize();
+	if (length <= SR)
+		return true;
+
+	if (SE)
+		matInsertRows(vers, startD);
+
+	float lenth0 = 0;
+	for (unsigned i = 1; (length - lenth0) > 0.8 * SR; i++)			// 确保最后一个点距离终点不能太近。
+	{
+		Eigen::RowVector3d temp = startD + SR * i * dir;
+		matInsertRows(vers, temp);
+		lenth0 = SR * (i + 1);		// 下一个temp的长度。
+	}
+
+	if (SE)
+		matInsertRows(vers, endD);
+
+	return true;
+};
+
+
+// 生成XOY平面内的圆圈点集：
+template <typename T>
+bool getCircleVers(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, \
+	const unsigned versCount)
+{
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	double deltaTheta = 2 * pi / versCount;
+	vers.resize(versCount, 3);
+	vers.setZero();
+	for (unsigned i = 0; i < versCount; ++i)
+	{
+		double theta = deltaTheta * i;
+		vers(i, 0) = radius * cos(theta);
+		vers(i, 1) = radius * sin(theta);
+	}
+
+	return true;
+}
+
+
+// 对环路点集进行不插点三角剖分——手动缝合方法； 
+bool circuitGetTris(Eigen::MatrixXi& tris, const std::vector<int>& indexes, const bool regularTri)
+{
+	/*
+		bool circuitGetTris(
+			Eigen::MatrixXi& tris								三角剖分生成的triangle soup
+			const std::vector<int>& indexes,			单个环路点集，顶点需要有序排列。
+			const bool regularTri								true——右手螺旋方向为生成面片方向；false——反向；
+			)
+
+	*/
+
+	int versCount = static_cast<int>(indexes.size());
+	if (versCount < 3)
+		return false;						// invalid input
+
+	// lambda——环路中的顶点索引转换；
+	auto getIndex = [versCount](const int index0) -> int
+	{
+		int index = index0;
+		if (index >= versCount)
+			while (index >= versCount)
+				index -= versCount;
+		else if (index < 0)
+			while (index < 0)
+				index += versCount;
+		return index;
+	};
+
+	tris.resize(versCount - 2, 3);
+	int count = 0;
+	int k = 0;
+	if (regularTri)
+	{
+		while (count < versCount - 2)
+		{
+			tris.row(count++) = Eigen::RowVector3i{ indexes[getIndex(-k - 1)], indexes[getIndex(-k)], indexes[getIndex(k + 1)] };
+			if (count == versCount - 2)
+				break;
+
+			tris.row(count++) = Eigen::RowVector3i{ indexes[getIndex(-k - 1)], indexes[getIndex(k + 1)], indexes[getIndex(k + 2)] };
+			k++;
+		}
+	}
+	else
+	{
+		while (count < versCount - 2)
+		{
+			tris.row(count++) = Eigen::RowVector3i{ indexes[getIndex(-k - 1)], indexes[getIndex(k + 1)], indexes[getIndex(-k)] };
+			if (count == versCount - 2)
+				break;
+
+			tris.row(count++) = Eigen::RowVector3i{ indexes[getIndex(-k - 1)], indexes[getIndex(k + 2)], indexes[getIndex(k + 1)] };
+			k++;
+		}
+	}
+
+	return true;
+}
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 图形属性：
  
@@ -135,8 +256,9 @@ bool getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedI>& tr
 
 
 // 生成环路的边数据；
-template <typename IndexType, typename DerivedI>
-bool getLoopEdges(Eigen::PlainObjectBase<DerivedI>& edges, const IndexType versCount)
+template <typename DerivedI, typename IndexType>
+bool getLoopEdges(Eigen::PlainObjectBase<DerivedI>& edges, \
+	const IndexType versCount)
 {
 	using Index = typename DerivedI::Scalar;							// 使用从属名称，需要加上"typename"前缀；
 	const int versCount0 = static_cast<int>(versCount);
@@ -154,5 +276,99 @@ bool getLoopEdges(Eigen::PlainObjectBase<DerivedI>& edges, const IndexType versC
 }
 
 
-// 模板特化输出：
+// 生成余切权的laplacian (同时也是刚度矩阵(stiffness matrix))——基于论文：Polygon Laplacian Made Simple [Bunge et al. 2020]
+template<typename Tl, typename DerivedV>
+bool cotLaplacian(Eigen::SparseMatrix<Tl>& L, \
+	const Eigen::PlainObjectBase<DerivedV>& vers, \
+	const Eigen::MatrixXi& tris)
+{
+	const unsigned versCount = vers.rows();
+	const unsigned trisCount = tris.rows();
+	L.resize(versCount, versCount);
+	L.reserve(10 * versCount);
+
+	Eigen::MatrixXi edges(3, 2);
+	edges << 1, 2, 2, 0, 0, 1;
+
+	// Gather cotangents
+	Eigen::Matrix<Tl, Eigen::Dynamic, Eigen::Dynamic> C;
+	trisCotValues(C, vers, tris);
+
+	std::vector<Eigen::Triplet<Tl> > IJV;
+	IJV.reserve(tris.rows() * edges.rows() * 4);
+
+	// Loop over triangles
+	for (int i = 0; i < tris.rows(); i++)
+	{
+		// loop over edges of element
+		for (int e = 0; e < edges.rows(); e++)
+		{
+			int source = tris(i, edges(e, 0));
+			int dest = tris(i, edges(e, 1));
+			IJV.push_back(Eigen::Triplet<Tl>(source, dest, C(i, e)));
+			IJV.push_back(Eigen::Triplet<Tl>(dest, source, C(i, e)));
+			IJV.push_back(Eigen::Triplet<Tl>(source, source, -C(i, e)));
+			IJV.push_back(Eigen::Triplet<Tl>(dest, dest, -C(i, e)));
+		}
+	}
+	L.setFromTriplets(IJV.begin(), IJV.end());
+
+	return true;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////// 图形编辑：
+
+// laplace光顺 
+template <typename DerivedVo, typename DerivedVi>
+bool laplaceFaring(Eigen::PlainObjectBase<DerivedVo>& versOut, \
+	const Eigen::PlainObjectBase<DerivedVi>& vers, \
+	const Eigen::MatrixXi& tris, const float deltaLB, const unsigned loopCount, \
+	const std::vector<int>& fixedVerIdxes)
+{
+	using ScalarO = typename DerivedVo::Scalar;
+	assert(3 == vers.cols() && "assert!!! Input mesh should be in 3-dimension space.");
+	const int versCount = vers.rows();
+	Eigen::SparseMatrix<ScalarO> I(versCount, versCount);
+	I.setIdentity();
+
+	// 1. 计算laplace矩阵：
+	Eigen::SparseMatrix<ScalarO> Lmat;
+	Eigen::Matrix<ScalarO, Eigen::Dynamic, Eigen::Dynamic> versCopy = vers.array().cast<ScalarO>();
+	cotLaplacian(Lmat, versCopy, tris);
+
+	// 
+	Eigen::Matrix<ScalarO, Eigen::Dynamic, Eigen::Dynamic> versFixed;
+	if (!fixedVerIdxes.empty())
+	{
+		const int versFixedCount = fixedVerIdxes.size();
+		int idxNew = 0;
+		versFixed.resize(versFixedCount, 3);
+		for (const auto& index : fixedVerIdxes)
+			versFixed.row(idxNew++) = versCopy.row(index);
+	}
+
+	// 2. 光顺的循环：
+	for (unsigned i = 0; i < loopCount; ++i)
+	{
+		// 2.1 ???
+		versOut = (I + deltaLB * Lmat) * versCopy;
+
+		// 2.2 固定不动的顶点拷贝回去：
+		if (!fixedVerIdxes.empty())
+		{
+			int idxNew = 0;
+			for (const auto& index : fixedVerIdxes)
+				versOut.row(index) = versFixed.row(idxNew++);
+		}
+
+		// 
+		versCopy = versOut;
+	}
+
+	return true;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////// 模板特化输出：
 #include "templateSpecialization.cpp"

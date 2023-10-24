@@ -20,7 +20,6 @@
 #include <windows.h>
  
 //#define USE_TRIANGLE_H
-
 #ifdef USE_TRIANGLE_H
 // 和algorithm工程一样，使用单精度；libigl库中封装的三角剖分使用的是双精度；
 #define ANSI_DECLARATORS
@@ -175,28 +174,21 @@ using namespace MY_DEBUG;
  
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 暂时不知道如何分类：
-template<typename Tv, typename Tl>
-bool cotLaplacian(Eigen::SparseMatrix<Tl>& L, const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris);
+
+namespace LAPLACIAN_MASS_MATRIX 
+{
+	template <typename DerivedVo, typename DerivedVi>
+	bool laplaceFaring_old(Eigen::PlainObjectBase<DerivedVo>& versOut, \
+		const Eigen::PlainObjectBase<DerivedVi>& vers, \
+		const Eigen::MatrixXi& tris, const float deltaLB, const unsigned loopCount);
+}
 
 
-// 生成质量矩阵：
-template <typename Tm, typename Tv>
-bool massMatrix_baryCentric(Eigen::SparseMatrix<Tm>& MM, const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers, \
-	const Eigen::MatrixXi& tris);
-
-
-// laplace光顺 
-template <typename T>
-bool laplaceFaring(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, \
-	const float deltaLB, const unsigned loopCount);
-
-
+// 图像的线性空域滤波
 template<typename T>
 bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOut, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matIn, const Eigen::MatrixXd& mask);
 
- 
 
 
 // class——方向包围盒类OBB（本质上是中点在原点的AABB加上一个仿射变换）；

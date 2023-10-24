@@ -363,23 +363,7 @@ bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix
 	return true;
 }
 
-
-// 矩阵末尾插入矩阵/行向量：
-template <typename Derived1, typename Derived2>
-bool matInsertRows(Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& mat1)
-{
-	assert((0 == mat.cols())||(mat.cols() == mat1.cols()), "Error!!! Matrix size not match.");
-	unsigned cols = mat1.cols();
-	unsigned currentRows = mat.rows();
-	unsigned addRows = mat1.rows();
-	mat.conservativeResize(currentRows + addRows, cols);
-	for (unsigned i = 0; i < addRows; ++i)
-		mat.row(currentRows + i) = mat1.row(i);
-
-	return true;
-}
-
-
+ 
 // 返回一个flag列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；
 template <typename Derived1, typename Derived2>
 Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& rowVec)

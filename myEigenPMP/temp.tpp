@@ -230,10 +230,13 @@ bool trianglesBarycenter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& barys
 
 
 // 计算网格所有三角片的归一化法向量
-template<typename T, typename DerivedV, typename DerivedI>
-bool trianglesNorm(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& triNorms, const Eigen::PlainObjectBase<DerivedV>& vers, \
+template<typename DerivedN, typename DerivedV, typename DerivedI>
+bool trianglesNorm(Eigen::PlainObjectBase<DerivedN>& triNorms,\
+	const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris)
 {
+	using ScalarN = typename DerivedN::Scalar;
+
 	const double eps = 1e-12;
 	int versCount = vers.rows();
 	int trisCount = tris.rows();
@@ -253,7 +256,7 @@ bool trianglesNorm(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& triNorms, c
 		vc = vers.row(vcIdx).array().cast<double>();
 		arrow1 = vb - va;
 		arrow2 = vc - va;
-		triNorms.row(i) = (arrow1.cross(arrow2)).array().cast<T>();
+		triNorms.row(i) = (arrow1.cross(arrow2)).array().cast<ScalarN>();
 	}
 
 	// 法向量归一化，若存在退化三角片，则写为inf
@@ -262,10 +265,10 @@ bool trianglesNorm(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& triNorms, c
 		double length = triNorms.row(i).norm();
 		if (abs(length) < eps)
 		{
-			triNorms.row(i) = Eigen::Matrix<T, 1, 3>{ INFINITY, INFINITY, INFINITY };
+			triNorms.row(i) = Eigen::Matrix<ScalarN, 1, 3>{ INFINITY, INFINITY, INFINITY };
 			continue;
 		}
-		Eigen::Matrix<T, 1, 3> tmpVec = triNorms.row(i) / length;
+		Eigen::Matrix<ScalarN, 1, 3> tmpVec = triNorms.row(i) / length;
 		triNorms.row(i) = tmpVec;
 	}
 
@@ -308,14 +311,17 @@ bool trianglesPlane(Eigen::MatrixXd& planeCoeff, const Eigen::PlainObjectBase<De
 
 
 // 计算三角网格每个三角片的面积：
-template<typename Scalar, typename Ta, typename DerivedI>
-bool trisArea(Eigen::Matrix<Ta, Eigen::Dynamic, 1>& trisAreaVec, const Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+template<typename DerivedA, typename DerivedV, typename DerivedI>
+bool trisArea(Eigen::PlainObjectBase<DerivedA>& trisAreaVec, const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::MatrixBase<DerivedI>& tris)
 {
-	const unsigned versCount = vers.rows();
-	const unsigned trisCount = tris.rows();
-	Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> vas, vbs, vcs, arrows1, arrows2, arrows3;
-	Eigen::VectorXd lens1, lens2, lens3, s;
+	using ScalarA = typename DerivedA::Scalar;
+	using ScalarV = typename DerivedV::Scalar;
+
+	const int versCount = vers.rows();
+	const int trisCount = tris.rows();
+	Eigen::Matrix<ScalarV, Eigen::Dynamic, Eigen::Dynamic> vas, vbs, vcs, arrows1, arrows2, arrows3;
+	Eigen::Matrix<ScalarV, Eigen::Dynamic, 1> lens1, lens2, lens3, s;
 	Eigen::VectorXi vaIdxes = tris.col(0);
 	Eigen::VectorXi vbIdxes = tris.col(1);
 	Eigen::VectorXi vcIdxes = tris.col(2);
@@ -326,15 +332,15 @@ bool trisArea(Eigen::Matrix<Ta, Eigen::Dynamic, 1>& trisAreaVec, const Eigen::Ma
 	arrows1 = vbs - vas;
 	arrows2 = vcs - vas;
 	arrows3 = vbs - vcs;
-	lens1 = arrows1.rowwise().norm().cast<double>();
-	lens2 = arrows2.rowwise().norm().cast<double>();
-	lens3 = arrows3.rowwise().norm().cast<double>();
+	lens1 = arrows1.rowwise().norm();
+	lens2 = arrows2.rowwise().norm();
+	lens3 = arrows3.rowwise().norm();
 	s = (lens1 + lens2 + lens3) / 2.0;				// 三角片周长的一半；
 
 	// 使用Heron公式计算三角片面积:
-	Eigen::VectorXd tmpVec = s.array() * (s - lens1).array() * (s - lens2).array() * (s - lens3).array();
+	Eigen::Matrix<ScalarV, Eigen::Dynamic, 1> tmpVec = s.array() * (s - lens1).array() * (s - lens2).array() * (s - lens3).array();
 	tmpVec = tmpVec.cwiseSqrt();
-	trisAreaVec = tmpVec.array().cast<Ta>();
+	trisAreaVec = tmpVec.array().cast<ScalarA>();
 
 	return true;
 }
@@ -354,18 +360,20 @@ void edge_lengths(Eigen::PlainObjectBase<DerivedL>& lenMat, const Eigen::Matrix<
 }
 
 
-template <typename Tv, typename DerivedF, typename DerivedL>
-void squared_edge_lengths(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers,
-	const Eigen::MatrixBase<DerivedF>& tris, Eigen::PlainObjectBase<DerivedL>& lenMat2)
+template <typename DerivedV, typename DerivedF, typename DerivedL>
+void squared_edge_lengths(Eigen::PlainObjectBase<DerivedL>& lenMat2, \
+	const Eigen::PlainObjectBase<DerivedV>& vers,
+	const Eigen::MatrixBase<DerivedF>& tris)
 {
+	using ScalarL = typename DerivedL::Scalar;
 	const int trisCount = tris.rows();
 
 	lenMat2.resize(trisCount, 3);
 	PARALLEL_FOR(0, trisCount, [&vers, &tris, &lenMat2](const int i)
 		{
-			lenMat2(i, 0) = (vers.row(tris(i, 1)) - vers.row(tris(i, 2))).squaredNorm();
-			lenMat2(i, 1) = (vers.row(tris(i, 2)) - vers.row(tris(i, 0))).squaredNorm();
-			lenMat2(i, 2) = (vers.row(tris(i, 0)) - vers.row(tris(i, 1))).squaredNorm();
+			lenMat2(i, 0) = static_cast<ScalarL>((vers.row(tris(i, 1)) - vers.row(tris(i, 2))).squaredNorm());
+			lenMat2(i, 1) = static_cast<ScalarL>((vers.row(tris(i, 2)) - vers.row(tris(i, 0))).squaredNorm());
+			lenMat2(i, 2) = static_cast<ScalarL>((vers.row(tris(i, 0)) - vers.row(tris(i, 1))).squaredNorm());
 		});
 }
 
@@ -554,18 +562,21 @@ bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, std::vector<int>& bdryTr
 
 
 // 计算网格中三角片三个角的余切值；
-template <typename Tv, typename Tl>
-void trisCotValues(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers,
-	const Eigen::MatrixXi& tris, Eigen::Matrix<Tl, Eigen::Dynamic, Eigen::Dynamic>& cotValues)
+template <typename DerivedC, typename DerivedV>
+void trisCotValues(Eigen::PlainObjectBase<DerivedC>& cotValues, \
+	const Eigen::PlainObjectBase<DerivedV>& vers,
+	const Eigen::MatrixXi& tris)
 {
+	using ScalarC = typename DerivedC::Scalar;
+
 	// 1/2*cotangents corresponding angles. for triangles, columns correspond to edges bc, ca, ab;
 	const int trisCount = tris.rows();
 
 	// 计算每个三角片的面积的两倍：
-	Eigen::Matrix<Tl, Eigen::Dynamic, 3> lenMat2;
-	Eigen::Matrix<Tl, Eigen::Dynamic, 3> lenMat;
-	Eigen::Matrix<Tl, Eigen::Dynamic, 1> dblA;
-	squared_edge_lengths(vers, tris, lenMat2);
+	Eigen::Matrix<ScalarC, Eigen::Dynamic, 3> lenMat2;
+	Eigen::Matrix<ScalarC, Eigen::Dynamic, 3> lenMat;
+	Eigen::Matrix<ScalarC, Eigen::Dynamic, 1> dblA;
+	squared_edge_lengths(lenMat2, vers, tris);
 	lenMat = lenMat2.array().sqrt();
 	trisArea(dblA, vers, tris);
 	dblA.array() *= 2;
@@ -577,7 +588,6 @@ void trisCotValues(const Eigen::Matrix<Tv, Eigen::Dynamic, Eigen::Dynamic>& vers
 		cotValues(i, 2) = (lenMat2(i, 0) + lenMat2(i, 1) - lenMat2(i, 2)) / dblA(i) / 4.0;
 	}
 }
-
 
 
 // buildAdjacency()——计算网格的三角片邻接信息：
@@ -2478,7 +2488,6 @@ bool simplyConnectedSplitMesh(std::vector<Eigen::Matrix<T, Eigen::Dynamic, Eigen
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 网格缺陷检查和修复
 
-
 template <typename DerivedI>
 void findRepTris(std::vector<int>& repIdxes, const Eigen::PlainObjectBase<DerivedI>& tris)
 {
@@ -2645,7 +2654,6 @@ int findOverLapTris(std::vector<std::pair<int, int>>& opTrisPairs, const Eigen::
 
 	return olCount;
 }
-
 
 
 // 求三角网格中的非流形有向边；若某条有向边重复次数大于1，则该边及其对边都被判定为非流形边；
@@ -3027,6 +3035,7 @@ int correctTriDirs(Eigen::PlainObjectBase<DerivedI>& trisOut, const Eigen::Plain
 	return corrCount;
 }
 
+
 // 补洞——不插点，直接对洞进行三角剖分： 
 template <typename IndexType>
 bool fillSmallHoles(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& newTris, \
@@ -3046,7 +3055,7 @@ bool fillSmallHoles(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& ne
 		if (holes[i].size() < 3)				// invalid input;
 			return false;
 
-		Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic> currentNewTris;
+		Eigen::MatrixXi currentNewTris;
 		if (!circuitGetTris(currentNewTris, holes[i], true))
 			return false;
 		matInsertRows(newTris, currentNewTris);

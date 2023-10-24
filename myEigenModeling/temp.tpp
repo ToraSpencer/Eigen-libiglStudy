@@ -1,7 +1,6 @@
  
 ///////////////////////////////////////////////////////////////////////////////////////////////////// modeling接口：
   
-
 #ifdef USE_TRIANGLE_H
 
 // genCylinder()重载1——生成（类）柱体：
@@ -307,33 +306,21 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 
  
 // genCylinder()重载5——输入上底面和下底面的3D边界环路 ，生成柱体：
-template <typename T, typename DerivedVt, typename DerivedVb>
-bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::PlainObjectBase<DerivedVt>& topLoop, const Eigen::PlainObjectBase<DerivedVb>& btmLoop, \
-	const int layersCount, const bool isCovered)
+template <typename DerivedVo, typename DerivedVt, typename DerivedVb, typename ScalarN>
+bool genCylinder(Eigen::PlainObjectBase<DerivedVo>& vers, 	Eigen::MatrixXi& tris, \
+	const Eigen::PlainObjectBase<DerivedVt>& topLoop, \
+	const Eigen::PlainObjectBase<DerivedVb>& btmLoop, \
+	const Eigen::Matrix<ScalarN, 1, 3>& topNorm,\
+	const Eigen::Matrix<ScalarN, 1, 3>& btmNorm, \
+	const int layersCount, const float maxArea, const bool isCovered)
 {
-	/*
-		bool genCylinder(
-				Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers,		输出网格点云
-				Eigen::MatrixXi& tris,																	输出网格三角片
-				const Eigen::PlainObjectBase<DerivedVt>& topLoop,				上底面边界回路
-				const Eigen::PlainObjectBase<DerivedVb>& btmLoop,				下表面边界回路
-				const int layersCount,																	层数
-				const bool isCovered																	是否封底
-				)
-		注：要求上下底面边界环路顶点数需要相同；
-				   要求上底面边界回路生长方向的右手螺旋方向平行于上底面法向；下底面相反；
-				   即当柱体为竖直的圆柱时，上下底面回路右手螺旋方向相同；
-			  layersCount决定了柱体被回路顶点分成了多少层
-					最小为1，即在上下底面之间不插点
-					上下底面之间插的回路顶点圈数为(layersCount - 1);
-	*/
-	assert(btmLoop.rows() == topLoop.rows(), "assert!!! topLoop and btmLoop should have the same amount of vertices.");
-	assert(layersCount > 0, "assert!!! layersCount should be a positive integer.");
+	assert(btmLoop.rows() == topLoop.rows() && "assert!!! topLoop and btmLoop should have the same amount of vertices.");
+	assert(layersCount > 0 && "assert!!! layersCount should be a positive integer.");
 
-	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
-	using Matrix3T = Eigen::Matrix<T, 3, 3>;
-	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+	using ScalarO = typename DerivedVo::Scalar;
+	using MatrixXO = Eigen::Matrix<ScalarO, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3O = Eigen::Matrix<ScalarO, 3, 3>;
+	using RowVector3O = Eigen::Matrix<ScalarO, 1, 3>;
 
 	// lambda——柱体侧面的三角片生长，会循环调用，调用一次生长一层；
 	auto growSurf = [](Eigen::MatrixXi& sideTris, const int circVersCount)->bool
@@ -357,34 +344,30 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 		}
 
 		return true;
-	};
+	}; 
 
-	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
-	using Matrix3T = Eigen::Matrix<T, 3, 3>;
-	using RowVector3T = Eigen::Matrix<T, 1, 3>;
-
-	int circVersCount = topLoop.rows();					// 一圈横截面环路的顶点数；
+	int circVersCount = topLoop.rows();							// 一圈横截面环路的顶点数；
 	int circCount = 2 + layersCount - 1;							// 圈数；
 	int versCount = circVersCount * circCount;
-	std::vector<MatrixXT> circuitsVec(circCount);							// 每个横截面的一圈顶点；
-	std::vector<RowVector3T> sectionNorms(circCount);				// 每个横截面的法向；
+	std::vector<MatrixXO> circuitsVec(circCount);							// 每个横截面的一圈顶点；
+	std::vector<RowVector3O> sectionNorms(circCount);				// 每个横截面的法向；
 
 	// 1. 计算每个横截面的环路点集——从底向上，中间的环路顶点应该是从底环路到顶环路的过渡；
-	MatrixXT topLoopCast, btmLoopCast;
+	MatrixXO topLoopCast, btmLoopCast;
 	for (auto& mat : circuitsVec)
 		mat.resize(circVersCount, 3);
-	topLoopCast.array() = topLoop.array().cast < T>();
-	btmLoopCast.array() = btmLoop.array().cast < T>();
+	topLoopCast.array() = topLoop.array().cast<ScalarO>();
+	btmLoopCast.array() = btmLoop.array().cast<ScalarO>();
 	circuitsVec.begin()->array() = btmLoopCast;
 	circuitsVec.rbegin()->array() = topLoopCast;
 
 	// 2. 生成中间插入的回路顶点：
 	if (circCount > 2)
 	{
-		MatrixXT arrowSegs(circVersCount, 3);
+		MatrixXO arrowSegs(circVersCount, 3);
 		for (int i = 0; i < circVersCount; ++i)
 		{
-			RowVector3T arrow = topLoopCast.row(i) - btmLoopCast.row(i);
+			RowVector3O arrow = topLoopCast.row(i) - btmLoopCast.row(i);
 			arrowSegs.row(i) = arrow / layersCount;
 		}
 		for (int i = 1; i < circCount - 1; ++i)
@@ -403,17 +386,43 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 	// 5. 加盖： 
 	if (isCovered)
 	{
-		MatrixXT capVersTop, capVersBtm;
+		// 5.1 上下底面环路进行插点的三角剖分，生成曲面网格；
+		MatrixXO capVersTop, capVersBtm;
 		Eigen::MatrixXi capTrisTop, capTrisBtm;
-		circuit2mesh(capVersTop, capTrisTop, topLoopCast);
-		circuit2mesh(capVersBtm, capTrisBtm, btmLoopCast);
+		circuit2mesh(capVersTop, capTrisTop, topLoopCast, topNorm, maxArea);
+		circuit2mesh(capVersBtm, capTrisBtm, btmLoopCast, Eigen::Matrix<ScalarN, 1, 3>{-btmNorm}, maxArea);
+
+		// 5.2 下表面三角片反向：
 		for (int i = 0; i < capTrisBtm.rows(); ++i)
 		{
 			int tmp = capTrisBtm(i, 2);
 			capTrisBtm(i, 2) = capTrisBtm(i, 1);
 			capTrisBtm(i, 1) = tmp;
 		}
-		capTrisTop.array() += versCount - circVersCount;
+
+		// 5.3 输出网格点云中插入新生成的顶点：
+		const int newCircVersCount1 = capVersTop.rows() - circVersCount;		// 上表面三角剖分时新加入的顶点数；
+		const int newCircVersCount2 = capVersBtm.rows() - circVersCount;			
+		MatrixXO newVersTop = capVersTop.bottomRows(newCircVersCount1);
+		MatrixXO newVersBtm = capVersBtm.bottomRows(newCircVersCount2);
+		matInsertRows(vers, newVersTop);
+		matInsertRows(vers, newVersBtm);
+
+		// 5.4 新生成的三角片数据附加偏移量：
+		int* idxPtr = nullptr;
+		int offSet = 0;
+		offSet = versCount - circVersCount;
+		capTrisTop.array() += offSet;
+		idxPtr = capTrisBtm.data();
+		offSet = versCount + newCircVersCount1 - circVersCount;
+		for (int i = 0; i < capTrisBtm.size(); ++i)
+		{
+			if ((*idxPtr) > circVersCount)
+				(*idxPtr) += offSet;
+			idxPtr++;
+		}
+
+		// 5.5 插入上下底面的三角片：
 		matInsertRows(tris, capTrisBtm);
 		matInsertRows(tris, capTrisTop);
 	}
@@ -540,14 +549,14 @@ bool genAlignedCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, 
 
 
 //	重载1：封闭边界线点集得到面网格，可以是平面也可以是曲面，不在网格内部插点，三角片尺寸不可控。
-template <typename T>
-bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circVers)
-{
-	using VectorXT = Eigen::Matrix<T, Eigen::Dynamic, 1>;
-	using RowVector3T = Eigen::Matrix<T, 1, 3>;
-	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
-	using Matrix3T = Eigen::Matrix<T, 3, 3>;
+template <typename DerivedO, typename DerivedC>
+bool circuit2mesh(Eigen::PlainObjectBase<DerivedO>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::PlainObjectBase<DerivedC>& circVers)
+{ 
+	using ScalarO = typename DerivedO::Scalar;
+	using RowVector3O = Eigen::Matrix<ScalarO, 1, 3>;
+	using Matrix3O = Eigen::Matrix<ScalarO, 3, 3>;
+	using MatrixXO = Eigen::Matrix<ScalarO, Eigen::Dynamic, Eigen::Dynamic>;
 
 	unsigned circCount = circVers.rows();
 	unsigned versCount = circVers.rows();
@@ -558,14 +567,14 @@ bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen:
 	// 输入triangulate()的点集是投影到XOY平面的二维点，原点集应该旋转到合适的角度再投影。
 
 	// 1. 取第一个点、1/3处的点、2/3处的点的所在平面的法向量作为原点集的法向量
-	RowVector3T vers1 = circVers.row(0);
-	RowVector3T vers2 = circVers.row(versCount / 3);
-	RowVector3T vers3 = circVers.row(2 * versCount / 3);
-	RowVector3T norm = (vers1 - vers2).cross(vers3 - vers2);
+	RowVector3O vers1 = circVers.row(0).array().cast<ScalarO>();
+	RowVector3O vers2 = circVers.row(versCount / 3).array().cast<ScalarO>();
+	RowVector3O vers3 = circVers.row(2 * versCount / 3).array().cast<ScalarO>();
+	RowVector3O norm = (vers1 - vers2).cross(vers3 - vers2);
 	norm.normalize();
 
 	//  2. 旋转点集使得norm平行于z轴
-	Matrix3T rotation = getRotationMat(norm, RowVector3T{ 0, 0, 1 });
+	Matrix3O rotation = getRotationMat(norm, RowVector3O{ 0, 0, 1 });
 	vers = (vers * rotation.transpose()).eval();
 
 	// 3. 旋转后的点数据写入到triangulate()接口的输入结构体中。
@@ -605,8 +614,7 @@ bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen:
 	// 4. 执行二维三角剖分，得到输出网格三角片数据，不取顶点坐标数据，顶点坐标数据使用旋转操作前的。
 	char triStr[256] = "pY";
 	triangulate(triStr, &triIn, &triOut, NULL);
-	tris.resize(3, triOut.numberoftriangles);
-	MatrixXT norms(versCount, 3);
+	tris.resize(3, triOut.numberoftriangles); 
 	std::memcpy(tris.data(), triOut.trianglelist, sizeof(int) * 3 * triOut.numberoftriangles);
 	tris.transposeInPlace();
 	tris.array() -= 1;
@@ -616,12 +624,13 @@ bool circuit2mesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen:
 
 
 // 重载2：会在回路内部插点，三角片面积上限由参数maxTriArea决定；
-template <typename DerivedV, typename DerivedL, typename T>
+template <typename DerivedV, typename DerivedL, typename DerivedN>
 bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::PlainObjectBase<DerivedL>& versLoop, \
-	const Eigen::Matrix<T, 1, 3>& normDir, const float maxTriArea)
-{ 
+	const Eigen::PlainObjectBase<DerivedN>& normDir, const float maxTriArea)
+{  
 	using ScalarV = typename DerivedV::Scalar;
+	using ScalarN = typename DerivedN::Scalar;
 	const int versLoopCount = versLoop.rows();
 
 	// 1. 求一个仿射变换：
@@ -638,8 +647,12 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris,
 	affineInvHomo = affineHomo.inverse();
  
 	// 1. 插点的三角剖分：
-	Eigen::MatrixXf vers2D = versLoop0.transpose().topRows(2);
-	Eigen::MatrixXi edges2D(2, versLoopCount); 
+	Eigen::MatrixXf versLoopHomo0, versLoopHomo, versLoop0, vers2D;
+	Eigen::MatrixXi edges2D(2, versLoopCount);
+	vers2HomoVers(versLoopHomo, versLoop);
+	versLoopHomo0 = affineInvHomo * versLoopHomo;
+	homoVers2Vers(versLoop0, versLoopHomo0);
+	vers2D = versLoop0.transpose().topRows(2);
 	for (unsigned i = 0; i < versLoopCount; i++)
 	{
 		edges2D(0, i) = i + 1;
@@ -675,27 +688,30 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris,
 	triangulate(triStr, &triIn, &triOut, NULL);
 
 	// 2. 处理三角剖分后的结果；
-	Eigen::MatrixXf versOut, versOutHomo;
+	Eigen::MatrixXf versTmp, versTmpHomo;
 	const int versCount = triOut.numberofpoints;						// 插点后的网格的点数； 
-	versOut.resize(versCount, 3);
-	versOut.setZero();
+	versTmp.resize(versCount, 3);
+	versTmp.setZero();
 	for (size_t i = 0; i < versCount; i++)
 	{ 
-		versOut(i, 0) = triOut.pointlist[i * 2];
-		versOut(i, 1) = triOut.pointlist[i * 2 + 1];
+		versTmp(i, 0) = triOut.pointlist[i * 2];
+		versTmp(i, 1) = triOut.pointlist[i * 2 + 1];
 	}
-	vers2HomoVers(versOutHomo, versOut);
-	versOutHomo = (affineHomo * versOutHomo).eval();
-	homoVers2Vers(versOut, versOutHomo);	 	  
-	versOut.topRows(versLoopCount) = versLoop.array().cast<float>();
-	vers = versOut.array().cast<ScalarV>();
+	vers2HomoVers(versTmpHomo, versTmp);
+	versTmpHomo = (affineHomo * versTmpHomo).eval();
+	homoVers2Vers(versTmp, versTmpHomo);	 	  
+	versTmp.topRows(versLoopCount) = versLoop.array().cast<float>(); 
 	tris.resize(3, triOut.numberoftriangles);
 	std::memcpy(tris.data(), triOut.trianglelist, sizeof(int) * 3 * triOut.numberoftriangles);
 	tris.transposeInPlace();
 	tris.array() -= 1;
 
-	// 3. 此时网格内部是个平面，边界和输入边界线相同，需要在保持边界线的情形下光顺网格：
-
+	// 3. 此时网格内部是个平面，边界和输入边界线相同，需要在保持边界线的情形下光顺网格： 
+	std::vector<int> fixedVerIdxes(versLoopCount);
+	for (int i = 0; i < versLoopCount; ++i)
+		fixedVerIdxes[i] = i;
+	if (!laplaceFaring(vers, versTmp, tris, 0.1, 50, fixedVerIdxes))
+		return false;
 
 	return true;
 }

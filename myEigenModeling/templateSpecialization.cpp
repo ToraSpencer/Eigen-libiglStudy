@@ -5,16 +5,7 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////// Ä£°åÌØ»¯£º
 
-template bool interpolateToLine(Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::Matrix<float, 1, 3>& start, \
-	const Eigen::Matrix<float, 1, 3>& end, const float SR, const bool SE);
-template bool interpolateToLine(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::Matrix<double, 1, 3>& start, \
-	const Eigen::Matrix<double, 1, 3>& end, const float SR, const bool SE);
 
-template bool getCircleVers(Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, const unsigned versCount);
-template bool getCircleVers(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, const unsigned versCount);
-
-template bool circuitGetTris(Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic>& tris, \
-	const std::vector<int>& indexes, const bool regularTri);
 
 template void genCubeMesh(Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris);
 template void genCubeMesh(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris);
