@@ -244,36 +244,81 @@ namespace TEST_MYDLL
 
 namespace TEST_JAW_PALATE 
 {
-	// 读取上下底面拟合曲线，生成胚子
-	void test0() 
+
+	void step3() 
 	{
-		Eigen::MatrixXd versLoopUpper, versLoopLower, versOut;
-		Eigen::MatrixXi trisOut;
-		readOBJ(versLoopUpper, "E:/颌板/curveFitUpper.obj");
-		readOBJ(versLoopLower, "E:/颌板/curveFitLower.obj");
-		debugWriteVers("versInput1", versLoopUpper);
-		debugWriteVers("versInput2", versLoopLower);
+		// 1. 读取上下底面拟合曲线，生成胚子网格；
+		const int layersCount = 3;
+		const float maxTriArea = 1.0;
+		Eigen::MatrixXf versJawUpper, versJawLower;
+		Eigen::MatrixXi trisJawUpper, trisJawLower;
+		Eigen::MatrixXd versLoopUpper, versLoopLower, versPalate;
+		Eigen::MatrixXi trisPalate;
+		Eigen::RowVector3f upperPlaneNorm{ 0, 0, -1 };
+		Eigen::RowVector3f lowerPlaneNorm{ -0.0987428597222625, -0.123428574652828, 0.987428597222625 };
+		Eigen::RowVector3f topNorm = -upperPlaneNorm;
+		Eigen::RowVector3f btmNorm = -lowerPlaneNorm;
+		readSTL(versJawUpper, trisJawUpper, "E:/颌板/颌板示例/2/upper.stl");
+		readSTL(versJawLower, trisJawLower, "E:/颌板/颌板示例/2/lower.stl");
+		readOBJ(versLoopUpper, "G:\\gitRepositories\\matlabCode\\颌板\\data\\curveFitUpper2.obj");
+		readOBJ(versLoopLower, "G:\\gitRepositories\\matlabCode\\颌板\\data\\curveFitLower2.obj");
+		genCylinder(versPalate, trisPalate, versLoopUpper, versLoopLower,\
+				topNorm, btmNorm, layersCount, maxTriArea, true);
+		debugWriteMesh("meshPalate", versPalate, trisPalate);
 
-		genCylinder(versOut, trisOut, versLoopUpper, versLoopLower, Eigen::RowVector3f(0, 0, 1), Eigen::RowVector3f(0, 0, -1), 3, 1, true);
-		debugWriteMesh("meshOut", versOut, trisOut);
+		// for debug
+		{
+			Eigen::MatrixXd upperVers, lowerVers;
+			Eigen::MatrixXi upperTris, lowerTris;
+			circuit2mesh(upperVers, upperTris, versLoopUpper, topNorm, maxTriArea);
+			circuit2mesh(lowerVers, lowerTris, versLoopLower, btmNorm, maxTriArea);
+			debugWriteMesh("meshUpper", upperVers, upperTris);
+			debugWriteMesh("meshLower", lowerVers, lowerTris);
+		}
 
-		Eigen::MatrixXf versUpperMesh, versLowerMesh;
-		Eigen::MatrixXi trisUpperMesh, trisLowerMesh;
-		circuit2mesh(versUpperMesh, trisUpperMesh, versLoopUpper, Eigen::RowVector3f(0, 0, 1), 1);
-		circuit2mesh(versLowerMesh, trisLowerMesh, versLoopLower, Eigen::RowVector3f(0, 0, 1), 1);
-		debugWriteMesh("meshUpper", versUpperMesh, trisUpperMesh);
-		debugWriteMesh("meshLower", versLowerMesh, trisLowerMesh);
+
+		// 2. 读取颌网格，膨胀0.1mm, meshcross
+		{
+			Eigen::MatrixXd versCrossed;
+			Eigen::MatrixXf versJawNew;
+			Eigen::MatrixXi trisJawNew, trisCrossed;
+			SDF_RESULT sdfResult;
+			genSDF(sdfResult, versJawUpper, trisJawUpper, 0.3, 3);
+			marchingCubes(versJawNew, trisJawNew, sdfResult, 0.1);
+			meshCross(versCrossed, trisCrossed, versPalate, trisPalate, versJawNew, trisJawNew);
+
+			versPalate = versCrossed;
+			trisPalate = trisCrossed;
+			debugWriteMesh("meshCrossed1", versCrossed, trisCrossed);
+		}
+
+		{
+			Eigen::MatrixXd versCrossed;
+			Eigen::MatrixXf versJawNew;
+			Eigen::MatrixXi trisJawNew, trisCrossed;
+			SDF_RESULT sdfResult;
+			genSDF(sdfResult, versJawLower, trisJawLower, 0.3, 3);
+			marchingCubes(versJawNew, trisJawNew, sdfResult, 0.1);
+			meshCross(versCrossed, trisCrossed, versPalate, trisPalate, versJawNew, trisJawNew);
+			 
+			debugWriteMesh("meshOut", versCrossed, trisCrossed);
+		}
+
 
 		debugDisp("finished.");
 	}
 
+
 }
+
+
 
 
 int main(int argc, char** argv)
 {
 	// TEST_MYDLL::test66();
-	TEST_JAW_PALATE::test0();
+
+	TEST_JAW_PALATE::step3();
 
 	debugDisp("main() finished.");
 

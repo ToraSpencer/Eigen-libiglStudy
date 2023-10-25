@@ -562,7 +562,7 @@ namespace TEST_MYEIGEN_MODELING
 		axis.resize(0, 0);
 		objReadVerticesMat(topLoop, "G:\\gitRepositories\\matlabCode\\ò¢°å\\data/curveFitUpper.obj");
 		objReadVerticesMat(btmLoop, "G:\\gitRepositories\\matlabCode\\ò¢°å\\data/curveFitLower.obj");
-		genCylinder(cylinderVers, cylinderTris, topLoop, btmLoop, 5, true);
+		genCylinder(cylinderVers, cylinderTris, topLoop, btmLoop, Eigen::RowVector3f(0, 0, 1), Eigen::RowVector3f(0, 0, -1), 3, 1, true);
 		debugWriteMesh("pillar3", cylinderVers, cylinderTris);
 
 		std::cout << "finished." << std::endl;
@@ -576,6 +576,7 @@ namespace TEST_MYEIGEN_MODELING
 		Eigen::MatrixXi tris;
 
 		objReadVerticesMat(versLoop, "E:/²ÄÁÏ/loopPerturbed.obj");
+
 		Eigen::RowVector3d center = versLoop.colwise().mean();
 		versLoop2D = versLoop.rowwise() - center;
 		versLoop2D = versLoop2D.leftCols(2).eval();

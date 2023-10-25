@@ -417,7 +417,7 @@ bool genCylinder(Eigen::PlainObjectBase<DerivedVo>& vers, 	Eigen::MatrixXi& tris
 		offSet = versCount + newCircVersCount1 - circVersCount;
 		for (int i = 0; i < capTrisBtm.size(); ++i)
 		{
-			if ((*idxPtr) > circVersCount)
+			if ((*idxPtr) >= circVersCount)
 				(*idxPtr) += offSet;
 			idxPtr++;
 		}
