@@ -1277,7 +1277,7 @@ int main(int argc, char** argv)
 { 
 	// return testCmd_laplaceFaring(argc, argv);
 	
-	TEST_MYEIGEN_MODELING::test1();
+	TEST_MYEIGEN_MODELING::test2();
 
 	// TEST_MYEIGEN_PMP::test0();
 	 

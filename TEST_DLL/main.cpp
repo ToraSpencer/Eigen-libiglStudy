@@ -249,7 +249,7 @@ namespace TEST_JAW_PALATE
 	{
 		// 1. 读取上下底面拟合曲线，生成胚子网格；
 		const int layersCount = 3;
-		const float maxTriArea = 1.0;
+		const float maxTriArea = 3.0;
 		Eigen::MatrixXf versJawUpper, versJawLower;
 		Eigen::MatrixXi trisJawUpper, trisJawLower;
 		Eigen::MatrixXd versLoopUpper, versLoopLower, versPalate;
@@ -266,7 +266,16 @@ namespace TEST_JAW_PALATE
 				topNorm, btmNorm, layersCount, maxTriArea, true);
 		debugWriteMesh("meshPalate", versPalate, trisPalate);
 
-		// for debug
+
+		// for debug——生成不插点三角剖分的老版本：
+		{
+			Eigen::MatrixXd versTmp;
+			Eigen::MatrixXi trisTmp;
+			circuit2mesh(versTmp, trisTmp, versLoopUpper);
+			debugWriteMesh("meshUpperOld", versTmp, trisTmp);
+		}
+
+		// for debug——输出上下底面网格
 		{
 			Eigen::MatrixXd upperVers, lowerVers;
 			Eigen::MatrixXi upperTris, lowerTris;

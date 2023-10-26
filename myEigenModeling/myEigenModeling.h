@@ -57,6 +57,7 @@ template <typename T>
 void genAABBmesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::AlignedBox<T, 3>& aabb);
 
+
 // 生成栅格采样点：
 template<typename Tg, typename To>
 bool genGrids(Eigen::Matrix<Tg, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, \
@@ -66,12 +67,26 @@ bool genGrids(Eigen::Matrix<Tg, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, \
 
 #ifdef USE_TRIANGLE_H
 
+//	重载1：封闭边界线点集得到面网格，可以是平面也可以是曲面，不在网格内部插点，三角片尺寸不可控。
+template <typename DerivedO, typename DerivedC>
+bool circuit2mesh(Eigen::PlainObjectBase<DerivedO>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::PlainObjectBase<DerivedC>& circVers);
+
+
+// 重载2：会在回路内部插点，三角片面积上限由参数maxTriArea决定；
+template <typename DerivedV, typename DerivedL, typename DerivedN>
+bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris, \
+	const Eigen::PlainObjectBase<DerivedL>& versLoop, \
+	const Eigen::PlainObjectBase<DerivedN>& normDir, const float maxTriArea);
+
+
 // genCylinder()重载1——生成（类）柱体：
 template <typename T>
 bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& btmVers, \
 	const bool isCovered);
+
 
 // genCylinder()重载2——生成圆柱体网格
 template <typename T>
@@ -85,7 +100,22 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers,\
 	const std::pair<float, float> sizePair, const float SR, const bool isCovered);
 
+
 // genCylinder()重载4——输入上底面和下底面的2D边界环路 ，生成柱体：
+/*
+	bool genCylinder(
+			MatrixXT& vers,								输出网格顶点
+			Eigen::MatrixXi& tris,						输出网格三角片
+			const Eigen::PlainObjectBase<DerivedVa>& axisVers,			柱体轴线
+			const Eigen::PlainObjectBase<DerivedVt>& topLoop,			上底面边界环路
+			const Eigen::PlainObjectBase<DerivedVb>& btmLoop,			下底面边界环路
+			const bool isCovered																是否封底
+			)
+	注：上下底面边界环路都是在XOY平面中的点集，
+					且两者顶点数需要相同；
+					且从Z轴正向看环路顶点索引应该沿着顺时针方向增大；
+
+*/
 template <typename T, typename DerivedVa, typename DerivedVt, typename DerivedVb>
 bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::PlainObjectBase<DerivedVa>& axisVers, const Eigen::PlainObjectBase<DerivedVt>& topLoop, \
@@ -127,18 +157,6 @@ bool genAlignedCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, 
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& axisVers, const std::pair<float, float> sizePair, const float SR, \
 	const bool isCovered);
 
-
-//	重载1：封闭边界线点集得到面网格，可以是平面也可以是曲面，不在网格内部插点，三角片尺寸不可控。
-template <typename DerivedO, typename DerivedC>
-bool circuit2mesh(Eigen::PlainObjectBase<DerivedO>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::PlainObjectBase<DerivedC>& circVers);
-
-
-// 重载2：会在回路内部插点，三角片面积上限由参数maxTriArea决定；
-template <typename DerivedV, typename DerivedL, typename DerivedN>
-bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::PlainObjectBase<DerivedL>& versLoop, \
-	const Eigen::PlainObjectBase<DerivedN>& normDir, const float maxTriArea);
 #endif
 
 

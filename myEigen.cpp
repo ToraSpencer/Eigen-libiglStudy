@@ -572,10 +572,11 @@ namespace TEST_MYEIGEN_MODELING
 	// 测试边界回路生成曲面网格
 	void test2() 
 	{
-		Eigen::MatrixXd vers, versLoop, versLoop2D;
+		Eigen::MatrixXf vers;
+		Eigen::MatrixXd versLoop, versLoop2D;
 		Eigen::MatrixXi tris;
 
-		objReadVerticesMat(versLoop, "E:/材料/loopPerturbed.obj");
+		objReadVerticesMat(versLoop, "G:\\gitRepositories\\matlabCode\\颌板\\data\\curveFitUpper2.obj");
 
 		Eigen::RowVector3d center = versLoop.colwise().mean();
 		versLoop2D = versLoop.rowwise() - center;
