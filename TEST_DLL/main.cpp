@@ -242,6 +242,7 @@ namespace TEST_MYDLL
 }
 
 
+
 namespace TEST_JAW_PALATE 
 {
 
@@ -321,338 +322,419 @@ namespace TEST_JAW_PALATE
 }
 
 
-// 重载1：2D点云三角剖分得到面网格——可以带洞也可以不带洞
-/*
-
-	注：
-		输入点云必须在XOY平面内，可以是2D的也可以是3D的；
-		默认三角剖分模式为"pY"，表示三角剖分成不插点的平面直线图；
-
-
-		switch string:
-				-p			三角剖分生成一个平面直线图
-				-r			(refine a previously generated mesh)对一个已有网格进行进一步的三角剖分；
-				-q			(Quality mesh generation)后面跟一个数值，如"-q30"表示三角剖分结果中不可以存在小于30°的角；
-				-a			后面跟一个数值，如"-a5"指定三角剖分结果中三角片面积不大于5mm^2;
-				-Y			(Prohibits the insertion of Steiner points on the mesh boundary.)
-							禁止在边缘边上插入新点； 
-				-YY		prohibits the insertion of Steiner points on any segment, including internal segments.
-							禁止在任何原有边上插入新点；
-
-*/
-template <typename DerivedVo, typename DerivedI, typename DerivedVi, typename DerivedVh>
-bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
-	Eigen::PlainObjectBase<DerivedI>& trisOut, \
-	const Eigen::PlainObjectBase<DerivedVi>& versIn,\
-	const std::vector<Eigen::VectorXi>& bdryLoops, \
-	const Eigen::PlainObjectBase<DerivedVh>& holeCenters, \
-	const char* strSwitcher = "pY")
+namespace TEST_TRIANGULATION 
 {
-	using ScalarO = typename DerivedVo::Scalar;
 
-	assert((2 == versIn.cols() || 3 == versIn.cols()) && "assert!!! input vertices should be in 2 or 3 dimension space.");
+	// 重载1：2D点云三角剖分得到面网格——可以带洞也可以不带洞
+	/*
 
-	// lambda——回路索引→回路边数据（索引从1开始）
-	auto loop2edges = [](const Eigen::VectorXi& loop)->Eigen::MatrixXi
+		注：
+			输入点云必须在XOY平面内，可以是2D的也可以是3D的；
+			默认三角剖分模式为"pY"，表示三角剖分成不插点的平面直线图；
+
+
+			switch string:
+					-p			三角剖分生成一个平面直线图
+					-r			(refine a previously generated mesh)对一个已有网格进行进一步的三角剖分；
+					-q			(Quality mesh generation)后面跟一个数值，如"-q30"表示三角剖分结果中不可以存在小于30°的角；
+					-a			后面跟一个数值，如"-a5"指定三角剖分结果中三角片面积不大于5mm^2;
+					-Y			(Prohibits the insertion of Steiner points on the mesh boundary.)
+								禁止在边缘边上插入新点；
+					-YY		prohibits the insertion of Steiner points on any segment, including internal segments.
+								禁止在任何原有边上插入新点；
+
+	*/
+	template <typename DerivedVo, typename DerivedI, typename DerivedVi, typename DerivedVh>
+	bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
+		Eigen::PlainObjectBase<DerivedI>& trisOut, \
+		const Eigen::PlainObjectBase<DerivedVi>& versIn, \
+		const std::vector<Eigen::VectorXi>& bdryLoops, \
+		const Eigen::PlainObjectBase<DerivedVh>& holeCenters, \
+		const char* strSwitcher = "pY")
 	{
-		const int edgesCount = loop.size();
-		Eigen::MatrixXi edges(edgesCount, 2);
-		for (int i = 0; i < edgesCount - 1; ++i)
+		using ScalarO = typename DerivedVo::Scalar;
+
+		assert((2 == versIn.cols() || 3 == versIn.cols()) && "assert!!! input vertices should be in 2 or 3 dimension space.");
+
+		// lambda——回路索引→回路边数据（索引从1开始）
+		auto loop2edges = [](const Eigen::VectorXi& loop)->Eigen::MatrixXi
 		{
-			edges(i, 0) = loop(i) + 1;
-			edges(i, 1) = loop(i + 1) + 1;
+			const int edgesCount = loop.size();
+			Eigen::MatrixXi edges(edgesCount, 2);
+			for (int i = 0; i < edgesCount - 1; ++i)
+			{
+				edges(i, 0) = loop(i) + 1;
+				edges(i, 1) = loop(i + 1) + 1;
+			}
+			edges(edgesCount - 1, 0) = loop(edgesCount - 1) + 1;
+			edges(edgesCount - 1, 1) = loop(0) + 1;
+			return edges;
+		};
+
+		const int versCount = versIn.rows();
+		versOut.resize(0, 0);
+		trisOut.resize(0, 0);
+
+		// 1. 生成输入顶点数据、边缘数据 
+		Eigen::MatrixXi bdrys;													// 连成闭合回路的一系列的边
+		Eigen::MatrixXf vers2Dtrans(2, versCount);
+		int bdryEdgesCount = 0;
+		{
+			for (const auto& vec : bdryLoops)
+			{
+				Eigen::MatrixXi loopEdges = loop2edges(vec);
+				matInsertRows(bdrys, loopEdges);
+			}
+			bdrys.transposeInPlace();
+			bdryEdgesCount = bdrys.cols();
+
+			for (int i = 0; i < versCount; ++i)
+			{
+				vers2Dtrans(0, i) = static_cast<float>(versIn(i, 0));
+				vers2Dtrans(1, i) = static_cast<float>(versIn(i, 1));
+			}
 		}
-		edges(edgesCount - 1, 0) = loop(edgesCount - 1) + 1;
-		edges(edgesCount - 1, 1) = loop(0) + 1;
-		return edges;
-	};
 
-	const int versCount = versIn.rows();
-	versOut.resize(0, 0);
-	trisOut.resize(0, 0);
-
-	// 1. 生成输入顶点数据、边缘数据 
-	Eigen::MatrixXi bdrys;													// 连成闭合回路的一系列的边
-	Eigen::MatrixXf vers2Dtrans(2, versCount);
-	int bdryEdgesCount = 0;
-	{
-		for (const auto& vec : bdryLoops)
+		// 2. 生成输入的洞的数据：
+		const int holesCount = holeCenters.rows();
+		Eigen::MatrixXf  versHole2Dtrans;
+		if (holesCount > 0)
 		{
-			Eigen::MatrixXi loopEdges = loop2edges(vec);
-			matInsertRows(bdrys, loopEdges);
+			versHole2Dtrans.resize(2, holesCount);
+			for (int i = 0; i < holesCount; ++i)
+			{
+				versHole2Dtrans(0, i) = static_cast<float>(holeCenters(i, 0));
+				versHole2Dtrans(1, i) = static_cast<float>(holeCenters(i, 1));
+			}
 		}
-		bdrys.transposeInPlace();
-		bdryEdgesCount = bdrys.cols();
 
-		for (int i = 0; i < versCount; ++i)
+		// 3. 生成三角剖分信息：
+		triangulateio inputTrig, outputTrig;
 		{
-			vers2Dtrans(0, i) = static_cast<float>(versIn(i, 0));
-			vers2Dtrans(1, i) = static_cast<float>(versIn(i, 1));
-		}			
-	}
+			inputTrig.numberofpoints = versCount;
+			inputTrig.pointlist = vers2Dtrans.data();
+			inputTrig.numberofpointattributes = 0;
+			inputTrig.pointattributelist = nullptr;
+			inputTrig.pointmarkerlist = nullptr;
 
-	// 2. 生成输入的洞的数据：
-	const int holesCount = holeCenters.rows();
-	Eigen::MatrixXf  versHole2Dtrans;
-	if (holesCount > 0) 
-	{
-		versHole2Dtrans.resize(2, holesCount);
-		for (int i = 0; i < holesCount; ++i)
-		{
-			versHole2Dtrans(0, i) = static_cast<float>(holeCenters(i, 0));
-			versHole2Dtrans(1, i) = static_cast<float>(holeCenters(i, 1));
+			inputTrig.numberofsegments = bdryEdgesCount;
+			inputTrig.segmentlist = bdrys.data();
+			inputTrig.segmentmarkerlist = nullptr;
+
+			inputTrig.numberoftriangles = 0;
+			inputTrig.trianglelist = nullptr;
+
+			inputTrig.numberofcorners = 3;
+			inputTrig.numberoftriangleattributes = 0;
+
+			inputTrig.numberofholes = holesCount;					// 洞的数目
+			inputTrig.holelist = holesCount > 0 ? versHole2Dtrans.data() : nullptr;		// 洞数据数组的首地址，用一个二维点表示一个洞，只要该点在洞内即可。
+
+			inputTrig.numberofregions = 0;
+			inputTrig.regionlist = nullptr;
+
+			memset(&outputTrig, 0, sizeof(triangulateio));		// 初始化输出结构体。 
 		}
-	}
 
-	// 3. 生成三角剖分信息：
-	triangulateio inputTrig, outputTrig;
-	{
-		inputTrig.numberofpoints = versCount;
-		inputTrig.pointlist = vers2Dtrans.data();
-		inputTrig.numberofpointattributes = 0;
-		inputTrig.pointattributelist = nullptr;
-		inputTrig.pointmarkerlist = nullptr;
+		// 4. 执行三角剖分，拷贝结果：   
+		char strCopy[512];
+		strcpy(strCopy, strSwitcher);
+		triangulate(strCopy, &inputTrig, &outputTrig, NULL);					// p——平面直线图，Y——不插点。  
 
-		inputTrig.numberofsegments = bdryEdgesCount;
-		inputTrig.segmentlist = bdrys.data();
-		inputTrig.segmentmarkerlist = nullptr;
-
-		inputTrig.numberoftriangles = 0;
-		inputTrig.trianglelist = nullptr;
-
-		inputTrig.numberofcorners = 3;
-		inputTrig.numberoftriangleattributes = 0;
-
-		inputTrig.numberofholes = holesCount;					// 洞的数目
-		inputTrig.holelist = holesCount > 0 ? versHole2Dtrans.data() : nullptr;		// 洞数据数组的首地址，用一个二维点表示一个洞，只要该点在洞内即可。
-
-		inputTrig.numberofregions = 0;
-		inputTrig.regionlist = nullptr;
-
-		memset(&outputTrig, 0, sizeof(triangulateio));		// 初始化输出结构体。 
-	}
-
-	// 4. 执行三角剖分，拷贝结果：   
-	char strCopy[512];
-	strcpy(strCopy, strSwitcher);
-	triangulate(strCopy, &inputTrig, &outputTrig, NULL);					// p——平面直线图，Y——不插点。  
-
-	//		4.1 生成输出三角片
-	int trisOutCount = outputTrig.numberoftriangles;
-	{
-		trisOut.resize(3, trisOutCount);
-		std::memcpy(trisOut.data(), (int*)outputTrig.trianglelist, sizeof(int) * 3 * trisOutCount);
-		trisOut.transposeInPlace();
-		trisOut.array() -= 1;										// triangle库中顶点索引从1开始，所以三角片数据都要减去1
-	}
-
-	//		4.2 生成输出点云：
-	const int versOutCount = outputTrig.numberofpoints;
-	Eigen::MatrixXf versOutF(2, versOutCount);
-	std::memcpy(versOutF.data(), reinterpret_cast<float*>(outputTrig.pointlist), sizeof(float) * 2 * versOutCount);
-	versOutF.transposeInPlace();
-	versOutF.conservativeResize(versOutCount, 3);
-	versOutF.col(2).setZero();
-	versOut = versOutF.array().cast<ScalarO>();
-
-	return true;
-}
-
-
-// 重载2：2D点云三角剖分得到面网格——不带洞
-template <typename DerivedVo, typename DerivedI, typename DerivedVi>
-bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
-	Eigen::PlainObjectBase<DerivedI>& trisOut, \
-	const Eigen::PlainObjectBase<DerivedVi>& versIn, \
-	const std::vector<Eigen::VectorXi>& bdryLoops, \
-	const char* strSwitcher = "pY")
-{
-	return triangulateVers2Mesh(versOut, trisOut, versIn, bdryLoops, Eigen::MatrixXf{}, strSwitcher);
-}
-
-
-// 三角剖分提升网格质量：
-template <typename DerivedVo, typename DerivedIt, typename DerivedVi, typename DerivedIe>
-bool triangulateRefineMesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
-	Eigen::PlainObjectBase<DerivedIt>& trisOut, const Eigen::PlainObjectBase<DerivedVi>& versIn, \
-	const Eigen::PlainObjectBase<DerivedIt>& trisIn, const Eigen::PlainObjectBase<DerivedIe>& edges, \
-	const char* strSwitcher = "pr")
-{
-	using ScalarO = typename DerivedVo::Scalar;
-
-	assert((2 == versIn.cols() || 3 == versIn.cols()) && "assert!!! input vertices should be in 2 or 3 dimension space.");
-	const int versCount = versIn.rows();
-	versOut.resize(0, 0);
-	trisOut.resize(0, 0);
-
-	// 1. 生成边缘信息和洞的信息
-	Eigen::MatrixXi edgesData;													// 连成闭合回路的一系列的边
-	Eigen::MatrixXf vers2Dtrans(2, versCount);
-	int edgesCount = 0;
-	{
-		edgesData = edges.array() + 1;
-		edgesData.transposeInPlace();
-		edgesCount = edgesData.cols();
-		for (int i = 0; i < versCount; ++i)
+		//		4.1 生成输出三角片
+		int trisOutCount = outputTrig.numberoftriangles;
 		{
-			vers2Dtrans(0, i) = static_cast<float>(versIn(i, 0));
-			vers2Dtrans(1, i) = static_cast<float>(versIn(i, 1));
+			trisOut.resize(3, trisOutCount);
+			std::memcpy(trisOut.data(), (int*)outputTrig.trianglelist, sizeof(int) * 3 * trisOutCount);
+			trisOut.transposeInPlace();
+			trisOut.array() -= 1;										// triangle库中顶点索引从1开始，所以三角片数据都要减去1
 		}
+
+		//		4.2 生成输出点云：
+		const int versOutCount = outputTrig.numberofpoints;
+		Eigen::MatrixXf versOutF(2, versOutCount);
+		std::memcpy(versOutF.data(), reinterpret_cast<float*>(outputTrig.pointlist), sizeof(float) * 2 * versOutCount);
+		versOutF.transposeInPlace();
+		versOutF.conservativeResize(versOutCount, 3);
+		versOutF.col(2).setZero();
+		versOut = versOutF.array().cast<ScalarO>();
+
+		return true;
 	}
 
-	// 2. 整理已有三角片信息：
-	const int trisCount = trisIn.rows();
-	Eigen::MatrixXi trisData;
-	if (trisCount > 0)
+
+	// 重载2：2D点云三角剖分得到面网格——不带洞
+	template <typename DerivedVo, typename DerivedI, typename DerivedVi>
+	bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
+		Eigen::PlainObjectBase<DerivedI>& trisOut, \
+		const Eigen::PlainObjectBase<DerivedVi>& versIn, \
+		const std::vector<Eigen::VectorXi>& bdryLoops, \
+		const char* strSwitcher = "pY")
 	{
-		trisData = trisIn.transpose();
-		trisData.array() += 1;
+		return triangulateVers2Mesh(versOut, trisOut, versIn, bdryLoops, Eigen::MatrixXf{}, strSwitcher);
 	}
 
-	// 3. 生成三角剖分信息：
-	triangulateio inputTrig, outputTrig;
+
+	// 三角剖分提升网格质量：
+	template <typename DerivedVo, typename DerivedIt, typename DerivedVi, typename DerivedIe>
+	bool triangulateRefineMesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
+		Eigen::PlainObjectBase<DerivedIt>& trisOut, const Eigen::PlainObjectBase<DerivedVi>& versIn, \
+		const Eigen::PlainObjectBase<DerivedIt>& trisIn, const Eigen::PlainObjectBase<DerivedIe>& edges, \
+		const char* strSwitcher)
 	{
-		inputTrig.numberofpoints = versCount;
-		inputTrig.pointlist = vers2Dtrans.data();
-		inputTrig.numberofpointattributes = 0;
-		inputTrig.pointattributelist = NULL;
-		inputTrig.pointmarkerlist = NULL;
+		using ScalarO = typename DerivedVo::Scalar;
 
-		inputTrig.numberofsegments = edgesCount;
-		inputTrig.segmentlist = edgesData.data();
-		inputTrig.segmentmarkerlist = NULL;
+		assert((2 == versIn.cols() || 3 == versIn.cols()) && "assert!!! input vertices should be in 2 or 3 dimension space.");
+		const int versCount = versIn.rows();
+		versOut.resize(0, 0);
+		trisOut.resize(0, 0);
 
-		inputTrig.numberoftriangles = trisCount;
-		inputTrig.trianglelist = trisCount > 0 ? trisData.data() : nullptr;
+		// 1. 生成边缘信息和洞的信息
+		Eigen::MatrixXi edgesData;													// 连成闭合回路的一系列的边
+		Eigen::MatrixXf vers2Dtrans(2, versCount);
+		int edgesCount = 0;
+		{
+			edgesData = edges.array() + 1;
+			edgesData.transposeInPlace();
+			edgesCount = edgesData.cols();
+			for (int i = 0; i < versCount; ++i)
+			{
+				vers2Dtrans(0, i) = static_cast<float>(versIn(i, 0));
+				vers2Dtrans(1, i) = static_cast<float>(versIn(i, 1));
+			}
+		}
 
-		inputTrig.numberofcorners = 3;
-		inputTrig.numberoftriangleattributes = 0;
+		// 2. 整理已有三角片信息：
+		const int trisCount = trisIn.rows();
+		Eigen::MatrixXi trisData;
+		if (trisCount > 0)
+		{
+			trisData = trisIn.transpose();
+			trisData.array() += 1;
+		}
 
-		inputTrig.numberofholes = 0;					// 洞的数目
-		inputTrig.holelist = NULL;						// 洞数据数组的首地址，用一个二维点表示一个洞，只要该点在洞内即可。
+		// 3. 生成三角剖分信息：
+		triangulateio inputTrig, outputTrig;
+		{
+			inputTrig.numberofpoints = versCount;
+			inputTrig.pointlist = vers2Dtrans.data();
+			inputTrig.numberofpointattributes = 0;
+			inputTrig.pointattributelist = NULL;
+			inputTrig.pointmarkerlist = NULL;
 
-		inputTrig.numberofregions = 0;
-		inputTrig.regionlist = NULL;
+			inputTrig.numberofsegments = edgesCount;
+			inputTrig.segmentlist = edgesData.data();
+			inputTrig.segmentmarkerlist = NULL;
 
-		memset(&outputTrig, 0, sizeof(triangulateio));		// 初始化输出结构体。 
+			inputTrig.numberoftriangles = trisCount;
+			inputTrig.trianglelist = trisCount > 0 ? trisData.data() : nullptr;
+
+			inputTrig.numberofcorners = 3;
+			inputTrig.numberoftriangleattributes = 0;
+
+			inputTrig.numberofholes = 0;					// 洞的数目
+			inputTrig.holelist = NULL;						// 洞数据数组的首地址，用一个二维点表示一个洞，只要该点在洞内即可。
+
+			inputTrig.numberofregions = 0;
+			inputTrig.regionlist = NULL;
+
+			memset(&outputTrig, 0, sizeof(triangulateio));		// 初始化输出结构体。 
+		}
+
+		// 3. 执行三角剖分，拷贝结果：   
+		char strCopy[512];
+		strcpy(strCopy, strSwitcher);
+		triangulate(strCopy, &inputTrig, &outputTrig, NULL);					// p——平面直线图，Y——不插点。  
+
+		//		3.1 生成输出三角片
+		int trisOutCount = outputTrig.numberoftriangles;
+		{
+			trisOut.resize(3, trisOutCount);
+			std::memcpy(trisOut.data(), (int*)outputTrig.trianglelist, sizeof(int) * 3 * trisOutCount);
+			trisOut.transposeInPlace();
+			trisOut.array() -= 1;										// triangle库中顶点索引从1开始，所以三角片数据都要减去1
+		}
+
+		//		3.2 生成输出点云：
+		const int versOutCount = outputTrig.numberofpoints;
+		Eigen::MatrixXf versOutF(2, versOutCount);
+		std::memcpy(versOutF.data(), reinterpret_cast<float*>(
+			outputTrig.pointlist), sizeof(float) * 2 * versOutCount);
+		versOutF.transposeInPlace();
+		versOutF.conservativeResize(versOutCount, 3);
+		versOutF.col(2).setZero();
+		versOut = versOutF.array().cast<ScalarO>();
+
+		return true;
 	}
 
-	// 3. 执行三角剖分，拷贝结果：   
-	char strCopy[512];
-	strcpy(strCopy, strSwitcher);
-	triangulate(strCopy, &inputTrig, &outputTrig, NULL);					// p——平面直线图，Y——不插点。  
 
-	//		3.1 生成输出三角片
-	int trisOutCount = outputTrig.numberoftriangles;
+	// 测试点云三角剖分成网格；
+	void test1()
 	{
-		trisOut.resize(3, trisOutCount);
-		std::memcpy(trisOut.data(), (int*)outputTrig.trianglelist, sizeof(int) * 3 * trisOutCount);
-		trisOut.transposeInPlace();
-		trisOut.array() -= 1;										// triangle库中顶点索引从1开始，所以三角片数据都要减去1
+		Eigen::MatrixXd versIn;
+		Eigen::MatrixXf versOut;
+		Eigen::MatrixXi trisIn, trisOut;
+
+		// 1. 点云剖分成不带洞的网格：
+		readOBJ(versIn, "E:/材料/circleVers.obj");
+		const int versCount = versIn.rows();
+		Eigen::VectorXi loopVec = Eigen::VectorXi::LinSpaced(versCount, 0, versCount - 1);
+		triangulateVers2Mesh(versOut, trisOut, versIn, std::vector<Eigen::VectorXi>{loopVec});
+		debugWriteVers("versInput1", versIn);
+		debugWriteMesh("meshOut1", versOut, trisOut);
+
+		// 2. 点云剖分成带洞的网格：
+
+		//			2.1 ...
+		Eigen::MatrixXd vers0, vers10, vers11, vers12, vers2, allVers, holeCenters;
+		Eigen::RowVector3d arrow10, arrow11, arrow12, arrow2, holeCenter10, holeCenter11, holeCenter12;
+		const float radius0 = 5;
+		const float radius1 = 1;
+		const float radius2 = 2;
+		getCircleVers(vers0, radius0, 100);
+		getCircleVers(vers10, radius1, 20);
+		getCircleVers(vers2, radius2, 30);
+		vers11 = vers10;
+		vers12 = vers10;
+		arrow10 << 0, 2, 0;
+		arrow11 << -2, 0, 0;
+		arrow12 << 3, 0, 0;
+		arrow2 << 10, 0, 0;
+		vers10.rowwise() += arrow10;
+		vers11.rowwise() += arrow11;
+		vers12.rowwise() += arrow12;
+		vers2.rowwise() += arrow2;
+		holeCenter10 = vers10.colwise().mean();
+		holeCenter11 = vers11.colwise().mean();
+		holeCenter12 = vers12.colwise().mean();
+		matInsertRows(allVers, vers0);
+		matInsertRows(allVers, vers10);
+		matInsertRows(allVers, vers11);
+		matInsertRows(allVers, vers12);
+		matInsertRows(allVers, vers2);
+		matInsertRows(holeCenters, holeCenter10);
+		matInsertRows(holeCenters, holeCenter11);
+		matInsertRows(holeCenters, holeCenter12);
+		debugWriteVers("allVers", allVers);
+
+		//		2.2. 生成边缘信息：
+		const int versCount0 = vers0.rows();
+		const int versCount10 = vers10.rows();
+		const int versCount11 = vers11.rows();
+		const int versCount12 = vers12.rows();
+		const int versCount2 = vers2.rows();
+		std::vector<int> loops0(versCount0), loops10(versCount10), loops11(versCount11), loops12(versCount12), loops2(versCount2);
+		int startIdx = 0;
+		for (int i = 0; i < versCount0; ++i)
+			loops0[i] = startIdx + i;
+		startIdx += versCount0;
+		for (int i = 0; i < versCount10; ++i)
+			loops10[i] = startIdx + i;
+		startIdx += versCount10;
+		for (int i = 0; i < versCount11; ++i)
+			loops11[i] = startIdx + i;
+		startIdx += versCount11;
+		for (int i = 0; i < versCount12; ++i)
+			loops12[i] = startIdx + i;
+		startIdx += versCount12;
+		for (int i = 0; i < versCount2; ++i)
+			loops2[i] = startIdx + i;
+		startIdx += versCount2;
+
+		//   
+		versIn = allVers;
+		std::vector<Eigen::VectorXi> loops{ vec2EigenVec(loops0), vec2EigenVec(loops10), \
+				vec2EigenVec(loops11), vec2EigenVec(loops12), vec2EigenVec(loops2) };
+		triangulateVers2Mesh(versOut, trisOut, versIn, loops, holeCenters);
+		debugWriteVers("versInput2", versIn);
+		debugWriteMesh("meshOut2", versOut, trisOut);
+
+		debugDisp("main() finished.");
+
 	}
 
-	//		3.2 生成输出点云：
-	const int versOutCount = outputTrig.numberofpoints;
-	Eigen::MatrixXf versOutF(2, versOutCount);
-	std::memcpy(versOutF.data(), reinterpret_cast<float*>(outputTrig.pointlist), sizeof(float) * 2 * versOutCount);
-	versOutF.transposeInPlace();
-	versOutF.conservativeResize(versOutCount, 3);
-	versOutF.col(2).setZero();
-	versOut = versOutF.array().cast<ScalarO>();
 
-	return true;
+	// 测试网格三角剖分成质量更好的网格：
+	void test2() 
+	{
+		Eigen::MatrixXd versIn, versOut;
+		Eigen::MatrixXi edgesIn, trisIn, trisOut;
+
+		readOBJ(versIn, trisIn, "E:/材料/roundSurfNoInterp.obj");		
+		getEdges(edgesIn, trisIn);
+		triangulateRefineMesh(versOut, trisOut, versIn, trisIn, edgesIn, "pra2.0");
+		debugWriteMesh("meshOut1", versOut, trisOut);
+ 
+
+
+		debugDisp("finished.");
+	}
+
+
+	// 测试上下底面环路三角剖分生成侧面网格：
+	void test3()
+	{
+		const int versCount1 = 300;
+		const int versCount2 = 300;
+		Eigen::MatrixXd versInner, versOuter, allVers;
+	
+		getCircleVers(versInner, 10, versCount1);
+		getCircleVers(versOuter, 20, versCount2);
+		matInsertRows(allVers, versInner);
+		matInsertRows(allVers, versOuter);
+		debugWriteVers("versInput", allVers);
+
+		// 三角剖分：
+		Eigen::MatrixXd versTG;
+		Eigen::MatrixXi trisTG;
+		Eigen::VectorXi bdryOuter, bdryInner;
+		Eigen::RowVector3d innerCenter = versInner.colwise().mean();
+		bdryInner = Eigen::VectorXi::LinSpaced(versCount1, 0, versCount1-1);
+		bdryOuter = Eigen::VectorXi::LinSpaced(versCount1, versCount1 + versCount2 - 1, versCount1);
+		triangulateVers2Mesh(versTG, trisTG, allVers, std::vector<Eigen::VectorXi>{bdryInner, bdryOuter}, innerCenter);
+		debugWriteMesh("meshTG", versTG, trisTG);
+
+		// 
+		Eigen::MatrixXd versLoopUpper, versLoopLower, versOut;
+		Eigen::MatrixXi trisOut = trisTG;
+		objReadVerticesMat(versLoopUpper, "E:/颌板/curveFitUpper2.obj");
+		objReadVerticesMat(versLoopLower, "E:/颌板/curveFitLower2.obj");
+		matInsertRows(versOut, versLoopUpper);
+		matInsertRows(versOut, versLoopLower);
+		debugWriteMesh("meshOut", versOut, trisOut);
+
+		debugDisp("finished.");
+	}
+
+
+	// 参数化之后的侧面网格重新三角剖分成质量更高的网格；
+	void test4() 
+	{
+		Eigen::MatrixXd versIn, versOut, versInner;
+		Eigen::MatrixXi edgesIn, trisIn, trisOut;
+		Eigen::VectorXi bdryOuter, bdryInner;
+		Eigen::RowVector3d innerCenter;
+		const int versCount1 = 300;
+		const int versCount2 = 300;
+
+		readOBJ(versIn, trisIn, "E:/颌板/mesh_side_ini_param_2.obj");
+		bdryInner = Eigen::VectorXi::LinSpaced(versCount1, 0, versCount1 - 1);
+		bdryOuter = Eigen::VectorXi::LinSpaced(versCount1, versCount1 + versCount2 - 1, versCount1);
+		subFromFlagVec(versInner, versIn, bdryInner);
+		innerCenter = versInner.colwise().mean();
+
+		triangulateVers2Mesh(versOut, trisOut, versIn, std::vector<Eigen::VectorXi>{bdryInner, bdryOuter}, innerCenter, "pra3.0");
+		debugWriteMesh("mesh_side_ini_param_refined_2", versOut, trisOut);
+
+		debugDisp("finished.");
+	}
+
 }
-
-
-// 测试点云三角剖分成网格；
-void test1() 
-{
-	Eigen::MatrixXd versIn;
-	Eigen::MatrixXf versOut;
-	Eigen::MatrixXi trisIn, trisOut;
-
-	// 1. 点云剖分成不带洞的网格：
-	readOBJ(versIn, "E:/材料/circleVers.obj");
-	const int versCount = versIn.rows();
-	Eigen::VectorXi loopVec = Eigen::VectorXi::LinSpaced(versCount, 0, versCount - 1);
-	triangulateVers2Mesh(versOut, trisOut, versIn, std::vector<Eigen::VectorXi>{loopVec});
-	debugWriteVers("versInput1", versIn);
-	debugWriteMesh("meshOut1", versOut, trisOut);
-
-	// 2. 点云剖分成带洞的网格：
-
-	//			2.1 ...
-	Eigen::MatrixXd vers0, vers10, vers11, vers12, vers2, allVers, holeCenters;
-	Eigen::RowVector3d arrow10, arrow11, arrow12, arrow2, holeCenter10, holeCenter11, holeCenter12;
-	const float radius0 = 5;
-	const float radius1 = 1;
-	const float radius2 = 2;
-	getCircleVers(vers0, radius0, 100);
-	getCircleVers(vers10, radius1, 20);
-	getCircleVers(vers2, radius2, 30);
-	vers11 = vers10;
-	vers12 = vers10;
-	arrow10 << 0, 2, 0;
-	arrow11 << -2, 0, 0;
-	arrow12 << 3, 0, 0;
-	arrow2 << 10, 0, 0;
-	vers10.rowwise() += arrow10;
-	vers11.rowwise() += arrow11;
-	vers12.rowwise() += arrow12;
-	vers2.rowwise() += arrow2;
-	holeCenter10 = vers10.colwise().mean();
-	holeCenter11 = vers11.colwise().mean();
-	holeCenter12 = vers12.colwise().mean();
-	matInsertRows(allVers, vers0);
-	matInsertRows(allVers, vers10);
-	matInsertRows(allVers, vers11);
-	matInsertRows(allVers, vers12);
-	matInsertRows(allVers, vers2);
-	matInsertRows(holeCenters, holeCenter10);
-	matInsertRows(holeCenters, holeCenter11);
-	matInsertRows(holeCenters, holeCenter12);
-	debugWriteVers("allVers", allVers);
-
-	//		2.2. 生成边缘信息：
-	const int versCount0 = vers0.rows();
-	const int versCount10 = vers10.rows();
-	const int versCount11 = vers11.rows();
-	const int versCount12 = vers12.rows();
-	const int versCount2 = vers2.rows();
-	std::vector<int> loops0(versCount0), loops10(versCount10), loops11(versCount11), loops12(versCount12), loops2(versCount2);
-	int startIdx = 0;
-	for (int i = 0; i < versCount0; ++i)
-		loops0[i] = startIdx + i;
-	startIdx += versCount0;
-	for (int i = 0; i < versCount10; ++i)
-		loops10[i] = startIdx + i;
-	startIdx += versCount10;
-	for (int i = 0; i < versCount11; ++i)
-		loops11[i] = startIdx + i;
-	startIdx += versCount11;
-	for (int i = 0; i < versCount12; ++i)
-		loops12[i] = startIdx + i;
-	startIdx += versCount12;
-	for (int i = 0; i < versCount2; ++i)
-		loops2[i] = startIdx + i;
-	startIdx += versCount2;
-
-	//   
-	versIn = allVers;
-	std::vector<Eigen::VectorXi> loops{ vec2EigenVec(loops0), vec2EigenVec(loops10), \
-			vec2EigenVec(loops11), vec2EigenVec(loops12), vec2EigenVec(loops2) };
-	triangulateVers2Mesh(versOut, trisOut, versIn, loops, holeCenters);
-	debugWriteVers("versInput2", versIn);
-	debugWriteMesh("meshOut2", versOut, trisOut);
-
-	debugDisp("main() finished.");
-
-}
-
 
 int main(int argc, char** argv)
 {
-
+	TEST_TRIANGULATION::test4();
 
 	return 0;
 }
