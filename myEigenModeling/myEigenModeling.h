@@ -67,6 +67,52 @@ bool genGrids(Eigen::Matrix<Tg, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, \
 
 #ifdef USE_TRIANGLE_H
 
+// 重载1：2D点云三角剖分得到面网格——可以带洞也可以不带洞
+/*
+
+	注：
+		输入点云必须在XOY平面内，可以是2D的也可以是3D的；
+		默认三角剖分模式为"pY"，表示三角剖分成不插点的平面直线图；
+
+
+		switch string:
+				-p			三角剖分生成一个平面直线图
+				-r			(refine a previously generated mesh)对一个已有网格进行进一步的三角剖分；
+				-q			(Quality mesh generation)后面跟一个数值，如"-q30"表示三角剖分结果中不可以存在小于30°的角；
+				-a			后面跟一个数值，如"-a5"指定三角剖分结果中三角片面积不大于5mm^2;
+				-Y			(Prohibits the insertion of Steiner points on the mesh boundary.)
+							禁止在边缘边上插入新点；
+				-YY		prohibits the insertion of Steiner points on any segment, including internal segments.
+							禁止在任何原有边上插入新点；
+
+*/
+template <typename DerivedVo, typename DerivedI, typename DerivedVi, typename DerivedVh>
+bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
+	Eigen::PlainObjectBase<DerivedI>& trisOut, \
+	const Eigen::PlainObjectBase<DerivedVi>& versIn, \
+	const std::vector<Eigen::VectorXi>& bdryLoops, \
+	const Eigen::PlainObjectBase<DerivedVh>& holeCenters, \
+	const char* strSwitcher = "pY");
+
+
+// 重载2：2D点云三角剖分得到面网格——不带洞
+template <typename DerivedVo, typename DerivedI, typename DerivedVi>
+bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
+	Eigen::PlainObjectBase<DerivedI>& trisOut, \
+	const Eigen::PlainObjectBase<DerivedVi>& versIn, \
+	const std::vector<Eigen::VectorXi>& bdryLoops, \
+	const char* strSwitcher = "pY");
+
+
+// 三角剖分提升网格质量：
+template <typename DerivedVo, typename DerivedIt, typename DerivedVi, typename DerivedIe>
+bool triangulateRefineMesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
+	Eigen::PlainObjectBase<DerivedIt>& trisOut, const Eigen::PlainObjectBase<DerivedVi>& versIn, \
+	const Eigen::PlainObjectBase<DerivedIt>& trisIn, const Eigen::PlainObjectBase<DerivedIe>& edges, \
+	const char* strSwitcher);
+
+
+
 //	重载1：封闭边界线点集得到面网格，可以是平面也可以是曲面，不在网格内部插点，三角片尺寸不可控。
 template <typename DerivedO, typename DerivedC>
 bool circuit2mesh(Eigen::PlainObjectBase<DerivedO>& vers, Eigen::MatrixXi& tris, \
