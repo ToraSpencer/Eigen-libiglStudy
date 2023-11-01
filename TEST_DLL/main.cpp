@@ -151,7 +151,7 @@ namespace TEST_MYDLL
 	}
 
 
-	// alpha shapes
+	// CGAL:: alpha shapes
 	void test4() 
 	{
 		Eigen::MatrixXf versIn, versOut;
@@ -239,8 +239,23 @@ namespace TEST_MYDLL
 
 		debugDisp("finished.");
 	}
-}
 
+
+	// CGAL:: remsh()
+	void test7() 
+	{
+		Eigen::MatrixXf versIn;
+		Eigen::MatrixXd versOut;
+		Eigen::MatrixXi trisIn, trisOut;
+		readOBJ(versIn, trisIn, "E:/ò¢°å/mesh_side_ini_2.obj");
+		debugWriteMesh("meshInput", versIn, trisIn);
+
+		remeshSurfMesh(versOut, trisOut, versIn, trisIn, 2.0);
+		debugWriteMesh("meshOut", versOut, trisOut);
+
+	}
+
+}
 
 
 namespace TEST_JAW_PALATE 
@@ -334,8 +349,8 @@ namespace TEST_JAW_PALATE
 		Eigen::RowVector3f btmNorm = -lowerPlaneNorm;
 		readSTL(versJawUpper, trisJawUpper, "E:/ò¢°å/ò¢°åÊ¾Àý/2/upper.stl");
 		readSTL(versJawLower, trisJawLower, "E:/ò¢°å/ò¢°åÊ¾Àý/2/lower.stl");
-		readOBJ(versLoopUpper, "G:\\gitRepositories\\matlabCode\\ò¢°å\\data\\curveFitUpper2.obj");
-		readOBJ(versLoopLower, "G:\\gitRepositories\\matlabCode\\ò¢°å\\data\\curveFitLower2.obj");
+		readOBJ(versLoopUpper, "G:\\gitRepositories\\matlabCode\\ò¢°å\\data\\curveFitUpper22.obj");
+		readOBJ(versLoopLower, "G:\\gitRepositories\\matlabCode\\ò¢°å\\data\\curveFitLower22.obj");
 		const int versCount1 = versLoopUpper.rows();
 		const int versCount2 = versLoopUpper.rows();
 
@@ -439,7 +454,6 @@ namespace TEST_JAW_PALATE
 // ²âÊÔtriangle¿âµÄÈý½ÇÆÊ·Ö£º
 namespace TEST_TRIANGULATION 
 {
-	 
 	// ²âÊÔµãÔÆÈý½ÇÆÊ·Ö³ÉÍø¸ñ£»
 	void test1()
 	{
@@ -638,7 +652,9 @@ namespace TEST_TRIANGULATION
 
 int main(int argc, char** argv)
 {
-	TEST_JAW_PALATE::test00();
+	TEST_MYDLL::test7();
+
+	//TEST_JAW_PALATE::test00();
 
 	return 0;
 }
