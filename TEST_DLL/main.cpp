@@ -253,6 +253,7 @@ namespace TEST_MYDLL
 		remeshSurfMesh(versOut, trisOut, versIn, trisIn, 2.0);
 		debugWriteMesh("meshOut", versOut, trisOut);
 
+		debugDisp("finished.");
 	}
 
 }
@@ -334,7 +335,7 @@ namespace TEST_JAW_PALATE
 	}
 
 
-	// step3——生成胚子网格然后刻牙印，侧面使用圆环三角剖分生成
+	// step3——生成胚子网格然后刻牙印，侧面使用圆环三角剖分然后remesh生成
 	void test00()
 	{
 		// 0
@@ -365,11 +366,11 @@ namespace TEST_JAW_PALATE
 		}
 
 		// 2. 生成侧面网格：
-		Eigen::MatrixXd versSide;
+		Eigen::MatrixXd versSide, versSideExtra;
 		Eigen::MatrixXi trisSide;
 		{
 			Eigen::MatrixXd versInner, versOuter, versTG, tmpVers;
-			Eigen::MatrixXi trisTG;
+			Eigen::MatrixXi trisTG, tmpTris;
 			Eigen::VectorXi bdryOuter, bdryInner;
 
 			getCircleVers(versInner, 10, versCount1);
@@ -387,6 +388,13 @@ namespace TEST_JAW_PALATE
 			matInsertRows(versSide, versLoopUpper);
 			matInsertRows(versSide, versLoopLower);
 			trisSide = trisTG;
+
+			remeshSurfMesh(tmpVers, tmpTris, versSide, trisSide, 2.0);
+			versSide = tmpVers;
+			trisSide = tmpTris;
+			const int versSideCount = versSide.rows();
+			versSideExtra = versSide.bottomRows(versSideCount - versCount1 - versCount2);
+
 			debugWriteMesh("meshSide", versSide, trisSide);
 		}
 
@@ -399,6 +407,7 @@ namespace TEST_JAW_PALATE
 			const int versLowerCount = versLower.rows();
 			matInsertRows(versPalate, versUpper);
 			matInsertRows(versPalate, versLower);
+			matInsertRows(versPalate, versSideExtra);
 			trisLower.array() += versUpperCount;
 
 			// 侧面网格三角片中，大于等于versCount1的顶点索引都要施加偏移量：
@@ -652,9 +661,9 @@ namespace TEST_TRIANGULATION
 
 int main(int argc, char** argv)
 {
-	TEST_MYDLL::test7();
+	// TEST_MYDLL::test7();
 
-	//TEST_JAW_PALATE::test00();
+	TEST_JAW_PALATE::test00();
 
 	return 0;
 }
