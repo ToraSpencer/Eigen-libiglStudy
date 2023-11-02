@@ -261,97 +261,98 @@ namespace TEST_MYDLL
 
 namespace TEST_JAW_PALATE 
 {
-	// step3——生成胚子网格然后刻牙印，侧面使用genCylinder()生成 
+	// step0——应该在程序一开始的时候就读取上下颌网格，生成用于刻牙龈的膨胀网格写入内存；
 	void test0()
 	{
-		// 1. 读取上下底面拟合曲线，生成胚子网格；
-		const int layersCount = 3;
-		const float maxTriArea = 3.0;
 		Eigen::MatrixXf versJawUpper, versJawLower;
 		Eigen::MatrixXi trisJawUpper, trisJawLower;
-		Eigen::MatrixXd versLoopUpper, versLoopLower, versPalate;
-		Eigen::MatrixXi trisPalate;
-		Eigen::RowVector3f upperPlaneNorm{ 0, 0, -1 };
-		Eigen::RowVector3f lowerPlaneNorm{ -0.0987428597222625, -0.123428574652828, 0.987428597222625 };
-		Eigen::RowVector3f topNorm = -upperPlaneNorm;
-		Eigen::RowVector3f btmNorm = -lowerPlaneNorm;
 		readSTL(versJawUpper, trisJawUpper, "E:/颌板/颌板示例/2/upper.stl");
 		readSTL(versJawLower, trisJawLower, "E:/颌板/颌板示例/2/lower.stl");
-		readOBJ(versLoopUpper, "G:\\gitRepositories\\matlabCode\\颌板\\data\\curveFitUpper2.obj");
-		readOBJ(versLoopLower, "G:\\gitRepositories\\matlabCode\\颌板\\data\\curveFitLower2.obj");
-		genCylinder(versPalate, trisPalate, versLoopUpper, versLoopLower,\
-				topNorm, btmNorm, layersCount, maxTriArea, true);
-		debugWriteMesh("meshPalate", versPalate, trisPalate);
 
-
-		// for debug——生成不插点三角剖分的老版本：
-		{
-			Eigen::MatrixXd versTmp;
-			Eigen::MatrixXi trisTmp;
-			circuit2mesh(versTmp, trisTmp, versLoopUpper);
-			debugWriteMesh("meshUpperOld", versTmp, trisTmp);
-		}
-
-		// for debug——输出上下底面网格
-		{
-			Eigen::MatrixXd versUpper, versLower;
-			Eigen::MatrixXi trisUpper, trisLower;
-			circuit2mesh(versUpper, trisUpper, versLoopUpper, topNorm, maxTriArea);
-			circuit2mesh(versLower, trisLower, versLoopLower, btmNorm, maxTriArea);
-			debugWriteMesh("meshUpper", versUpper, trisUpper);
-			debugWriteMesh("meshLower", versLower, trisLower);
-		}
-
-
-		// 2. 读取颌网格，膨胀0.1mm, meshcross
-		{
-			Eigen::MatrixXd versCrossed;
-			Eigen::MatrixXf versJawNew;
-			Eigen::MatrixXi trisJawNew, trisCrossed;
+		// 1. 读取颌网格，膨胀0.1mm
+		Eigen::MatrixXf versJawUpperExt, versJawLowerExt;
+		Eigen::MatrixXi trisJawUpperExt, trisJawLowerExt;
+		{ 
 			SDF_RESULT sdfResult;
 			genSDF(sdfResult, versJawUpper, trisJawUpper, 0.3, 3);
-			marchingCubes(versJawNew, trisJawNew, sdfResult, 0.1);
-			meshCross(versCrossed, trisCrossed, versPalate, trisPalate, versJawNew, trisJawNew);
-
-			versPalate = versCrossed;
-			trisPalate = trisCrossed;
-			debugWriteMesh("meshCrossed1", versCrossed, trisCrossed);
+			marchingCubes(versJawUpperExt, trisJawUpperExt, sdfResult, 0.1); 
 		}
-
 		{
-			Eigen::MatrixXd versCrossed;
-			Eigen::MatrixXf versJawNew;
-			Eigen::MatrixXi trisJawNew, trisCrossed;
 			SDF_RESULT sdfResult;
 			genSDF(sdfResult, versJawLower, trisJawLower, 0.3, 3);
-			marchingCubes(versJawNew, trisJawNew, sdfResult, 0.1);
-			meshCross(versCrossed, trisCrossed, versPalate, trisPalate, versJawNew, trisJawNew);
-			 
-			debugWriteMesh("meshOut", versCrossed, trisCrossed);
+			marchingCubes(versJawLowerExt, trisJawLowerExt, sdfResult, 0.1);
 		}
 
+		debugWriteMesh("meshUpperEdited", versJawUpperExt, trisJawUpperExt);
+		debugWriteMesh("meshLowerEdited", versJawLowerExt, trisJawLowerExt);
 
 		debugDisp("finished.");
 	}
 
 
+	// step1——
+	/*
+		输入：
+				jawMeshUpper, jawMeshLower						上下颌网格
+				{planeVerUpper, planeNormUpper}				上基准平面上任意一点、平面法向；
+																								等价于空间中有序的三个顶点{va, vb, vc}；
+																								等价于空间中平面方程的4个系数{a0, b0, c0, d0}, 其中[a0, b0, c0]是平面法向；  
+				{planeVerLower, planeNormLower}
+								
+		输出：
+				versUpperBdry, versLowerBdry						精调之前的上下底面边界线；
+				affineUpperHomo, affineLowerHomo				上下颌仿射变换矩阵；
+	
+	*/
+	void test1()
+	{}
+
+
+	// step2——精调上下底面边界线：
+	/*
+		输入：
+			versUpperBdry, versLowerBdry						精调之前的上下底面边界线；
+			affineUpperHomo, affineLowerHomo				上下颌仿射变换矩阵；
+
+		输出：
+			versUpperBdry, versLowerBdry						精调之后的上下底面边界线；
+
+	*/
+	void test2()
+	{
+		// 1. 上下底面边界线逆仿射变换到本征空间
+
+		// 2. XOY平面内的精调
+
+		// 3. Z方向上的精调：
+
+		// 4. 精调后的边界线变换回原空间；
+
+	}
+
+
 	// step3——生成胚子网格然后刻牙印，侧面使用圆环三角剖分然后remesh生成
-	void test00()
+	/*
+		输入：
+			versUpperBdry, versLowerBdry						精调之后的上下底面边界线；
+			upperPlaneNorm, lowerPlaneNorm				上下基准平面的法向；
+
+		输出：
+			meshPalate														胚子网格；						
+	*/
+	void test3()
 	{
 		// 0
 		const int layersCount = 3;
-		const float maxTriArea = 3.0;
-		Eigen::MatrixXf versJawUpper, versJawLower;
-		Eigen::MatrixXi trisJawUpper, trisJawLower;
+		const float maxTriArea = 1.0;
+
 		Eigen::MatrixXd versLoopUpper, versLoopLower;
 		Eigen::RowVector3f upperPlaneNorm{ 0, 0, -1 };
 		Eigen::RowVector3f lowerPlaneNorm{ -0.0987428597222625, -0.123428574652828, 0.987428597222625 };
 		Eigen::RowVector3f topNorm = -upperPlaneNorm;
 		Eigen::RowVector3f btmNorm = -lowerPlaneNorm;
-		readSTL(versJawUpper, trisJawUpper, "E:/颌板/颌板示例/2/upper.stl");
-		readSTL(versJawLower, trisJawLower, "E:/颌板/颌板示例/2/lower.stl");
-		readOBJ(versLoopUpper, "G:\\gitRepositories\\matlabCode\\颌板\\data\\curveFitUpper22.obj");
-		readOBJ(versLoopLower, "G:\\gitRepositories\\matlabCode\\颌板\\data\\curveFitLower22.obj");
+		readOBJ(versLoopUpper, "G:\\gitRepositories\\matlabCode\\颌板\\data\\curveFitUpper2.obj");
+		readOBJ(versLoopLower, "G:\\gitRepositories\\matlabCode\\颌板\\data\\curveFitLower2.obj");
 		const int versCount1 = versLoopUpper.rows();
 		const int versCount2 = versLoopUpper.rows();
 
@@ -377,6 +378,8 @@ namespace TEST_JAW_PALATE
 			getCircleVers(versOuter, 20, versCount2);
 			matInsertRows(tmpVers, versInner);
 			matInsertRows(tmpVers, versOuter);
+			debugWriteVers("versInner", versInner);
+			debugWriteVers("versOuter", versOuter);
 			debugWriteVers("versInput", tmpVers);
 
 			Eigen::RowVector3d innerCenter = versInner.colwise().mean();
@@ -388,8 +391,9 @@ namespace TEST_JAW_PALATE
 			matInsertRows(versSide, versLoopUpper);
 			matInsertRows(versSide, versLoopLower);
 			trisSide = trisTG;
+			debugWriteMesh("meshSide0", versSide, trisSide);
 
-			remeshSurfMesh(tmpVers, tmpTris, versSide, trisSide, 2.0);
+			remeshSurfMesh(tmpVers, tmpTris, versSide, trisSide, 1.0);
 			versSide = tmpVers;
 			trisSide = tmpTris;
 			const int versSideCount = versSide.rows();
@@ -398,26 +402,30 @@ namespace TEST_JAW_PALATE
 			debugWriteMesh("meshSide", versSide, trisSide);
 		}
 
-
 		// 3. 生成整体的网格：
 		Eigen::MatrixXd versPalate;
 		Eigen::MatrixXi trisPalate;
+		const int versUpperCount = versUpper.rows();
+		const int versLowerCount = versLower.rows();
+		const int versUpperExtraCount = versUpperCount - versCount1;
+		const int versLowerExtraCount = versLowerCount - versCount2;
 		{
-			const int versUpperCount = versUpper.rows();
-			const int versLowerCount = versLower.rows();
 			matInsertRows(versPalate, versUpper);
 			matInsertRows(versPalate, versLower);
 			matInsertRows(versPalate, versSideExtra);
 			trisLower.array() += versUpperCount;
 
 			// 侧面网格三角片中，大于等于versCount1的顶点索引都要施加偏移量：
-			const int offset = versUpperCount - versCount1;
+			const int offset1 = versUpperExtraCount;
+			const int offset2 = versUpperExtraCount + versLowerExtraCount;
 			int* ptrInt = trisSide.data();
 			for (int i = 0; i < trisSide.size(); ++i)
 			{
 				int& index = *ptrInt;
-				if (index >= versCount1) 
-					index += offset;	 
+				if ((index >= versCount1) && (index < versCount1 + versCount2))
+					index += offset1;
+				else if (index >= versCount1 + versCount2)
+					index += offset2;
 				ptrInt++;
 			}
 
@@ -426,36 +434,106 @@ namespace TEST_JAW_PALATE
 			matInsertRows(trisPalate, trisSide);
 
 			debugWriteMesh("meshPalate", versPalate, trisPalate);
-		}
+		} 
 
-		// 4. 读取颌网格，膨胀0.1mm, meshcross
+		// 4. 对胚子网格laplace光顺：
+		int versCount = versPalate.rows();
+		int trisCount = trisPalate.rows();
 		{
-			Eigen::MatrixXd versCrossed;
-			Eigen::MatrixXf versJawNew;
-			Eigen::MatrixXi trisJawNew, trisCrossed;
-			SDF_RESULT sdfResult;
-			genSDF(sdfResult, versJawUpper, trisJawUpper, 0.3, 3);
-			marchingCubes(versJawNew, trisJawNew, sdfResult, 0.1);
-			meshCross(versCrossed, trisCrossed, versPalate, trisPalate, versJawNew, trisJawNew);
+			Eigen::MatrixXd versTmp; 
+			Eigen::MatrixXd versFixed;
+			const float lambda = 0.1;
+			const int iterCount = 20;
+			std::vector<int> fixedVerIdxes;
 
-			versPalate = versCrossed;
-			trisPalate = trisCrossed;
-			debugWriteMesh("meshCrossed1", versCrossed, trisCrossed);
+			// 固定两圈边界点：
+			std::unordered_set<int> bdryVerIdxes;
+			fixedVerIdxes.reserve(versCount);
+			for (int i = 0; i < versCount; ++i)
+			{
+				if (i < versCount1)
+					fixedVerIdxes.push_back(i);
+				if ((i >= versCount1 + versUpperExtraCount) && (i < versCount1 + versCount2 + versUpperExtraCount))
+					fixedVerIdxes.push_back(i); 
+			}
+			for (const auto& index : fixedVerIdxes)
+				bdryVerIdxes.insert(index);
+			subFromIdxVec(versFixed, versPalate, fixedVerIdxes);
+			debugWriteVers("versFixed1", versFixed);
+
+			bool ret = laplaceFaring(versTmp, versPalate, trisPalate, lambda, iterCount, fixedVerIdxes);
+			if (!ret)
+			{
+				debugDisp("error!!! laplace faring failed.");
+				return;
+			}
+			debugWriteMesh("meshLaplace1", versTmp, trisPalate);
+
+
+			std::vector<int> triIdxesTaged;
+			std::unordered_set<int> verIdxes1ring, verIdxes2ring;
+			fixedVerIdxes.clear();
+			for (int i = 0; i < trisCount; ++i)
+			{
+				int vaIdx = trisPalate(i, 0);
+				int vbIdx = trisPalate(i, 1);
+				int vcIdx = trisPalate(i, 2);
+				if (bdryVerIdxes.find(vaIdx) != bdryVerIdxes.end() || \
+					bdryVerIdxes.find(vbIdx) != bdryVerIdxes.end() || \
+					bdryVerIdxes.find(vcIdx) != bdryVerIdxes.end())
+				{
+					verIdxes1ring.insert(vaIdx);
+					verIdxes1ring.insert(vbIdx);
+					verIdxes1ring.insert(vcIdx);
+				}
+			}
+			for (int i = 0; i < trisCount; ++i)
+			{
+				int vaIdx = trisPalate(i, 0);
+				int vbIdx = trisPalate(i, 1);
+				int vcIdx = trisPalate(i, 2);
+				if (verIdxes1ring.find(vaIdx) != verIdxes1ring.end() || \
+					verIdxes1ring.find(vbIdx) != verIdxes1ring.end() || \
+					verIdxes1ring.find(vcIdx) != verIdxes1ring.end())
+				{
+					verIdxes2ring.insert(vaIdx);
+					verIdxes2ring.insert(vbIdx);
+					verIdxes2ring.insert(vcIdx);
+				}
+			}
+			for (int i = 0; i < versCount; ++i)
+				if (verIdxes2ring.end() == verIdxes2ring.find(i))
+					fixedVerIdxes.push_back(i);
+			versFixed.resize(0, 0);
+			subFromIdxVec(versFixed, versPalate, fixedVerIdxes);
+			debugWriteVers("versFixed2", versFixed);
+
+			ret = laplaceFaring(versPalate, versTmp, trisPalate, lambda, iterCount, fixedVerIdxes);
+			if (!ret)
+			{
+				debugDisp("error!!! laplace faring failed.");
+				return;
+			}
+			debugWriteMesh("meshLaplace2", versPalate, trisPalate); 
 		}
-		{
-			Eigen::MatrixXd versCrossed;
-			Eigen::MatrixXf versJawNew;
-			Eigen::MatrixXi trisJawNew, trisCrossed;
-			SDF_RESULT sdfResult;
-			genSDF(sdfResult, versJawLower, trisJawLower, 0.3, 3);
-			marchingCubes(versJawNew, trisJawNew, sdfResult, 0.1);
-			meshCross(versCrossed, trisCrossed, versPalate, trisPalate, versJawNew, trisJawNew);
-
-			debugWriteMesh("meshOut", versCrossed, trisCrossed);
-		}
-
+		return;
 
 		debugDisp("finished.");
+	}
+
+
+	// step4——刻牙印：
+	/*
+		输入：
+			meshPalate														胚子网格；	
+			meshUpperEdit, meshLowerEdit						膨胀、处理后的上下颌网格
+			
+		输出：
+			meshJawPalate												最终的颌板网格
+	*/
+	void test4() 
+	{
+
 	}
 }
 
@@ -658,12 +736,11 @@ namespace TEST_TRIANGULATION
 }
 
 
-
 int main(int argc, char** argv)
 {
 	// TEST_MYDLL::test7();
 
-	TEST_JAW_PALATE::test00();
+	TEST_JAW_PALATE::test0();
 
 	return 0;
 }

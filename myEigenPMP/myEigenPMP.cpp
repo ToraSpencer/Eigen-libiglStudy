@@ -326,11 +326,13 @@ bool laplaceFaring(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 	const Eigen::MatrixXi& tris, const float deltaLB, const unsigned loopCount, \
 	const std::vector<int>& fixedVerIdxes)
 {
-	using ScalarO = typename DerivedVo::Scalar;
 	assert(3 == vers.cols() && "assert!!! Input mesh should be in 3-dimension space.");
+
+	using ScalarO = typename DerivedVo::Scalar;
 	const int versCount = vers.rows();
 	Eigen::SparseMatrix<ScalarO> I(versCount, versCount);
 	I.setIdentity();
+	versOut.resize(0, 0); 
 
 	// 1. 计算laplace矩阵：
 	Eigen::SparseMatrix<ScalarO> Lmat;
