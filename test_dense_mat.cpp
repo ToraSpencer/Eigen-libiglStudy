@@ -781,10 +781,11 @@ namespace TEST_DENSE_MAT
 			<< vec << " to " << std::endl << rotatedV << std::endl;
 
 		// 转动到目标向量：
-		Eigen::Matrix3f rotation = getRotationMat(RowVector3f(1, 0, 0), RowVector3f(0, 0, 1));
+		Eigen::Matrix3f rotation;
+		getRotationMat(rotation, RowVector3f(1, 0, 0), RowVector3f(0, 0, 1));
 		RowVector3f v1 = (rotation * RowVector3f(1, 0, 0).transpose()).transpose();
 		std::cout << "旋转后的v1 == " << v1 << std::endl;
-		rotation = getRotationMat(RowVector3f(1, 1, 1), RowVector3f(3, 4, 5));
+		getRotationMat(rotation, RowVector3f(1, 1, 1), RowVector3f(3, 4, 5));
 		v1 = (rotation * RowVector3f(1, 1, 1).transpose()).transpose();
 		float scale = 5.0 / v1(2);
 		v1 *= scale;

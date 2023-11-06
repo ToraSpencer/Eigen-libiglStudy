@@ -135,7 +135,8 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedO>& vers, Eigen::MatrixXi& tris,
 	norm.normalize();
 
 	//  2. 旋转点集使得norm平行于z轴
-	Matrix3O rotation = getRotationMat(norm, RowVector3O{ 0, 0, 1 });
+	Matrix3O rotation;
+	getRotationMat(rotation, norm, RowVector3O{ 0, 0, 1 });
 	vers = (vers * rotation.transpose()).eval();
 
 	// 3. 旋转后的点数据写入到triangulate()接口的输入结构体中。
@@ -199,7 +200,8 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris,
 	Eigen::Matrix4f rotationHomo{ Eigen::Matrix4f::Identity() };
 	Eigen::Matrix4f translationHomo{ Eigen::Matrix4f::Identity() };
 	Eigen::Matrix4f affineHomo, affineInvHomo;
-	Eigen::Matrix3f rotation = getRotationMat(Eigen::RowVector3f{ 0, 0, 1 }, Eigen::RowVector3f{ normDir.array().cast<float>() });
+	Eigen::Matrix3f rotation;
+	getRotationMat(rotation, Eigen::RowVector3f{ 0, 0, 1 }, Eigen::RowVector3f{ normDir.array().cast<float>() });
 	rotationHomo.topLeftCorner(3, 3) = rotation;
 	translationHomo(0, 3) = loopCenter(0);
 	translationHomo(1, 3) = loopCenter(1);

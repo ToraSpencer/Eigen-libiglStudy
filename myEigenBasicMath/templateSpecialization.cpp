@@ -108,14 +108,6 @@ template Eigen::Matrix<int, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<in
 template Eigen::Matrix<float, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<float>& vIn);
 template Eigen::Matrix<float, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<double>& vIn);
 
-template Eigen::Matrix<float, 3, 3> getRotationMat(const Eigen::Matrix<float, 1, 3>& axisArrow, const float theta);
-template Eigen::Matrix<double, 3, 3> getRotationMat(const Eigen::Matrix<double, 1, 3>& axisArrow, const float theta);
-
-template Eigen::Matrix<float, 3, 3> getRotationMat(const Eigen::Matrix<float, 1, 3>& originArrow, \
-	const Eigen::Matrix<float, 1, 3>& targetArrow);
-template Eigen::Matrix<double, 3, 3> getRotationMat(const Eigen::Matrix<double, 1, 3>& originArrow, \
-	const Eigen::Matrix<double, 1, 3>& targetArrow);
-
 template bool subFromIdxVec(Eigen::MatrixBase<Eigen::MatrixXi>& matBaseOut, const Eigen::MatrixBase<Eigen::MatrixXi>& matBaseIn, \
 	const Eigen::VectorXi& vec);
 template bool subFromIdxVec(Eigen::MatrixBase<Eigen::MatrixXf>& matBaseOut, const Eigen::MatrixBase<Eigen::MatrixXf>& matBaseIn, \

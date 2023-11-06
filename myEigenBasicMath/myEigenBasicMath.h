@@ -182,65 +182,113 @@ void traverseSparseMatrix(spMat& sm, F f)
 template <typename T>
 std::pair<double, double> cart2polar(const T x, const T y);
 
+
 // 极坐标转换为二维笛卡尔坐标：
 template <typename T>
 std::pair<double, double> polar2cart(const T radius, const T theta);
+
 
 // 霍纳方法（秦九昭算法）求多项式的值
 template<typename T, int N>
 double hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const double x);
 
+
 // 求多项式的一阶微分
 template<typename T, int N>
 float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x);
+
 
 // eigen向量转换为std向量, 重载1
 template<typename T, typename Derived>
 void eigenVec2Vec(std::vector<T>& vOut, const Eigen::PlainObjectBase<Derived>& vIn);
 
+
 // eigen向量转换为std向量，重载2
 template<typename Derived>
 std::vector<typename Derived::Scalar> eigenVec2Vec(const Eigen::PlainObjectBase<Derived>& vIn);
 
-// std::向量转换为eigen列向量， 重载1；
+
+// std::向量转换为eigen列向量， 重载1
 template<typename Derived, typename T>
 void vec2EigenVec(Eigen::PlainObjectBase<Derived>& vOut, const std::vector<T>& vIn);
+
 
 // std::向量转换为eigen列向量， 重载2；
 template<typename T>
 Eigen::Matrix<T, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<T>& vIn);
 
-// 输入旋转信息得到旋转矩阵
-template <typename T>
-Eigen::Matrix<T, 3, 3> getRotationMat(const Eigen::Matrix<T, 1, 3>& axisArrow, const float theta);
 
-// 
-template <typename T>
-Eigen::Matrix<T, 3, 3> getRotationMat(const Eigen::Matrix<T, 1, 3>& originArrow, const Eigen::Matrix<T, 1, 3>& targetArrow);
+// 输入旋转信息得到旋转矩阵，重载1——输入旋转轴向量，旋转角度，返回旋转矩阵：
+/*
+	template <typename ScalarVO, typename ScalarVI>
+	void getRotationMat(
+			Eigen::Matrix<ScalarVO, 3, 3>& rotation,							输出的旋转矩阵
+			const Eigen::Matrix<ScalarVI, 1, 3>& axisArrow,				旋转轴向量
+			const double theta																逆时针旋转角度
+			)
+
+
+		注！！！计算出的旋转矩阵全部默认为作用于列向量；
+				若v,u为列向量，r,s为行向量：R * v == u; 等价于 r * R.transpose() == s;
+*/
+template <typename ScalarVO, typename DerivedVA>
+void getRotationMat(Eigen::Matrix<ScalarVO, 3, 3>& rotation, \
+	const Eigen::PlainObjectBase<DerivedVA>& axisArrow, const double theta);
+
+
+// 输入旋转信息得到旋转矩阵，重载2——得到将originArrow旋转到targetArrow的旋转矩阵
+/*
+	template <typename ScalarVO, typename ScalarV1, typename ScalarV2>
+	void getRotationMat(
+			Eigen::Matrix<ScalarVO, 3, 3>& rotation, \
+			const Eigen::Matrix<ScalarV1, 1, 3>& originArrow, \
+			const Eigen::Matrix<ScalarV2, 1, 3>& targetArrow
+			)
+
+
+		注！！！计算出的旋转矩阵全部默认为作用于列向量；
+				若v,u为列向量，r,s为行向量：R * v == u; 等价于 r * R.transpose() == s;
+*/
+template <typename ScalarVO, typename DerivedV1, typename DerivedV2>
+void getRotationMat(Eigen::Matrix<ScalarVO, 3, 3>& rotation, \
+	const Eigen::PlainObjectBase<DerivedV1>& originArrow, \
+	const Eigen::PlainObjectBase<DerivedV2>& targetArrow);
+
 
 //
 template <typename Derived>
-bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
+bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, \
+	const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
+
 
 //
 template <typename Derived, typename Index>
-bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const std::vector<Index>& vec);
+bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut,\
+	const Eigen::MatrixBase<Derived>& matBaseIn, const std::vector<Index>& vec);
+
 
 //
 template <typename Derived, typename IndexContainer>
-bool subFromIdxCon(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const IndexContainer& con);
+bool subFromIdxCon(Eigen::MatrixBase<Derived>& matBaseOut, \
+	const Eigen::MatrixBase<Derived>& matBaseIn, const IndexContainer& con);
+
 
 //
 template <typename Derived>
-bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
+bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, \
+	const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
+
 
 //
 template <typename Derived>
-bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, std::vector<int>& oldNewIdxInfo, std::vector<int>& newOldIdxInfo, \
+bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, \
+	std::vector<int>& oldNewIdxInfo, std::vector<int>& newOldIdxInfo, \
 	const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
  
+
 //
 Eigen::VectorXi flagVec2IdxVec(const Eigen::VectorXi& flag);
+
 
 //
 Eigen::VectorXi IdxVec2FlagVec(const Eigen::VectorXi& idxVec, const unsigned size);
@@ -409,3 +457,5 @@ void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, const Eigen::Matrix<T, E
 template<typename T>
 Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& sampleVers);
  
+
+#include "tmp.tpp"

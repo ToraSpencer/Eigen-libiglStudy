@@ -305,7 +305,31 @@ namespace TEST_JAW_PALATE
 	
 	*/
 	void test1()
-	{}
+	{
+		Eigen::MatrixXf versJawUpper, versJawLower;
+		Eigen::MatrixXi trisJawUpper, trisJawLower;
+		Eigen::RowVector3f	planeCenterUpper{ 0, -15, -25 };
+		Eigen::RowVector3f	planeNormUpper{ 0.0, 0.0, -1 };
+		Eigen::RowVector3f	planeCenterLower{ 8, -20, -30 };
+		Eigen::RowVector3f	planeNormLower{ -0.1, -0.5, 4 };
+		readSTL(versJawUpper, trisJawUpper, "E:/颌板/颌板示例/2/upper.stl");
+		readSTL(versJawLower, trisJawLower, "E:/颌板/颌板示例/2/lower.stl");
+		planeNormUpper.normalize();
+		planeNormLower.normalize();
+
+		// 
+		{
+			Eigen::MatrixXd versPlaneUpper, versPlaneLower;
+			Eigen::MatrixXi trisPlaneUpper, trisPlaneLower;
+			genRoundSurfMesh(versPlaneUpper, trisPlaneUpper, planeCenterUpper, planeNormUpper, 50);
+			genRoundSurfMesh(versPlaneLower, trisPlaneLower, planeCenterLower, planeNormLower, 50);
+
+			debugWriteMesh("meshPlaneUpper", versPlaneUpper, trisPlaneUpper);
+			debugWriteMesh("meshPlaneLower", versPlaneLower, trisPlaneLower);
+		}
+		
+		debugDisp("finished.");
+	}
 
 
 	// step2——精调上下底面边界线：
@@ -348,11 +372,14 @@ namespace TEST_JAW_PALATE
 
 		Eigen::MatrixXd versLoopUpper, versLoopLower;
 		Eigen::RowVector3f upperPlaneNorm{ 0, 0, -1 };
-		Eigen::RowVector3f lowerPlaneNorm{ -0.0987428597222625, -0.123428574652828, 0.987428597222625 };
+		Eigen::RowVector3f lowerPlaneNorm{ -0.4, -0.5, 4 };
+		upperPlaneNorm.normalize();
+		lowerPlaneNorm.normalize();
+
 		Eigen::RowVector3f topNorm = -upperPlaneNorm;
 		Eigen::RowVector3f btmNorm = -lowerPlaneNorm;
-		readOBJ(versLoopUpper, "G:\\gitRepositories\\matlabCode\\颌板\\data\\curveFitUpper2.obj");
-		readOBJ(versLoopLower, "G:\\gitRepositories\\matlabCode\\颌板\\data\\curveFitLower2.obj");
+		readOBJ(versLoopUpper, "E:\\颌板\\颌板示例\\2\\curveFitUpper.obj");
+		readOBJ(versLoopLower, "E:\\颌板\\颌板示例\\2\\curveFitLower.obj");
 		const int versCount1 = versLoopUpper.rows();
 		const int versCount2 = versLoopUpper.rows();
 
@@ -436,14 +463,15 @@ namespace TEST_JAW_PALATE
 			debugWriteMesh("meshPalate", versPalate, trisPalate);
 		} 
 
-		// 4. 对胚子网格laplace光顺：
+
+		// 4. 固定两圈边界点，对网格进行光顺；
 		int versCount = versPalate.rows();
 		int trisCount = trisPalate.rows();
 		{
 			Eigen::MatrixXd versTmp; 
 			Eigen::MatrixXd versFixed;
 			const float lambda = 0.1;
-			const int iterCount = 20;
+			const int iterCount = 30;
 			std::vector<int> fixedVerIdxes;
 
 			// 固定两圈边界点：
@@ -468,11 +496,29 @@ namespace TEST_JAW_PALATE
 				return;
 			}
 			debugWriteMesh("meshLaplace1", versTmp, trisPalate);
+			versPalate = versTmp;
+		}
 
-
+		// 5. 固定边界点2领域以外的顶点，对网格进行光顺：
+		{
+			Eigen::MatrixXd versTmp;
+			Eigen::MatrixXd versFixed;
+			const float lambda = 0.1;
+			const int iterCount = 30;
+			std::vector<int> fixedVerIdxes;
+			std::unordered_set<int> bdryVerIdxes, tmpSet;
 			std::vector<int> triIdxesTaged;
 			std::unordered_set<int> verIdxes1ring, verIdxes2ring;
-			fixedVerIdxes.clear();
+
+			bdryVerIdxes.reserve(versCount);
+			for (int i = 0; i < versCount; ++i)
+			{
+				if (i < versCount1)
+					bdryVerIdxes.insert(i);
+				if ((i >= versCount1 + versUpperExtraCount) && (i < versCount1 + versCount2 + versUpperExtraCount))
+					bdryVerIdxes.insert(i);
+			} 
+
 			for (int i = 0; i < trisCount; ++i)
 			{
 				int vaIdx = trisPalate(i, 0);
@@ -487,6 +533,7 @@ namespace TEST_JAW_PALATE
 					verIdxes1ring.insert(vcIdx);
 				}
 			}
+
 			for (int i = 0; i < trisCount; ++i)
 			{
 				int vaIdx = trisPalate(i, 0);
@@ -501,22 +548,31 @@ namespace TEST_JAW_PALATE
 					verIdxes2ring.insert(vcIdx);
 				}
 			}
+
 			for (int i = 0; i < versCount; ++i)
 				if (verIdxes2ring.end() == verIdxes2ring.find(i))
 					fixedVerIdxes.push_back(i);
+
+			for (const auto& index : fixedVerIdxes)
+				tmpSet.insert(index);
+			fixedVerIdxes.clear();
+			fixedVerIdxes.insert(fixedVerIdxes.end(), tmpSet.begin(), tmpSet.end());
+
 			versFixed.resize(0, 0);
 			subFromIdxVec(versFixed, versPalate, fixedVerIdxes);
 			debugWriteVers("versFixed2", versFixed);
 
-			ret = laplaceFaring(versPalate, versTmp, trisPalate, lambda, iterCount, fixedVerIdxes);
+			bool ret = laplaceFaring(versTmp, versPalate, trisPalate, lambda, iterCount, fixedVerIdxes);
 			if (!ret)
 			{
 				debugDisp("error!!! laplace faring failed.");
 				return;
 			}
-			debugWriteMesh("meshLaplace2", versPalate, trisPalate); 
+			debugWriteMesh("meshLaplace2", versTmp, trisPalate);
+
+			versPalate = versTmp;
 		}
-		return;
+
 
 		debugDisp("finished.");
 	}
@@ -740,7 +796,9 @@ int main(int argc, char** argv)
 {
 	// TEST_MYDLL::test7();
 
-	TEST_JAW_PALATE::test0();
+	TEST_JAW_PALATE::test3();
+
+	debugDisp("main finished.");
 
 	return 0;
 }

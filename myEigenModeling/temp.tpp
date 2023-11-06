@@ -3,6 +3,48 @@
   
 #ifdef USE_TRIANGLE_H
 
+// 生成圆形面网格，用于展示三维空间中的一个平面：
+template <typename DerivedVO, typename DerivedVC, typename DerivedVN>
+bool genRoundSurfMesh(Eigen::PlainObjectBase<DerivedVO>& versOut, Eigen::MatrixXi& trisOut, \
+	const Eigen::PlainObjectBase<DerivedVC>& planeCenter, \
+	const Eigen::PlainObjectBase<DerivedVN>& planeNorm, \
+	const double radius, const int versCount)
+{
+	const double eps = 1e-5;
+	assert(std::abs(planeNorm.norm() - 1) <= eps && "assert!!! the planeNorm is not a unit vector.");
+
+	using ScalarO = typename DerivedVO::Scalar;
+	using Matrix3O = Eigen::Matrix<ScalarO, 3, 3>;
+	using Matrix4O = Eigen::Matrix<ScalarO, 4, 4>;
+	using MatrixXO = Eigen::Matrix<ScalarO, Eigen::Dynamic, Eigen::Dynamic>;
+
+	versOut.resize(0, 0);
+	trisOut.resize(0, 0);
+
+	// 生成XOY平面内中心在原点的圆盘网格
+	MatrixXO circVers;
+	getCircleVers(circVers, radius,  versCount);
+	circuit2mesh(versOut, trisOut, circVers);
+
+	// 求一个仿射变换： 
+	Matrix3O rotation;
+	Matrix4O affineHomo{Matrix4O::Ones()};
+	getRotationMat(rotation, Eigen::RowVector3f{0, 0, 1}, planeNorm);
+	affineHomo.topLeftCorner(3, 3) = rotation;
+	affineHomo(0, 3) = static_cast<ScalarO>(planeCenter(0));
+	affineHomo(1, 3) = static_cast<ScalarO>(planeCenter(1));
+	affineHomo(2, 3) = static_cast<ScalarO>(planeCenter(2));
+
+	//
+	MatrixXO versOutHomo;
+	vers2HomoVers(versOutHomo, versOut);
+	versOutHomo = (affineHomo * versOutHomo).eval();
+	homoVers2Vers(versOut, versOutHomo);
+
+	return true;
+}
+
+
 	// 重载1：2D点云三角剖分得到面网格——可以带洞也可以不带洞
 	/*
 
@@ -303,7 +345,8 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 	{
 		sectionNorms[i] = axisVers.row(i + 1) - axisVers.row(i);
 		sectionNorms[i].normalize();
-		Matrix3T rotation = getRotationMat(RowVector3T{ 0, 0, 1 }, sectionNorms[i]);
+		Matrix3T rotation;
+		getRotationMat(rotation, RowVector3T{ 0, 0, 1 }, sectionNorms[i]);
 		circuitsVec[i] = btmVers * rotation.transpose();
 		circuitsVec[i].rowwise() += axisVers.row(i);
 	}
@@ -314,7 +357,8 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 		deltaNormAve += (sectionNorms[i + 1] - sectionNorms[i]);
 	deltaNormAve.array() /= (circCount - 2);
 	sectionNorms[circCount - 1] = sectionNorms[circCount - 2] + deltaNormAve;
-	Matrix3T rotation = getRotationMat(RowVector3T{ 0, 0, 1 }, sectionNorms[circCount - 1]);
+	Matrix3T rotation;
+	getRotationMat(rotation, RowVector3T{ 0, 0, 1 }, sectionNorms[circCount - 1]);
 	circuitsVec[circCount - 1] = btmVers * rotation.transpose();
 	circuitsVec[circCount - 1].rowwise() += axisVers.row(circCount - 1);
 
@@ -484,7 +528,8 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 	{
 		sectionNorms[i] = axisVers.row(i + 1) - axisVers.row(i);
 		sectionNorms[i].normalize();
-		Matrix3T rotation = getRotationMat(RowVector3T{ 0, 0, 1 }, sectionNorms[i]);
+		Matrix3T rotation;
+		getRotationMat(rotation, RowVector3T{ 0, 0, 1 }, sectionNorms[i]);
 
 		//		仿射变换：
 		circuitsVec[i] = (circuitsVec[i] * rotation.transpose()).eval();
@@ -497,7 +542,8 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 		deltaNormAve += (sectionNorms[i + 1] - sectionNorms[i]);
 	deltaNormAve.array() /= (circCount - 2);
 	sectionNorms[circCount - 1] = sectionNorms[circCount - 2] + deltaNormAve;
-	Matrix3T rotation = getRotationMat(RowVector3T{ 0, 0, 1 }, sectionNorms[circCount - 1]);
+	Matrix3T rotation;
+	getRotationMat(rotation, RowVector3T{ 0, 0, 1 }, sectionNorms[circCount - 1]);
 
 	//		仿射变换：
 	circuitsVec[circCount - 1] = (circuitsVec[circCount - 1] * rotation.transpose()).eval();
@@ -726,9 +772,10 @@ bool genAlignedCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, 
 	{
 		sectionNorms[i] = axisVers.row(i + 1) - axisVers.row(i);
 		sectionNorms[i].normalize();
-		Matrix3T rotation1 = getRotationMat(RowVector3T{ 0, 0, 1 }, RowVector3T{ 0, 1, 0 });
-		Matrix3T rotation2 = getRotationMat(RowVector3T{ 0, 1, 0 }, sectionNorms[i]);
-		Matrix3T rotation = rotation2 * rotation1;
+		Matrix3T rotation, rotation1, rotation2;
+		getRotationMat(rotation, RowVector3T{ 0, 0, 1 }, RowVector3T{ 0, 1, 0 });
+		getRotationMat(rotation, RowVector3T{ 0, 1, 0 }, sectionNorms[i]);
+		rotation = rotation2 * rotation1;
 		circuitsVec[i] = circuit * rotation.transpose();
 		circuitsVec[i].rowwise() += axisVers.row(i);
 	}
@@ -739,9 +786,10 @@ bool genAlignedCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, 
 		deltaNormAve += (sectionNorms[i + 1] - sectionNorms[i]);
 	deltaNormAve.array() /= (circCount - 2);
 	sectionNorms[circCount - 1] = sectionNorms[circCount - 2] + deltaNormAve;
-	Matrix3T rotation1 = getRotationMat(RowVector3T{ 0, 0, 1 }, RowVector3T{ 0, 1, 0 });
-	Matrix3T rotation2 = getRotationMat(RowVector3T{ 0, 1, 0 }, sectionNorms[circCount - 1]);
-	Matrix3T rotation = rotation2 * rotation1;
+	Matrix3T rotation, rotation1, rotation2;
+	getRotationMat(rotation1, RowVector3T{ 0, 0, 1 }, RowVector3T{ 0, 1, 0 });
+	getRotationMat(rotation2, RowVector3T{ 0, 1, 0 }, sectionNorms[circCount - 1]);
+	rotation = rotation2 * rotation1;
 	circuitsVec[circCount - 1] = circuit * rotation.transpose();
 	circuitsVec[circCount - 1].rowwise() += axisVers.row(circCount - 1);
 

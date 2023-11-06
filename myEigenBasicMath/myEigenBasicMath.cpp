@@ -106,6 +106,9 @@ Eigen::Matrix<T, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<T>& vIn)
 }
 
 
+
+
+
 // 霍纳方法（秦九昭算法）求多项式的值
 template<typename T, int N>
 double hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const double x)
@@ -146,48 +149,8 @@ float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
 
 	return result;
 }
-
-
-
-// 注！！！计算出的旋转矩阵全部默认为作用于列向量；若v,u为列向量，r,s为行向量：R * v == u; 等价于 r * R.transpose() == s;
-
-// getRotationMat() 重载1——输入旋转轴向量，旋转角度，返回旋转矩阵：
-template <typename T>
-Eigen::Matrix<T, 3, 3> getRotationMat(const Eigen::Matrix<T, 1, 3>& axisArrow, const float theta)
-{
-	Eigen::Matrix<T, 3, 1> axis = axisArrow.transpose().normalized();
-	return Eigen::AngleAxis<T>(theta, axis).toRotationMatrix();
-}
-
-
-// getRotationMat() 重载2——得到将originArrow旋转到targetArrow的旋转矩阵
-template <typename T>
-Eigen::Matrix<T, 3, 3> getRotationMat(const Eigen::Matrix<T, 1, 3>& originArrow, const Eigen::Matrix<T, 1, 3>& targetArrow)
-{
-	Eigen::Matrix<T, 3, 3> rotation = Eigen::Matrix<T, 3, 3>::Zero();
-	if (0 == originArrow.norm() || 0 == targetArrow.norm())
-		return rotation;
-
-	Eigen::Matrix<T, 1, 3> axisArrow = originArrow.cross(targetArrow);		// 旋转轴；
-
-	if (0 == axisArrow.norm())
-		return Eigen::Matrix<T, 3, 3>::Identity();
-
-	axisArrow.normalize();
-	T x0 = axisArrow(0);
-	T y0 = axisArrow(1);
-	T z0 = axisArrow(2);
-	T cosTheta = originArrow.dot(targetArrow) / (originArrow.norm() * targetArrow.norm());
-	T sinTheta = std::sqrt(1 - cosTheta * cosTheta);
-
-	// 等价于Eigen::AngleAxis<T>(theta, axis).toRotationMatrix()，计算绕任意轴向量旋转theta角度；
-	rotation << cosTheta + (1 - cosTheta) * x0 * x0, (1 - cosTheta)* x0* y0 - sinTheta * z0, (1 - cosTheta)* x0* z0 + sinTheta * y0, \
-		(1 - cosTheta)* y0* x0 + sinTheta * z0, cosTheta + (1 - cosTheta) * y0 * y0, (1 - cosTheta)* y0* z0 - sinTheta * x0, \
-		(1 - cosTheta)* z0* x0 - sinTheta * y0, (1 - cosTheta)* z0* y0 + sinTheta * x0, cosTheta + (1 - cosTheta) * z0 * z0;
-	return rotation;
-}
-
-
+ 
+  
 // 根据索引向量从源矩阵中提取元素生成输出矩阵。
 template <typename Derived>
 bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec)

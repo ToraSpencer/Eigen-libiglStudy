@@ -284,7 +284,7 @@ namespace TEST_MYEIGEN
 		// 绕任意轴旋转：
 		theta = pi / 3;
 		axisArrow = Eigen::RowVector3d{20, 0, 0};
-		rotation = getRotationMat(axisArrow, theta);
+		getRotationMat(rotation, axisArrow, theta);
 		arrowRotted = arrow1 * rotation.transpose();
 		dispVec<double, 3>(arrowRotted);
 
@@ -295,7 +295,7 @@ namespace TEST_MYEIGEN
 		arrow2.normalize();
 		dispVec<double, 3>(arrow1);
 		dispVec<double, 3>(arrow2);
-		rotation = getRotationMat(arrow1, arrow2);
+		getRotationMat(rotation, arrow1, arrow2);
 		arrowRotted = arrow1 * rotation.transpose();
 		dispVec<double, 3>(arrowRotted);
 
@@ -499,6 +499,7 @@ namespace TEST_MYEIGEN
 // 测试myEigenModeling中的接口
 namespace TEST_MYEIGEN_MODELING
 {
+
 #ifdef USE_TRIANGLE_H
 
 	// 测试生成柱体
@@ -586,6 +587,18 @@ namespace TEST_MYEIGEN_MODELING
 
 		debugWriteMesh("meshOut", vers, tris);
  
+		debugDisp("finished.");
+	}
+
+
+	// 测试生成规则图形：
+	void test3() 
+	{
+		Eigen::MatrixXd versRound;
+		Eigen::MatrixXi trisRound;
+		genRoundSurfMesh(versRound, trisRound, Eigen::RowVector3f{ 1, 2, 3 }, Eigen::RowVector3f{ 0, 0, -1 });
+		debugWriteMesh("meshRound", versRound, trisRound);
+
 		debugDisp("finished.");
 	}
 
