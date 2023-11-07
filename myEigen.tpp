@@ -23,87 +23,7 @@ void revTraverseSTL(T& con, F f)
 /////////////////////////////////////////////////////////////////////////////////////////////////// debug接口：
 namespace MY_DEBUG 
 {
-	// 顶点或三角片矩阵转换为triplet向量的形式；
-	template <typename T>
-	std::vector<triplet<T>> mat2triplets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat)
-	{
-		std::vector<triplet<T>> vec;
-		if (0 == mat.rows() || 3 != mat.cols())
-			return vec;
 
-		vec.resize(mat.rows());
-		for (unsigned i = 0; i < mat.rows(); ++i)
-		{
-			vec[i].x = mat(i, 0);
-			vec[i].y = mat(i, 1);
-			vec[i].z = mat(i, 2);
-		}
-
-		return vec;
-	}
-
-
-	template <typename T>
-	std::vector<doublet<T>> mat2doublets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat)
-	{
-		std::vector<doublet<T>> vec;
-		if (0 == mat.rows() || 2 != mat.cols())
-			return vec;
-
-		vec.resize(mat.rows());
-		for (unsigned i = 0; i < mat.rows(); ++i)
-		{
-			vec[i].x = mat(i, 0);
-			vec[i].y = mat(i, 1);
-		}
-
-		return vec;
-	}
-
-
-	template <typename T>
-	triplet<T> vec2triplet(const Eigen::Matrix<T, 1, 3>& vec)
-	{
-		triplet<T> t{ vec(0), vec(1), vec(2) };
-		return t;
-	}
-
-
-	template <typename T>
-	doublet<T> vec2doublet(const Eigen::Matrix<T, 1, 2>& vec)
-	{
-		doublet<T> d{ vec(0), vec(1) };
-		return d;
-	}
-
-
-	// 遍历搜索triplet向量，若索引为index的triplet元素使得谓词f返回值为true，则返回index; 若找不到或出错则返回-1；
-	template <typename T, typename F>
-	int findTriplet(const std::vector<triplet<T>>& trips, F f)
-	{
-		// 谓词F的形式为bool foo(const triplet<T>& t);
-		if (trips.empty())
-			return -1;
-		for (unsigned i = 0; i < trips.size(); ++i)
-			if (f(trips[i]))
-				return static_cast<int>(i);
-
-		return -1;
-	}
-
-
-	template <typename T, typename F>
-	int findTriplet(const std::vector<doublet<T>>& doubs, F f)
-	{
-		// 谓词F的形式为bool foo(const doublet<T>& d);
-		if (doubs.empty())
-			return -1;
-		for (unsigned i = 0; i < doubs.size(); ++i)
-			if (f(doubs[i]))
-				return static_cast<int>(i);
-
-		return -1;
-	}
 
 
 	template <typename T1, typename T2>
@@ -233,7 +153,6 @@ bool sortLoopEdges(std::vector<int>& loopVerIdxes, \
 	// for debug:
 	Eigen::MatrixXi tmpMat = loopEdges;
 	std::vector<doublet<int>> debugVec = mat2doublets(tmpMat);
-	objWriteEdgesMat("E:/currentLoopEdge.obj", tmpMat, g_debugVers);
 
 	std::unordered_map<int, int> tmpMap;
 	for (int i = 0; i < edgesCount; ++i)

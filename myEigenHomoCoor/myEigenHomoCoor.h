@@ -45,5 +45,8 @@ bool vers2HomoVers(Eigen::PlainObjectBase<DerivedVo>& versOut, const Eigen::Plai
 // 齐次坐标系→笛卡尔坐标系
 template <typename DerivedVo, typename DerivedVi>
 bool homoVers2Vers(Eigen::PlainObjectBase<DerivedVo>& versOut, const Eigen::PlainObjectBase<DerivedVi>& versIn);
+
+template <typename DerivedV>
+Eigen::MatrixXd homoVers2Vers(const Eigen::PlainObjectBase<DerivedV>& versIn);
  
  

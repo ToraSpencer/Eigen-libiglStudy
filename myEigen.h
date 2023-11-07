@@ -49,11 +49,6 @@
 #pragma comment(lib, "myEigenPMP.lib")
 
 
-
-/////////////////////////////////////////////////////////////////////////////////////////////////// debug全局变量
-static Eigen::MatrixXd g_debugVers;
-
-
 /////////////////////////////////////////////////////////////////////////////////////////////////// general tools: 
 template<typename Func>
 void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, const unsigned int serial_if_less_than);
@@ -64,49 +59,11 @@ void traverseSTL(T& con, F f);
 template<typename T, typename F>
 void revTraverseSTL(T& con, F f); 
 
-
-/////////////////////////////////////////////////////////////////////////////////////////////////// 辅助结构：
-template <typename T>
-struct triplet 
-{
-	T x;
-	T y;
-	T z;
-};
-
-
-template <typename T>
-struct doublet
-{
-	T x;
-	T y;
-};
-
+ 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// debug接口：
 namespace MY_DEBUG
 {
-	// 顶点或三角片矩阵转换为triplet向量的形式；
-	template <typename T>
-	std::vector<triplet<T>> mat2triplets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat);
-
-	template <typename T>
-	std::vector<doublet<T>> mat2doublets(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat);
-
-	template <typename T>
-	triplet<T> vec2triplet(const Eigen::Matrix<T, 1, 3>& vec);
-
-	template <typename T>
-	doublet<T> vec2doublet(const Eigen::Matrix<T, 1, 2>& vec);
-
-
-	// 遍历搜索triplet向量，若索引为index的triplet元素使得谓词f返回值为true，则返回index; 若找不到或出错则返回-1；
-	template <typename T, typename F>
-	int findTriplet(const std::vector<triplet<T>>& trips, F f);
-
-	template <typename T, typename F>
-	int findTriplet(const std::vector<doublet<T>>& doubs, F f);
-
 	template <typename T1, typename T2>
 	void dispPair(const std::pair<T1, T2>& pair);
 	template<typename T>
@@ -189,7 +146,6 @@ namespace LAPLACIAN_MASS_MATRIX
 template<typename T>
 bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOut, \
 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matIn, const Eigen::MatrixXd& mask);
-
 
 
 // class——方向包围盒类OBB（本质上是中点在原点的AABB加上一个仿射变换）；

@@ -52,7 +52,13 @@ bool homoVers2Vers(Eigen::PlainObjectBase<DerivedVo>& versOut, const Eigen::Plai
 }
 
 
-
+template <typename DerivedV>
+Eigen::MatrixXd homoVers2Vers(const Eigen::PlainObjectBase<DerivedV>& versIn)
+{
+	Eigen::MatrixXd versOut;
+	homoVers2Vers(versOut, versIn);
+	return versOut;
+}
 
 
 

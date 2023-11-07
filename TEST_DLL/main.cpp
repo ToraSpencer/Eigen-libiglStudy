@@ -306,18 +306,21 @@ namespace TEST_JAW_PALATE
 	*/
 	void test1()
 	{
+		const float thresholdDis = 5.0;
+		const int alphaValue = 10;
 		Eigen::MatrixXf versJawUpper, versJawLower;
 		Eigen::MatrixXi trisJawUpper, trisJawLower;
 		Eigen::RowVector3f	planeCenterUpper{ 0, -15, -25 };
 		Eigen::RowVector3f	planeNormUpper{ 0.0, 0.0, -1 };
 		Eigen::RowVector3f	planeCenterLower{ 8, -20, -30 };
 		Eigen::RowVector3f	planeNormLower{ -0.1, -0.5, 4 };
+
 		readSTL(versJawUpper, trisJawUpper, "E:/颌板/颌板示例/2/upper.stl");
 		readSTL(versJawLower, trisJawLower, "E:/颌板/颌板示例/2/lower.stl");
 		planeNormUpper.normalize();
 		planeNormLower.normalize();
 
-		// 
+		// 1. 生成上下基准平面；
 		{
 			Eigen::MatrixXd versPlaneUpper, versPlaneLower;
 			Eigen::MatrixXi trisPlaneUpper, trisPlaneLower;
@@ -328,6 +331,58 @@ namespace TEST_JAW_PALATE
 			debugWriteMesh("meshPlaneLower", versPlaneLower, trisPlaneLower);
 		}
 		
+		// 2. 求仿射变换及其逆变换，得到上下颌投影点：
+		Eigen::Matrix4f affineHomoUpper{ Eigen::Matrix4f::Identity() };
+		Eigen::Matrix4f affineHomoInvUpper{ Eigen::Matrix4f::Identity() };
+		Eigen::Matrix4f affineHomoLower{ Eigen::Matrix4f::Identity() };
+		Eigen::Matrix4f affineHomoInvLower{ Eigen::Matrix4f::Identity() };
+		Eigen::MatrixXf versProjUpper, versProjLower;
+		{
+			const int versCountUpper = versJawUpper.rows();
+			const int versCountLower = versJawLower.rows();
+			Eigen::Matrix3f rotationUpper, rotationLower;
+			Eigen::MatrixXf versUpperHomo, versLowerHomo, versUpperSelectedHomo, versLowerSelectedHomo;
+			getRotationMat(rotationUpper, Eigen::RowVector3f{ 0, 0, -1}, planeNormUpper);
+			getRotationMat(rotationLower, Eigen::RowVector3f{ 0, 0, 1 }, planeNormLower);
+			affineHomoUpper.topLeftCorner(3, 3) = rotationUpper;
+			affineHomoUpper.topRightCorner(3, 1) = planeCenterUpper.transpose().array().cast<float>();
+			affineHomoLower.topLeftCorner(3, 3) = rotationLower;
+			affineHomoLower.topRightCorner(3, 1) = planeCenterLower.transpose().array().cast<float>();
+			affineHomoInvUpper = affineHomoUpper.inverse();
+			affineHomoInvLower = affineHomoLower.inverse();
+			vers2HomoVers(versUpperHomo, versJawUpper);
+			vers2HomoVers(versLowerHomo, versJawLower);
+			versUpperHomo = (affineHomoInvUpper * versUpperHomo).eval();
+			versLowerHomo = (affineHomoInvLower * versLowerHomo).eval(); 
+			for (int i = 0; i < versCountUpper; ++i) 
+				if (versUpperHomo(2, i) <= thresholdDis)
+					matInsertCols(versUpperSelectedHomo, Eigen::Vector4f{ versUpperHomo.col(i) });
+			for (int i = 0; i < versCountLower; ++i)
+				if (versLowerHomo(2, i) >= -thresholdDis)
+					matInsertCols(versLowerSelectedHomo, Eigen::Vector4f{ versLowerHomo.col(i) }); 
+
+			versUpperSelectedHomo = (affineHomoUpper * versUpperSelectedHomo).eval();
+			versLowerSelectedHomo = (affineHomoLower * versLowerSelectedHomo).eval();
+			homoVers2Vers(versProjUpper, versUpperSelectedHomo);
+			homoVers2Vers(versProjLower, versLowerSelectedHomo);
+			versProjUpper.col(2).setZero();
+			versProjLower.col(2).setZero();
+			debugWriteVers("versProjUpper", versProjUpper);
+			debugWriteVers("versProjLower", versProjLower);
+		}
+
+		// 3. alphashapes提取边界线：
+		Eigen::MatrixXf bdryUpper, bdryLower;
+		{
+			// 上下投影点合并，使用ALPHA SHAPES提取边界线：
+			Eigen::MatrixXf versProj, versBdry;
+			matInsertRows(versProj, versProjUpper);
+			matInsertRows(versProj, versProjLower);
+			alphaShapes2D(versBdry, versProj, alphaValue);
+			debugWriteVers("versProj", versProj);
+			debugWriteVers("versBdry", versBdry);
+		}
+
 		debugDisp("finished.");
 	}
 
@@ -499,10 +554,12 @@ namespace TEST_JAW_PALATE
 			versPalate = versTmp;
 		}
 
+
 		// 5. 固定边界点2领域以外的顶点，对网格进行光顺：
 		{
 			Eigen::MatrixXd versTmp;
 			Eigen::MatrixXd versFixed;
+			Eigen::MatrixXi trisTmp;
 			const float lambda = 0.1;
 			const int iterCount = 30;
 			std::vector<int> fixedVerIdxes;
@@ -562,12 +619,8 @@ namespace TEST_JAW_PALATE
 			subFromIdxVec(versFixed, versPalate, fixedVerIdxes);
 			debugWriteVers("versFixed2", versFixed);
 
-			bool ret = laplaceFaring(versTmp, versPalate, trisPalate, lambda, iterCount, fixedVerIdxes);
-			if (!ret)
-			{
-				debugDisp("error!!! laplace faring failed.");
-				return;
-			}
+			smoothSurfMesh(versTmp, trisTmp, versPalate, trisPalate, fixedVerIdxes, 0.01);
+
 			debugWriteMesh("meshLaplace2", versTmp, trisPalate);
 
 			versPalate = versTmp;
@@ -796,7 +849,7 @@ int main(int argc, char** argv)
 {
 	// TEST_MYDLL::test7();
 
-	TEST_JAW_PALATE::test3();
+	TEST_JAW_PALATE::test1();
 
 	debugDisp("main finished.");
 

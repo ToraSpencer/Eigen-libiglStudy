@@ -1203,7 +1203,6 @@ namespace TEST_SDF2D
 
 ////////////////////////////////////////////////////////////////////////////// 生成控制台程序工具：
 
-
 // 批量读取本地网格执行laplace光顺：
 int testCmd_laplaceFaring(int argc, char** argv)
 {
@@ -1279,9 +1278,9 @@ int main(int argc, char** argv)
 
 	// return testCmd_laplaceFaring(argc, argv);
 	
-	TEST_MYEIGEN_MODELING::test3();
+	// TEST_MYEIGEN_MODELING::test3();
 
-	// TEST_MYEIGEN_PMP::test0();
+	TEST_MYEIGEN_PMP::test2();
 	 
 	// TEST_SCIENTIFIC_CALC::test1();
 

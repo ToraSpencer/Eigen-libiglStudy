@@ -60,8 +60,7 @@ void getRotationMat(Eigen::Matrix<ScalarVO, 3, 3>& rotation, \
 
 			return;
 		}
-	}
-		 
+	}	 
 
 	axisArrowCast.normalize();
 	ScalarVO x0 = axisArrowCast(0);

@@ -34,8 +34,8 @@ template bool getCircleVers(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic
 
 template bool getEdges<Eigen::MatrixXi>(Eigen::MatrixXi&, const Eigen::PlainObjectBase<Eigen::MatrixXi>&);
 
-template bool getLoopEdges<Eigen::MatrixXi, int>(Eigen::PlainObjectBase<Eigen::MatrixXi>&, const int);
-template bool getLoopEdges<Eigen::MatrixXi, unsigned>(Eigen::PlainObjectBase<Eigen::MatrixXi>&, const unsigned);
+template bool getSortedLoopEdges<Eigen::MatrixXi, int>(Eigen::PlainObjectBase<Eigen::MatrixXi>&, const int);
+template bool getSortedLoopEdges<Eigen::MatrixXi, unsigned>(Eigen::PlainObjectBase<Eigen::MatrixXi>&, const unsigned);
 
 template bool cotLaplacian<float, Eigen::MatrixXf>(Eigen::SparseMatrix<float>&, \
 	const Eigen::PlainObjectBase<Eigen::MatrixXf>&, const Eigen::MatrixXi&);

@@ -36,9 +36,10 @@
 /*
 	1. 表象转换
 	2. 图形属性
-	3. 图形编辑
-	4. 区域生长算法
-	5. 网格缺陷检查和修复
+	3. 点云编辑
+	4. 三角网格编辑
+	5. 区域生长算法
+	6. 网格缺陷检查和修复
 
 */
  
@@ -94,11 +95,11 @@ bool circuitGetTris(Eigen::MatrixXi& tris, const std::vector<int>& indexes, cons
 // 输入网格三角片数据，得到有向边数据：
 template <typename DerivedI>
 bool getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedI>& tris);
+ 
 
-
-// 生成环路的边数据；
+// 生成有序环路的边数据；
 template <typename DerivedI, typename IndexType>
-bool getLoopEdges(Eigen::PlainObjectBase<DerivedI>& edges, const IndexType versCount);
+bool getSortedLoopEdges(Eigen::PlainObjectBase<DerivedI>& edges, const IndexType versCount);
 
 
 // 生成边-边编码的映射表：
@@ -190,13 +191,29 @@ bool cotLaplacian(Eigen::SparseMatrix<Tl>& L, \
 	const Eigen::MatrixXi& tris);
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////// 点云编辑：
 
-/////////////////////////////////////////////////////////////////////////////////////////////////// 图形编辑：
-
+// 基于laplacian的回路光顺
 template<typename T>
 bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, \
 	const float param);
 
+
+// XOY平面内的回路排序：排序成从Z轴正向看顶点随回路逆时针或顺时针增大；
+/*
+	bool sortLoop2D(
+			Eigen::PlainObjectBase<DerivedV>& loop,			待排序的回路
+			const bool blCounterClockWise,								是否排序成逆时针
+			const int startIdx														指定输入回路中索引为startIdx的顶点作为整理后回路的起点；
+			)
+
+*/
+template<typename DerivedV>
+bool sortLoop2D(Eigen::PlainObjectBase<DerivedV>& loop, \
+	const bool blCounterClockWise = true, 	const float thresholdDis = 10);
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////// 三角网格编辑：
 
 template <typename T>
 void concatMeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers,\
@@ -225,6 +242,7 @@ bool laplaceFaring(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 	const Eigen::PlainObjectBase<DerivedVi>& vers, \
 	const Eigen::MatrixXi& tris, const float deltaLB, const unsigned loopCount, \
 	const std::vector<int>& fixedVerIdxes = std::vector<int>{});
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 区域生长算法：

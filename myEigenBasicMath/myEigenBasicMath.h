@@ -34,7 +34,90 @@ const double pi = 3.14159265359;
 */
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary structures:
+template <typename T>
+struct triplet
+{
+	T x;
+	T y;
+	T z;
+};
+
+
+template <typename T>
+struct doublet
+{
+	T x;
+	T y;
+};
+
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary interfaces:
+
+// 3D顶点或三角片矩阵转换为triplet向量的形式；
+template <typename Derived>
+std::vector<triplet<typename Derived::Scalar>> mat2triplets(const Eigen::PlainObjectBase<Derived>& mat)
+{
+	using Scalar = typename Derived::Scalar;
+	using ts = triplet<Scalar>;
+
+	std::vector<ts> vec;
+	if (0 == mat.rows() || 3 != mat.cols())
+		return vec;
+
+	vec.resize(mat.rows());
+	for (unsigned i = 0; i < mat.rows(); ++i)
+	{
+		vec[i].x = mat(i, 0);
+		vec[i].y = mat(i, 1);
+		vec[i].z = mat(i, 2);
+	}
+
+	return vec;
+}
+
+
+template <typename Derived>
+triplet<typename Derived::Scalar> vec2triplet(const Eigen::PlainObjectBase<Derived>& vec) 
+{
+	assert((3 == vec.rows() * vec.cols()) && "assert!!! input vec should be in 3D space.");
+	using Scalar = typename Derived::Scalar;
+	using ts = triplet<Scalar>;
+	return ts{ vec(0), vec(1), vec(2)};
+}
+
+
+template <typename Derived>
+std::vector<doublet<typename Derived::Scalar>> mat2doublets(const Eigen::PlainObjectBase<Derived>& mat)
+{
+	using Scalar = typename Derived::Scalar;
+	using ds = doublet<Scalar>;
+
+	std::vector<ds> vec;
+	if (0 == mat.rows() || 2 != mat.cols())
+		return vec;
+
+	vec.resize(mat.rows());
+	for (unsigned i = 0; i < mat.rows(); ++i)
+	{
+		vec[i].x = mat(i, 0);
+		vec[i].y = mat(i, 1);
+	}
+
+	return vec;
+}
+
+
+template <typename Derived>
+doublet<typename Derived::Scalar> vec2doublet(const Eigen::PlainObjectBase<Derived>& vec)
+{
+	assert((2 == vec.rows() * vec.cols()) && "assert!!! input vec should be in 2D space.");
+	using Scalar = typename Derived::Scalar;
+	using ds = doublet<Scalar>;
+	return doublet{ vec(0), vec(1) };
+}
+
 
 // 并行for循环
 template<typename Func>
@@ -303,7 +386,8 @@ bool vecInsertNum(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec, const T num);
 
 // 列向量尾后插入向量
 template<typename T>
-bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix<T, Eigen::Dynamic, 1>& vec2);
+bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, \
+		const Eigen::Matrix<T, Eigen::Dynamic, 1>& vec2);
  
 
 // 矩阵末尾插入矩阵/行向量：
@@ -337,9 +421,43 @@ bool matInsertRows(Eigen::PlainObjectBase<Derived>& mat, \
 	return true;
 }
  
+
+// 矩阵右边插入矩阵/列向量：
+template <typename Derived1, typename Derived2>
+bool matInsertCols(Eigen::PlainObjectBase<Derived1>& mat, \
+	const Eigen::PlainObjectBase<Derived2>& mat1)
+{
+	assert((0 == mat.rows()) || (mat.rows() == mat1.rows()), "Error!!! Matrix size not match.");
+	unsigned rows = mat1.rows();
+	unsigned currentCols = mat.cols();
+	unsigned addCols = mat1.cols();
+	mat.conservativeResize(rows, currentCols + addCols);
+	for (unsigned i = 0; i < addCols; ++i)
+		mat.col(currentCols + i) = mat1.col(i);
+
+	return true;
+}
+
+
+template <typename Derived, typename Scalar, int N>
+bool matInsertCols(Eigen::PlainObjectBase<Derived>& mat, \
+	const Eigen::Matrix<Scalar, N, 1>& vec)
+{
+	using ScalarO = typename Derived::Scalar;
+	assert((0 == mat.rows()) || (mat.rows() == vec.rows()), "Error!!! Matrix size not match.");
+	unsigned rows = vec.rows();
+	unsigned currentCols = mat.cols();
+	mat.conservativeResize(rows, currentCols + 1);
+	mat.col(currentCols) = vec.array().cast<ScalarO>();
+
+	return true;
+}
+
+
 // 
 template <typename Derived1, typename Derived2>
 Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& rowVec);
+
 
 // 生成稀疏矩阵，类似于MATLAB中的sparse()
 template <class ValueVector, typename T>

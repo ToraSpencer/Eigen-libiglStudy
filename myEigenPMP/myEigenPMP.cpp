@@ -255,9 +255,9 @@ bool getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedI>& tr
 }
 
 
-// 生成环路的边数据；
+// 生成有序环路的边数据；
 template <typename DerivedI, typename IndexType>
-bool getLoopEdges(Eigen::PlainObjectBase<DerivedI>& edges, \
+bool getSortedLoopEdges(Eigen::PlainObjectBase<DerivedI>& edges, \
 	const IndexType versCount)
 {
 	using Index = typename DerivedI::Scalar;							// 使用从属名称，需要加上"typename"前缀；

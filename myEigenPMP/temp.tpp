@@ -1,8 +1,6 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 图形属性：
 
-
-
 // 得到有向边编码-有向边索引的字典：
 template <typename DerivedI>
 bool getEdgeIdxMap(std::unordered_multimap<std::int64_t, int>& map, const Eigen::PlainObjectBase<DerivedI>& edges)
@@ -1054,9 +1052,9 @@ bool buildAdjacency_new(Eigen::MatrixXi& ttAdj_mnEdge, std::vector<tVec>& ttAdj_
 
 
 
-/////////////////////////////////////////////////////////////////////////////////////////////////// 图形编辑：
+/////////////////////////////////////////////////////////////////////////////////////////////////// 点云编辑：
 
-// 斌杰写的环路光顺接口：
+// 基于laplacian的回路光顺
 template <typename T>
 bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, const float param = 0.1)
 {
@@ -1163,6 +1161,159 @@ bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, c
 
 	return true;
 }
+
+
+// XOY平面内的回路排序：排序成从Z轴正向看顶点随回路逆时针或顺时针增大；
+template<typename DerivedV>
+bool sortLoop2D(Eigen::PlainObjectBase<DerivedV>& loop, \
+		const bool blCounterClockWise, const float thresholdDis)
+{ 
+	using ScalarV = typename DerivedV::Scalar;
+	using Matrix2S = Eigen::Matrix<ScalarV, 2, 2>;
+	using Matrix3S = Eigen::Matrix<ScalarV, 3, 3>;
+	using MatrixXS = Eigen::Matrix<ScalarV, Eigen::Dynamic, Eigen::Dynamic>;
+	using Vector2S = Eigen::Matrix<ScalarV, 2, 1>;
+	using VectorXS = Eigen::Matrix<ScalarV, Eigen::Dynamic, 1>;
+	using RowVector2S = Eigen::Matrix<ScalarV, 1, 2>;
+
+	const int dim = loop.cols();
+	assert((2 == dim || 3 == dim) && "assert!!! input loop should be in 2D or 3D space.");
+
+	const int versCountOri = loop.rows();
+	int versCount = versCountOri;
+	int versCountNew = 0;
+	Matrix2S rotation90;				// 二维空间中逆时针旋转90°
+	rotation90 << cos(pi / 2), sin(pi / 2), -sin(pi / 2), cos(pi / 2);	 
+
+	// 1. 以y坐标最小的顶点为起点：
+	typename VectorXS::Index index = -1;			// 本轮搜索到的顶点的索引；
+	RowVector2S ver0;											// 本轮搜索到的顶点；
+	MatrixXS loopOut2D;
+	MatrixXS loopIn2D = loop.leftCols(2); 
+	{
+		loopIn2D.col(1).minCoeff(&index);
+		ver0 = loopIn2D.row(index);
+		matInsertRows(loopOut2D, ver0);
+		loopIn2D(index, 0) = INFINITY;
+		loopIn2D(index, 1) = INFINITY;
+		versCount--;
+		versCountNew++;
+	}
+
+	// 2. 第二个顶点：
+	{
+		bool blFind = false;
+		MatrixXS tmpVers = loopIn2D;
+		for (int i = 0; i < versCountOri; ++i)			// 搜索x坐标大于ver0的x坐标的顶点，其余顶点标记为INFINITY
+		{
+			if (tmpVers(i, 0) <= ver0(0))
+			{
+				tmpVers(i, 0) = INFINITY;
+				tmpVers(i, 1) = INFINITY;
+			}
+			else
+				blFind = true;
+		}
+		if (!blFind)
+		{
+			tmpVers = loopOut2D;
+			for (int i = 0; i < versCountOri; ++i)			// 搜索y坐标大于ver0的y坐标的顶点，其余顶点标记为INFINITY
+			{
+				if (tmpVers(i, 1) <= ver0(1))
+				{
+					tmpVers(i, 0) = INFINITY;
+					tmpVers(i, 1) = INFINITY;
+				}
+				else
+					blFind = true;
+			}
+			if (!blFind)
+				return false;					// should not happen!!!
+		}
+
+		VectorXS dises = (tmpVers.rowwise() - ver0).rowwise().norm();
+		dises.minCoeff(&index);
+		ver0 = loopIn2D.row(index);
+		matInsertRows(loopOut2D, ver0);
+		loopIn2D(index, 0) = INFINITY;
+		loopIn2D(index, 1) = INFINITY;
+		versCount--;
+		versCountNew++;
+	}
+
+	// 3. 之后的循环：
+	while(versCount > 0)
+	{
+		RowVector2S arrow;
+		Vector2S i_new, j_new;
+		ver0 = loopOut2D.row(versCountNew - 1);
+		arrow = loopOut2D.row(versCountNew - 1) - loopOut2D.row(versCountNew - 2);
+		i_new = arrow.transpose().normalized();
+		j_new = (rotation90 * i_new).normalized();
+
+		// 3.1 求一个仿射变换：
+		Matrix2S rotation{ Matrix2S::Identity() };
+		Matrix3S affineHomo{ Matrix3S::Identity() };
+		Matrix3S affineInvHomo{ Matrix3S::Identity() };
+		rotation << i_new(0), i_new(1), j_new(0), j_new(1);
+		affineHomo.topLeftCorner(2, 2) = rotation;
+		affineHomo(0, 2) = ver0(0);
+		affineHomo(1, 2) = ver0(1);
+		affineInvHomo = affineHomo.inverse();
+
+		// 3.2 变换到新坐标系：
+		MatrixXS tmpVers, tmpVersHomo;
+		VectorXS dises;
+		vers2HomoVers(tmpVersHomo, loopIn2D);
+		tmpVersHomo = (affineInvHomo * tmpVersHomo).eval();
+		homoVers2Vers(tmpVers, tmpVersHomo);
+
+		// for debug:
+		auto id = vec2doublet(i_new);
+		auto jd = vec2doublet(j_new);
+		auto vd1 = mat2doublets(loopIn2D);
+		auto vd2 = mat2doublets(tmpVers);
+
+		// 3.3 在新坐标系的x > 0的顶点中，搜索最近的那个，作为下一个顶点；
+		bool blFind = false;
+		for (int i = 0; i < versCountOri; ++i)			// 搜索x坐标大于0的x坐标的顶点，其余顶点标记为INFINITY
+		{
+			if (std::isnan(tmpVers(i, 0))||std::isinf(tmpVers(i, 0)))
+				continue;
+
+			if (tmpVers(i, 0) <= 0)
+			{
+				tmpVers(i, 0) = INFINITY;
+				tmpVers(i, 1) = INFINITY;
+			}
+			else
+				blFind = true;
+
+			// to be continued ...........................
+		}
+ 
+		if (!blFind)
+			std::cout << "fuck" << std::endl;
+		tmpVers.col(0).minCoeff(&index);
+		ver0 = loopIn2D.row(index);
+
+		matInsertRows(loopOut2D, ver0);
+		loopIn2D(index, 0) = INFINITY;
+		loopIn2D(index, 1) = INFINITY;
+		versCount--;
+		versCountNew++;
+	}
+
+	// 4. 输出;
+	loop.resize(versCountNew, dim);
+	loop.leftCols(2) = loopOut2D;
+	loop.col(2).setZero();
+
+	return true;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////// 三角网格编辑：
 
 // 网格串联——合并两个孤立的网格到一个网格里
 template <typename T>
@@ -2074,6 +2225,7 @@ bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi 
 
 	return true;
 }
+
 
 // 确定三角网格中的所有单连通区域（顶点连通）——使用稀疏矩阵；
 template <typename Index>

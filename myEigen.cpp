@@ -618,7 +618,7 @@ namespace TEST_MYEIGEN_PMP
 		debugWriteVers("versInput", vers);
 
 		const int versCount = vers.rows();
-		bool ret = getLoopEdges(edges, versCount);
+		bool ret = getSortedLoopEdges(edges, versCount);
 		debugWriteEdges("edges", edges, vers);
 
 		debugDisp("finished.");
@@ -646,6 +646,20 @@ namespace TEST_MYEIGEN_PMP
 		}
 
 		debugWriteMesh("meshOut", versOut, trisIn);
+
+		debugDisp("finished.");
+	}
+
+
+	// 测试对回路点云的处理：
+	void test2() 
+	{
+		Eigen::MatrixXf versLoop;
+		objReadVerticesMat(versLoop, "E:/材料/LoopBdryUnsorted.obj");
+		debugWriteVers("versInput", versLoop);
+
+		sortLoop2D(versLoop);
+		debugWriteVers("versOut", versLoop);
 
 		debugDisp("finished.");
 	}
