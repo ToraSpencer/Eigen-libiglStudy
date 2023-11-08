@@ -356,13 +356,13 @@ bool subFromIdxCon(Eigen::MatrixBase<Derived>& matBaseOut, \
 	const Eigen::MatrixBase<Derived>& matBaseIn, const IndexContainer& con);
 
 
-//
+// 根据flag向量从源矩阵中提取元素生成输出矩阵，重载1：
 template <typename Derived>
 bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, \
 	const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
 
 
-//
+// 根据flag向量从源矩阵中提取元素生成输出矩阵，重载2：
 template <typename Derived>
 bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, \
 	std::vector<int>& oldNewIdxInfo, std::vector<int>& newOldIdxInfo, \
@@ -398,10 +398,23 @@ bool matInsertRows(Eigen::PlainObjectBase<Derived1>& mat, \
 	assert((0 == mat.cols()) || (mat.cols() == mat1.cols()), "Error!!! Matrix size not match.");
 	unsigned cols = mat1.cols();
 	unsigned currentRows = mat.rows();
+	unsigned addRows = mat1.rows(); 
+	mat.conservativeResize(currentRows + addRows, cols);
+	mat.bottomRows(addRows) = mat1;
+
+	return true;
+}
+
+template <typename Derived1, typename Derived2>
+bool matInsertRows(Eigen::PlainObjectBase<Derived1>& mat, \
+	const Eigen::MatrixBase<Derived2>& mat1)
+{
+	assert((0 == mat.cols()) || (mat.cols() == mat1.cols()), "Error!!! Matrix size not match.");
+	unsigned cols = mat1.cols();
+	unsigned currentRows = mat.rows();
 	unsigned addRows = mat1.rows();
 	mat.conservativeResize(currentRows + addRows, cols);
-	for (unsigned i = 0; i < addRows; ++i)
-		mat.row(currentRows + i) = mat1.row(i);
+	mat.bottomRows(addRows) = mat1;
 
 	return true;
 }
@@ -454,6 +467,22 @@ bool matInsertCols(Eigen::PlainObjectBase<Derived>& mat, \
 }
 
 
+
+// 输入flag向量，得到新老索引的映射关系； 
+/*
+	void flagVec2oldNewIdxInfo(
+			std::vector<int>& oldNewIdxInfo,
+			std::vector<int>& newOldIdxInfo,
+			const Eigen::VectorXi& flagVec
+			)
+
+	flagVec中，若1 == flagVec(i)表示索引为i的点被选中，若0 == flagVec(j)表示索引为j的点没有被选中；
+	-1 == oldNewIdxInfo(i)表示原点云中索引为i的点没有被选中，在新点云中没有对应；
+	index0 == newOldIdxInfo(i)表示新点云中索引为i的点，在原点云中的索引为index0;
+*/
+void flagVec2oldNewIdxInfo(std::vector<int>& oldNewIdxInfo, \
+		std::vector<int>& newOldIdxInfo, const Eigen::VectorXi& flagVec);
+
 // 
 template <typename Derived1, typename Derived2>
 Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& rowVec);
@@ -464,9 +493,11 @@ template <class ValueVector, typename T>
 void sparse(Eigen::SparseMatrix<T>& SM, const Eigen::VectorXi& I, const Eigen::VectorXi& J,
 	const ValueVector& values, const size_t m, const size_t n);
 
+
 // 稀疏矩阵转置；Eigen::SparseMatrix自带的transpose()方法太垃圾了
 template<typename T>
 bool spMatTranspose(Eigen::SparseMatrix<T>& smOut, const Eigen::SparseMatrix<T>& smIn);
+
 
 // 计算稠密矩阵的克罗内克积（Kronecker product）：重载1——可能的参数组合太多了，懒得写模板特化了 
 template <typename Derived0, typename Derived1, typename Derived2>

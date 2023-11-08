@@ -1286,6 +1286,8 @@ int main(int argc, char** argv)
 
 	// TEST_MYEIGEN_PMP::test1();
 
+	// TEST_DENSE_MAT::test5();
+
 
 	std::cout << "main() finished." << std::endl;
 }

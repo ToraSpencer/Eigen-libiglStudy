@@ -294,7 +294,7 @@ bool trianglesPlane(Eigen::MatrixXd& planeCoeff, const Eigen::PlainObjectBase<De
 	{
 		Eigen::RowVector3d norm = triNorms.row(i);
 
-		// 若存在退化三角片，则平面系数都写为NAN:
+		// 若存在退化三角片，则平面系数都写为INFINITY:
 		if (std::isinf(norm(0)))
 			planeCoeff(i, 3) = INFINITY;
 
@@ -1163,6 +1163,39 @@ bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, c
 }
 
 
+// for temp: 二维平面上搜索最近的点；
+template <typename DerivedV, typename DerivedV0>
+std::pair<typename DerivedV::Scalar, int> nearestSearch(const Eigen::PlainObjectBase<DerivedV>& vers,\
+	const Eigen::PlainObjectBase<DerivedV0>& ver0)
+{
+	using ScalarV = typename DerivedV::Scalar;
+	using Matrix2S = Eigen::Matrix<ScalarV, 2, 2>;
+	using Matrix3S = Eigen::Matrix<ScalarV, 3, 3>;
+	using MatrixXS = Eigen::Matrix<ScalarV, Eigen::Dynamic, Eigen::Dynamic>;
+	using Vector2S = Eigen::Matrix<ScalarV, 2, 1>;
+	using VectorXS = Eigen::Matrix<ScalarV, Eigen::Dynamic, 1>;
+	using RowVector2S = Eigen::Matrix<ScalarV, 1, 2>;
+
+	const int dim = vers.cols();
+	const int versCount = vers.rows(); 
+	assert((2 == dim || 3 == dim) && "assert!!! input vers shoud be in 2D or 3D space.");
+	assert((dim == ver0.cols()) && "assert!!! input ver0 shoud have the same dimension with the input vers.");
+	assert((1 == ver0.rows()) && "assert!!! input ver0 shoud be a row vector.");
+
+	// 1. 将vers中-INFINITY, NAN都改写为INFINITY;
+	MatrixXS versCopy = (vers.array().isInf() || vers.array().isNaN()).select(\
+				INFINITY * MatrixXS::Ones(versCount, dim), vers);
+
+	// 2. 计算距离：
+	typename VectorXS::Index minDisIdx = -1;
+	MatrixXS arrows = versCopy.rowwise() - ver0;
+	VectorXS dises = arrows.rowwise().norm();
+	ScalarV minDis = dises.minCoeff(&minDisIdx);
+
+	return std::make_pair(minDis, static_cast<int>(minDisIdx));
+}
+
+
 // XOY平面内的回路排序：排序成从Z轴正向看顶点随回路逆时针或顺时针增大；
 template<typename DerivedV>
 bool sortLoop2D(Eigen::PlainObjectBase<DerivedV>& loop, \
@@ -1176,141 +1209,151 @@ bool sortLoop2D(Eigen::PlainObjectBase<DerivedV>& loop, \
 	using VectorXS = Eigen::Matrix<ScalarV, Eigen::Dynamic, 1>;
 	using RowVector2S = Eigen::Matrix<ScalarV, 1, 2>;
 
+	// 0.
 	const int dim = loop.cols();
 	assert((2 == dim || 3 == dim) && "assert!!! input loop should be in 2D or 3D space.");
-
 	const int versCountOri = loop.rows();
 	int versCount = versCountOri;
 	int versCountNew = 0;
 	Matrix2S rotation90;				// 二维空间中逆时针旋转90°
-	rotation90 << cos(pi / 2), sin(pi / 2), -sin(pi / 2), cos(pi / 2);	 
+	rotation90 << cos(pi / 2), -sin(pi / 2), sin(pi / 2), cos(pi / 2);
 
-	// 1. 以y坐标最小的顶点为起点：
-	typename VectorXS::Index index = -1;			// 本轮搜索到的顶点的索引；
-	RowVector2S ver0;											// 本轮搜索到的顶点；
-	MatrixXS loopOut2D;
-	MatrixXS loopIn2D = loop.leftCols(2); 
+	// 1. 搜索y坐标值最小的顶点，以此作为输出回路的起点；
+	MatrixXS versNew;				// 输出回路；
+	MatrixXS versOld = loop.leftCols(2);  
+	RowVector2S ver1;				// 输出回路的起点；
 	{
-		loopIn2D.col(1).minCoeff(&index);
-		ver0 = loopIn2D.row(index);
-		matInsertRows(loopOut2D, ver0);
-		loopIn2D(index, 0) = INFINITY;
-		loopIn2D(index, 1) = INFINITY;
+		typename VectorXS::Index indexTmp = -1; 
+		int index = -1;
+		versOld.col(1).minCoeff(&indexTmp);
+		index = static_cast<int>(indexTmp);
+		ver1 = versOld.row(index);
+		matInsertRows(versNew, ver1);
+
+		// 1.1 原回路中剔除已经选中的顶点；
+		MatrixXS versTmp = versOld;  
+		versOld.resize(0, 0);
+		for (int i = 0; i < versCount; ++i)
+			if (i != index)
+				matInsertRows(versOld, versTmp.row(i));
 		versCount--;
-		versCountNew++;
+		versCountNew++; 
 	}
 
 	// 2. 第二个顶点：
+	RowVector2S ver2;				// 输出回路第二个顶点；
 	{
-		bool blFind = false;
-		MatrixXS tmpVers = loopIn2D;
-		for (int i = 0; i < versCountOri; ++i)			// 搜索x坐标大于ver0的x坐标的顶点，其余顶点标记为INFINITY
-		{
-			if (tmpVers(i, 0) <= ver0(0))
-			{
-				tmpVers(i, 0) = INFINITY;
-				tmpVers(i, 1) = INFINITY;
-			}
-			else
-				blFind = true;
-		}
-		if (!blFind)
-		{
-			tmpVers = loopOut2D;
-			for (int i = 0; i < versCountOri; ++i)			// 搜索y坐标大于ver0的y坐标的顶点，其余顶点标记为INFINITY
-			{
-				if (tmpVers(i, 1) <= ver0(1))
-				{
-					tmpVers(i, 0) = INFINITY;
-					tmpVers(i, 1) = INFINITY;
-				}
-				else
-					blFind = true;
-			}
-			if (!blFind)
-				return false;					// should not happen!!!
-		}
+		// 2.1 搜索原回路中，x坐标值大于ver1.x所有顶点; 如果没有满足上面要求的顶点，就改为在y方向上搜索：
+		MatrixXS versTmp;
+		std::vector<int> oldNewIdxInfo, newOldIdxInfo;
+		Eigen::VectorXi flagVec = (versOld.col(0).array() > ver1(0)).select(\
+					Eigen::VectorXi::Ones(versCount), Eigen::VectorXi::Zero(versCount));
+		if(0 == flagVec.sum())
+			flagVec = (versOld.col(1).array() > ver1(1)).select(\
+					Eigen::VectorXi::Ones(versCount), Eigen::VectorXi::Zero(versCount));
+		if (0 == flagVec.sum())
+			return false;							// shoud not happen;
+		subFromFlagVec(versTmp, versOld, flagVec);
+		flagVec2oldNewIdxInfo(oldNewIdxInfo, newOldIdxInfo, flagVec);
 
-		VectorXS dises = (tmpVers.rowwise() - ver0).rowwise().norm();
-		dises.minCoeff(&index);
-		ver0 = loopIn2D.row(index);
-		matInsertRows(loopOut2D, ver0);
-		loopIn2D(index, 0) = INFINITY;
-		loopIn2D(index, 1) = INFINITY;
+		// 2.2 在选中的顶点中搜索距离ver1最近的顶点，作为第二个顶点；
+		std::pair<ScalarV, int> retPair = nearestSearch(versTmp, ver1);
+		int oldIdx = newOldIdxInfo[retPair.second];
+		ver2 = versOld.row(oldIdx);
+		matInsertRows(versNew, ver2);
+
+		// 2.3 原回路中剔除已经选中的顶点；
+		versTmp = versOld;
+		versOld.resize(0, 0);
+		for (int i = 0; i < versCount; ++i)
+			if (i != oldIdx)
+				matInsertRows(versOld, versTmp.row(i));
 		versCount--;
 		versCountNew++;
 	}
 
 	// 3. 之后的循环：
-	while(versCount > 0)
+	while (versCount > 0)
 	{
-		RowVector2S arrow;
-		Vector2S i_new, j_new;
-		ver0 = loopOut2D.row(versCountNew - 1);
-		arrow = loopOut2D.row(versCountNew - 1) - loopOut2D.row(versCountNew - 2);
-		i_new = arrow.transpose().normalized();
-		j_new = (rotation90 * i_new).normalized();
-
-		// 3.1 求一个仿射变换：
-		Matrix2S rotation{ Matrix2S::Identity() };
+		// 3.1 新坐标系原点为verCurr, x方向为arrow 
+		MatrixXS versTmp = versNew.bottomRows(2);
+		RowVector2S verCurr = versTmp.row(1);
+		RowVector2S verFormer = versTmp.row(0);
+		RowVector2S arrow = verCurr - verFormer;
+		Vector2S i_new = arrow.normalized().transpose();
+		Vector2S j_new = (rotation90 * i_new).normalized();
+		
+		// 3.2 剩余的顶点变换到新坐标系：
+		MatrixXS versTmpHomo;
 		Matrix3S affineHomo{ Matrix3S::Identity() };
 		Matrix3S affineInvHomo{ Matrix3S::Identity() };
-		rotation << i_new(0), i_new(1), j_new(0), j_new(1);
-		affineHomo.topLeftCorner(2, 2) = rotation;
-		affineHomo(0, 2) = ver0(0);
-		affineHomo(1, 2) = ver0(1);
+		affineHomo(0, 0) = i_new(0);
+		affineHomo(1, 0) = i_new(1);
+		affineHomo(0, 1) = j_new(0);
+		affineHomo(1, 1) = j_new(1);
+		affineHomo(0, 2) = verCurr(0);
+		affineHomo(1, 2) = verCurr(1);
 		affineInvHomo = affineHomo.inverse();
+		vers2HomoVers(versTmpHomo, versOld);
+		versTmpHomo = (affineInvHomo * versTmpHomo).eval();
+		homoVers2Vers(versTmp, versTmpHomo);
 
-		// 3.2 变换到新坐标系：
-		MatrixXS tmpVers, tmpVersHomo;
-		VectorXS dises;
-		vers2HomoVers(tmpVersHomo, loopIn2D);
-		tmpVersHomo = (affineInvHomo * tmpVersHomo).eval();
-		homoVers2Vers(tmpVers, tmpVersHomo);
-
-		// for debug:
-		auto id = vec2doublet(i_new);
-		auto jd = vec2doublet(j_new);
-		auto vd1 = mat2doublets(loopIn2D);
-		auto vd2 = mat2doublets(tmpVers);
-
-		// 3.3 在新坐标系的x > 0的顶点中，搜索最近的那个，作为下一个顶点；
-		bool blFind = false;
-		for (int i = 0; i < versCountOri; ++i)			// 搜索x坐标大于0的x坐标的顶点，其余顶点标记为INFINITY
+		// 3.3 在新坐标系的x > 0的顶点中，搜索距离原点最近的那个，作为下一个顶点； 
+		MatrixXS versTmp2;
+		std::vector<int> oldNewIdxInfo, newOldIdxInfo;
+		Eigen::VectorXi flagVec = (versTmp.col(0).array() > 0).select(\
+			Eigen::VectorXi::Ones(versCount), Eigen::VectorXi::Zero(versCount));
+		if (0 == flagVec.sum())			// 角点附近可能会找不到下一个顶点，新坐标再旋转90再寻找
 		{
-			if (std::isnan(tmpVers(i, 0))||std::isinf(tmpVers(i, 0)))
-				continue;
-
-			if (tmpVers(i, 0) <= 0)
-			{
-				tmpVers(i, 0) = INFINITY;
-				tmpVers(i, 1) = INFINITY;
-			}
-			else
-				blFind = true;
-
-			// to be continued ...........................
+			i_new = (rotation90 * i_new).normalized();
+			j_new = (rotation90 * j_new).normalized();
+			affineHomo = Matrix3S::Identity();
+			affineHomo(0, 0) = i_new(0);
+			affineHomo(1, 0) = i_new(1);
+			affineHomo(0, 1) = j_new(0);
+			affineHomo(1, 1) = j_new(1);
+			affineHomo(0, 2) = verCurr(0);
+			affineHomo(1, 2) = verCurr(1);
+			affineInvHomo = affineHomo.inverse();
+			vers2HomoVers(versTmpHomo, versOld);
+			versTmpHomo = (affineInvHomo * versTmpHomo).eval();
+			homoVers2Vers(versTmp, versTmpHomo);
+			flagVec = (versTmp.col(0).array() > 0).select(\
+				Eigen::VectorXi::Ones(versCount), Eigen::VectorXi::Zero(versCount));
 		}
- 
-		if (!blFind)
-			std::cout << "fuck" << std::endl;
-		tmpVers.col(0).minCoeff(&index);
-		ver0 = loopIn2D.row(index);
+		if (0 == flagVec.sum())
+			return false;							// shoud not happen;
+		versTmp2 = versTmp;
+		subFromFlagVec(versTmp, versTmp2, flagVec);
+		flagVec2oldNewIdxInfo(oldNewIdxInfo, newOldIdxInfo, flagVec);
+		std::pair<ScalarV, int> retPair = nearestSearch(versTmp, RowVector2S{0, 0});
 
-		matInsertRows(loopOut2D, ver0);
-		loopIn2D(index, 0) = INFINITY;
-		loopIn2D(index, 1) = INFINITY;
+		// 3.4 距离阈值检测——不这样做，可能会把跳过的角点包含进来；
+		if (retPair.first > thresholdDis)
+			break; 
+
+		// 3.5 提取搜索到的顶点，原回路中剔除已经选中的顶点；
+		int oldIdx = newOldIdxInfo[retPair.second];
+		RowVector2S verNext = versOld.row(oldIdx);
+		matInsertRows(versNew, verNext);
+		versTmp = versOld;
+		versOld.resize(0, 0);
+		for (int i = 0; i < versCount; ++i)
+			if (i != oldIdx)
+				matInsertRows(versOld, versTmp.row(i));
 		versCount--;
-		versCountNew++;
+		versCountNew++; 
 	}
 
 	// 4. 输出;
 	loop.resize(versCountNew, dim);
-	loop.leftCols(2) = loopOut2D;
-	loop.col(2).setZero();
+	loop.setZero();
+	loop.leftCols(2) = versNew; 
 
 	return true;
 }
+
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 三角网格编辑：
@@ -1330,6 +1373,7 @@ void concatMeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen
 
 	matInsertRows(tris, trisCopy1);
 };
+
 
 // 去除三角片：
 template <typename IndexT>

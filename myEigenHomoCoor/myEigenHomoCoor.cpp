@@ -42,10 +42,6 @@ bool homoVers2Vers(Eigen::PlainObjectBase<DerivedVo>& versOut, const Eigen::Plai
 	if (0 == versCount)
 		return true;
 
-	//versOut.resize(versCount, dim);
-	//versOut.setOnes();
-	//versOut.topRows(dim) = versIn.transpose().array().cast<ScalarO>();
-
 	versOut = versIn.transpose().leftCols(dim).array().cast<ScalarO>();
 
 	return true; 

@@ -1,171 +1,176 @@
 #include "test_dense_mat.h"
 
-namespace TEST_DENSE_MAT
-{
+
 #define MAXLEN 1024
-	using namespace Eigen;
-	using spMatf = Eigen::SparseMatrix<float, ColMajor>;
-	using TripF = Eigen::Triplet<float>;
 
-	////////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
+using namespace Eigen;
+using spMatf = Eigen::SparseMatrix<float, ColMajor>;
+using TripF = Eigen::Triplet<float>;
 
-	namespace MY_DEBUG
+
+////////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
+namespace MY_DEBUG
+{
+	static std::string g_debugPath = "E:/";
+
+	// lambda——打印std::cout支持的类型变量。
+	template <typename T>
+	static auto disp = [](const T& arg)
 	{
-		static std::string g_debugPath = "E:/";
+		std::cout << arg << ", ";
+	};
 
-		// lambda——打印std::cout支持的类型变量。
-		template <typename T>
-		static auto disp = [](const T& arg)
+	// 写一个接口，将矩阵数据保存到.dat文件中，方便python读取然后画图
+	void writeData2D(const Eigen::VectorXd& x, const Eigen::VectorXd& y, const char* filename)
+	{
+		// 顺序挨个写入x和y向量中的数据，先写x再写y，因为两条向量是对应的，所以肯定前一半是x坐标，后一半是y坐标。
+		double darr1[MAXLEN];
+		double darr2[MAXLEN];
+		unsigned int size = x.rows();
+		std::string str1 = filename;
+		std::string str2 = str1;
+
+		auto iter = find(str1.begin(), str1.end(), '.');
+		if (iter == str1.end())
 		{
-			std::cout << arg << ", ";
-		};
-
-		// 写一个接口，将矩阵数据保存到.dat文件中，方便python读取然后画图
-		void writeData2D(const Eigen::VectorXd& x, const Eigen::VectorXd& y, const char* filename)
-		{
-			// 顺序挨个写入x和y向量中的数据，先写x再写y，因为两条向量是对应的，所以肯定前一半是x坐标，后一半是y坐标。
-			double darr1[MAXLEN];
-			double darr2[MAXLEN];
-			unsigned int size = x.rows();
-			std::string str1 = filename;
-			std::string str2 = str1;
-
-			auto iter = find(str1.begin(), str1.end(), '.');
-			if (iter == str1.end())
-			{
-				std::cout << "错误，输出的二进制文件必须有后缀名。" << std::endl;
-				return;
-			}
-
-
-			auto dis = distance(str1.begin(), iter);
-			str1.insert(dis, "_x");
-			str2.insert(dis, "_y");
-
-			for (unsigned int i = 0; i < size; i++)
-				darr1[i] = x(i);
-			for (unsigned int i = 0; i < size; i++)
-				darr2[i] = y(i);
-
-			std::ofstream file1(str1, std::ios::out | std::ios::binary);
-			std::ofstream file2(str2, std::ios::out | std::ios::binary);
-
-			file1.write(reinterpret_cast<char*>(&darr1[0]), size * sizeof(double));
-			file2.write(reinterpret_cast<char*>(&darr2[0]), size * sizeof(double));
-			file1.close();
-			file2.close();
-		}
-
-
-		void readData(Eigen::VectorXd& x, const char* filename)
-		{
-			std::ifstream file(filename, std::ios::in | std::ios::binary);
-			file.seekg(0, file.end);					// 追溯到文件流的尾部
-			unsigned int size = file.tellg();			// 获取文件流的长度。
-			file.seekg(0, file.beg);					// 回到文件流的头部	
-
-														// 这一块以后考虑用alloctor改写
-			char* pc = (char*)malloc(size);
-			file.read(pc, size);
-
-			double* pd = reinterpret_cast<double*>(pc);
-			for (unsigned int i = 0; i < size / sizeof(double); i++)
-			{
-				x[i] = *pd;
-				pd++;
-			}
-
-		}
-
-		static void debugDisp()			// 递归终止
-		{						//		递归终止设为无参或者一个参数的情形都可以。
-			std::cout << std::endl;
+			std::cout << "错误，输出的二进制文件必须有后缀名。" << std::endl;
 			return;
 		}
 
-		template <typename T, typename... Types>
-		static void debugDisp(const T& firstArg, const Types&... args)
-		{
-			std::cout << firstArg << " ";
-			debugDisp(args...);
-		}
 
+		auto dis = distance(str1.begin(), iter);
+		str1.insert(dis, "_x");
+		str2.insert(dis, "_y");
 
-		template <typename T, int M, int N>
-		static void dispData(const Eigen::Matrix<T, M, N>& m)
-		{
-			auto dataPtr = m.data();
-			unsigned elemsCount = m.size();
+		for (unsigned int i = 0; i < size; i++)
+			darr1[i] = x(i);
+		for (unsigned int i = 0; i < size; i++)
+			darr2[i] = y(i);
 
-			for (unsigned i = 0; i < elemsCount; ++i)
-				std::cout << dataPtr[i] << ", ";
+		std::ofstream file1(str1, std::ios::out | std::ios::binary);
+		std::ofstream file2(str2, std::ios::out | std::ios::binary);
 
-			std::cout << std::endl;
-		}
-
-
-		template <typename Derived>
-		static void dispData(const Eigen::PlainObjectBase<Derived>& m)
-		{
-			int m0 = m.RowsAtCompileTime;
-			int n0 = m.ColsAtCompileTime;
-
-			auto dataPtr = m.data();
-			unsigned elemsCount = m.size();
-
-			for (unsigned i = 0; i < elemsCount; ++i)
-				std::cout << dataPtr[i] << ", ";
-
-			std::cout << std::endl;
-		}
-
-
-		template <typename Derived>
-		static void dispElem(const Eigen::MatrixBase<Derived>& m)
-		{
-			const Derived& mm = m.derived();
-			std::cout << mm(1, 1) << std::endl;
-		}
-
-
-		template<typename DerivedV>
-		static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
-		{
-			char path[512] = { 0 };
-			sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-			objWriteVerticesMat(path, vers);
-		}
-
-		template<typename DerivedV>
-		static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
-		{
-			char path[512] = { 0 };
-			sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-			objWriteVerticesMat2D(path, vers);
-		}
-
-
-		template<typename T>
-		static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
-		{
-			char path[512] = { 0 };
-			sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-			objWriteMeshMat(path, vers, tris);
-		}
-
-
-
-		template<typename DerivedV>
-		static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
-		{
-			char path[512] = { 0 };
-			sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
-			objWriteEdgesMat(path, edges, vers);
-		}
+		file1.write(reinterpret_cast<char*>(&darr1[0]), size * sizeof(double));
+		file2.write(reinterpret_cast<char*>(&darr2[0]), size * sizeof(double));
+		file1.close();
+		file2.close();
 	}
-	using namespace MY_DEBUG;
 
 
+	void readData(Eigen::VectorXd& x, const char* filename)
+	{
+		std::ifstream file(filename, std::ios::in | std::ios::binary);
+		file.seekg(0, file.end);					// 追溯到文件流的尾部
+		unsigned int size = file.tellg();			// 获取文件流的长度。
+		file.seekg(0, file.beg);					// 回到文件流的头部	
+
+													// 这一块以后考虑用alloctor改写
+		char* pc = (char*)malloc(size);
+		file.read(pc, size);
+
+		double* pd = reinterpret_cast<double*>(pc);
+		for (unsigned int i = 0; i < size / sizeof(double); i++)
+		{
+			x[i] = *pd;
+			pd++;
+		}
+
+	}
+
+
+	static void debugDisp()			// 递归终止
+	{						//		递归终止设为无参或者一个参数的情形都可以。
+		std::cout << std::endl;
+		return;
+	}
+
+
+	template <typename T, typename... Types>
+	static void debugDisp(const T& firstArg, const Types&... args)
+	{
+		std::cout << firstArg << " ";
+		debugDisp(args...);
+	}
+
+
+	template <typename T, int M, int N>
+	static void dispData(const Eigen::Matrix<T, M, N>& m)
+	{
+		auto dataPtr = m.data();
+		unsigned elemsCount = m.size();
+
+		for (unsigned i = 0; i < elemsCount; ++i)
+			std::cout << dataPtr[i] << ", ";
+
+		std::cout << std::endl;
+	}
+
+
+	template <typename Derived>
+	static void dispData(const Eigen::PlainObjectBase<Derived>& m)
+	{
+		int m0 = m.RowsAtCompileTime;
+		int n0 = m.ColsAtCompileTime;
+
+		auto dataPtr = m.data();
+		unsigned elemsCount = m.size();
+
+		for (unsigned i = 0; i < elemsCount; ++i)
+			std::cout << dataPtr[i] << ", ";
+
+		std::cout << std::endl;
+	}
+
+
+	template <typename Derived>
+	static void dispElem(const Eigen::MatrixBase<Derived>& m)
+	{
+		const Derived& mm = m.derived();
+		std::cout << mm(1, 1) << std::endl;
+	}
+
+
+	template<typename DerivedV>
+	static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteVerticesMat(path, vers);
+	}
+
+
+	template<typename DerivedV>
+	static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteVerticesMat2D(path, vers);
+	}
+
+
+	template<typename T>
+	static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteMeshMat(path, vers, tris);
+	}
+
+
+	template<typename DerivedV>
+	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteEdgesMat(path, edges, vers);
+	}
+}
+using namespace MY_DEBUG;
+
+
+////////////////////////////////////////////////////////////////////////////////////////////// 测试eigen中的稠密矩阵：
+namespace TEST_DENSE_MAT
+{
 	// test0——eigen库的基本数据结构
 	void test0()
 	{
@@ -641,33 +646,43 @@ namespace TEST_DENSE_MAT
 	{
 		Eigen::MatrixXf m1(5, 6);
 		float* pdata = m1.data();
-		for (unsigned i = 0; i < m1.size(); ++i)
-		{
-			pdata[i] = static_cast<float>(i);
-		}
-		std::cout << "m1 == \n" << m1 << std::endl;
+		for (unsigned i = 0; i < m1.size(); ++i) 
+			pdata[i] = static_cast<float>(i); 
+		debugDisp("m1 == \n", m1, "\n"); 
+
+		// 1. 矩阵类的array()方法——返回矩阵对象的数组部分？？？
+		Eigen::MatrixXi m111{ Eigen::MatrixXi::Ones(3, 4) };
+		auto retA = m111.array();						// 返回类型为Eigen::ArrayWrapper<>
+		debugDisp("typeid(aaa).name() == ", typeid(retA).name());
+		debugDisp("retA == \n", retA);
+
+		m111(0, 0) = 999; 
+		debugDisp("retA == \n", retA);
+		debugDisp("\n\n");
 
 		// 按元素操作需要使用array()
 		Eigen::MatrixXf result = m1.array() * Eigen::MatrixXf::Ones(5, 6).array();
-		std::cout << "按元素相乘： \n" << result << std::endl << std::endl;
+		debugDisp("按元素相乘： \n", result, "\n"); 
 
+		// array的sqrt(), pow(), isX()方法：
 		result = m1.array().sqrt();
-		std::cout << "按元素开方： \n" << result << std::endl << std::endl;
+		debugDisp("按元素开方： \n", result, "\n"); 
 
 		result = m1.array().pow(2);
-		std::cout << "按元素平方： \n" << result << std::endl << std::endl;
+		debugDisp("按元素平方： \n", result, "\n"); 
 
 		m1.col(0).array() = -1;
 		m1.col(1).array() = 0;
 		m1.col(2).array() = 1;
 		m1.rightCols(3).array() = 2;
-		std::cout << ".array() = 常数来给矩阵元素赋值：\n" << m1 << std::endl << std::endl;
-
+		debugDisp(".array() = 常数来给矩阵元素赋值：\n", m1, "\n"); 
 
 		Eigen::MatrixXf m2 = Eigen::MatrixXf::Ones(5, 6);
 		auto result2 = (m1.array() < m2.array());
-		std::cout << "类似于MATLAB中的逻辑矩阵： \n" << result2 << std::endl << std::endl;
-		std::cout << typeid(result2).name() << std::endl;
+		debugDisp("类似于MATLAB中的逻辑矩阵： \n", result2, "\n"); 
+		debugDisp("typeid(result2).name() == ", typeid(result2).name());
+
+		debugDisp("finished.");
 	}
 
 
@@ -685,17 +700,25 @@ namespace TEST_DENSE_MAT
 	void test7()
 	{
 		// eigen 3.3.7还没有支持flag矩阵，但是可以使用select()方法来实现类似的效果：
-		Matrix3i m1;
+		Eigen::Matrix3i m1;
+		Eigen::Matrix3f m11;
 		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9;
+		m11 << 1, 2, 3, 4, 5, 6, 7, 8, 9;
 
-		//		(array条件判断).select(矩阵a,矩阵b)，array中下标为ij的元素条件判断为真，则返回矩阵ij位的元素为矩阵a中ij位的元素，否则为矩阵b中ij位的元素。
+		//	(m1的array条件判断).select(矩阵a,矩阵b)——若m1下标为ij的元素条件判断为真，则返回矩阵a中ij位的元素，否则为矩阵b中ij位的元素。
 		Matrix3i flag1 = (m1.array() > 4).select(Matrix3i::Ones(), Matrix3i::Zero());
-		std::cout << "m1 == \n" << m1 << std::endl << std::endl;
-		std::cout << "flag1 == \n" << flag1 << std::endl << std::endl;
-		std::cout << std::endl;
+		debugDisp("m1 == \n", m1, "\n");
+		debugDisp("flag1 == \n", flag1, "\n");
+
+		m11 = (m11.array() < 6).select(INFINITY * Eigen::Matrix3f::Ones(), m11);
+		debugDisp("m11 == \n", m11, "\n\n");
+
+		m11(2, 2) = NAN;
+		m11 = (m11.array().isNaN() || m11.array().isInf()).select(-Eigen::Matrix3f::Ones(), m11);
+		debugDisp("m11 == \n", m11, "\n\n");
 
 		// rowInMat()——检查矩阵内是否包含某一行向量——返回一个索引列向量。
-		std::cout << "检查矩阵内是否包含某一行向量——返回一个索引列向量。" << std::endl;
+		debugDisp("检查矩阵内是否包含某一行向量——返回一个索引列向量。" );
 		Eigen::MatrixXi m2(5, 5);
 		Eigen::Matrix4i m3;
 		Eigen::MatrixXi m33;
@@ -948,6 +971,7 @@ namespace TEST_DENSE_MAT
 	}
 
 
+	// test14——dense mat的类层次结构：
 	template<typename Derived>											// Derived是具体的矩阵类型，如Eigen::Matrix<int,1,-1,1,1,-1>
 	void foo(const Eigen::MatrixBase<Derived>& base)			// Eigen::MatrixBase<>是任意稠密矩阵、向量的基类；
 	{
@@ -961,7 +985,7 @@ namespace TEST_DENSE_MAT
 		std::cout << std::endl;
 	}
 
-	// test14——dense mat的类层次结构：
+
 	void test14() 
 	{
 		Eigen::Vector3f v1;

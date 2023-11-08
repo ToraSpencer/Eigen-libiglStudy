@@ -24,5 +24,4 @@ namespace TEST_DENSE_MAT
 	void test14();
 	void test15();
 	void test16();
-
 }

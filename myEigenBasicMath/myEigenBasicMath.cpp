@@ -205,6 +205,7 @@ template <typename Derived>
 bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec)
 {
 	Derived& matOut = matBaseOut.derived();
+	matOut.resize(0, 0);
 	matOut.resize(vec.sum(), matBaseIn.cols());
 
 	int count = 0;
@@ -326,6 +327,30 @@ bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix
 	return true;
 }
 
+
+// 输入flag向量，得到新老索引的映射关系； 
+void flagVec2oldNewIdxInfo(std::vector<int>& oldNewIdxInfo, \
+	std::vector<int>& newOldIdxInfo, const Eigen::VectorXi& flagVec)
+{
+	const int versCount = flagVec.rows();
+	const int versCountNew = flagVec.sum();
+	assert((versCount > 0) && "assert!!! input flagVec should not be empty.");
+	oldNewIdxInfo.clear();
+	newOldIdxInfo.clear();
+
+	oldNewIdxInfo.resize(versCount, -1);
+	newOldIdxInfo.reserve(versCount);
+	int index = 0;
+	for (int i = 0; i < versCount; ++i)
+	{
+		if (flagVec(i) > 0)
+		{
+			oldNewIdxInfo[i] = index++;
+			newOldIdxInfo.push_back(i);
+		}
+	}
+	newOldIdxInfo.shrink_to_fit();
+}
  
 // 返回一个flag列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；
 template <typename Derived1, typename Derived2>
