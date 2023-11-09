@@ -393,60 +393,32 @@ bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, \
 // æÿ’Ûƒ©Œ≤≤Â»Îæÿ’Û/––œÚ¡ø£∫
 template <typename Derived1, typename Derived2>
 bool matInsertRows(Eigen::PlainObjectBase<Derived1>& mat, \
-	const Eigen::PlainObjectBase<Derived2>& mat1)
-{
-	assert((0 == mat.cols()) || (mat.cols() == mat1.cols()), "Error!!! Matrix size not match.");
-	unsigned cols = mat1.cols();
-	unsigned currentRows = mat.rows();
-	unsigned addRows = mat1.rows(); 
-	mat.conservativeResize(currentRows + addRows, cols);
-	mat.bottomRows(addRows) = mat1;
-
-	return true;
-}
-
-template <typename Derived1, typename Derived2>
-bool matInsertRows(Eigen::PlainObjectBase<Derived1>& mat, \
 	const Eigen::MatrixBase<Derived2>& mat1)
 {
-	assert((0 == mat.cols()) || (mat.cols() == mat1.cols()), "Error!!! Matrix size not match.");
-	unsigned cols = mat1.cols();
-	unsigned currentRows = mat.rows();
-	unsigned addRows = mat1.rows();
+	using Scalar = typename Derived1::Scalar;
+	assert((0 == mat.cols()) || (mat.cols() == mat1.cols()) && "Assert!!! Matrix size not match.");
+	const int cols = mat1.cols();
+	const int currentRows = mat.rows();
+	const int addRows = mat1.rows();
 	mat.conservativeResize(currentRows + addRows, cols);
-	mat.bottomRows(addRows) = mat1;
+	mat.bottomRows(addRows) = mat1.array().cast<Scalar>();
 
 	return true;
 }
 
-
-template <typename Derived, typename Scalar, int N>
-bool matInsertRows(Eigen::PlainObjectBase<Derived>& mat, \
-	const Eigen::Matrix<Scalar, 1, N>& rVec)
-{
-	using ScalarO = typename Derived::Scalar;
-	assert((0 == mat.cols()) || (mat.cols() == rVec.cols()), "Error!!! Matrix size not match.");
-	unsigned cols = rVec.cols();
-	unsigned currentRows = mat.rows(); 
-	mat.conservativeResize(currentRows + 1, cols);
-	mat.row(currentRows) = rVec.array().cast<ScalarO>();
-
-	return true;
-}
- 
 
 // æÿ’Û”“±ﬂ≤Â»Îæÿ’Û/¡–œÚ¡ø£∫
 template <typename Derived1, typename Derived2>
 bool matInsertCols(Eigen::PlainObjectBase<Derived1>& mat, \
-	const Eigen::PlainObjectBase<Derived2>& mat1)
+	const Eigen::MatrixBase<Derived2>& mat1)
 {
-	assert((0 == mat.rows()) || (mat.rows() == mat1.rows()), "Error!!! Matrix size not match.");
-	unsigned rows = mat1.rows();
-	unsigned currentCols = mat.cols();
-	unsigned addCols = mat1.cols();
+	using Scalar = typename Derived1::Scalar;
+	assert((0 == mat.rows()) || (mat.rows() == mat1.rows()), "Assert!!! Matrix size not match.");
+	const int rows = mat1.rows();
+	const int currentCols = mat.cols();
+	const int addCols = mat1.cols();
 	mat.conservativeResize(rows, currentCols + addCols);
-	for (unsigned i = 0; i < addCols; ++i)
-		mat.col(currentCols + i) = mat1.col(i);
+	mat.rightCols(addCols) = mat1.array().cast<Scalar>();
 
 	return true;
 }

@@ -83,8 +83,8 @@ namespace MY_DEBUG
 	}
 
 
-	template<typename T>
-	static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+	template<typename DerivedV>
+	static void debugWriteMesh(const char* name, const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -103,7 +103,6 @@ namespace MY_DEBUG
 using namespace MY_DEBUG;
 
 
- 
  
 ///////////////////////////////////////////////////////////////////////////////////////////////// 测试函数
 
@@ -490,6 +489,50 @@ namespace TEST_MYEIGEN
 		}
 		genAABBmesh(versBox, trisBox, aabb);
 		debugWriteMesh("boxMesh1", versBox, trisBox);
+
+		debugDisp("finished.");
+	}
+}
+
+
+namespace TEST_MYEIGEN_IO
+{
+	void test0()
+	{
+		Eigen::MatrixXf versF1, versF2;
+		Eigen::MatrixXd versD1, versD2;
+		Eigen::MatrixXi tris1, tris2;
+
+		objReadMeshMat(versF1, tris1, "E:/材料/tooth.obj");
+		debugWriteMesh("meshInput", versF1, tris1);
+		debugWriteMesh("meshInput2", 2.0f * versF1, tris1); 
+
+		debugDisp("finished.");
+	}
+}
+
+
+namespace TEST_MYEIGEN_BASIC_MATH
+{
+	// 测试矩阵的增删查改和运算相关的轮子：
+	void test0()
+	{
+		Eigen::MatrixXi m1(4, 3);
+		Eigen::MatrixXi m2{Eigen::Matrix3i::Identity()};
+		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12;
+		debugDisp("m1 == \n", m1, "\n");
+
+		matInsertRows(m1, m2);									// 尾后插入矩阵，串联；
+		debugDisp("m1 == \n", m1, "\n");
+
+		m1 = m1.topRows(3).eval();							// 赋值的时候等号两个有同一个对象，最好用eval()来确保安全；
+		matInsertRows(m1, Eigen::RowVector3i{999, 999, 999});		// 尾后插入行向量
+		matInsertRows(m1 , -Eigen::MatrixXi::Ones(4, 3));				// 尾后插入return type对象；
+		debugDisp("m1 == \n", m1, "\n");
+
+		m1 = m1.topRows(4).eval();
+		matInsertCols(m1, 88 * Eigen::Vector4i::Ones());		// 并联；
+		debugDisp("m1 == \n", m1, "\n");
 
 		debugDisp("finished.");
 	}

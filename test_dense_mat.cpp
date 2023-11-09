@@ -148,8 +148,8 @@ namespace MY_DEBUG
 	}
 
 
-	template<typename T>
-	static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+	template<typename DerivedV>
+	static void debugWriteMesh(const char* name, const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -972,31 +972,85 @@ namespace TEST_DENSE_MAT
 
 
 	// test14——dense mat的类层次结构：
-	template<typename Derived>											// Derived是具体的矩阵类型，如Eigen::Matrix<int,1,-1,1,1,-1>
-	void foo(const Eigen::MatrixBase<Derived>& base)			// Eigen::MatrixBase<>是任意稠密矩阵、向量的基类；
-	{
-		const Derived& originMat = base.derived();			// derived()返回原矩阵的引用，类型为原类型；
-		std::cout << "typeid(base).name() == " << typeid(base).name() << std::endl;
-		std::cout << "typeid(base.derived()).name()  == " << typeid(originMat).name() << std::endl;
-		std::cout << "typeid(Derived).name() == " << typeid(Derived).name() << std::endl;
+	/*
+		Eigen::Matrix<>的继承链：
+				Matrix<> → PlainObjectBase<> → MatrixBase<> → DenseBase<> → DenseCoeffBase<>三层 → EigenBase<>;
 
-		std::cout << "address of base: " << reinterpret_cast<size_t>(&base) << std::endl;
-		std::cout << "address of base.derived(): " << reinterpret_cast<size_t>(&originMat) << std::endl;
-		std::cout << std::endl;
+		Eigen::Block<>的继承链：
+				Block<> → BlockImpl<> → internal::BlockImpl_dense<> → MapBase<>两层 → MatrixBase<> →...
+
+		Eigen::CwiseNullaryOp<>的继承链——多继承：
+				多继承：internal::no_assignment_operator + MatrixBase
+				MatrixBase → ...
+
+		Eigen::CwiseBinaryOp<>的继承链
+				 多继承：internal::no_assignment_operator + CwiseBinaryOpImpl<>
+				 CwiseBinaryOpImpl<> → MatrixBase<> → ...
+	*/
+	
+	// 若传入参数中希望包含各种return type的对象，应使用Eigen::MatrixBase<>类型；
+	template<typename Derived>										// Derived是具体的矩阵类型，如Eigen::Matrix<int,1,-1,1,1,-1>
+	void foo(Eigen::MatrixBase<Derived>& base)				// Eigen::MatrixBase<>是任意稠密矩阵、向量的基类；
+	{
+		const Derived& originMat = base.derived();						// derived()返回原矩阵的引用，类型为原类型；
+		debugDisp("typeid(base.derived()).name()  == ", typeid(originMat).name());
+		debugDisp("typeid(base).name() == ", typeid(base).name());
+	
+		// base.resize(0, 0);
+
+		debugDisp("foo() passed. \n\n"); 
+	}
+
+
+	template <typename DerivedV>
+	void goo(Eigen::PlainObjectBase<DerivedV>& obj)
+	{
+		debugDisp("goo() passed. \n\n");
 	}
 
 
 	void test14() 
 	{
-		Eigen::Vector3f v1;
-		Eigen::RowVectorXi v2;
+		Eigen::RowVector3f v1;
+		Eigen::VectorXi v2{ Eigen::RowVectorXi::Ones(6)};
 		Eigen::Matrix3d m1(Matrix3d::Ones());
 		Eigen::MatrixXi m2(5, 6);
+		 
+		
+		// 各种各样的return type:
+		auto ret1 = m1.row(1);												// Eigen::Block<>
+		auto ret2 = m2.col(3);													// Eigen::Block<>
+		auto ret3 = m2.topRightCorner(2, 3);							// Eigen::Block<>
+		auto ret4 = v1.normalized();										// Eigen::Matrix<>
+		auto ret5 = Eigen::MatrixXf::Ones(2, 3);						// Eigen::CwiseNullaryOp<>
+		auto ret6 = m2 * v2;													// Eigen::Product<>
+		auto ret7 = m2 + Eigen::MatrixXi::Ones(5, 6);				// Eigen::CwiseBinaryOp<>
+		auto ret8 = m2 - Eigen::MatrixXi::Ones(5, 6);				// Eigen::CwiseBinaryOp<>
+		auto ret9 = 3 * m2;														// Eigen::CwiseBinaryOp<>
 
+		debugDisp("typeid(ret1).name() == ", typeid(ret1).name());
+		debugDisp("typeid(ret2).name() == ", typeid(ret2).name());
+		debugDisp("typeid(ret3).name() == ", typeid(ret3).name());
+		debugDisp("typeid(ret4).name() == ", typeid(ret4).name());
+		debugDisp("typeid(ret5).name() == ", typeid(ret5).name());
+		debugDisp("typeid(ret6).name() == ", typeid(ret6).name());
+		debugDisp("typeid(ret7).name() == ", typeid(ret7).name());
+		debugDisp("typeid(ret8).name() == ", typeid(ret8).name());
+		debugDisp("typeid(ret9).name() == ", typeid(ret9).name());
+		debugDisp("\n\n");
+
+		foo(m2); 
+		foo(v2); 
+		foo(m1); 
 		foo(v1);
-		foo(v2);
-		foo(m1);
-		foo(m2);
+		foo(ret1); foo(ret2); foo(ret3); foo(ret4); foo(ret5); foo(ret6); foo(ret7); foo(ret8); foo(ret9);  
+
+		goo(v1); goo(v2); goo(m1); goo(m2);
+		// goo(ret1); goo(ret2); goo(ret3); 
+		goo(ret4); 
+		// goo(ret5); goo(ret6); goo(ret7); goo(ret8); goo(ret9);
+
+
 		std::cout << "finished." << std::endl;
 	}
 

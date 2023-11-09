@@ -54,7 +54,7 @@ namespace MY_DEBUG
 	}
 
 	template<typename DerivedV>
-	static void debugWriteMesh(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers, \
+	static void debugWriteMesh(const char* name, const Eigen::MatrixBase<DerivedV>& vers, \
 		const Eigen::MatrixXi& tris)
 	{
 		char path[512] = { 0 };
@@ -290,7 +290,7 @@ namespace TEST_JAW_PALATE
 	}
 
 
-	// step1——
+	// step1——生成颌板上下底面边界线：
 	/*
 		输入：
 				jawMeshUpper, jawMeshLower						上下颌网格
@@ -379,9 +379,38 @@ namespace TEST_JAW_PALATE
 			matInsertRows(versProj, versProjUpper);
 			matInsertRows(versProj, versProjLower);
 			alphaShapes2D(versBdry, versProj, alphaValue);
+			bdryUpper = versBdry;
+			bdryLower = versBdry;
+
 			debugWriteVers("versProj", versProj);
 			debugWriteVers("versBdry", versBdry);
 		}
+
+		// 4. 边界线整理成逆时针生长的回路：
+		{
+			// 4.1 变换回本征坐标系
+			Eigen::MatrixXf bdryUpperHomo, bdryLowerHomo;
+			vers2HomoVers(bdryUpperHomo, bdryUpper);
+			homoVers2Vers(bdryUpper, affineHomoInvUpper * bdryUpperHomo);
+			vers2HomoVers(bdryLowerHomo, bdryLower);
+			homoVers2Vers(bdryLower, affineHomoInvLower * bdryLowerHomo);
+			
+			// 4.2 整理回路
+			sortLoop2D(bdryUpper);
+			sortLoop2D(bdryLower);
+
+			// 4. 3 变换回原坐标系：
+			vers2HomoVers(bdryUpperHomo, bdryUpper);
+			homoVers2Vers(bdryUpper, affineHomoUpper * bdryUpperHomo);
+			vers2HomoVers(bdryLowerHomo, bdryLower);
+			homoVers2Vers(bdryLower, affineHomoLower * bdryLowerHomo);
+
+			// for debug
+			debugWriteVers("bdryUpperSorted", bdryUpper);
+			debugWriteVers("bdryLowerSorted", bdryLower);
+		}
+
+
 
 		debugDisp("finished.");
 	}
@@ -525,7 +554,7 @@ namespace TEST_JAW_PALATE
 		{
 			Eigen::MatrixXd versTmp; 
 			Eigen::MatrixXd versFixed;
-			const float lambda = 0.1;
+			Eigen::MatrixXi trisTmp; 
 			const int iterCount = 30;
 			std::vector<int> fixedVerIdxes;
 
@@ -544,12 +573,8 @@ namespace TEST_JAW_PALATE
 			subFromIdxVec(versFixed, versPalate, fixedVerIdxes);
 			debugWriteVers("versFixed1", versFixed);
 
-			bool ret = laplaceFaring(versTmp, versPalate, trisPalate, lambda, iterCount, fixedVerIdxes);
-			if (!ret)
-			{
-				debugDisp("error!!! laplace faring failed.");
-				return;
-			}
+			smoothSurfMesh(versTmp, trisTmp, versPalate, trisPalate, fixedVerIdxes, 0.01);
+
 			debugWriteMesh("meshLaplace1", versTmp, trisPalate);
 			versPalate = versTmp;
 		}
@@ -642,6 +667,41 @@ namespace TEST_JAW_PALATE
 	*/
 	void test4() 
 	{
+		Eigen::MatrixXd versOut, versPalate;
+		Eigen::MatrixXi trisOut, trisPalate;
+		readOBJ(versPalate, trisPalate, "E:\\颌板\\颌板示例\\2\\meshLaplace2.obj");
+		 
+		{
+			Eigen::MatrixXd versUpper, versTmp;
+			Eigen::MatrixXi trisUpper, trisTmp;
+			readOBJ(versUpper, trisUpper, "E:\\颌板\\颌板示例\\2\\meshUpperEdited.obj");
+			meshCross(versTmp, trisTmp, versPalate, trisPalate, versUpper, trisUpper);
+			versPalate = versTmp;
+			trisPalate = trisTmp;
+
+			debugWriteMesh("meshCross1", versTmp, trisTmp);
+		}
+
+		{
+			Eigen::MatrixXd versLower, versTmp;
+			Eigen::MatrixXi trisLower, trisTmp;
+			readOBJ(versLower, trisLower, "E:\\颌板\\颌板示例\\2\\meshLowerEdited.obj");
+
+			meshCross(versTmp, trisTmp, versPalate, trisPalate, versLower, trisLower);
+			versPalate = versTmp;
+			trisPalate = trisTmp;
+		}
+
+		debugWriteMesh("meshJawPalate", versPalate, trisPalate);
+		debugDisp("finished.");
+	}
+
+
+	// step5——打孔：
+	void test5() 
+	{
+		// 1. 生成打孔的圆柱；
+
 
 	}
 }

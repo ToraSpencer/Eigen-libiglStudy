@@ -140,7 +140,8 @@ bool matReadFromFile(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, cons
 
 
 template	<typename Scalar, typename Index>
-void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::Matrix<Index, Eigen::Dynamic, Eigen::Dynamic>& tris, const char* fileName)
+void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+		Eigen::Matrix<Index, Eigen::Dynamic, Eigen::Dynamic>& tris, const char* fileName)
 {
 	char* pTmp = NULL;
 	std::ifstream ifs(fileName);		//cube bunny Eight
@@ -220,30 +221,7 @@ void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers,
 	tris.transposeInPlace();
 	delete[] pFileBuf;
 };
-
-
-template	<typename DerivedV>
-void objWriteMeshMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
-{
-	std::ofstream dstFile(fileName);
-	if (vers.cols() != 3 || tris.cols() != 3)
-		return;
-
-	for (int j = 0; j < vers.rows(); j++)
-	{
-		char szBuf[1024] = { 0 };
-		sprintf_s(szBuf, 1024, "v %.17g %.17g %.17g", vers(j, 0), vers(j, 1), vers(j, 2));
-		dstFile << szBuf << "\n";
-	}
-
-	for (unsigned j = 0; j < tris.rows(); ++j)
-	{
-		char szBuf[256] = { 0 };
-		sprintf_s(szBuf, 256, "f %d %d %d", tris(j, 0) + 1, tris(j, 1) + 1, tris(j, 2) + 1);
-		dstFile << szBuf << "\n";
-	}
-};
-
+ 
 
 template	<typename Scalar>
 void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, const char* fileName)

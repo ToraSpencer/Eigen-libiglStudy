@@ -48,5 +48,24 @@ bool homoVers2Vers(Eigen::PlainObjectBase<DerivedVo>& versOut, const Eigen::Plai
 
 template <typename DerivedV>
 Eigen::MatrixXd homoVers2Vers(const Eigen::PlainObjectBase<DerivedV>& versIn);
+
+template <typename DerivedVo, typename DerivedVi>
+bool homoVers2Vers(Eigen::PlainObjectBase<DerivedVo>& versOut, const Eigen::MatrixBase<DerivedVi>& versIn)
+{
+	using ScalarI = typename DerivedVi::Scalar;
+	using ScalarO = typename DerivedVo::Scalar;
+
+	const int dim = versIn.rows() - 1;
+	const int versCount = versIn.cols();
+	assert(2 == dim || 3 == dim, "assert!!! input vertices dimension should be 2 or 3.");
+
+	versOut.resize(0, 0);
+	if (0 == versCount)
+		return true;
+
+	versOut = versIn.transpose().leftCols(dim).array().cast<ScalarO>();
+
+	return true;
+}
  
  

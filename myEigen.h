@@ -293,6 +293,35 @@ namespace TEST_MYEIGEN
 }
 
 
+namespace TEST_MYEIGEN_IO 
+{
+	void test0();
+	void test1(); 
+	void test2();
+	void test3();
+	void test4();
+	void test5();
+	void test6();
+	void test7();
+	void test8();
+	void test9(); 
+}
+
+
+namespace TEST_MYEIGEN_BASIC_MATH
+{
+	void test0();
+	void test1();
+	void test2();
+	void test3();
+	void test4();
+	void test5();
+	void test6();
+	void test7();
+	void test8();
+	void test9();
+}
+
 // 测试myEigenModeling中的接口
 namespace TEST_MYEIGEN_MODELING
 {

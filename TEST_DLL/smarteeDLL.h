@@ -76,11 +76,13 @@ SMARTEE_DLL_API bool genSDF(SDF_RESULT& result, \
 	const Eigen::PlainObjectBase<DerivedV>& meshVers, const Eigen::MatrixXi& meshTris, \
 	const float step, const int interCounts = 5);
 
+
 // marching cubes
 template <typename DerivedV>
 SMARTEE_DLL_API bool marchingCubes(Eigen::PlainObjectBase<DerivedV>& versOut, \
 	Eigen::MatrixXi& trisOut, const SDF_RESULT& result, const float isoValue, \
 	const bool blFiltering = true, const bool blSClargest = true);
+
 
 // 网格布尔操作： 
 template <typename DerivedV1, typename DerivedV2>

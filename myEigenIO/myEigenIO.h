@@ -69,10 +69,12 @@ bool matWriteToFile(const char* fileName, const Eigen::Matrix<T, Eigen::Dynamic,
 template<typename T>
 bool matReadFromFile(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& mat, const char* fileName);
 
+
 // OBJ文件读取网格
 template	<typename Scalar, typename Index>
 void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
 	Eigen::Matrix<Index, Eigen::Dynamic, Eigen::Dynamic>& tris, const char* fileName);
+
 
 #if 0
 template <typename Scalar>
@@ -180,35 +182,62 @@ bool stlReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers,
 }
 #endif
 
+
 // 网格写入到OBJ文件
-template	<typename DerivedV>
-void objWriteMeshMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers, \
-	const Eigen::MatrixXi& tris);
+template <typename DerivedV>
+void objWriteMeshMat(const char* fileName, const Eigen::MatrixBase<DerivedV>& vers, \
+	const Eigen::MatrixXi& tris)
+{
+	std::ofstream dstFile(fileName);
+	if (vers.cols() != 3 || tris.cols() != 3)
+		return;
+
+	for (int j = 0; j < vers.rows(); j++)
+	{
+		char szBuf[1024] = { 0 };
+		sprintf_s(szBuf, 1024, "v %.17g %.17g %.17g", vers(j, 0), vers(j, 1), vers(j, 2));
+		dstFile << szBuf << "\n";
+	}
+
+	for (unsigned j = 0; j < tris.rows(); ++j)
+	{
+		char szBuf[256] = { 0 };
+		sprintf_s(szBuf, 256, "f %d %d %d", tris(j, 0) + 1, tris(j, 1) + 1, tris(j, 2) + 1);
+		dstFile << szBuf << "\n";
+	}
+}
 
 // OBJ文件读取顶点数据
 template	<typename Scalar>
 void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
 	const char* fileName);
 
+
 // 顶点写入OBJ文件
 template	<typename DerivedV>
 void objWriteVerticesMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers);
+
 
 // XOY平面上的二维顶点写入OBJ文件；vers为两列的矩阵； 
 template	<typename DerivedV>
 void objWriteVerticesMat2D(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers);
 
+
 template	<typename DerivedV, typename DerivedI>
 void objWriteEdgesMat(const char* pathName, const Eigen::PlainObjectBase<DerivedI>& edges, \
 	const Eigen::PlainObjectBase<DerivedV>& vers);
 
+
 template <typename DerivedV, typename	 DerivedI>
 void objWritePath(const char* pathName, const std::vector<DerivedI>& path, const Eigen::PlainObjectBase<DerivedV>& vers);
+
 
 template <typename DerivedV>
 void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, const Eigen::PlainObjectBase<DerivedV>& vers);
 
+
 void objWriteDirection(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& dir);
+
 
 void objWriteCoorSys(const char* pathName, const Eigen::RowVector3f& origin, const Eigen::RowVector3f& xdir, \
 	const Eigen::RowVector3f& ydir, const Eigen::RowVector3f& zdir);

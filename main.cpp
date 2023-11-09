@@ -236,8 +236,8 @@ namespace MY_DEBUG
 	}
 
 
-	template<typename T>
-	static void debugWriteMesh(const char* name, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris)
+	template<typename DerivedV>
+	static void debugWriteMesh(const char* name, const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -1274,20 +1274,9 @@ int testCmd_laplaceFaring(int argc, char** argv)
 
 int main(int argc, char** argv)
 { 
-	// TEST_MYEIGEN::test6();
+	// TEST_MYEIGEN_IO::test0();
 
-	// return testCmd_laplaceFaring(argc, argv);
-	
-	// TEST_MYEIGEN_MODELING::test3();
-
-	TEST_MYEIGEN_PMP::test2();
-	 
-	// TEST_SCIENTIFIC_CALC::test1();
-
-	// TEST_MYEIGEN_PMP::test1();
-
-	// TEST_DENSE_MAT::test5();
-
+	TEST_MYEIGEN_BASIC_MATH::test0();
 
 	std::cout << "main() finished." << std::endl;
 }
