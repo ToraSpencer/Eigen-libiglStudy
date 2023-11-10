@@ -106,9 +106,6 @@ Eigen::Matrix<T, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<T>& vIn)
 }
 
 
-
-
-
 // 霍纳方法（秦九昭算法）求多项式的值
 template<typename T, int N>
 double hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const double x)
@@ -148,114 +145,8 @@ float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x)
 	float result = hornersPoly(diffCoeffs, x);
 
 	return result;
-}
+} 
  
-  
-// 根据索引向量从源矩阵中提取元素生成输出矩阵。
-template <typename Derived>
-bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec)
-{
-	Derived& matOut = matBaseOut.derived();
-	matOut.resize(vec.size(), matBaseIn.cols());
-	for (unsigned i = 0; i < vec.rows(); ++i)
-	{
-		const int& index = vec(i);
-		matOut.row(i) = matBaseIn.row(index);
-	}
-
-	return true;
-}
-
-
-template <typename Derived, typename Index>
-bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const std::vector<Index>& vec)
-{
-	Derived& matOut = matBaseOut.derived();
-	matOut.resize(vec.size(), matBaseIn.cols());
-	for (unsigned i = 0; i < vec.size(); ++i)
-	{
-		const Eigen::Index& index = vec[i];
-		matOut.row(i) = matBaseIn.row(index);
-	}
-
-	return true;
-}
-
-
-// 根据容器中的索引从源矩阵中提取元素生成输出矩阵。
-template <typename Derived, typename IndexContainer>
-bool subFromIdxCon(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const IndexContainer& con)
-{
-	Derived& matOut = matBaseOut.derived();
-	matOut.resize(con.size(), matBaseIn.cols());
-
-	auto iter = con.begin();
-	for (unsigned i = 0; iter != con.end(); ++i)
-	{
-		const Eigen::Index& index = *iter++;
-		matOut.row(i) = matBaseIn.row(index);
-	}
-
-	return true;
-}
-
-
-// 根据flag向量从源矩阵中提取元素生成输出矩阵。
-template <typename Derived>
-bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec)
-{
-	Derived& matOut = matBaseOut.derived();
-	matOut.resize(0, 0);
-	matOut.resize(vec.sum(), matBaseIn.cols());
-
-	int count = 0;
-	for (unsigned i = 0; i < vec.rows(); ++i)
-		if (vec(i) > 0)
-			matOut.row(count++) = matBaseIn.row(i);
-
-	return true;
-}
-
-
-template <typename Derived>
-bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, std::vector<int>& oldNewIdxInfo, std::vector<int>& newOldIdxInfo, \
-	const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& flag)
-{
-	if (flag.rows() != matBaseIn.rows())
-		return false;
-
-	// 1. 抽取flag标记为1的层数：
-	const int N = flag.rows();
-	const int M = flag.sum();
-	int count = 0;
-	Derived& matOut = matBaseOut.derived();
-	matOut.resize(0, 0);
-	oldNewIdxInfo.clear();
-	newOldIdxInfo.clear();
-	matOut.resize(M, matBaseIn.cols());
-	for (unsigned i = 0; i < flag.rows(); ++i)
-		if (flag(i) > 0)
-			matOut.row(count++) = matBaseIn.row(i);
-
-	// 2. 生成新老索引映射表：
-	oldNewIdxInfo.resize(N, -1);
-	newOldIdxInfo.reserve(M);
-	int index = 0;
-	for (int k = 0; k < N; ++k)
-	{
-		int oldIdx = k;
-		if (flag(oldIdx) > 0)
-		{
-			int newIdx = index++;
-			oldNewIdxInfo[oldIdx] = newIdx;
-			newOldIdxInfo.push_back(oldIdx);
-		}
-	}
-
-	return true;
-}
-
-
 
 // 布尔向量转化为索引向量；
 Eigen::VectorXi flagVec2IdxVec(const Eigen::VectorXi& flag)
@@ -328,30 +219,6 @@ bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix
 }
 
 
-// 输入flag向量，得到新老索引的映射关系； 
-void flagVec2oldNewIdxInfo(std::vector<int>& oldNewIdxInfo, \
-	std::vector<int>& newOldIdxInfo, const Eigen::VectorXi& flagVec)
-{
-	const int versCount = flagVec.rows();
-	const int versCountNew = flagVec.sum();
-	assert((versCount > 0) && "assert!!! input flagVec should not be empty.");
-	oldNewIdxInfo.clear();
-	newOldIdxInfo.clear();
-
-	oldNewIdxInfo.resize(versCount, -1);
-	newOldIdxInfo.reserve(versCount);
-	int index = 0;
-	for (int i = 0; i < versCount; ++i)
-	{
-		if (flagVec(i) > 0)
-		{
-			oldNewIdxInfo[i] = index++;
-			newOldIdxInfo.push_back(i);
-		}
-	}
-	newOldIdxInfo.shrink_to_fit();
-}
- 
 // 返回一个flag列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；
 template <typename Derived1, typename Derived2>
 Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& rowVec)

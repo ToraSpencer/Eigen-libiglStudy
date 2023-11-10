@@ -26,8 +26,7 @@ namespace MY_DEBUG
 		std::cout << firstArg << " ";
 		debugDisp(args...);
 	}
-
-
+	  
 	template <typename T, int M, int N>
 	static void dispData(const Eigen::Matrix<T, M, N>& m)
 	{
@@ -517,22 +516,63 @@ namespace TEST_MYEIGEN_BASIC_MATH
 	// 测试矩阵的增删查改和运算相关的轮子：
 	void test0()
 	{
-		Eigen::MatrixXi m1(4, 3);
-		Eigen::MatrixXi m2{Eigen::Matrix3i::Identity()};
-		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12;
-		debugDisp("m1 == \n", m1, "\n");
+		// 1. 矩阵串联、并联
+		debugDisp("1. 矩阵串联、并联");
+		{
+			Eigen::MatrixXi m1(4, 3);
+			Eigen::MatrixXi m2{ Eigen::Matrix3i::Identity() };
+			m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12;
+			debugDisp("m1 == \n", m1, "\n");
 
-		matInsertRows(m1, m2);									// 尾后插入矩阵，串联；
-		debugDisp("m1 == \n", m1, "\n");
+			matInsertRows(m1, m2);									// 尾后插入矩阵，串联；
+			debugDisp("m1 == \n", m1, "\n");
 
-		m1 = m1.topRows(3).eval();							// 赋值的时候等号两个有同一个对象，最好用eval()来确保安全；
-		matInsertRows(m1, Eigen::RowVector3i{999, 999, 999});		// 尾后插入行向量
-		matInsertRows(m1 , -Eigen::MatrixXi::Ones(4, 3));				// 尾后插入return type对象；
-		debugDisp("m1 == \n", m1, "\n");
+			m1 = m1.topRows(3).eval();							// 赋值的时候等号两个有同一个对象，最好用eval()来确保安全；
+			matInsertRows(m1, Eigen::RowVector3i{ 999, 999, 999 });		// 尾后插入行向量
+			matInsertRows(m1, -Eigen::MatrixXi::Ones(4, 3));				// 尾后插入return type对象；
+			debugDisp("m1 == \n", m1, "\n");
 
-		m1 = m1.topRows(4).eval();
-		matInsertCols(m1, 88 * Eigen::Vector4i::Ones());		// 并联；
-		debugDisp("m1 == \n", m1, "\n");
+			m1 = m1.topRows(4).eval();
+			matInsertCols(m1, 88 * Eigen::Vector4i::Ones());		// 并联；
+			debugDisp("m1 == \n", m1, "\n");
+		}
+
+
+		// 2. subFrom.... 
+		debugDisp("2. subFrom...");
+		{
+			Eigen::MatrixXi m1(4, 3);
+			Eigen::MatrixXi m2;
+			std::vector<int> oldNewIdxInfo, newOldIdxInfo;
+			m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12;
+			debugDisp("m1 == \n", m1, "\n");
+
+			subFromIdxVec(m2, m1, Eigen::Vector2i{0, 2});
+			debugDisp("m2 == \n", m2, "\n");
+
+			subFromIdxVec(m2, m1, std::vector{ 0, 2, 3 });
+			debugDisp("m2 == \n", m2, "\n");
+
+			subFromIdxCon(m2, m1, std::list{ 1, 2, 3 });
+			debugDisp("m2 == \n", m2, "\n");
+
+			subFromFlagVec(m2, m1, Eigen::Vector4i{0, 1, 0, 1});
+			debugDisp("m2 == \n", m2, "\n");
+
+			subFromFlagVec(m2, oldNewIdxInfo, newOldIdxInfo, m1, Eigen::Vector4i{0, 1, 1, 1});
+			debugDisp("m2 == \n", m2, "\n");
+
+			debugDisp("oldNewIdxInfo: ");
+			traverseSTL(oldNewIdxInfo, disp<int>);
+			debugDisp("newOldIdxInfo: ");
+			traverseSTL(newOldIdxInfo, disp<int>);
+
+			flagVec2oldNewIdxInfo(oldNewIdxInfo, newOldIdxInfo, Eigen::Vector4i{ 0, 1, 1, 1 });
+			debugDisp("oldNewIdxInfo: ");
+			traverseSTL(oldNewIdxInfo, disp<int>);
+			debugDisp("newOldIdxInfo: ");
+			traverseSTL(newOldIdxInfo, disp<int>);
+		}
 
 		debugDisp("finished.");
 	}
@@ -542,7 +582,6 @@ namespace TEST_MYEIGEN_BASIC_MATH
 // 测试myEigenModeling中的接口
 namespace TEST_MYEIGEN_MODELING
 {
-
 #ifdef USE_TRIANGLE_H
 
 	// 测试生成柱体

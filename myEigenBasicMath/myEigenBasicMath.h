@@ -306,7 +306,7 @@ Eigen::Matrix<T, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<T>& vIn);
 	template <typename ScalarVO, typename ScalarVI>
 	void getRotationMat(
 			Eigen::Matrix<ScalarVO, 3, 3>& rotation,							输出的旋转矩阵
-			const Eigen::Matrix<ScalarVI, 1, 3>& axisArrow,				旋转轴向量
+			const Eigen::MatrixBase<DerivedVA>& axisArrow,				旋转轴向量
 			const double theta																逆时针旋转角度
 			)
 
@@ -316,57 +316,218 @@ Eigen::Matrix<T, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<T>& vIn);
 */
 template <typename ScalarVO, typename DerivedVA>
 void getRotationMat(Eigen::Matrix<ScalarVO, 3, 3>& rotation, \
-	const Eigen::PlainObjectBase<DerivedVA>& axisArrow, const double theta);
+	const Eigen::MatrixBase<DerivedVA>& axisArrow, const double theta)
+{
+	assert((3 == axisArrow.rows() * axisArrow.cols()) && "assert!!! the input axisArrow should be in 3D space.");
+	Eigen::Matrix<ScalarVO, 3, 1> axis = axisArrow.transpose().normalized().array().cast<ScalarVO>();
+	rotation = Eigen::AngleAxis<ScalarVO>(theta, axis).toRotationMatrix();
+}
 
 
-// 输入旋转信息得到旋转矩阵，重载2——得到将originArrow旋转到targetArrow的旋转矩阵
+// 输入旋转信息得到旋转矩阵，重载2——得到将originArrow旋转到targetArrow的旋转矩阵，仅限3D情形；
 /*
 	template <typename ScalarVO, typename ScalarV1, typename ScalarV2>
 	void getRotationMat(
-			Eigen::Matrix<ScalarVO, 3, 3>& rotation, \
-			const Eigen::Matrix<ScalarV1, 1, 3>& originArrow, \
-			const Eigen::Matrix<ScalarV2, 1, 3>& targetArrow
+			Eigen::Matrix<ScalarVO, 3, 3>& rotation, \						 输出的旋转矩阵，(3×3)
+			const Eigen::MatrixBase<DerivedV1>& originArrow,			 旋转前的列向量
+			const Eigen::MatrixBase<DerivedV2>& targetArrow			 旋转后的列向量；
 			)
-
-
 		注！！！计算出的旋转矩阵全部默认为作用于列向量；
 				若v,u为列向量，r,s为行向量：R * v == u; 等价于 r * R.transpose() == s;
 */
 template <typename ScalarVO, typename DerivedV1, typename DerivedV2>
 void getRotationMat(Eigen::Matrix<ScalarVO, 3, 3>& rotation, \
-	const Eigen::PlainObjectBase<DerivedV1>& originArrow, \
-	const Eigen::PlainObjectBase<DerivedV2>& targetArrow);
+	const Eigen::MatrixBase<DerivedV1>& originArrow, \
+	const Eigen::MatrixBase<DerivedV2>& targetArrow)
+{
+	using RowVector3O = Eigen::Matrix<ScalarVO, 1, 3>;
+	const double eps = 1e-5;
+	assert((3 == originArrow.rows() * originArrow.cols()) && "assert!!! the input originArrow should be in 3D space.");
+	assert((3 == targetArrow.rows() * targetArrow.cols()) && "assert!!! the input targetArrow should be in 3D space.");
+	rotation = Eigen::Matrix<ScalarVO, 3, 3>::Identity();
+	if (0 == originArrow.norm() || 0 == targetArrow.norm())
+		return;
+
+	// 1. 若原方向与目标方向平行：
+	RowVector3O originArrowCast{ static_cast<ScalarVO>(originArrow(0)), \
+			static_cast<ScalarVO>(originArrow(1)), static_cast<ScalarVO>(originArrow(2))};
+	RowVector3O targetArrowCast{ static_cast<ScalarVO>(targetArrow(0)), \
+			static_cast<ScalarVO>(targetArrow(1)), static_cast<ScalarVO>(targetArrow(2)) };
+	RowVector3O axisArrowCast = originArrowCast.cross(targetArrowCast);			// 旋转轴；
+	if (std::abs(axisArrowCast.norm()) < eps)
+	{
+		// 1.1 若原方向与目标方向相同：
+		if (originArrowCast.dot(targetArrowCast) > 0)
+			return;
+		else         // 1.2 若原方向与目标方向相反：
+		{
+			// 求以originArrow为法向的平面内的一个向量：
+			axisArrowCast = RowVector3O{ 1, 1, 1 };
+			ScalarVO x0 = originArrowCast(0);
+			ScalarVO y0 = originArrowCast(1);
+			ScalarVO z0 = originArrowCast(2);
+
+			// 若向量o最大分量为x分量，则设定a向量的另外两个分量为1, x分量待定，求解o.dot(a)解出x分量，再归一化得到旋转轴向量a
+			if (std::abs(x0) >= std::abs(y0) && std::abs(x0) >= std::abs(z0))
+				axisArrowCast(0) = -(y0 + z0) / x0;
+			else if (std::abs(y0) >= std::abs(x0) && std::abs(y0) >= std::abs(z0))
+				axisArrowCast(1) = -(x0 + z0) / y0;
+			else
+				axisArrowCast(2) = -(x0 + y0) / z0;
+			axisArrowCast.normalize();
+			ScalarVO x1 = axisArrowCast(0);
+			ScalarVO y1 = axisArrowCast(1);
+			ScalarVO z1 = axisArrowCast(2);
+
+			rotation << 2 * x1 * x1 - 1, 2 * x1 * y1, 2 * x1 * z1, \
+				2 * x1 * y1, 2 * y1 * y1 - 1, 2 * y1 * z1, \
+				2 * x1 * z1, 2 * y1 * z1, 2 * z1 * z1 - 1;
+
+			return;
+		}
+	}
+
+	// 2. 原方向与目标方向不平行的一般情形：
+	axisArrowCast.normalize();
+	ScalarVO x0 = axisArrowCast(0);
+	ScalarVO y0 = axisArrowCast(1);
+	ScalarVO z0 = axisArrowCast(2);
+	ScalarVO cosTheta = originArrowCast.dot(targetArrowCast) / (originArrowCast.norm() * targetArrowCast.norm());
+	ScalarVO sinTheta = std::sqrt(1 - cosTheta * cosTheta);
+
+	//		note: 等价于Eigen::AngleAxis<T>(theta, axis).toRotationMatrix()，计算绕任意轴向量旋转theta角度；
+	rotation << 	cosTheta + (1 - cosTheta) * x0 * x0, (1 - cosTheta)* x0* y0 - sinTheta * z0, (1 - cosTheta)* x0* z0 + sinTheta * y0, \
+		(1 - cosTheta)* y0* x0 + sinTheta * z0, cosTheta + (1 - cosTheta) * y0 * y0, (1 - cosTheta)* y0* z0 - sinTheta * x0, \
+		(1 - cosTheta)* z0* x0 - sinTheta * y0, (1 - cosTheta)* z0* y0 + sinTheta * x0, cosTheta + (1 - cosTheta) * z0 * z0;
+}
 
 
-//
-template <typename Derived>
-bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut, \
-	const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
+// 按照索引向量从输入矩阵中提取元素，重载1——索引向量为Eigen向量
+template <typename DerivedO, typename DerivedI, typename DerivedVI>
+bool subFromIdxVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
+	const Eigen::MatrixBase<DerivedI>& matIn, const Eigen::MatrixBase<DerivedVI>& vec)
+{ 
+	using ScalarO = typename DerivedO::Scalar;
+	int maxIdx = static_cast<int>(vec.maxCoeff());
+	assert((maxIdx < matIn.rows()) && "Assesrt!!! index out of range in matIn.");
+	assert((1 == vec.rows() || 1 == vec.cols()) && "Assesrt!!! input vec is not a vector.");
+
+	matOut.resize(0, 0);
+	matOut.resize(vec.size(), matIn.cols());
+	for (unsigned i = 0; i < vec.rows(); ++i)
+	{
+		const int& index = vec(i);
+		matOut.row(i) = matIn.row(index).array().cast<ScalarO>();
+	}
+
+	return true;
+}
 
 
-//
-template <typename Derived, typename Index>
-bool subFromIdxVec(Eigen::MatrixBase<Derived>& matBaseOut,\
-	const Eigen::MatrixBase<Derived>& matBaseIn, const std::vector<Index>& vec);
+// 按照索引向量从输入矩阵中提取元素，重载2——索引向量为std::vector<>
+template <typename DerivedO, typename DerivedI, typename Index>
+bool subFromIdxVec(Eigen::PlainObjectBase<DerivedO>& matOut,\
+	const Eigen::MatrixBase<DerivedI>& matIn, const std::vector<Index>& vec)
+{ 
+	using ScalarO = typename DerivedO::Scalar;
+	assert((!vec.empty()) && "Assert!!! input vec should not be empty.");
+	int maxIdx = static_cast<int>(*std::max_element(vec.begin(), vec.end()));
+	assert((maxIdx < matIn.rows()) && "Assesrt!!! index out of range in matIn.");
+
+	matOut.resize(vec.size(), matIn.cols());
+	for (unsigned i = 0; i < vec.size(); ++i)
+	{
+		const Eigen::Index& index = vec[i];
+		matOut.row(i) = matIn.row(index).array().cast<ScalarO>();
+	}
+
+	return true;
+}
 
 
-//
-template <typename Derived, typename IndexContainer>
-bool subFromIdxCon(Eigen::MatrixBase<Derived>& matBaseOut, \
-	const Eigen::MatrixBase<Derived>& matBaseIn, const IndexContainer& con);
+// 按照索引容器（只能是STL容器）从输入矩阵中提取元素
+template <typename DerivedO, typename DerivedI, typename IndexContainer>
+bool subFromIdxCon(Eigen::MatrixBase<DerivedO>& matOut, \
+	const Eigen::MatrixBase<DerivedI>& matIn, const IndexContainer& con)
+{
+	using ScalarO = typename DerivedO::Scalar;
+	assert((!con.empty()) && "Assert!!! input vec should not be empty.");
+	int maxIdx = static_cast<int>(*std::max_element(con.begin(), con.end()));
+	assert((maxIdx < matIn.rows()) && "Assesrt!!! index out of range in matIn.");
+
+	matOut.resize(con.size(), matIn.cols());
+
+	auto iter = con.begin();
+	for (unsigned i = 0; iter != con.end(); ++i)
+	{
+		const Eigen::Index& index = *iter++;
+		matOut.row(i) = matIn.row(index).array().cast<ScalarO>();
+	}
+
+	return true;
+}
 
 
 // 根据flag向量从源矩阵中提取元素生成输出矩阵，重载1：
-template <typename Derived>
-bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, \
-	const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
+template <typename DerivedO, typename DerivedI, typename DerivedVI>
+bool subFromFlagVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
+	const Eigen::MatrixBase<DerivedI>& matIn, const Eigen::MatrixBase<DerivedVI>& vec)
+{ 
+	using ScalarO = typename DerivedO::Scalar;
+	assert((1 == vec.rows() || 1 == vec.cols()) && "Assesrt!!! input vec is not a vector.");
+	assert((vec.size() == matIn.rows()) && "Assert!!! input vec and matIn do not match.");
+
+	matOut.resize(0, 0);
+	matOut.resize(vec.sum(), matIn.cols());
+
+	int count = 0;
+	for (unsigned i = 0; i < vec.rows(); ++i)
+		if (vec(i) > 0)
+			matOut.row(count++) = matIn.row(i).array().cast<ScalarO>();
+
+	return true;
+}
 
 
-// 根据flag向量从源矩阵中提取元素生成输出矩阵，重载2：
-template <typename Derived>
-bool subFromFlagVec(Eigen::MatrixBase<Derived>& matBaseOut, \
+// 根据flag向量从源矩阵中提取元素生成输出矩阵，重载2：输出
+template <typename DerivedO, typename DerivedI, typename DerivedVI>
+bool subFromFlagVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
 	std::vector<int>& oldNewIdxInfo, std::vector<int>& newOldIdxInfo, \
-	const Eigen::MatrixBase<Derived>& matBaseIn, const Eigen::VectorXi& vec);
+	const Eigen::MatrixBase<DerivedI>& matIn, const Eigen::MatrixBase<DerivedVI>& vec)
+{
+	using ScalarO = typename DerivedO::Scalar;
+	assert((1 == vec.rows() || 1 == vec.cols()) && "Assesrt!!! input vec is not a vector.");
+	assert((vec.size() == matIn.rows()) && "Assert!!! input vec and matIn do not match.");
+	matOut.resize(0, 0);
+
+	// 1. 抽取vec标记为1的层数：
+	const int N = vec.rows();
+	const int M = vec.sum();
+	int count = 0; 
+	oldNewIdxInfo.clear();
+	newOldIdxInfo.clear();
+	matOut.resize(M, matIn.cols());
+	for (unsigned i = 0; i < vec.rows(); ++i)
+		if (vec(i) > 0)
+			matOut.row(count++) = matIn.row(i).array().cast<ScalarO>();
+
+	// 2. 生成新老索引映射表：
+	oldNewIdxInfo.resize(N, -1);
+	newOldIdxInfo.reserve(M);
+	int index = 0;
+	for (int k = 0; k < N; ++k)
+	{
+		int oldIdx = k;
+		if (vec(oldIdx) > 0)
+		{
+			int newIdx = index++;
+			oldNewIdxInfo[oldIdx] = newIdx;
+			newOldIdxInfo.push_back(oldIdx);
+		}
+	}
+
+	return true;
+}
  
 
 //
@@ -445,15 +606,37 @@ bool matInsertCols(Eigen::PlainObjectBase<Derived>& mat, \
 	void flagVec2oldNewIdxInfo(
 			std::vector<int>& oldNewIdxInfo,
 			std::vector<int>& newOldIdxInfo,
-			const Eigen::VectorXi& flagVec
+			const Eigen::MatrixBase<DerivedVI>& flagVec
 			)
 
 	flagVec中，若1 == flagVec(i)表示索引为i的点被选中，若0 == flagVec(j)表示索引为j的点没有被选中；
 	-1 == oldNewIdxInfo(i)表示原点云中索引为i的点没有被选中，在新点云中没有对应；
 	index0 == newOldIdxInfo(i)表示新点云中索引为i的点，在原点云中的索引为index0;
 */
+template <typename DerivedVI>
 void flagVec2oldNewIdxInfo(std::vector<int>& oldNewIdxInfo, \
-		std::vector<int>& newOldIdxInfo, const Eigen::VectorXi& flagVec);
+		std::vector<int>& newOldIdxInfo, const Eigen::MatrixBase<DerivedVI>& flagVec) 
+{
+	const int versCount = flagVec.size();
+	assert((1 == flagVec.rows() || 1 == flagVec.cols()) && "assert!!! input flagVec is not a Eigen vector.");
+	const int versCountNew = static_cast<int>(flagVec.sum());
+	assert((versCount > 0) && "assert!!! input flagVec should not be empty.");
+	oldNewIdxInfo.clear();
+	newOldIdxInfo.clear();
+
+	oldNewIdxInfo.resize(versCount, -1);
+	newOldIdxInfo.reserve(versCount);
+	int index = 0;
+	for (int i = 0; i < versCount; ++i)
+	{
+		if (static_cast<int>(flagVec(i)) > 0)
+		{
+			oldNewIdxInfo[i] = index++;
+			newOldIdxInfo.push_back(i);
+		}
+	}
+	newOldIdxInfo.shrink_to_fit();
+}
 
 // 
 template <typename Derived1, typename Derived2>

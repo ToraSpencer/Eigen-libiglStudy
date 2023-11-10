@@ -6,8 +6,8 @@
 // 生成圆形面网格，用于展示三维空间中的一个平面：
 template <typename DerivedVO, typename DerivedVC, typename DerivedVN>
 bool genRoundSurfMesh(Eigen::PlainObjectBase<DerivedVO>& versOut, Eigen::MatrixXi& trisOut, \
-	const Eigen::PlainObjectBase<DerivedVC>& planeCenter, \
-	const Eigen::PlainObjectBase<DerivedVN>& planeNorm, \
+	const Eigen::MatrixBase<DerivedVC>& planeCenter, \
+	const Eigen::MatrixBase<DerivedVN>& planeNorm, \
 	const double radius, const int versCount)
 {
 	const double eps = 1e-5;

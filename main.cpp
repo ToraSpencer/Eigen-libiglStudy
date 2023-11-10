@@ -1278,6 +1278,8 @@ int main(int argc, char** argv)
 
 	TEST_MYEIGEN_BASIC_MATH::test0();
 
+	// TEST_MYEIGEN_MODELING::test3();
+
 	std::cout << "main() finished." << std::endl;
 }
 
