@@ -188,10 +188,12 @@ template <typename DerivedV>
 void objWriteMeshMat(const char* fileName, const Eigen::MatrixBase<DerivedV>& vers, \
 	const Eigen::MatrixXi& tris)
 {
-	std::ofstream dstFile(fileName);
 	if (vers.cols() != 3 || tris.cols() != 3)
 		return;
-
+	std::ofstream dstFile(fileName);
+	if (false == dstFile.is_open())
+		return;
+	 
 	for (int j = 0; j < vers.rows(); j++)
 	{
 		char szBuf[1024] = { 0 };

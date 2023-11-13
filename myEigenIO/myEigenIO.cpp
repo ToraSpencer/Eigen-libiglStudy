@@ -288,7 +288,7 @@ void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& v
 template	<typename DerivedV>
 void objWriteVerticesMat(const char* fileName, const Eigen::PlainObjectBase<DerivedV>& vers)
 {
-	assert(3 == vers.cols(), "error!!! vers mat column size should be 3.");
+	assert(3 == vers.cols() && "Assert!!! vers mat column size should be 3.");
 	std::ofstream dstFile(fileName);
 	for (int j = 0; j < vers.rows(); j++)
 	{
