@@ -15,6 +15,9 @@
     <ClInclude Include="..\triangulate.h">
       <Filter>Head Files</Filter>
     </ClInclude>
+    <ClInclude Include="MC_tables.h">
+      <Filter>Head Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="myEigenModeling.cpp">

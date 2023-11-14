@@ -20,64 +20,6 @@ namespace MY_DEBUG
 		std::cout << arg << ", ";
 	};
 
-	// 写一个接口，将矩阵数据保存到.dat文件中，方便python读取然后画图
-	void writeData2D(const Eigen::VectorXd& x, const Eigen::VectorXd& y, const char* filename)
-	{
-		// 顺序挨个写入x和y向量中的数据，先写x再写y，因为两条向量是对应的，所以肯定前一半是x坐标，后一半是y坐标。
-		double darr1[MAXLEN];
-		double darr2[MAXLEN];
-		unsigned int size = x.rows();
-		std::string str1 = filename;
-		std::string str2 = str1;
-
-		auto iter = find(str1.begin(), str1.end(), '.');
-		if (iter == str1.end())
-		{
-			std::cout << "错误，输出的二进制文件必须有后缀名。" << std::endl;
-			return;
-		}
-
-
-		auto dis = distance(str1.begin(), iter);
-		str1.insert(dis, "_x");
-		str2.insert(dis, "_y");
-
-		for (unsigned int i = 0; i < size; i++)
-			darr1[i] = x(i);
-		for (unsigned int i = 0; i < size; i++)
-			darr2[i] = y(i);
-
-		std::ofstream file1(str1, std::ios::out | std::ios::binary);
-		std::ofstream file2(str2, std::ios::out | std::ios::binary);
-
-		file1.write(reinterpret_cast<char*>(&darr1[0]), size * sizeof(double));
-		file2.write(reinterpret_cast<char*>(&darr2[0]), size * sizeof(double));
-		file1.close();
-		file2.close();
-	}
-
-
-	void readData(Eigen::VectorXd& x, const char* filename)
-	{
-		std::ifstream file(filename, std::ios::in | std::ios::binary);
-		file.seekg(0, file.end);					// 追溯到文件流的尾部
-		unsigned int size = file.tellg();			// 获取文件流的长度。
-		file.seekg(0, file.beg);					// 回到文件流的头部	
-
-													// 这一块以后考虑用alloctor改写
-		char* pc = (char*)malloc(size);
-		file.read(pc, size);
-
-		double* pd = reinterpret_cast<double*>(pc);
-		for (unsigned int i = 0; i < size / sizeof(double); i++)
-		{
-			x[i] = *pd;
-			pd++;
-		}
-
-	}
-
-
 	static void debugDisp()			// 递归终止
 	{						//		递归终止设为无参或者一个参数的情形都可以。
 		std::cout << std::endl;
@@ -93,25 +35,9 @@ namespace MY_DEBUG
 	}
 
 
-	template <typename T, int M, int N>
-	static void dispData(const Eigen::Matrix<T, M, N>& m)
-	{
-		auto dataPtr = m.data();
-		unsigned elemsCount = m.size();
-
-		for (unsigned i = 0; i < elemsCount; ++i)
-			std::cout << dataPtr[i] << ", ";
-
-		std::cout << std::endl;
-	}
-
-
 	template <typename Derived>
-	static void dispData(const Eigen::PlainObjectBase<Derived>& m)
+	static void dispData(const Eigen::MatrixBase<Derived>& m)
 	{
-		int m0 = m.RowsAtCompileTime;
-		int n0 = m.ColsAtCompileTime;
-
 		auto dataPtr = m.data();
 		unsigned elemsCount = m.size();
 
@@ -131,7 +57,7 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteVers(const char* name, const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -140,7 +66,7 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteVers2D(const char* name, const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -149,7 +75,8 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteMesh(const char* name, const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+	static void debugWriteMesh(const char* name, \
+		const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -158,12 +85,14 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, \
+		const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 		objWriteEdgesMat(path, edges, vers);
 	}
+
 }
 using namespace MY_DEBUG;
 
@@ -171,6 +100,24 @@ using namespace MY_DEBUG;
 ////////////////////////////////////////////////////////////////////////////////////////////// 测试eigen中的稠密矩阵：
 namespace TEST_DENSE_MAT
 {
+	// 暂时无法分类：
+	void test000()
+	{
+		// 矩阵索引：
+		std::vector<int> rowVec{ 1, 3, 4 };
+		std::vector<int> colVec{ 5, 2, 0 };
+
+		std::vector<int> ind{ 4,2,5,5,3 };
+		Eigen::MatrixXi A = Eigen::MatrixXi::Random(4, 6);
+		std::cout << "Initial matrix A:\n" << A << "\n\n";
+
+		// 查看eigen库的版本：
+		std::cout << EIGEN_WORLD_VERSION << std::endl;
+		std::cout << EIGEN_MAJOR_VERSION << std::endl;
+		std::cout << EIGEN_MINOR_VERSION << std::endl;		// 版本为3.3.7;
+	}
+
+
 	// test0——eigen库的基本数据结构
 	void test0()
 	{
@@ -751,23 +698,36 @@ namespace TEST_DENSE_MAT
 	// test8——Eigen::Map类
 	void test8()
 	{
-		// 矩阵的reshape——使用Eigen::Map类实现。
 		Eigen::MatrixXf	m1(4, 4);
 		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16;
 		m1.transposeInPlace();
-		Eigen::Map<Eigen::MatrixXf>  m11(m1.data(), 8, 2);			// reshape时元素是按存储顺序获取的，默认即按列获取。
+
+		// 1. 矩阵的reshape——使用Eigen::Map类实现。
+		Eigen::Map<Eigen::MatrixXf>  map1(m1.data(), 8, 2);				// reshape时元素是按存储顺序获取的，默认即按列获取。
 		std::cout << "reshape之前：m1 == \n" << m1 << std::endl << std::endl;
-		std::cout << "reshape之后：m11 == \n" << m11 << std::endl << std::endl;
-		std::cout << "typeid(m11).name()  == " << typeid(m11).name() << std::endl;
+		std::cout << "reshape之后：m11 == \n" << map1 << std::endl << std::endl;
+		std::cout << "typeid(map1).name()  == " << typeid(map1).name() << std::endl;
 
-		Eigen::MatrixXf m111{ Eigen::Map<Eigen::MatrixXf>(m1.data(), 1, 16) };
-		std::cout << "m111 == \n" << m111 << std::endl << std::endl;
-		std::cout << "typeid(m111).name()  == " << typeid(m111).name() << std::endl;
+		Eigen::MatrixXf m11{ Eigen::Map<Eigen::MatrixXf>(m1.data(), 1, 16) };
+		std::cout << "m111 == \n" << m11 << std::endl << std::endl;
+		std::cout << "typeid(m111).name()  == " << typeid(m11).name() << std::endl;
 
-		Eigen::VectorXf v1 = Eigen::Map<Eigen::VectorXf>(m1.data(), 16, 1);
-		dispVec(v1);
+		// 2. map过程中没有发生数据拷贝，但是使用map对象给矩阵对象赋值，会发生数据拷贝；
+		debugDisp("reinterpret_cast<unsigned>(m1.data()) == ", reinterpret_cast<unsigned>(m1.data()));
+		debugDisp("reinterpret_cast<unsigned>(map1.data()) == ", reinterpret_cast<unsigned>(map1.data()));
+		debugDisp("reinterpret_cast<unsigned>(m11.data()) == ", reinterpret_cast<unsigned>(m11.data()));
 
-		std::cout << "finished." << std::endl;
+		// 3. map实现矩阵和向量的转换：
+		Eigen::VectorXf v2 = Eigen::Map<Eigen::VectorXf>(m1.data(), 16, 1);
+		debugDisp("v2 == \n", v2);
+		Eigen::MatrixXf m2 = Eigen::Map<Eigen::MatrixXf>(v2.data(), 4, 4);
+		debugDisp("m2 == \n", m2);
+
+		// 4. 无法对const矩阵生成map对象
+		const Eigen::MatrixXf m3 = m2;
+		// Eigen::Map<Eigen::MatrixXf> map3 = Eigen::Map<Eigen::MatrixXf>(m3.data(), 16, 1);		// 无法编译；
+
+		debugDisp("finished.");
 	}
 
 
@@ -1055,21 +1015,6 @@ namespace TEST_DENSE_MAT
 	}
 
 
-	// 暂时无法分类：
-	void test000()
-	{
-		// 矩阵索引：
-		std::vector<int> rowVec{ 1, 3, 4 };
-		std::vector<int> colVec{ 5, 2, 0 };
 
-		std::vector<int> ind{ 4,2,5,5,3 };
-		Eigen::MatrixXi A = Eigen::MatrixXi::Random(4, 6);
-		std::cout << "Initial matrix A:\n" << A << "\n\n";
-
-		// 查看eigen库的版本：
-		std::cout << EIGEN_WORLD_VERSION << std::endl;
-		std::cout << EIGEN_MAJOR_VERSION << std::endl;
-		std::cout << EIGEN_MINOR_VERSION << std::endl;		// 版本为3.3.7;
-	}
 
 }

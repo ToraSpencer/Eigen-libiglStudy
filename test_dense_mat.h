@@ -7,6 +7,7 @@
 
 namespace TEST_DENSE_MAT
 { 
+	void test000();
 	void test0();
 	void test1();
 	void test2();

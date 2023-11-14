@@ -49,105 +49,88 @@
 #pragma comment(lib, "myEigenPMP.lib")
 
 
-/////////////////////////////////////////////////////////////////////////////////////////////////// general tools: 
-template<typename Func>
-void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, const unsigned int serial_if_less_than);
-template<typename Func, typename paramTuple>
-void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, const paramTuple& pt, const unsigned int serial_if_less_than);
-template<typename T, typename F>
-void traverseSTL(T& con, F f);
-template<typename T, typename F>
-void revTraverseSTL(T& con, F f); 
+/////////////////////////////////////////////////////////////////////////////////////////////////// debug tools
 
+// 传入函数子或函数指针遍历stl容器
+template<typename T, typename F>
+void traverseSTL(T& con, F f)
+{
+	std::for_each(con.begin(), con.end(), f);
+	std::cout << std::endl;
+}
+
+
+// 反向遍历
+template<typename T, typename F>
+void revTraverseSTL(T& con, F f)
+{
+	std::for_each(con.rbegin(), con.rend(), f);
+	std::cout << std::endl;
+}
  
 
-/////////////////////////////////////////////////////////////////////////////////////////////////// debug接口：
-namespace MY_DEBUG
-{
-	template <typename T1, typename T2>
-	void dispPair(const std::pair<T1, T2>& pair);
-	template<typename T>
-	void dispQuat(const Eigen::Quaternion<T>& q); 
 
-	// 自定义计时器，使用WINDOWS计时API
-	class tiktok
+/////////////////////////////////////////////////////////////////////////////////////////////////// 未分类自定义类型：
+	
+// 自定义计时器，使用WINDOWS计时API
+class tiktok
+{
+private:
+	tiktok() = default;
+	tiktok(const tiktok&) {}
+	~tiktok() = default;
+
+public:
+	DWORD startTik;
+	DWORD endTik;
+	unsigned recordCount;
+	std::vector<DWORD> records;
+
+	static tiktok& getInstance()
 	{
-	private:
-		tiktok() = default;
-		tiktok(const tiktok&) {}
-		~tiktok() = default;
+		static tiktok tt_instance;
+		return tt_instance;
+	}
 
-	public:
-		DWORD startTik;
-		DWORD endTik;
-		unsigned recordCount;
-		std::vector<DWORD> records;
+	void start()
+	{
+		this->startTik = GetTickCount();
+		this->recordCount = 0;
+		this->records.clear();
+	}
 
-		static tiktok& getInstance()
-		{
-			static tiktok tt_instance;
-			return tt_instance;
-		}
+	void endCout(const char* str)
+	{
+		this->endTik = GetTickCount();
+		std::cout << str << endTik - startTik << std::endl;
+	}
 
-		void start()
-		{
-			this->startTik = GetTickCount();
-			this->recordCount = 0;
-			this->records.clear();
-		}
+	DWORD endGetCount()
+	{
+		this->endTik = GetTickCount();
+		return endTik - startTik;
+	}
 
-		void endCout(const char* str)
-		{
-			this->endTik = GetTickCount();
-			std::cout << str << endTik - startTik << std::endl;
-		}
+	bool endWrite(const char* fileName, const char* str)
+	{
+		this->endTik = GetTickCount();
+		std::ofstream file(fileName, std::ios_base::out | std::ios_base::app);
+		if (!file)
+			return false;
 
-		DWORD endGetCount()
-		{
-			this->endTik = GetTickCount();
-			return endTik - startTik;
-		}
+		file << str << endTik - startTik << std::endl;
+		file.close();
+		return true;
+	}
 
-		bool endWrite(const char* fileName, const char* str)
-		{
-			this->endTik = GetTickCount();
-			std::ofstream file(fileName, std::ios_base::out | std::ios_base::app);
-			if (!file)
-				return false;
-
-			file << str << endTik - startTik << std::endl;
-			file.close();
-			return true;
-		}
-
-		void takeArecord()
-		{
-			this->records.push_back(GetTickCount());
-			recordCount++;
-		}
-	};
-}
-using namespace MY_DEBUG;
-
- 
-
-/////////////////////////////////////////////////////////////////////////////////////////////////// 暂时不知道如何分类：
-
-namespace LAPLACIAN_MASS_MATRIX 
-{
-	template <typename DerivedVo, typename DerivedVi>
-	bool laplaceFaring_old(Eigen::PlainObjectBase<DerivedVo>& versOut, \
-		const Eigen::PlainObjectBase<DerivedVi>& vers, \
-		const Eigen::MatrixXi& tris, const float deltaLB, const unsigned loopCount);
-}
-
-
-// 图像的线性空域滤波
-template<typename T>
-bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOut, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matIn, const Eigen::MatrixXd& mask);
-
-
+	void takeArecord()
+	{
+		this->records.push_back(GetTickCount());
+		recordCount++;
+	}
+};
+  
+  
 // class——方向包围盒类OBB（本质上是中点在原点的AABB加上一个仿射变换）；
 template <typename _Scalar>
 class OBB : public Eigen::AlignedBox<_Scalar, 3>
@@ -266,7 +249,6 @@ void genOBBmesh(const OBB<_Scalar>& obb, Eigen::Matrix<_Scalar, Eigen::Dynamic, 
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 测试函数：
-
 namespace TEST_MYEIGEN
 {
 	void test0();
@@ -322,23 +304,7 @@ namespace TEST_MYEIGEN_BASIC_MATH
 	void test9();
 }
 
-// 测试myEigenModeling中的接口
-namespace TEST_MYEIGEN_MODELING
-{
-	void test0();
-	void test1(); 
-	void test2();
-	void test3();
-	void test4();
-	void test5();
-	void test6();
-	void test7();
-	void test8();
-	void test9(); 
-	void test10(); 
-}
-
-
+ 
 // 测试myEigenPMP中的接口
 namespace TEST_MYEIGEN_PMP 
 {

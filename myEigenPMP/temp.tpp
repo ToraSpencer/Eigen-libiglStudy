@@ -622,7 +622,7 @@ bool buildAdjacency(Eigen::MatrixXi& ttAdj_mnEdge, std::vector<tVec>& ttAdj_nmnE
 	Eigen::MatrixXi edges;							// 有向边数据；
 	Eigen::MatrixXi nmnEdges;					// 非流形有向边
 
-	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的triplet数据；
+	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的TRIPLET数据；
 	std::unordered_multimap<std::int64_t, int> edgeMap;					// 边编码——64位整型数数表示的边数据（两个端点索引）；
 
 
@@ -872,7 +872,7 @@ bool buildAdjacency_new(Eigen::MatrixXi& ttAdj_mnEdge, std::vector<tVec>& ttAdj_
 	Eigen::MatrixXi edges;							// 有向边数据；
 	Eigen::MatrixXi nmnEdges;					// 非流形有向边
 
-	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的triplet数据；
+	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的TRIPLET数据；
 
 	// 1. 求基本的边信息、邻接矩阵： 
 	Eigen::SparseMatrix<int> adjSM_eCount;					// 邻接矩阵，索引为该有向边重复的次数；
@@ -1429,7 +1429,7 @@ bool triangleGrow(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectB
 	int trisCount = tris.rows();
 	int edgesCount = 3 * trisCount;
 
-	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的triplet数据；	
+	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的TRIPLET数据；	
 
 	// 1. 求基本的边信息、邻接矩阵：
 	Eigen::SparseMatrix<int> adjSM;								// 邻接矩阵；
@@ -1649,7 +1649,7 @@ bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, std::vector<Eig
 	std::vector<int> etInfo;												// 边索引 - 三角片索引映射表；etInfo(i)是索引为i的边所在的三角片的索引；
 	std::vector<int> edgesIdx_MN_NB;							// 非边缘流形有向边的索引；
 	std::vector<int> edgesIdx_MN_NB_opp;					// 非边缘流形有向边的对边的索引；
-	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的triplet数据；	
+	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的TRIPLET数据；	
 
 	std::vector<bool> trisFlag(trisCount, true);		// true表示该三角片可收集，false表示已收集；
 
@@ -1861,7 +1861,7 @@ bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& ver
 	int versCount = vers.rows();
 	int trisCount = tris.rows();
 	int edgesCount = 3 * trisCount;
-	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的triplet数据；	
+	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;	// 用于生成稀疏矩阵adjSM_eCount, adjSM_eIdx的TRIPLET数据；	
 
 	// 0. 计算所有三角片法向，若存在退化三角片（面积为0），则去除；
 	Eigen::MatrixXi trisClean;

@@ -1,12 +1,8 @@
 #include "test_scientific_calc.h"
 
- 
-static std::string g_debugPath = "E:/";
 
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////DEBUG接口：
-namespace MY_DEBUG 
+////////////////////////////////////////////////////////////////////////////////////////////// DEBUG 接口
+namespace MY_DEBUG
 {
 	static std::string g_debugPath = "E:/";
 
@@ -23,6 +19,7 @@ namespace MY_DEBUG
 		return;
 	}
 
+
 	template <typename T, typename... Types>
 	static void debugDisp(const T& firstArg, const Types&... args)
 	{
@@ -30,29 +27,65 @@ namespace MY_DEBUG
 		debugDisp(args...);
 	}
 
+
+	template <typename Derived>
+	static void dispData(const Eigen::MatrixBase<Derived>& m)
+	{
+		auto dataPtr = m.data();
+		unsigned elemsCount = m.size();
+
+		for (unsigned i = 0; i < elemsCount; ++i)
+			std::cout << dataPtr[i] << ", ";
+
+		std::cout << std::endl;
+	}
+
+
+	template <typename Derived>
+	static void dispElem(const Eigen::MatrixBase<Derived>& m)
+	{
+		const Derived& mm = m.derived();
+		std::cout << mm(1, 1) << std::endl;
+	}
+
+
 	template<typename DerivedV>
-	static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteVers(const char* name, const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 		objWriteVerticesMat(path, vers);
 	}
 
+
 	template<typename DerivedV>
-	static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteVers2D(const char* name, const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 		objWriteVerticesMat2D(path, vers);
 	}
 
+
 	template<typename DerivedV>
-	static void debugWriteMesh(const char* name, const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+	static void debugWriteMesh(const char* name, \
+		const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 		objWriteMeshMat(path, vers, tris);
 	}
+
+
+	template<typename DerivedV>
+	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, \
+		const Eigen::MatrixBase<DerivedV>& vers)
+	{
+		char path[512] = { 0 };
+		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
+		objWriteEdgesMat(path, edges, vers);
+	}
+
 }
 using namespace MY_DEBUG;
 

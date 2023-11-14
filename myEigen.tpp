@@ -1,31 +1,7 @@
 
-/////////////////////////////////////////////////////////////////////////////////////////////////// general tools: 
-
-// 传入函数子或函数指针遍历stl容器
-template<typename T, typename F>
-void traverseSTL(T& con, F f)
-{
-	std::for_each(con.begin(), con.end(), f);
-	std::cout << std::endl;
-}
-
-
-// 反向遍历
-template<typename T, typename F>
-void revTraverseSTL(T& con, F f)
-{
-	std::for_each(con.rbegin(), con.rend(), f);
-	std::cout << std::endl;
-}
-
-
-
 /////////////////////////////////////////////////////////////////////////////////////////////////// debug接口：
 namespace MY_DEBUG 
-{
-
-
-
+{ 
 	template <typename T1, typename T2>
 	void dispPair(const std::pair<T1, T2>& pair)
 	{
@@ -44,7 +20,7 @@ namespace MY_DEBUG
 
   
 
-//////////////////////////////////////////////////////////////////////////////////////////////// 三角网格处理：
+//////////////////////////////////////////////////////////////////////////////////////////////// 未整理：
 
 // 返回网格中顶点verIdx0的1领域三角片索引；
 template <typename DerivedV>
@@ -152,7 +128,7 @@ bool sortLoopEdges(std::vector<int>& loopVerIdxes, \
 
 	// for debug:
 	Eigen::MatrixXi tmpMat = loopEdges;
-	std::vector<doublet<int>> debugVec = mat2doublets(tmpMat);
+	std::vector<DOUBLET<int>> debugVec = mat2doublets(tmpMat);
 
 	std::unordered_map<int, int> tmpMap;
 	for (int i = 0; i < edgesCount; ++i)
@@ -268,55 +244,4 @@ namespace LAPLACIAN_MASS_MATRIX
 		return true;
 	}
 }
-
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////// 图像处理相关：
-
-// 矩阵的空域线性滤波——！！！注：滤波mask尺寸必须为奇数！！！
-template<typename T>
-bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOut, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matIn, \
-	const Eigen::MatrixXd& mask)
-{
-	unsigned rows = matIn.rows();
-	unsigned cols = matIn.cols();
-	matOut.resize(rows, cols);
-	matOut.setZero(rows, cols);
-
-	unsigned sizeMask = mask.rows();
-	unsigned im = (sizeMask + 1) / 2;					// 掩膜中心的下标；
-	unsigned km = im;
-	unsigned offset = (sizeMask - 1) / 2;
-
-	// 1. 对输入矩阵进行边缘延拓，生成拓展矩阵：
-	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> matExt = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>::Zero(rows + 2 * offset, cols + 2 * offset);
-	matExt.block(offset, offset, rows, cols) = matIn;
-	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> rowHead = matIn.block(0, 0, offset, cols);
-	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> rowTail = matIn.block(rows - offset, 0, offset, cols);
-
-	matExt.block(0, offset, offset, cols) = rowHead;
-	matExt.block(rows + offset, offset, offset, cols) = rowTail;
-
-	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> colHead = matExt.block(0, offset, rows + 2 * offset, offset);
-	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> colTail = matExt.block(0, cols, rows + 2 * offset, offset);
-	matExt.block(0, 0, rows + 2 * offset, offset) = colHead;
-	matExt.block(0, cols + offset, rows + 2 * offset, offset) = colTail;
-
-	// 2. 滑动领域操作：
-	PARALLEL_FOR(0, rows, [&](int i)
-		{
-			for (unsigned k = 0; k < cols; ++k)
-			{
-				unsigned ie = i + offset;					// 此时mask中心元素在matExt中的位置下标；
-				unsigned ke = k + offset;
-				Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> coveredElems = matExt.block(ie - offset, ke - offset, sizeMask, sizeMask);
-				Eigen::MatrixXd tmpMat = coveredElems.array().cast<double>().array() * mask.array();
-				matOut(i, k) = static_cast<T>(tmpMat.sum());
-			}
-		});
-
-
-	return true;
-}
-
-
+ 

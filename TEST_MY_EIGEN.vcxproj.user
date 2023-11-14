@@ -9,11 +9,11 @@
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LocalDebuggerEnvironment>PATH=G:\gitRepositories\Eigen-libiglStudy\smarteeDLL/$(Platform)_$(Configuration)/;G:\gitRepositories\Eigen-libiglStudy\MY_CGAL_DLL/$(Platform)_$(Configuration)/;</LocalDebuggerEnvironment>
+    <LocalDebuggerEnvironment>PATH=G:\gitRepositories\SDFGen_study\buildx64\SDFGEN_DLL/$(Platform)\$(Configuration)\;</LocalDebuggerEnvironment>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LocalDebuggerEnvironment>PATH=G:\gitRepositories\Eigen-libiglStudy\smarteeDLL/$(Platform)_$(Configuration)/;G:\gitRepositories\Eigen-libiglStudy\MY_CGAL_DLL/$(Platform)_$(Configuration)/;</LocalDebuggerEnvironment>
+    <LocalDebuggerEnvironment>PATH=G:\gitRepositories\SDFGen_study\buildx64\SDFGEN_DLL/$(Platform)\$(Configuration)\;</LocalDebuggerEnvironment>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
 </Project>

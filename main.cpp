@@ -1,29 +1,16 @@
-﻿#include "test_dense_mat.h"
-#include "test_sparse_mat.h"
-#include "test_scientific_calc.h" 
-
-#include<stdio.h>
-#include<assert.h>
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <string>
-#include <typeinfo>
-#include <thread>
-#include <mutex>
-
-#include <windows.h>
+﻿#include <windows.h>
 #include <atlstr.h>					// 包含CString类。属于microsoft ATL(活动模板库avtive template library)
 #include <atlconv.h>
 #include <io.h>
 #include <winuser.h>
 
 
-#define DATA_PATH "./data/"
+#include "test_dense_mat.h"
+#include "test_sparse_mat.h"
+#include "test_scientific_calc.h" 
+#include "test_myEigenModeling.h"
  
-static std::mutex g_mutex;						// 全局的互斥锁；
-
-
+ 
 // 当前问题-easy
 /*
 	
@@ -42,13 +29,9 @@ static std::mutex g_mutex;						// 全局的互斥锁；
 
 // 项目信息
 /*
-	编译环境： x64 Relase
- 
-	使用的第三方库:
-		eigen
-		libigl				 
-		glad
-		glfw
+	已禁用vcpkg
+	  
+	使用的Eigen库版本为3.4.0
 */
 
 
@@ -63,6 +46,7 @@ static std::mutex g_mutex;						// 全局的互斥锁；
 	
 	CMAKE_INTDIR="Release"
 */
+
 
 
 ////////////////////////////////////////////////////////////////////////////// 基于WINAPI的一些接口：
@@ -174,6 +158,7 @@ namespace MY_DEBUG
 		return;
 	}
 
+
 	template <typename T, typename... Types>
 	static void debugDisp(const T& firstArg, const Types&... args)
 	{
@@ -182,25 +167,9 @@ namespace MY_DEBUG
 	}
 
 
-	template <typename T, int M, int N>
-	static void dispData(const Eigen::Matrix<T, M, N>& m)
-	{
-		auto dataPtr = m.data();
-		unsigned elemsCount = m.size();
-
-		for (unsigned i = 0; i < elemsCount; ++i)
-			std::cout << dataPtr[i] << ", ";
-
-		std::cout << std::endl;
-	}
-
-
 	template <typename Derived>
-	static void dispData(const Eigen::PlainObjectBase<Derived>& m)
+	static void dispData(const Eigen::MatrixBase<Derived>& m)
 	{
-		int m0 = m.RowsAtCompileTime;
-		int n0 = m.ColsAtCompileTime;
-
 		auto dataPtr = m.data();
 		unsigned elemsCount = m.size();
 
@@ -220,15 +189,16 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteVers(const char* name, const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 		objWriteVerticesMat(path, vers);
 	}
 
+
 	template<typename DerivedV>
-	static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteVers2D(const char* name, const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -237,7 +207,8 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteMesh(const char* name, const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+	static void debugWriteMesh(const char* name, \
+		const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -246,12 +217,14 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, \
+		const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 		objWriteEdgesMat(path, edges, vers);
 	}
+	 
 }
 using namespace MY_DEBUG;
 
@@ -1158,7 +1131,7 @@ namespace TEMP_TEST
 		std::cout << "finished." << std::endl;
 	}
 
- 
+
 }
 
 
@@ -1276,9 +1249,13 @@ int main(int argc, char** argv)
 { 
 	// TEST_MYEIGEN_IO::test0();
 
-	TEST_MYEIGEN_BASIC_MATH::test0();
+	// TEST_MYEIGEN_BASIC_MATH::test0();
 
 	// TEST_MYEIGEN_MODELING::test3();
+
+	TEST_DENSE_MAT::test8();
+
+	// TEST_SDF::test1();
 
 	std::cout << "main() finished." << std::endl;
 }

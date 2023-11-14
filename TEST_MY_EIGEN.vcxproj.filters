@@ -26,6 +26,12 @@
     <ClCompile Include="test_scientific_calc.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="test_myEigenModeling.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="triMesh.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="myEigen.h">
@@ -40,7 +46,16 @@
     <ClInclude Include="test_sparse_mat.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="MC_tables.h">
+    <ClInclude Include="..\SDFGen_study\SDFGEN_DLL\SDFGEN_DLL.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="test_myEigenModeling.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="triMesh.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="representations.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

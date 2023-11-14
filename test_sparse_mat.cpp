@@ -27,25 +27,9 @@ namespace MY_DEBUG
 	}
 
 
-	template <typename T, int M, int N>
-	static void dispData(const Eigen::Matrix<T, M, N>& m)
-	{
-		auto dataPtr = m.data();
-		unsigned elemsCount = m.size();
-
-		for (unsigned i = 0; i < elemsCount; ++i)
-			std::cout << dataPtr[i] << ", ";
-
-		std::cout << std::endl;
-	}
-
-
 	template <typename Derived>
-	static void dispData(const Eigen::PlainObjectBase<Derived>& m)
+	static void dispData(const Eigen::MatrixBase<Derived>& m)
 	{
-		int m0 = m.RowsAtCompileTime;
-		int n0 = m.ColsAtCompileTime;
-
 		auto dataPtr = m.data();
 		unsigned elemsCount = m.size();
 
@@ -65,7 +49,7 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteVers(const char* name, const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -74,7 +58,7 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteVers2D(const char* name, const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -83,7 +67,8 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteMesh(const char* name, const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+	static void debugWriteMesh(const char* name, \
+		const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -92,14 +77,17 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, \
+		const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 		objWriteEdgesMat(path, edges, vers);
 	}
+
 }
 using namespace MY_DEBUG;
+
 
 namespace SPARSEMAT
 {

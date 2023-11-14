@@ -158,12 +158,19 @@ namespace MY_DEBUG
 {
 	static std::string g_debugPath = "E:/";
 
+	// lambda——打印std::cout支持的类型变量。
+	template <typename T>
+	static auto disp = [](const T& arg)
+	{
+		std::cout << arg << ", ";
+	};
 
 	static void debugDisp()			// 递归终止
 	{						//		递归终止设为无参或者一个参数的情形都可以。
 		std::cout << std::endl;
 		return;
 	}
+
 
 	template <typename T, typename... Types>
 	static void debugDisp(const T& firstArg, const Types&... args)
@@ -173,25 +180,9 @@ namespace MY_DEBUG
 	}
 
 
-	template <typename T, int M, int N>
-	static void dispData(const Eigen::Matrix<T, M, N>& m)
-	{
-		auto dataPtr = m.data();
-		unsigned elemsCount = m.size();
-
-		for (unsigned i = 0; i < elemsCount; ++i)
-			std::cout << dataPtr[i] << ", ";
-
-		std::cout << std::endl;
-	}
-
-
 	template <typename Derived>
-	static void dispData(const Eigen::PlainObjectBase<Derived>& m)
+	static void dispData(const Eigen::MatrixBase<Derived>& m)
 	{
-		int m0 = m.RowsAtCompileTime;
-		int n0 = m.ColsAtCompileTime;
-
 		auto dataPtr = m.data();
 		unsigned elemsCount = m.size();
 
@@ -211,15 +202,16 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteVers(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteVers(const char* name, const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 		objWriteVerticesMat(path, vers);
 	}
 
+
 	template<typename DerivedV>
-	static void debugWriteVers2D(const char* name, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteVers2D(const char* name, const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -228,7 +220,8 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteMesh(const char* name, const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+	static void debugWriteMesh(const char* name, \
+		const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
@@ -237,12 +230,14 @@ namespace MY_DEBUG
 
 
 	template<typename DerivedV>
-	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& vers)
+	static void debugWriteEdges(const char* name, const Eigen::MatrixXi& edges, \
+		const Eigen::MatrixBase<DerivedV>& vers)
 	{
 		char path[512] = { 0 };
 		sprintf_s(path, "%s%s.obj", g_debugPath.c_str(), name);
 		objWriteEdgesMat(path, edges, vers);
 	}
+
 }
 using namespace MY_DEBUG;
 
@@ -1376,9 +1371,9 @@ namespace DECIMATION
 		tiktok& tt = tiktok::getInstance();
 
 		// for debug:
-		std::vector<triplet<double>> versMoni;
-		std::vector<triplet<int>>	trisMoni;
-		std::vector<doublet<int>> edgesMoni;
+		std::vector<TRIPLET<double>> versMoni;
+		std::vector<TRIPLET<int>>	trisMoni;
+		std::vector<DOUBLET<int>> edgesMoni;
 		std::vector<int>			vecMoni;
 		int retIdx = -1;
 

@@ -34,89 +34,6 @@ const double pi = 3.14159265359;
 */
 
 
-/////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary structures:
-template <typename T>
-struct triplet
-{
-	T x;
-	T y;
-	T z;
-};
-
-
-template <typename T>
-struct doublet
-{
-	T x;
-	T y;
-};
-
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary interfaces:
-
-// 3D顶点或三角片矩阵转换为triplet向量的形式；
-template <typename Derived>
-std::vector<triplet<typename Derived::Scalar>> mat2triplets(const Eigen::PlainObjectBase<Derived>& mat)
-{
-	using Scalar = typename Derived::Scalar;
-	using ts = triplet<Scalar>;
-
-	std::vector<ts> vec;
-	if (0 == mat.rows() || 3 != mat.cols())
-		return vec;
-
-	vec.resize(mat.rows());
-	for (unsigned i = 0; i < mat.rows(); ++i)
-	{
-		vec[i].x = mat(i, 0);
-		vec[i].y = mat(i, 1);
-		vec[i].z = mat(i, 2);
-	}
-
-	return vec;
-}
-
-
-template <typename Derived>
-triplet<typename Derived::Scalar> vec2triplet(const Eigen::PlainObjectBase<Derived>& vec) 
-{
-	assert((3 == vec.rows() * vec.cols()) && "assert!!! input vec should be in 3D space.");
-	using Scalar = typename Derived::Scalar;
-	using ts = triplet<Scalar>;
-	return ts{ vec(0), vec(1), vec(2)};
-}
-
-
-template <typename Derived>
-std::vector<doublet<typename Derived::Scalar>> mat2doublets(const Eigen::PlainObjectBase<Derived>& mat)
-{
-	using Scalar = typename Derived::Scalar;
-	using ds = doublet<Scalar>;
-
-	std::vector<ds> vec;
-	if (0 == mat.rows() || 2 != mat.cols())
-		return vec;
-
-	vec.resize(mat.rows());
-	for (unsigned i = 0; i < mat.rows(); ++i)
-	{
-		vec[i].x = mat(i, 0);
-		vec[i].y = mat(i, 1);
-	}
-
-	return vec;
-}
-
-
-template <typename Derived>
-doublet<typename Derived::Scalar> vec2doublet(const Eigen::PlainObjectBase<Derived>& vec)
-{
-	assert((2 == vec.rows() * vec.cols()) && "assert!!! input vec should be in 2D space.");
-	using Scalar = typename Derived::Scalar;
-	using ds = doublet<Scalar>;
-	return doublet{ vec(0), vec(1) };
-}
 
 
 // 并行for循环
@@ -761,5 +678,54 @@ void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, const Eigen::Matrix<T, E
 template<typename T>
 Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& sampleVers);
  
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////// 滤波：
+
+// 矩阵的空域线性滤波——！！！注：滤波mask尺寸必须为奇数！！！
+template<typename T>
+bool linearSpatialFilter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matOut, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matIn, \
+	const Eigen::MatrixXd& mask)
+{
+	unsigned rows = matIn.rows();
+	unsigned cols = matIn.cols();
+	matOut.resize(rows, cols);
+	matOut.setZero(rows, cols);
+
+	unsigned sizeMask = mask.rows();
+	unsigned im = (sizeMask + 1) / 2;					// 掩膜中心的下标；
+	unsigned km = im;
+	unsigned offset = (sizeMask - 1) / 2;
+
+	// 1. 对输入矩阵进行边缘延拓，生成拓展矩阵：
+	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> matExt = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>::Zero(rows + 2 * offset, cols + 2 * offset);
+	matExt.block(offset, offset, rows, cols) = matIn;
+	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> rowHead = matIn.block(0, 0, offset, cols);
+	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> rowTail = matIn.block(rows - offset, 0, offset, cols);
+
+	matExt.block(0, offset, offset, cols) = rowHead;
+	matExt.block(rows + offset, offset, offset, cols) = rowTail;
+
+	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> colHead = matExt.block(0, offset, rows + 2 * offset, offset);
+	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> colTail = matExt.block(0, cols, rows + 2 * offset, offset);
+	matExt.block(0, 0, rows + 2 * offset, offset) = colHead;
+	matExt.block(0, cols + offset, rows + 2 * offset, offset) = colTail;
+
+	// 2. 滑动领域操作：
+	PARALLEL_FOR(0, rows, [&](int i)
+		{
+			for (unsigned k = 0; k < cols; ++k)
+			{
+				unsigned ie = i + offset;					// 此时mask中心元素在matExt中的位置下标；
+				unsigned ke = k + offset;
+				Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> coveredElems = matExt.block(ie - offset, ke - offset, sizeMask, sizeMask);
+				Eigen::MatrixXd tmpMat = coveredElems.array().cast<double>().array() * mask.array();
+				matOut(i, k) = static_cast<T>(tmpMat.sum());
+			}
+		});
+
+
+	return true;
+}
 
 #include "tmp.tpp"

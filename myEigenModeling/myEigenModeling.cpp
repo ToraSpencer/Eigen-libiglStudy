@@ -37,74 +37,7 @@ void genAABBmesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 	vers.col(2) *= sizeVec(2);
 	vers.rowwise() += newOri.transpose();
 }
- 
 
-// 生成栅格采样点云
-template<typename Tg, typename To>
-bool genGrids(Eigen::Matrix<Tg, Eigen::Dynamic, Eigen::Dynamic>& gridCenters, const Eigen::Matrix<To, 1, 3>& origin, \
-	const float step, const std::vector<unsigned>& gridCounts)
-{
-	/*
-		bool genGrids(
-			Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& gridCenters,			// 输出的栅格点云
-			const Eigen::Matrix<T, 1, 3>& origin,														// 栅格原点，即三轴坐标最小的那个栅格点；
-			const float step,																						// 采样步长
-			const std::vector<unsigned>& gridCounts											// 三元数组，分别是XYZ三轴上的步数；
-			)
-	*/
-
-	using VectorXT = Eigen::Matrix<Tg, Eigen::Dynamic, 1>;
-	using RowVector3T = Eigen::Matrix<Tg, 1, 3>;
-	using MatrixXT = Eigen::Matrix<Tg, Eigen::Dynamic, Eigen::Dynamic>;	
-
-	// 整个距离场的包围盒：
-	RowVector3T minp = origin.array().cast<Tg>();
-	RowVector3T maxp = minp + static_cast<Tg>(step) * RowVector3T(gridCounts[0] - 1, gridCounts[1] - 1, gridCounts[2] - 1);
-
-
-	// 生成栅格：
-	/*
-		按索引增大排列的栅格中心点为：
-		gc(000), gc(100), gc(200), gc(300),...... gc(010), gc(110), gc(210), gc(310),...... gc(001), gc(101), gc(201).....
-
-		x坐标：
-		x0, x1, x2, x3......x0, x1, x2, x3......x0, x1, x2, x3......
-		周期为xCount;
-		重复次数为(yCount * zCount)
-
-		y坐标：
-		y0, y0, y0...y1, y1, y1...y2, y2, y2.........y0, y0, y0...y1, y1, y1...
-		周期为(xCount * yCount);
-		重复次数为zCount;
-		单个元素重复次数为xCount
-
-		z坐标：
-		z0, z0, z0......z1, z1, z1......z2, z2, z2......
-		单个元素重复次数为(xCount * yCount)
-	*/
-	VectorXT xPeriod = VectorXT::LinSpaced(gridCounts[0], minp(0), maxp(0));
-	VectorXT yPeriod = VectorXT::LinSpaced(gridCounts[1], minp(1), maxp(1));
-	VectorXT zPeriod = VectorXT::LinSpaced(gridCounts[2], minp(2), maxp(2));
-
-	MatrixXT tmpVec0, tmpVec1, tmpVec2, tmpVec11;
-	//tmpVec0 = kron(VectorXT::Ones(gridCounts[1] * gridCounts[2]), xPeriod);
-	//tmpVec11 = kron(yPeriod, VectorXT::Ones(gridCounts[0]));
-	//tmpVec1 = kron(VectorXT::Ones(gridCounts[2]), tmpVec11);
-	//tmpVec2 = kron(zPeriod, VectorXT::Ones(gridCounts[0] * gridCounts[1]));
-
-	kron(tmpVec0, VectorXT::Ones(gridCounts[1] * gridCounts[2]), xPeriod);
-	kron(tmpVec11, yPeriod, VectorXT::Ones(gridCounts[0]));
-	kron(tmpVec1, VectorXT::Ones(gridCounts[2]), tmpVec11);
-	kron(tmpVec2, zPeriod, VectorXT::Ones(gridCounts[0] * gridCounts[1]));
- 
-	gridCenters.resize(gridCounts[0] * gridCounts[1] * gridCounts[2], 3);
-	gridCenters.col(0) = tmpVec0;
-	gridCenters.col(1) = tmpVec1;
-	gridCenters.col(2) = tmpVec2;
-
- 
-	return true;
-}
 
 
 #ifdef USE_TRIANGLE_H
@@ -286,9 +219,54 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris,
 	return true;
 }
 
-
-
 #endif
+
+
+
+bool SDFvec2mat(std::vector<Eigen::MatrixXf>& matLayers, \
+	const std::vector<float>& SDFvec, const std::vector<unsigned>& stepsCount)
+{
+	const int xCount = static_cast<int>(stepsCount[0]);
+	const int yCount = static_cast<int>(stepsCount[1]);
+	const int zCount = static_cast<int>(stepsCount[2]);
+	matLayers.clear();
+	matLayers.resize(zCount, Eigen::MatrixXf(yCount, xCount));		// ！！！注意：x是列，y是行   
+
+	Eigen::VectorXf SDFvecCopy;
+	vec2EigenVec(SDFvecCopy, SDFvec);
+	Eigen::MatrixXf tmpMat{ Eigen::Map<Eigen::MatrixXf>(SDFvecCopy.data(), xCount * yCount, zCount)};
+	for (int i = 0; i < zCount; ++i)
+	{
+		Eigen::VectorXf tmpVec = tmpMat.col(i);
+		matLayers[i] = Eigen::Map<Eigen::MatrixXf>(tmpVec.data(), yCount, zCount);
+	}
+ 
+	return true;
+}
+
+
+bool SDFmat2vec(std::vector<float>& SDFvec, \
+	const std::vector<Eigen::MatrixXf>& matLayers, const std::vector<unsigned>& stepsCount)
+{
+	const int xCount = static_cast<int>(stepsCount[0]);
+	const int yCount = static_cast<int>(stepsCount[1]);
+	const int zCount = static_cast<int>(stepsCount[2]);
+	const int elemCount = xCount * yCount * zCount;
+	const int sliceElemCount = xCount * yCount;
+	SDFvec.clear();
+	SDFvec.resize(elemCount);
+	int pos = 0;
+	const float* dataPtr = nullptr;
+	for (int i = 0; i < zCount; ++i)
+	{
+		dataPtr = matLayers[i].data();
+		std::memcpy(&SDFvec[pos], dataPtr, sizeof(float) * sliceElemCount);
+		pos += sliceElemCount;
+	}
+
+	return true;
+}
+
 
 // 模板特化输出：
 #include "templateSpecialization.cpp"
