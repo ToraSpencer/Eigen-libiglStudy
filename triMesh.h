@@ -28,6 +28,8 @@ bool readOBJ(std::vector<verF>& vers, const char* fileName);
 bool readOBJ(std::vector<verD>& vers, const char* fileName);
 bool readOBJ(triMeshF& mesh, const char* fileName);
 bool readOBJ(triMeshD& mesh, const char* fileName);
+bool readSTL(triMeshF& mesh, const char* fileName, const bool blIsAscii = false);
+bool readSTL(triMeshD& mesh, const char* fileName, const bool blIsAscii = false);
 bool writeOBJ(const char* fileName, const std::vector<verF>& vers);
 bool writeOBJ(const char* fileName, const std::vector<verD>& vers);
 bool writeOBJ(const char* fileName, const triMeshF& mesh);

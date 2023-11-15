@@ -1245,6 +1245,7 @@ int testCmd_laplaceFaring(int argc, char** argv)
 }
   
 
+
 int main(int argc, char** argv)
 { 
 	// TEST_MYEIGEN_IO::test0();
@@ -1253,7 +1254,7 @@ int main(int argc, char** argv)
 
 	// TEST_MYEIGEN_MODELING::test3();
 
-	TEST_DENSE_MAT::test8();
+	TEST_DENSE_MAT::test7();
 
 	// TEST_SDF::test1();
 

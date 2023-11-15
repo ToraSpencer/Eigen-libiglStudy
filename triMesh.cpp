@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <unordered_map>
 #include <windows.h>
 
 
@@ -36,6 +37,60 @@ namespace TRIANGLE_MESH
 		validData[nIndx] = 0;
 		return nIndx;
 	};
+
+
+	template <typename TV, typename TI>
+	void GetVertsAndSurfs(std::vector<triplet<TV>>& vVerts, std::vector<triplet<TI>>& vSurfs, \
+		const std::vector<triplet<TV>>& versIn)
+	{
+		auto vertHash = [](const triplet<TV>& v)->std::size_t
+		{
+			return std::hash<decltype(v.x)>()(v.x)	+ \
+				std::hash<decltype(v.y)>()(v.y) + \
+				std::hash<decltype(v.z)>()(v.z);
+		};
+
+		auto vertComp = [](const triplet<TV>& v0, const triplet<TV>& v1)->bool
+		{
+			double dbThreshold = 1.e-14;
+			if (std::fabs(v0.x - v1.x) > dbThreshold)
+				return false;
+			if (std::fabs(v0.y - v1.y) > dbThreshold)
+				return false;
+			if (std::fabs(v0.z - v1.z) > dbThreshold)
+				return false;
+			return true;
+		};
+
+		// 修改说明：原先去除重复点的方法时间复杂度过高，改用hashmap
+		unsigned nOldVertCnt = versIn.size();
+		std::vector<unsigned> tmpTri(3, 0);
+		vSurfs.resize(nOldVertCnt / 3);
+		vVerts.reserve(nOldVertCnt);
+		std::unordered_map<triplet<TV>, unsigned, decltype(vertHash), decltype(vertComp)> mapVerts;
+
+		for (unsigned i = 0; i < nOldVertCnt / 3; i++)
+		{
+			unsigned nVCnt = 0;
+
+			for (unsigned k = 0; k < 3; k++)
+			{
+				unsigned nOldIdx = i * 3 + k;
+				const triplet<TV>& v = versIn[nOldIdx];
+				if (0 == mapVerts.count(v))
+				{
+					mapVerts.insert(std::make_pair(v, vVerts.size()));
+					vVerts.push_back(v);
+				}
+				auto iter = mapVerts.find(v);
+				tmpTri[k] = iter->second;
+			}
+
+			vSurfs[i].x = static_cast<TI>(tmpTri[0]);
+			vSurfs[i].y = static_cast<TI>(tmpTri[1]);
+			vSurfs[i].z = static_cast<TI>(tmpTri[2]);
+		}
+	}
 
 
 	template	<typename TV>
@@ -223,7 +278,114 @@ namespace TRIANGLE_MESH
 		return true;
 	}
 
+
+	template	<typename TV, typename TI>
+	bool stlReadMesh(triMesh<TV, TI>& mesh, const char* fileName, const bool blIsAscii = false)
+	{
+		using verV = triplet<TV>; 
+		std::vector<verV> tmpVers;
+
+		if (blIsAscii)
+		{
+			std::ifstream fin(fileName, std::ios::in);
+
+			fin.seekg(0, std::ios::end);	//seek to the end
+			unsigned fileLen = (unsigned)fin.tellg();
+			if (0 == fileLen)					// file is empty 
+				return false;
+			fin.seekg(0, std::ios::beg);	//seek to the beg
+
+			char* pFileBuf = new char[fileLen + 1];
+			std::memset(pFileBuf, 0, fileLen + 1);
+			fin.read(pFileBuf, fileLen);
+
+			char* pTemp = pFileBuf;
+			char tempBuffer[1024];
+			unsigned nMaxSize = 1024;
+			unsigned nReadLen = 0;
+			unsigned nRet = 0;
+
+			while (nReadLen < fileLen)
+			{
+				nRet = readNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
+				if (0 == nRet)
+					break;
+				if (std::strcmp(tempBuffer, "vertex") == 0)    //顶点信息
+				{
+					verV vert;
+					nRet = readNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
+					if (0 == nRet)
+						break;
+					vert.x = static_cast<TV>(atof(tempBuffer));
+					nRet = readNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
+					if (0 == nRet)
+						break;
+					vert.y = static_cast<TV>(atof(tempBuffer));
+					nRet = readNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
+					if (0 == nRet)
+						break;
+					vert.z = static_cast<TV>(atof(tempBuffer));
+					tmpVers.push_back(vert);
+				}
+			}
+			delete(pFileBuf);
+
+			GetVertsAndSurfs(mesh.vertices, mesh.triangles, tmpVers);
+
+			return true;
+		}
+		else
+		{
+			std::ifstream fin(fileName, std::ios::in | std::ios::binary);
+
+			fin.seekg(0, std::ios::end);   //seek to the end
+			unsigned fileLen = (unsigned)fin.tellg();
+			if (0 == fileLen)					// file is empty 
+				return false;
+
+			fin.seekg(0, std::ios::beg);
+			unsigned len = fin.tellg();
+			char* buffer = new char[fileLen + 1];
+			std::memset(buffer, 0, fileLen + 1);
+			fin.read(buffer, fileLen);
+
+			unsigned offset = 80;			// 跳过最开始的文件头（存贮文件名，80个字节）；
+			unsigned nVertDataCount = *(std::uint32_t*)(buffer + offset);		// 三角片数量；
+			offset += 4;							// 二进制stl文件中，坐标都是REAL32、索引都是UINT32, 都是4字节；
+
+			//从二进制文件读取顶点信息
+			verV pt{ 0, 0, 0 };
+			tmpVers.resize(nVertDataCount * 3);
+
+			for (unsigned k = 0; k < nVertDataCount; k++)
+			{
+				offset += 4 * 3;					//normal
+
+				for (unsigned i = 0; i < 3; i++)
+				{
+					pt.x = static_cast<TV>(*(float*)(buffer + offset));
+					offset += 4;
+					pt.y = static_cast<TV>(*(float*)(buffer + offset));
+					offset += 4;
+					pt.z = static_cast<TV>(*(float*)(buffer + offset));
+					offset += 4;
+
+					tmpVers[3 * k + i] = pt;
+				}
+				offset += 2;
+			}
+			delete(buffer);
+
+			GetVertsAndSurfs(mesh.vertices, mesh.triangles, tmpVers);
+
+			return true;
+		}
+
+		return true;
+	}
 }
+using namespace TRIANGLE_MESH;
+
 
 
 bool readOBJ(std::vector<verF>& vers, const char* fileName)
@@ -272,3 +434,16 @@ bool writeOBJ(const char* fileName, const triMeshD& mesh)
 {
 	return TRIANGLE_MESH::objWriteMesh(fileName, mesh);
 }
+
+
+bool readSTL(triMeshF& mesh, const char* fileName, const bool blIsAscii)
+{
+	return stlReadMesh(mesh, fileName, blIsAscii);
+}
+
+
+bool readSTL(triMeshD& mesh, const char* fileName, const bool blIsAscii)
+{
+	return stlReadMesh(mesh, fileName, blIsAscii);
+}
+

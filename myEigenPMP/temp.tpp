@@ -2531,7 +2531,7 @@ int simplyTrisConnectedRegion(Eigen::VectorXi& connectedLabels, Eigen::VectorXi&
 // 提取三角网格中最大单连通区域（顶点连通）
 template <typename DerivedV, typename DerivedI>
 bool simplyConnectedLargest(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::PlainObjectBase<DerivedI>& trisOut, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::PlainObjectBase<DerivedI>& tris)
+	const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixBase<DerivedI>& tris)
 {
 	const unsigned versCount = vers.rows();
 	const unsigned trisCount = tris.rows();

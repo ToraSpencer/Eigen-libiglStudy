@@ -460,13 +460,17 @@ bool marchingCubes(Eigen::PlainObjectBase<DerivedV>& versResult, \
 
 	// 3. 提取最大联通区域（颌网格距离场生成的MC结果可能包含微小的孤立网格）
 	if (blSClargest)
-		if (!simplyConnectedLargest(versTmp, trisTmp, versResult, trisResult))
+	{
+		if (!simplyConnectedLargest(versResult, trisResult, versTmp, trisTmp))
 			return false;
 		else
 			return true;
-
-	versResult = versTmp;
-	trisResult = trisTmp;
+	}
+	else
+	{
+		versResult = versTmp;
+		trisResult = trisTmp;
+	}
 
 	return true;
 }

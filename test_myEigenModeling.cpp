@@ -263,7 +263,7 @@ namespace TEST_SDF
 		Eigen::VectorXf sdfVec;
 		vec2EigenVec(sdfVec, sdfData.SDFvalues);
 		marchingCubes(versOut, trisOut, sdfVec, grids, sdfData.stepsCount[0], sdfData.stepsCount[1],\
-			sdfData.stepsCount[2], isoValue, false);
+			sdfData.stepsCount[2], isoValue, true);
 		debugWriteMesh("meshOut", versOut, trisOut);
 
 		debugDisp("finished.");

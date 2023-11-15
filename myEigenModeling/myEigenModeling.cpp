@@ -238,7 +238,7 @@ bool SDFvec2mat(std::vector<Eigen::MatrixXf>& matLayers, \
 	for (int i = 0; i < zCount; ++i)
 	{
 		Eigen::VectorXf tmpVec = tmpMat.col(i);
-		matLayers[i] = Eigen::Map<Eigen::MatrixXf>(tmpVec.data(), yCount, zCount);
+		matLayers[i] = Eigen::Map<Eigen::MatrixXf>(tmpVec.data(), yCount, xCount);
 	}
  
 	return true;

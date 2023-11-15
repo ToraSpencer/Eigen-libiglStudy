@@ -22,6 +22,8 @@
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
  
+#include "myEigenBasicMath/myEigenBasicMath.h"
+#pragma comment(lib, "myEigenBasicMath.lib")
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary types: 
 template <typename T>
@@ -167,6 +169,117 @@ void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& v
 		const char* fileName);
 
 
+// STL文件中读取网格数据：
+#if 0
+template <typename DerivedV, typename DerivedI>
+void stlReadMeshMat(Eigen::PlainObjectBase<DerivedV>& vers, \
+	Eigen::PlainObjectBase<DerivedI>& tris, const char* fileName, const bool blIsAscii = false)
+{
+	using ScalarV = typename DerivedV::Scalar;
+	using ScalarI = typename DerivedI::Scalar;
+	using RowVector3V = Eigen::MatrixX<ScalarV, Eigen::Dynamic, Eigen::Dynamic>;
+	vers.resize(0, 0);
+	tris.resize(0, 0);
+	if (blIsAscii)
+	{
+		std::ifstream fin(fileName, std::ios::in);
+
+		fin.seekg(0, std::ios::end);			 //seek to the end
+		unsigned fileLen = (unsigned)fin.tellg();
+		if (0 == fileLen)							 // file is empty
+			return false;
+
+		fin.seekg(0, std::ios::beg);		//seek to the beg
+
+		char* pFileBuf = new char[fileLen + 1];
+		std::memset(pFileBuf, 0, fileLen + 1);
+		fin.read(pFileBuf, fileLen);
+
+		char* pTemp = NULL;
+		pTemp = pFileBuf;
+		char tempBuffer[1024];
+		unsigned nMaxSize = 1024;
+		unsigned nReadLen = 0;
+		unsigned nRet = 0;
+		while (nReadLen < fileLen)
+		{
+			nRet = readNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
+			if (0 == nRet) 
+				break; 
+			if (std::strcmp(tempBuffer, "vertex") == 0)    //顶点信息
+			{
+				RowVector3V vert;
+				nRet = readNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
+				if (0 == nRet) 
+					break; 
+				vert(0) = static_cast<ScalarV>(atof(tempBuffer));
+				nRet = readNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
+				if (0 == nRet) 
+					break; 
+				vert(1) = static_cast<ScalarV>(atof(tempBuffer));
+				nRet = readNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
+				if (0 == nRet) 
+					break; 
+				vert(2) = static_cast<ScalarV>(atof(tempBuffer));
+				matInsertRows(vers, vert); 
+			}
+		}
+		delete(pFileBuf);
+		 
+		return true;
+	}
+	else
+	{
+		std::ifstream fin(fileName, std::ios::in | std::ios::binary);
+
+		fin.seekg(0, std::ios::end);   //seek to the end
+		unsigned fileLen = (unsigned)fin.tellg();
+		if (0 == fileLen)		 // file is empty 
+			return false; 
+
+		fin.seekg(0, std::ios::beg);
+		unsigned len = fin.tellg();
+		char* buffer = new char[fileLen + 1];
+		std::memset(buffer, 0, fileLen + 1);
+		fin.read(buffer, fileLen);
+
+		unsigned offset = 80;
+		unsigned nVertDataCount = *(unsigned*)(buffer + offset);   //获取nVertDataCount
+		offset += sizeof(int32_t);
+
+		//从二进制文件读取顶点信息
+		VFVECTOR3 pt = VFVECTOR3::ZERO;
+
+		mVerts.resize(nVertDataCount * 3);
+
+		for (unsigned k = 0; k < nVertDataCount; k++)
+		{
+			offset += 4 * 3;										//normal
+
+			for (unsigned i = 0; i < 3; i++)
+			{
+				pt.x = *(float*)(buffer + offset);
+				offset += 4;
+				pt.y = *(float*)(buffer + offset);
+				offset += 4;
+				pt.z = *(float*)(buffer + offset);
+				offset += 4;
+
+				mVerts[3 * k + i] = pt;
+			}
+
+			offset += 2;
+		}
+		delete(buffer);
+
+		GetVertsAndSurfs(vVerts, vSurfs);
+
+		return true;
+	}
+}
+#endif
+
+
 // 顶点写入OBJ文件
 template	<typename DerivedV>
 void objWriteVerticesMat(const char* fileName, \
@@ -302,7 +415,7 @@ void objWriteTreePath(const char* pathName, const Eigen::VectorXi& treeVec, \
 
 template <typename DerivedVo, typename DerivedVd>
 void objWriteDirection(const char* pathName, const Eigen::MatrixBase<DerivedVo>& origin, \
-		const Eigen::MatrixBase<DerivedVd>& dir)
+		const Eigen::MatrixBase<DerivedVd>& dir, const float SR = 0.5)
 {
 	assert((3 == origin.size() && 3 == dir.size()));
 
@@ -310,18 +423,18 @@ void objWriteDirection(const char* pathName, const Eigen::MatrixBase<DerivedVo>&
 	Eigen::RowVector3f dirVec{static_cast<float>(dir(0)), static_cast<float>(dir(1)), static_cast<float>(dir(2))};
 	dirVec.normalize();
 
-	const float SR = 0.5;			// 空间采样率SR——相邻两个采样点的距离（单位mm）
 	const float length = 10;
-	int versCount = std::round(length / SR);
+	int versCount = std::round(length / SR);				// 空间采样率SR——相邻两个采样点的距离（单位mm）
 	line.resize(versCount + 1, 3);
-	line.row(0, 0) = static_cast<float>(origin(0));
-	line.row(0, 1) = static_cast<float>(origin(1));
-	line.row(0, 2) = static_cast<float>(origin(2));
+	line(0, 0) = static_cast<float>(origin(0));
+	line(0, 1) = static_cast<float>(origin(1));
+	line(0, 2) = static_cast<float>(origin(2));
 	for (int i = 1; i <= versCount; i++)
 		line.row(i) = line.row(0) + SR * dirVec * i;
 
 	objWriteVerticesMat(pathName, line);
 };
+
 
 template <typename DerivedVo, typename DerivedVd>
 void objWriteCoorSys(const char* pathName, const Eigen::MatrixBase<DerivedVo>& origin, \
@@ -368,7 +481,7 @@ bool stlReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers,
 	if (blAscii)
 	{
 #if 0
-		std::ifstream fin(m_strFileName, std::ios::in);
+		std::ifstream fin(fileName, std::ios::in);
 
 		fin.seekg(0, std::ios::end);			//seek to the end
 		unsigned fileLen = (unsigned)fin.tellg();
@@ -418,7 +531,7 @@ bool stlReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers,
 }
 	else
 	{
-	std::ifstream fin(m_strFileName, std::ios::in | std::ios::binary);
+	std::ifstream fin(fileName, std::ios::in | std::ios::binary);
 
 	fin.seekg(0, std::ios::end);   //seek to the end
 	unsigned fileLen = (unsigned)fin.tellg();

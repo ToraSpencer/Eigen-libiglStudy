@@ -647,13 +647,13 @@ namespace TEST_DENSE_MAT
 	void test7()
 	{
 		// eigen 3.3.7还没有支持flag矩阵，但是可以使用select()方法来实现类似的效果：
-		Eigen::Matrix3i m1;
-		Eigen::Matrix3f m11;
+		Eigen::MatrixXi m1(3, 3);
+		Eigen::MatrixXf m11(3, 3);
 		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9;
 		m11 << 1, 2, 3, 4, 5, 6, 7, 8, 9;
 
-		//	(m1的array条件判断).select(矩阵a,矩阵b)——若m1下标为ij的元素条件判断为真，则返回矩阵a中ij位的元素，否则为矩阵b中ij位的元素。
-		Matrix3i flag1 = (m1.array() > 4).select(Matrix3i::Ones(), Matrix3i::Zero());
+		//	1. (m1的array条件判断).select(矩阵a,矩阵b)——若m1下标为ij的元素条件判断为真，则返回矩阵a中ij位的元素，否则为矩阵b中ij位的元素。
+		Eigen::MatrixXi flag1 = (m1.array() > 4).select(Matrix3i::Ones(), Matrix3i::Zero());
 		debugDisp("m1 == \n", m1, "\n");
 		debugDisp("flag1 == \n", flag1, "\n");
 
@@ -664,7 +664,16 @@ namespace TEST_DENSE_MAT
 		m11 = (m11.array().isNaN() || m11.array().isInf()).select(-Eigen::Matrix3f::Ones(), m11);
 		debugDisp("m11 == \n", m11, "\n\n");
 
-		// rowInMat()——检查矩阵内是否包含某一行向量——返回一个索引列向量。
+		// 2.
+		Eigen::MatrixXf m111 = 10 * Eigen::MatrixXf::Random(4, 4);
+		m11 = 10 * Eigen::MatrixXf::Random(4, 4);
+		debugDisp("矩阵之间逐元素比较条件判断：");
+		debugDisp("m11 == \n", m11, "\n");
+		debugDisp("m111 == \n", m111, "\n");
+		m11 = (m11.array() < m111.array()).select(-Eigen::Matrix4f::Ones(), m11);
+		debugDisp("m11 == \n", m11, "\n\n");
+
+		// 2. rowInMat()——检查矩阵内是否包含某一行向量——返回一个索引列向量。
 		debugDisp("检查矩阵内是否包含某一行向量——返回一个索引列向量。" );
 		Eigen::MatrixXi m2(5, 5);
 		Eigen::Matrix4i m3;

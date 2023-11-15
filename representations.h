@@ -6,7 +6,7 @@
 
 template <typename DerivedV, typename TV>
 void vers2mat(Eigen::PlainObjectBase<DerivedV>& versMat, \
-	const std::vector<TRIANGLE_MESH::triplet<TV>>& vers)
+		const std::vector<TRIANGLE_MESH::triplet<TV>>& vers)
 {
 	using ScalarV = typename DerivedV::Scalar;
 	const int versCount = static_cast<int>(vers.size());

@@ -286,8 +286,8 @@ int simplyTrisConnectedRegion(Eigen::VectorXi& connectedLabels, Eigen::VectorXi&
 
 template <typename DerivedV, typename DerivedI>
 bool simplyConnectedLargest(Eigen::PlainObjectBase<DerivedV>& versOut, \
-	Eigen::PlainObjectBase<DerivedI>& trisOut, 	const Eigen::PlainObjectBase<DerivedV>& vers, \
-	const Eigen::PlainObjectBase<DerivedI>& tris);
+	Eigen::PlainObjectBase<DerivedI>& trisOut, 	const Eigen::MatrixBase<DerivedV>& vers, \
+	const Eigen::MatrixBase<DerivedI>& tris);
 
 template <typename T>
 bool simplyConnectedSplitMesh(std::vector<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>>& compVers, \

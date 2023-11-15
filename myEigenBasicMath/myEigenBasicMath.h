@@ -34,8 +34,6 @@ const double pi = 3.14159265359;
 */
 
 
-
-
 // 并行for循环
 template<typename Func>
 void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, const unsigned int serial_if_less_than = 12)
@@ -158,6 +156,7 @@ void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, \
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// basic math tools:
 
+// 传入函数子遍历稠密矩阵中的元素，函数子接受的参数是类型为typename Derived::Scalar的矩阵元素对象
 template <typename Derived, typename F>
 void traverseMatrix(Eigen::PlainObjectBase<Derived>& m, F f)
 {
