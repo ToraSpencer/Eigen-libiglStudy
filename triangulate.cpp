@@ -1,280 +1,260 @@
-/*****************************************************************************/
-/*                                                                           */
-/*      888888888        ,o,                          / 888                  */
-/*         888    88o88o  "    o8888o  88o8888o o88888o 888  o88888o         */
-/*         888    888    888       88b 888  888 888 888 888 d888  88b        */
-/*         888    888    888  o88^o888 888  888 "88888" 888 8888oo888        */
-/*         888    888    888 C888  888 888  888  /      888 q888             */
-/*         888    888    888  "88o^888 888  888 Cb      888  "88oooo"        */
-/*                                              "8oo8D                       */
-/*                                                                           */
-/*  A Two-Dimensional Quality Mesh Generator and Delaunay Triangulator.      */
-/*  (triangle.c)                                                             */
-/*                                                                           */
-/*  Version 1.6                                                              */
-/*  July 28, 2005                                                            */
-/*                                                                           */
-/*  Copyright 1993, 1995, 1997, 1998, 2002, 2005                             */
-/*  Jonathan Richard Shewchuk                                                */
-/*  2360 Woolsey #H                                                          */
-/*  Berkeley, California  94705-1927                                         */
-/*  jrs@cs.berkeley.edu                                                      */
-/*                                                                           */
-/*  This program may be freely redistributed under the condition that the    */
-/*    copyright notices (including this entire header and the copyright      */
-/*    notice printed when the `-h' switch is selected) are not removed, and  */
-/*    no compensation is received.  Private, research, and institutional     */
-/*    use is free.  You may distribute modified versions of this code UNDER  */
-/*    THE CONDITION THAT THIS CODE AND ANY MODIFICATIONS MADE TO IT IN THE   */
-/*    SAME FILE REMAIN UNDER COPYRIGHT OF THE ORIGINAL AUTHOR, BOTH SOURCE   */
-/*    AND OBJECT CODE ARE MADE FREELY AVAILABLE WITHOUT CHARGE, AND CLEAR    */
-/*    NOTICE IS GIVEN OF THE MODIFICATIONS.  Distribution of this code as    */
-/*    part of a commercial system is permissible ONLY BY DIRECT ARRANGEMENT  */
-/*    WITH THE AUTHOR.  (If you are not directly supplying this code to a    */
-/*    customer, and you are instead telling them how they can obtain it for  */
-/*    free, then you are not required to make any arrangement with me.)      */
-/*                                                                           */
-/*  Hypertext instructions for Triangle are available on the Web at          */
-/*                                                                           */
-/*      http://www.cs.cmu.edu/~quake/triangle.html                           */
-/*                                                                           */
-/*  Disclaimer:  Neither I nor Carnegie Mellon warrant this code in any way  */
-/*    whatsoever.  This code is provided "as-is".  Use at your own risk.     */
-/*                                                                           */
-/*  Some of the references listed below are marked with an asterisk.  [*]    */
-/*    These references are available for downloading from the Web page       */
-/*                                                                           */
-/*      http://www.cs.cmu.edu/~quake/triangle.research.html                  */
-/*                                                                           */
-/*  Three papers discussing aspects of Triangle are available.  A short      */
-/*    overview appears in "Triangle:  Engineering a 2D Quality Mesh          */
-/*    Generator and Delaunay Triangulator," in Applied Computational         */
-/*    Geometry:  Towards Geometric Engineering, Ming C. Lin and Dinesh       */
-/*    Manocha, editors, Lecture Notes in Computer Science volume 1148,       */
-/*    pages 203-222, Springer-Verlag, Berlin, May 1996 (from the First ACM   */
-/*    Workshop on Applied Computational Geometry).  [*]                      */
-/*                                                                           */
-/*    The algorithms are discussed in the greatest detail in "Delaunay       */
-/*    Refinement Algorithms for Triangular Mesh Generation," Computational   */
-/*    Geometry:  Theory and Applications 22(1-3):21-74, May 2002.  [*]       */
-/*                                                                           */
-/*    More detail about the data structures may be found in my dissertation: */
-/*    "Delaunay Refinement Mesh Generation," Ph.D. thesis, Technical Report  */
-/*    CMU-CS-97-137, School of Computer Science, Carnegie Mellon University, */
-/*    Pittsburgh, Pennsylvania, 18 May 1997.  [*]                            */
-/*                                                                           */
-/*  Triangle was created as part of the Quake Project in the School of       */
-/*    Computer Science at Carnegie Mellon University.  For further           */
-/*    information, see Hesheng Bao, Jacobo Bielak, Omar Ghattas, Loukas F.   */
-/*    Kallivokas, David R. O'Hallaron, Jonathan R. Shewchuk, and Jifeng Xu,  */
-/*    "Large-scale Simulation of Elastic Wave Propagation in Heterogeneous   */
-/*    Media on Parallel Computers," Computer Methods in Applied Mechanics    */
-/*    and Engineering 152(1-2):85-102, 22 January 1998.                      */
-/*                                                                           */
-/*  Triangle's Delaunay refinement algorithm for quality mesh generation is  */
-/*    a hybrid of one due to Jim Ruppert, "A Delaunay Refinement Algorithm   */
-/*    for Quality 2-Dimensional Mesh Generation," Journal of Algorithms      */
-/*    18(3):548-585, May 1995 [*], and one due to L. Paul Chew, "Guaranteed- */
-/*    Quality Mesh Generation for Curved Surfaces," Proceedings of the Ninth */
-/*    Annual Symposium on Computational Geometry (San Diego, California),    */
-/*    pages 274-280, Association for Computing Machinery, May 1993,          */
-/*    http://portal.acm.org/citation.cfm?id=161150 .                         */
-/*                                                                           */
-/*  The Delaunay refinement algorithm has been modified so that it meshes    */
-/*    domains with small input angles well, as described in Gary L. Miller,  */
-/*    Steven E. Pav, and Noel J. Walkington, "When and Why Ruppert's         */
-/*    Algorithm Works," Twelfth International Meshing Roundtable, pages      */
-/*    91-102, Sandia National Laboratories, September 2003.  [*]             */
-/*                                                                           */
-/*  My implementation of the divide-and-conquer and incremental Delaunay     */
-/*    triangulation algorithms follows closely the presentation of Guibas    */
-/*    and Stolfi, even though I use a triangle-based data structure instead  */
-/*    of their quad-edge data structure.  (In fact, I originally implemented */
-/*    Triangle using the quad-edge data structure, but the switch to a       */
-/*    triangle-based data structure sped Triangle by a factor of two.)  The  */
-/*    mesh manipulation primitives and the two aforementioned Delaunay       */
-/*    triangulation algorithms are described by Leonidas J. Guibas and Jorge */
-/*    Stolfi, "Primitives for the Manipulation of General Subdivisions and   */
-/*    the Computation of Voronoi Diagrams," ACM Transactions on Graphics     */
-/*    4(2):74-123, April 1985, http://portal.acm.org/citation.cfm?id=282923 .*/
-/*                                                                           */
-/*  Their O(n log n) divide-and-conquer algorithm is adapted from Der-Tsai   */
-/*    Lee and Bruce J. Schachter, "Two Algorithms for Constructing the       */
-/*    Delaunay Triangulation," International Journal of Computer and         */
-/*    Information Science 9(3):219-242, 1980.  Triangle's improvement of the */
-/*    divide-and-conquer algorithm by alternating between vertical and       */
-/*    horizontal cuts was introduced by Rex A. Dwyer, "A Faster Divide-and-  */
-/*    Conquer Algorithm for Constructing Delaunay Triangulations,"           */
-/*    Algorithmica 2(2):137-151, 1987.                                       */
-/*                                                                           */
-/*  The incremental insertion algorithm was first proposed by C. L. Lawson,  */
-/*    "Software for C1 Surface Interpolation," in Mathematical Software III, */
-/*    John R. Rice, editor, Academic Press, New York, pp. 161-194, 1977.     */
-/*    For point location, I use the algorithm of Ernst P. Mucke, Isaac       */
-/*    Saias, and Binhai Zhu, "Fast Randomized Point Location Without         */
-/*    Preprocessing in Two- and Three-Dimensional Delaunay Triangulations,"  */
-/*    Proceedings of the Twelfth Annual Symposium on Computational Geometry, */
-/*    ACM, May 1996.  [*]  If I were to randomize the order of vertex        */
-/*    insertion (I currently don't bother), their result combined with the   */
-/*    result of Kenneth L. Clarkson and Peter W. Shor, "Applications of      */
-/*    Random Sampling in Computational Geometry II," Discrete &              */
-/*    Computational Geometry 4(1):387-421, 1989, would yield an expected     */
-/*    O(n^{4/3}) bound on running time.                                      */
-/*                                                                           */
-/*  The O(n log n) sweepline Delaunay triangulation algorithm is taken from  */
-/*    Steven Fortune, "A Sweepline Algorithm for Voronoi Diagrams",          */
-/*    Algorithmica 2(2):153-174, 1987.  A random sample of edges on the      */
-/*    boundary of the triangulation are maintained in a splay tree for the   */
-/*    purpose of point location.  Splay trees are described by Daniel        */
-/*    Dominic Sleator and Robert Endre Tarjan, "Self-Adjusting Binary Search */
-/*    Trees," Journal of the ACM 32(3):652-686, July 1985,                   */
-/*    http://portal.acm.org/citation.cfm?id=3835 .                           */
-/*                                                                           */
-/*  The algorithms for exact computation of the signs of determinants are    */
-/*    described in Jonathan Richard Shewchuk, "Adaptive Precision Floating-  */
-/*    Point Arithmetic and Fast Robust Geometric Predicates," Discrete &     */
-/*    Computational Geometry 18(3):305-363, October 1997.  (Also available   */
-/*    as Technical Report CMU-CS-96-140, School of Computer Science,         */
-/*    Carnegie Mellon University, Pittsburgh, Pennsylvania, May 1996.)  [*]  */
-/*    An abbreviated version appears as Jonathan Richard Shewchuk, "Robust   */
-/*    Adaptive Floating-Point Geometric Predicates," Proceedings of the      */
-/*    Twelfth Annual Symposium on Computational Geometry, ACM, May 1996. [*] */
-/*    Many of the ideas for my exact arithmetic routines originate with      */
-/*    Douglas M. Priest, "Algorithms for Arbitrary Precision Floating Point  */
-/*    Arithmetic," Tenth Symposium on Computer Arithmetic, pp. 132-143, IEEE */
-/*    Computer Society Press, 1991.  [*]  Many of the ideas for the correct  */
-/*    evaluation of the signs of determinants are taken from Steven Fortune  */
-/*    and Christopher J. Van Wyk, "Efficient Exact Arithmetic for Computa-   */
-/*    tional Geometry," Proceedings of the Ninth Annual Symposium on         */
-/*    Computational Geometry, ACM, pp. 163-172, May 1993, and from Steven    */
-/*    Fortune, "Numerical Stability of Algorithms for 2D Delaunay Triangu-   */
-/*    lations," International Journal of Computational Geometry & Applica-   */
-/*    tions 5(1-2):193-213, March-June 1995.                                 */
-/*                                                                           */
-/*  The method of inserting new vertices off-center (not precisely at the    */
-/*    circumcenter of every poor-quality triangle) is from Alper Ungor,      */
-/*    "Off-centers:  A New Type of Steiner Points for Computing Size-Optimal */
-/*    Quality-Guaranteed Delaunay Triangulations," Proceedings of LATIN      */
-/*    2004 (Buenos Aires, Argentina), April 2004.                            */
-/*                                                                           */
-/*  For definitions of and results involving Delaunay triangulations,        */
-/*    constrained and conforming versions thereof, and other aspects of      */
-/*    triangular mesh generation, see the excellent survey by Marshall Bern  */
-/*    and David Eppstein, "Mesh Generation and Optimal Triangulation," in    */
-/*    Computing and Euclidean Geometry, Ding-Zhu Du and Frank Hwang,         */
-/*    editors, World Scientific, Singapore, pp. 23-90, 1992.  [*]            */
-/*                                                                           */
-/*  The time for incrementally adding PSLG (planar straight line graph)      */
-/*    segments to create a constrained Delaunay triangulation is probably    */
-/*    O(t^2) per segment in the worst case and O(t) per segment in the       */
-/*    common case, where t is the number of triangles that intersect the     */
-/*    segment before it is inserted.  This doesn't count point location,     */
-/*    which can be much more expensive.  I could improve this to O(d log d)  */
-/*    time, but d is usually quite small, so it's not worth the bother.      */
-/*    (This note does not apply when the -s switch is used, invoking a       */
-/*    different method is used to insert segments.)                          */
-/*                                                                           */
-/*  The time for deleting a vertex from a Delaunay triangulation is O(d^2)   */
-/*    in the worst case and O(d) in the common case, where d is the degree   */
-/*    of the vertex being deleted.  I could improve this to O(d log d) time, */
-/*    but d is usually quite small, so it's not worth the bother.            */
-/*                                                                           */
-/*  Ruppert's Delaunay refinement algorithm typically generates triangles    */
-/*    at a linear rate (constant time per triangle) after the initial        */
-/*    triangulation is formed.  There may be pathological cases where        */
-/*    quadratic time is required, but these never arise in practice.         */
-/*                                                                           */
-/*  The geometric predicates (circumcenter calculations, segment             */
-/*    intersection formulae, etc.) appear in my "Lecture Notes on Geometric  */
-/*    Robustness" at http://www.cs.berkeley.edu/~jrs/mesh .                  */
-/*                                                                           */
-/*  If you make any improvements to this code, please please please let me   */
-/*    know, so that I may obtain the improvements.  Even if you don't change */
-/*    the code, I'd still love to hear what it's being used for.             */
-/*                                                                           */
-/*****************************************************************************/
+/*                                                             
+  A Two-Dimensional Quality Mesh Generator and Delaunay Triangulator.      
+  (triangle.c)                                                             
+                                                                           
+  Version 1.6                                                              
+  July 28, 2005                                                            
+                                                                           
+  Copyright 1993, 1995, 1997, 1998, 2002, 2005                             
+  Jonathan Richard Shewchuk                                                
+  2360 Woolsey #H                                                          
+  Berkeley, California  94705-1927                                         
+  jrs@cs.berkeley.edu                                                      
+                                                                           
+  This program may be freely redistributed under the condition that the    
+    copyright notices (including this entire header and the copyright      
+    notice printed when the `-h' switch is selected) are not removed, and  
+    no compensation is received.  Private, research, and institutional     
+    use is free.  You may distribute modified versions of this code UNDER  
+    THE CONDITION THAT THIS CODE AND ANY MODIFICATIONS MADE TO IT IN THE   
+    SAME FILE REMAIN UNDER COPYRIGHT OF THE ORIGINAL AUTHOR, BOTH SOURCE   
+    AND OBJECT CODE ARE MADE FREELY AVAILABLE WITHOUT CHARGE, AND CLEAR    
+    NOTICE IS GIVEN OF THE MODIFICATIONS.  Distribution of this code as    
+    part of a commercial system is permissible ONLY BY DIRECT ARRANGEMENT  
+    WITH THE AUTHOR.  (If you are not directly supplying this code to a    
+    customer, and you are instead telling them how they can obtain it for  
+    free, then you are not required to make any arrangement with me.)      
+                                                                           
+  Hypertext instructions for Triangle are available on the Web at          
+                                                                           
+      http://www.cs.cmu.edu/~quake/triangle.html                           
+                                                                           
+  Disclaimer:  Neither I nor Carnegie Mellon warrant this code in any way  
+    whatsoever.  This code is provided "as-is".  Use at your own risk.     
+                                                                           
+  Some of the references listed below are marked with an asterisk.  [*]    
+    These references are available for downloading from the Web page       
+                                                                           
+      http://www.cs.cmu.edu/~quake/triangle.research.html                  
+                                                                           
+  Three papers discussing aspects of Triangle are available.  A short      
+    overview appears in "Triangle:  Engineering a 2D Quality Mesh          
+    Generator and Delaunay Triangulator," in Applied Computational         
+    Geometry:  Towards Geometric Engineering, Ming C. Lin and Dinesh       
+    Manocha, editors, Lecture Notes in Computer Science volume 1148,       
+    pages 203-222, Springer-Verlag, Berlin, May 1996 (from the First ACM   
+    Workshop on Applied Computational Geometry).  [*]                      
+                                                                           
+    The algorithms are discussed in the greatest detail in "Delaunay       
+    Refinement Algorithms for Triangular Mesh Generation," Computational   
+    Geometry:  Theory and Applications 22(1-3):21-74, May 2002.  [*]       
+                                                                           
+    More detail about the data structures may be found in my dissertation: 
+    "Delaunay Refinement Mesh Generation," Ph.D. thesis, Technical Report  
+    CMU-CS-97-137, School of Computer Science, Carnegie Mellon University, 
+    Pittsburgh, Pennsylvania, 18 May 1997.  [*]                            
+                                                                           
+  Triangle was created as part of the Quake Project in the School of       
+    Computer Science at Carnegie Mellon University.  For further           
+    information, see Hesheng Bao, Jacobo Bielak, Omar Ghattas, Loukas F.   
+    Kallivokas, David R. O'Hallaron, Jonathan R. Shewchuk, and Jifeng Xu,  
+    "Large-scale Simulation of Elastic Wave Propagation in Heterogeneous   
+    Media on Parallel Computers," Computer Methods in Applied Mechanics    
+    and Engineering 152(1-2):85-102, 22 January 1998.                      
+                                                                           
+  Triangle's Delaunay refinement algorithm for quality mesh generation is  
+    a hybrid of one due to Jim Ruppert, "A Delaunay Refinement Algorithm   
+    for Quality 2-Dimensional Mesh Generation," Journal of Algorithms      
+    18(3):548-585, May 1995 [*], and one due to L. Paul Chew, "Guaranteed- 
+    Quality Mesh Generation for Curved Surfaces," Proceedings of the Ninth 
+    Annual Symposium on Computational Geometry (San Diego, California),    
+    pages 274-280, Association for Computing Machinery, May 1993,          
+    http://portal.acm.org/citation.cfm?id=161150 .                         
+                                                                           
+  The Delaunay refinement algorithm has been modified so that it meshes    
+    domains with small input angles well, as described in Gary L. Miller,  
+    Steven E. Pav, and Noel J. Walkington, "When and Why Ruppert's         
+    Algorithm Works," Twelfth International Meshing Roundtable, pages      
+    91-102, Sandia National Laboratories, September 2003.  [*]             
+                                                                           
+  My implementation of the divide-and-conquer and incremental Delaunay     
+    triangulation algorithms follows closely the presentation of Guibas    
+    and Stolfi, even though I use a triangle-based data structure instead  
+    of their quad-edge data structure.  (In fact, I originally implemented 
+    Triangle using the quad-edge data structure, but the switch to a       
+    triangle-based data structure sped Triangle by a factor of two.)  The  
+    mesh manipulation primitives and the two aforementioned Delaunay       
+    triangulation algorithms are described by Leonidas J. Guibas and Jorge 
+    Stolfi, "Primitives for the Manipulation of General Subdivisions and   
+    the Computation of Voronoi Diagrams," ACM Transactions on Graphics     
+    4(2):74-123, April 1985, http://portal.acm.org/citation.cfm?id=282923 .
+                                                                           
+  Their O(n log n) divide-and-conquer algorithm is adapted from Der-Tsai   
+    Lee and Bruce J. Schachter, "Two Algorithms for Constructing the       
+    Delaunay Triangulation," International Journal of Computer and         
+    Information Science 9(3):219-242, 1980.  Triangle's improvement of the 
+    divide-and-conquer algorithm by alternating between vertical and       
+    horizontal cuts was introduced by Rex A. Dwyer, "A Faster Divide-and-  
+    Conquer Algorithm for Constructing Delaunay Triangulations,"           
+    Algorithmica 2(2):137-151, 1987.                                       
+                                                                           
+  The incremental insertion algorithm was first proposed by C. L. Lawson,  
+    "Software for C1 Surface Interpolation," in Mathematical Software III, 
+    John R. Rice, editor, Academic Press, New York, pp. 161-194, 1977.     
+    For point location, I use the algorithm of Ernst P. Mucke, Isaac       
+    Saias, and Binhai Zhu, "Fast Randomized Point Location Without         
+    Preprocessing in Two- and Three-Dimensional Delaunay Triangulations,"  
+    Proceedings of the Twelfth Annual Symposium on Computational Geometry, 
+    ACM, May 1996.  [*]  If I were to randomize the order of vertex        
+    insertion (I currently don't bother), their result combined with the   
+    result of Kenneth L. Clarkson and Peter W. Shor, "Applications of      
+    Random Sampling in Computational Geometry II," Discrete &              
+    Computational Geometry 4(1):387-421, 1989, would yield an expected     
+    O(n^{4/3}) bound on running time.                                      
+                                                                           
+  The O(n log n) sweepline Delaunay triangulation algorithm is taken from  
+    Steven Fortune, "A Sweepline Algorithm for Voronoi Diagrams",          
+    Algorithmica 2(2):153-174, 1987.  A random sample of edges on the      
+    boundary of the triangulation are maintained in a splay tree for the   
+    purpose of point location.  Splay trees are described by Daniel        
+    Dominic Sleator and Robert Endre Tarjan, "Self-Adjusting Binary Search 
+    Trees," Journal of the ACM 32(3):652-686, July 1985,                   
+    http://portal.acm.org/citation.cfm?id=3835 .                           
+                                                                           
+  The algorithms for exact computation of the signs of determinants are    
+    described in Jonathan Richard Shewchuk, "Adaptive Precision Floating-  
+    Point Arithmetic and Fast Robust Geometric Predicates," Discrete &     
+    Computational Geometry 18(3):305-363, October 1997.  (Also available   
+    as Technical Report CMU-CS-96-140, School of Computer Science,         
+    Carnegie Mellon University, Pittsburgh, Pennsylvania, May 1996.)  [*]  
+    An abbreviated version appears as Jonathan Richard Shewchuk, "Robust   
+    Adaptive Floating-Point Geometric Predicates," Proceedings of the      
+    Twelfth Annual Symposium on Computational Geometry, ACM, May 1996. [*] 
+    Many of the ideas for my exact arithmetic routines originate with      
+    Douglas M. Priest, "Algorithms for Arbitrary Precision Floating Point  
+    Arithmetic," Tenth Symposium on Computer Arithmetic, pp. 132-143, IEEE 
+    Computer Society Press, 1991.  [*]  Many of the ideas for the correct  
+    evaluation of the signs of determinants are taken from Steven Fortune  
+    and Christopher J. Van Wyk, "Efficient Exact Arithmetic for Computa-   
+    tional Geometry," Proceedings of the Ninth Annual Symposium on         
+    Computational Geometry, ACM, pp. 163-172, May 1993, and from Steven    
+    Fortune, "Numerical Stability of Algorithms for 2D Delaunay Triangu-   
+    lations," International Journal of Computational Geometry & Applica-   
+    tions 5(1-2):193-213, March-June 1995.                                 
+                                                                           
+  The method of inserting new vertices off-center (not precisely at the    
+    circumcenter of every poor-quality triangle) is from Alper Ungor,      
+    "Off-centers:  A New Type of Steiner Points for Computing Size-Optimal 
+    Quality-Guaranteed Delaunay Triangulations," Proceedings of LATIN      
+    2004 (Buenos Aires, Argentina), April 2004.                            
+                                                                           
+  For definitions of and results involving Delaunay triangulations,        
+    constrained and conforming versions thereof, and other aspects of      
+    triangular mesh generation, see the excellent survey by Marshall Bern  
+    and David Eppstein, "Mesh Generation and Optimal Triangulation," in    
+    Computing and Euclidean Geometry, Ding-Zhu Du and Frank Hwang,         
+    editors, World Scientific, Singapore, pp. 23-90, 1992.  [*]            
+                                                                           
+  The time for incrementally adding PSLG (planar straight line graph)      
+    segments to create a constrained Delaunay triangulation is probably    
+    O(t^2) per segment in the worst case and O(t) per segment in the       
+    common case, where t is the number of triangles that intersect the     
+    segment before it is inserted.  This doesn't count point location,     
+    which can be much more expensive.  I could improve this to O(d log d)  
+    time, but d is usually quite small, so it's not worth the bother.      
+    (This note does not apply when the -s switch is used, invoking a       
+    different method is used to insert segments.)                          
+                                                                           
+  The time for deleting a vertex from a Delaunay triangulation is O(d^2)   
+    in the worst case and O(d) in the common case, where d is the degree   
+    of the vertex being deleted.  I could improve this to O(d log d) time, 
+    but d is usually quite small, so it's not worth the bother.            
+                                                                           
+  Ruppert's Delaunay refinement algorithm typically generates triangles    
+    at a linear rate (constant time per triangle) after the initial        
+    triangulation is formed.  There may be pathological cases where        
+    quadratic time is required, but these never arise in practice.         
+                                                                           
+  The geometric predicates (circumcenter calculations, segment             
+    intersection formulae, etc.) appear in my "Lecture Notes on Geometric  
+    Robustness" at http://www.cs.berkeley.edu/~jrs/mesh .                  
+                                                                           
+  If you make any improvements to this code, please please please let me   
+    know, so that I may obtain the improvements.  Even if you don't change 
+    the code, I'd still love to hear what it's being used for.             
+                                                                           
+***************************************************************************
 
-/* For single precision (which will save some memory and reduce paging),     */
-/*   define the symbol SINGLE by using the -DSINGLE compiler switch or by    */
-/*   writing "#define SINGLE" below.                                         */
-/*                                                                           */
-/* For double precision (which will allow you to refine meshes to a smaller  */
-/*   edge length), leave SINGLE undefined.                                   */
-/*                                                                           */
-/* Double precision uses more memory, but improves the resolution of the     */
-/*   meshes you can generate with Triangle.  It also reduces the likelihood  */
-/*   of a floating exception due to overflow.  Finally, it is much faster    */
-/*   than single precision on 64-bit architectures like the DEC Alpha.  I    */
-/*   recommend double precision unless you want to generate a mesh for which */
-/*   you do not have enough memory.                                          */
+ For single precision (which will save some memory and reduce paging),     
+   define the symbol SINGLE by using the -DSINGLE compiler switch or by    
+   writing "#define SINGLE" below.                                         
+                                                                           
+ For double precision (which will allow you to refine meshes to a smaller  
+   edge length), leave SINGLE undefined.                                   
+                                                                           
+ Double precision uses more memory, but improves the resolution of the     
+   meshes you can generate with Triangle.  It also reduces the likelihood  
+   of a floating exception due to overflow.  Finally, it is much faster    
+   than single precision on 64-bit architectures like the DEC Alpha.  I    
+   recommend double precision unless you want to generate a mesh for which 
+   you do not have enough memory.                                          */
 
-//#define TRILIBRARY
-//#define ANSI_DECLARATORS
-//#define SINGLE
-//#define NO_TIMER
-//
-///* #define SINGLE */
-//
-//#ifdef SINGLE
-//#define REAL float
-//#else /* not SINGLE */
-//#define REAL double
-//#endif /* not SINGLE */
 
-/* If yours is not a Unix system, define the NO_TIMER compiler switch to     */
-/*   remove the Unix-specific timing code.                                   */
+/* If yours is not a Unix system, define the NO_TIMER compiler switch to     
+/*   remove the Unix-specific timing code.                                   
 
-/* #define NO_TIMER */
+/* #define NO_TIMER 
 
-/* To insert lots of self-checks for internal errors, define the SELF_CHECK  */
-/*   symbol.  This will slow down the program significantly.  It is best to  */
-/*   define the symbol using the -DSELF_CHECK compiler switch, but you could */
-/*   write "#define SELF_CHECK" below.  If you are modifying this code, I    */
-/*   recommend you turn self-checks on until your work is debugged.          */
+/* To insert lots of self-checks for internal errors, define the SELF_CHECK  
+/*   symbol.  This will slow down the program significantly.  It is best to  
+/*   define the symbol using the -DSELF_CHECK compiler switch, but you could 
+/*   write "#define SELF_CHECK" below.  If you are modifying this code, I    
+/*   recommend you turn self-checks on until your work is debugged.          
 
-/* #define SELF_CHECK */
+/* #define SELF_CHECK 
 
-/* To compile Triangle as a callable object library (triangle.o), define the */
-/*   TRILIBRARY symbol.  Read the file triangle.h for details on how to call */
-/*   the procedure triangulate() that results.                               */
+/* To compile Triangle as a callable object library (triangle.o), define the 
+/*   TRILIBRARY symbol.  Read the file triangle.h for details on how to call 
+/*   the procedure triangulate() that results.                               
 
-/* #define TRILIBRARY */
+/* #define TRILIBRARY 
 
-/* It is possible to generate a smaller version of Triangle using one or     */
-/*   both of the following symbols.  Define the REDUCED symbol to eliminate  */
-/*   all features that are primarily of research interest; specifically, the */
-/*   -i, -F, -s, and -C switches.  Define the CDT_ONLY symbol to eliminate   */
-/*   all meshing algorithms above and beyond constrained Delaunay            */
-/*   triangulation; specifically, the -r, -q, -a, -u, -D, -S, and -s         */
-/*   switches.  These reductions are most likely to be useful when           */
-/*   generating an object library (triangle.o) by defining the TRILIBRARY    */
-/*   symbol.                                                                 */
+/* It is possible to generate a smaller version of Triangle using one or     
+/*   both of the following symbols.  Define the REDUCED symbol to eliminate  
+/*   all features that are primarily of research interest; specifically, the 
+/*   -i, -F, -s, and -C switches.  Define the CDT_ONLY symbol to eliminate   
+/*   all meshing algorithms above and beyond constrained Delaunay            
+/*   triangulation; specifically, the -r, -q, -a, -u, -D, -S, and -s         
+/*   switches.  These reductions are most likely to be useful when           
+/*   generating an object library (triangle.o) by defining the TRILIBRARY    
+/*   symbol.                                                                 
 
-/* #define REDUCED */
-/* #define CDT_ONLY */
+/* #define REDUCED 
+/* #define CDT_ONLY 
 
-/* On some machines, my exact arithmetic routines might be defeated by the   */
-/*   use of internal extended precision floating-point registers.  The best  */
-/*   way to solve this problem is to set the floating-point registers to use */
-/*   single or double precision internally.  On 80x86 processors, this may   */
-/*   be accomplished by setting the CPU86 symbol for the Microsoft C         */
-/*   compiler, or the LINUX symbol for the gcc compiler running on Linux.    */
-/*                                                                           */
-/* An inferior solution is to declare certain values as `volatile', thus     */
-/*   forcing them to be stored to memory and rounded off.  Unfortunately,    */
-/*   this solution might slow Triangle down quite a bit.  To use volatile    */
-/*   values, write "#define INEXACT volatile" below.  Normally, however,     */
-/*   INEXACT should be defined to be nothing.  ("#define INEXACT".)          */
-/*                                                                           */
-/* For more discussion, see http://www.cs.cmu.edu/~quake/robust.pc.html .    */
-/*   For yet more discussion, see Section 5 of my paper, "Adaptive Precision */
-/*   Floating-Point Arithmetic and Fast Robust Geometric Predicates" (also   */
+/* On some machines, my exact arithmetic routines might be defeated by the   
+/*   use of internal extended precision floating-point registers.  The best  
+/*   way to solve this problem is to set the floating-point registers to use 
+/*   single or double precision internally.  On 80x86 processors, this may   
+/*   be accomplished by setting the CPU86 symbol for the Microsoft C         
+/*   compiler, or the LINUX symbol for the gcc compiler running on Linux.    
+/*                                                                           
+/* An inferior solution is to declare certain values as `volatile', thus     
+/*   forcing them to be stored to memory and rounded off.  Unfortunately,    
+/*   this solution might slow Triangle down quite a bit.  To use volatile    
+/*   values, write "#define INEXACT volatile" below.  Normally, however,     
+/*   INEXACT should be defined to be nothing.  ("#define INEXACT".)          
+/*                                                                           
+/* For more discussion, see http://www.cs.cmu.edu/~quake/robust.pc.html .    
+/*   For yet more discussion, see Section 5 of my paper, "Adaptive Precision 
+/*   Floating-Point Arithmetic and Fast Robust Geometric Predicates" (also   
 /*   available as Section 6.6 of my dissertation).                           */
 
 /* #define CPU86 */
 /* #define LINUX */
 
-#define INEXACT /* Nothing */
+
+#define INEXACT  
 /* #define INEXACT volatile */
 
 /* Maximum number of characters in a file name (including the null).         */
@@ -353,17 +333,20 @@
 
 #ifndef NO_TIMER
 #include <sys/time.h>
-#endif /* not NO_TIMER */
+#endif 
+
 #ifdef CPU86
 #include <float.h>
 #endif /* CPU86 */
+
 #ifdef LINUX
 #include <fpu_control.h>
 #endif /* LINUX */
+
 #ifdef TRILIBRARY
 //#include "triangle.h"
 
-#endif /* TRILIBRARY */
+#endif 
 
 /* A few forward declarations.                                               */
 
@@ -372,150 +355,152 @@ char *readline();
 char *findfield();
 #endif /* not TRILIBRARY */
 
-/* Labels that signify the result of point location.  The result of a        */
-/*   search indicates that the point falls in the interior of a triangle, on */
+/* Labels that signify the result of point location.  The result of a       
+/*   search indicates that the point falls in the interior of a triangle, on  
 /*   an edge, on a vertex, or outside the mesh.                              */
 
 enum locateresult {INTRIANGLE, ONEDGE, ONVERTEX, OUTSIDE};
 
-/* Labels that signify the result of vertex insertion.  The result indicates */
-/*   that the vertex was inserted with complete success, was inserted but    */
-/*   encroaches upon a subsegment, was not inserted because it lies on a     */
-/*   segment, or was not inserted because another vertex occupies the same   */
+/* Labels that signify the result of vertex insertion.  The result indicates  
+/*   that the vertex was inserted with complete success, was inserted but     
+/*   encroaches upon a subsegment, was not inserted because it lies on a    
+/*   segment, or was not inserted because another vertex occupies the same 
 /*   location.                                                               */
 
 enum insertvertexresult {SUCCESSFULVERTEX, ENCROACHINGVERTEX, VIOLATINGVERTEX,
                          DUPLICATEVERTEX};
 
-/* Labels that signify the result of direction finding.  The result          */
-/*   indicates that a segment connecting the two query points falls within   */
-/*   the direction triangle, along the left edge of the direction triangle,  */
+/* Labels that signify the result of direction finding.  The result           
+/*   indicates that a segment connecting the two query points falls within   
+/*   the direction triangle, along the left edge of the direction triangle,   
 /*   or along the right edge of the direction triangle.                      */
 
 enum finddirectionresult {WITHIN, LEFTCOLLINEAR, RIGHTCOLLINEAR};
 
-/*****************************************************************************/
-/*                                                                           */
-/*  The basic mesh data structures                                           */
-/*                                                                           */
-/*  There are three:  vertices, triangles, and subsegments (abbreviated      */
-/*  `subseg').  These three data structures, linked by pointers, comprise    */
-/*  the mesh.  A vertex simply represents a mesh vertex and its properties.  */
-/*  A triangle is a triangle.  A subsegment is a special data structure used */
-/*  to represent an impenetrable edge of the mesh (perhaps on the outer      */
-/*  boundary, on the boundary of a hole, or part of an internal boundary     */
-/*  separating two triangulated regions).  Subsegments represent boundaries, */
-/*  defined by the user, that triangles may not lie across.                  */
-/*                                                                           */
-/*  A triangle consists of a list of three vertices, a list of three         */
-/*  adjoining triangles, a list of three adjoining subsegments (when         */
-/*  segments exist), an arbitrary number of optional user-defined            */
-/*  floating-point attributes, and an optional area constraint.  The latter  */
-/*  is an upper bound on the permissible area of each triangle in a region,  */
-/*  used for mesh refinement.                                                */
-/*                                                                           */
-/*  For a triangle on a boundary of the mesh, some or all of the neighboring */
-/*  triangles may not be present.  For a triangle in the interior of the     */
-/*  mesh, often no neighboring subsegments are present.  Such absent         */
-/*  triangles and subsegments are never represented by NULL pointers; they   */
-/*  are represented by two special records:  `dummytri', the triangle that   */
-/*  fills "outer space", and `dummysub', the omnipresent subsegment.         */
-/*  `dummytri' and `dummysub' are used for several reasons; for instance,    */
-/*  they can be dereferenced and their contents examined without violating   */
-/*  protected memory.                                                        */
-/*                                                                           */
-/*  However, it is important to understand that a triangle includes other    */
-/*  information as well.  The pointers to adjoining vertices, triangles, and */
-/*  subsegments are ordered in a way that indicates their geometric relation */
-/*  to each other.  Furthermore, each of these pointers contains orientation */
-/*  information.  Each pointer to an adjoining triangle indicates which face */
-/*  of that triangle is contacted.  Similarly, each pointer to an adjoining  */
-/*  subsegment indicates which side of that subsegment is contacted, and how */
-/*  the subsegment is oriented relative to the triangle.                     */
-/*                                                                           */
-/*  The data structure representing a subsegment may be thought to be        */
-/*  abutting the edge of one or two triangle data structures:  either        */
-/*  sandwiched between two triangles, or resting against one triangle on an  */
-/*  exterior boundary or hole boundary.                                      */
-/*                                                                           */
-/*  A subsegment consists of a list of four vertices--the vertices of the    */
-/*  subsegment, and the vertices of the segment it is a part of--a list of   */
-/*  two adjoining subsegments, and a list of two adjoining triangles.  One   */
-/*  of the two adjoining triangles may not be present (though there should   */
-/*  always be one), and neighboring subsegments might not be present.        */
-/*  Subsegments also store a user-defined integer "boundary marker".         */
-/*  Typically, this integer is used to indicate what boundary conditions are */
-/*  to be applied at that location in a finite element simulation.           */
-/*                                                                           */
-/*  Like triangles, subsegments maintain information about the relative      */
-/*  orientation of neighboring objects.                                      */
-/*                                                                           */
-/*  Vertices are relatively simple.  A vertex is a list of floating-point    */
-/*  numbers, starting with the x, and y coordinates, followed by an          */
-/*  arbitrary number of optional user-defined floating-point attributes,     */
-/*  followed by an integer boundary marker.  During the segment insertion    */
-/*  phase, there is also a pointer from each vertex to a triangle that may   */
-/*  contain it.  Each pointer is not always correct, but when one is, it     */
-/*  speeds up segment insertion.  These pointers are assigned values once    */
-/*  at the beginning of the segment insertion phase, and are not used or     */
-/*  updated except during this phase.  Edge flipping during segment          */
-/*  insertion will render some of them incorrect.  Hence, don't rely upon    */
-/*  them for anything.                                                       */
-/*                                                                           */
-/*  Other than the exception mentioned above, vertices have no information   */
-/*  about what triangles, subfacets, or subsegments they are linked to.      */
-/*                                                                           */
-/*****************************************************************************/
 
-/*****************************************************************************/
-/*                                                                           */
-/*  Handles                                                                  */
-/*                                                                           */
-/*  The oriented triangle (`otri') and oriented subsegment (`osub') data     */
-/*  structures defined below do not themselves store any part of the mesh.   */
-/*  The mesh itself is made of `triangle's, `subseg's, and `vertex's.        */
-/*                                                                           */
-/*  Oriented triangles and oriented subsegments will usually be referred to  */
-/*  as "handles."  A handle is essentially a pointer into the mesh; it       */
-/*  allows you to "hold" one particular part of the mesh.  Handles are used  */
-/*  to specify the regions in which one is traversing and modifying the mesh.*/
-/*  A single `triangle' may be held by many handles, or none at all.  (The   */
-/*  latter case is not a memory leak, because the triangle is still          */
-/*  connected to other triangles in the mesh.)                               */
-/*                                                                           */
-/*  An `otri' is a handle that holds a triangle.  It holds a specific edge   */
-/*  of the triangle.  An `osub' is a handle that holds a subsegment.  It     */
-/*  holds either the left or right side of the subsegment.                   */
-/*                                                                           */
-/*  Navigation about the mesh is accomplished through a set of mesh          */
-/*  manipulation primitives, further below.  Many of these primitives take   */
-/*  a handle and produce a new handle that holds the mesh near the first     */
-/*  handle.  Other primitives take two handles and glue the corresponding    */
-/*  parts of the mesh together.  The orientation of the handles is           */
-/*  important.  For instance, when two triangles are glued together by the   */
-/*  bond() primitive, they are glued at the edges on which the handles lie.  */
-/*                                                                           */
-/*  Because vertices have no information about which triangles they are      */
-/*  attached to, I commonly represent a vertex by use of a handle whose      */
-/*  origin is the vertex.  A single handle can simultaneously represent a    */
-/*  triangle, an edge, and a vertex.                                         */
-/*                                                                           */
-/*****************************************************************************/
+/****************************************************************************
+/*                                                                           
+/*  The basic mesh data structures                                           
+/*                                                                           
+/*  There are three:  vertices, triangles, and subsegments (abbreviated      
+/*  `subseg').  These three data structures, linked by pointers, comprise    
+/*  the mesh.  A vertex simply represents a mesh vertex and its properties.  
+/*  A triangle is a triangle.  A subsegment is a special data structure used 
+/*  to represent an impenetrable edge of the mesh (perhaps on the outer      
+/*  boundary, on the boundary of a hole, or part of an internal boundary     
+/*  separating two triangulated regions).  Subsegments represent boundaries, 
+/*  defined by the user, that triangles may not lie across.                  
+/*                                                                           
+/*  A triangle consists of a list of three vertices, a list of three         
+/*  adjoining triangles, a list of three adjoining subsegments (when         
+/*  segments exist), an arbitrary number of optional user-defined            
+/*  floating-point attributes, and an optional area constraint.  The latter  
+/*  is an upper bound on the permissible area of each triangle in a region,  
+/*  used for mesh refinement.                                                
+/*                                                                           
+/*  For a triangle on a boundary of the mesh, some or all of the neighboring 
+/*  triangles may not be present.  For a triangle in the interior of the     
+/*  mesh, often no neighboring subsegments are present.  Such absent         
+/*  triangles and subsegments are never represented by NULL pointers; they   
+/*  are represented by two special records:  `dummytri', the triangle that   
+/*  fills "outer space", and `dummysub', the omnipresent subsegment.         
+/*  `dummytri' and `dummysub' are used for several reasons; for instance,    
+/*  they can be dereferenced and their contents examined without violating   
+/*  protected memory.                                                        
+/*                                                                           
+/*  However, it is important to understand that a triangle includes other    
+/*  information as well.  The pointers to adjoining vertices, triangles, and 
+/*  subsegments are ordered in a way that indicates their geometric relation 
+/*  to each other.  Furthermore, each of these pointers contains orientation 
+/*  information.  Each pointer to an adjoining triangle indicates which face 
+/*  of that triangle is contacted.  Similarly, each pointer to an adjoining  
+/*  subsegment indicates which side of that subsegment is contacted, and how 
+/*  the subsegment is oriented relative to the triangle.                     
+/*                                                                           
+/*  The data structure representing a subsegment may be thought to be        
+/*  abutting the edge of one or two triangle data structures:  either        
+/*  sandwiched between two triangles, or resting against one triangle on an  
+/*  exterior boundary or hole boundary.                                      
+/*                                                                           
+/*  A subsegment consists of a list of four vertices--the vertices of the    
+/*  subsegment, and the vertices of the segment it is a part of--a list of   
+/*  two adjoining subsegments, and a list of two adjoining triangles.  One   
+/*  of the two adjoining triangles may not be present (though there should   
+/*  always be one), and neighboring subsegments might not be present.        
+/*  Subsegments also store a user-defined integer "boundary marker".         
+/*  Typically, this integer is used to indicate what boundary conditions are 
+/*  to be applied at that location in a finite element simulation.           
+/*                                                                           
+/*  Like triangles, subsegments maintain information about the relative      
+/*  orientation of neighboring objects.                                      
+/*                                                                           
+/*  Vertices are relatively simple.  A vertex is a list of floating-point    
+/*  numbers, starting with the x, and y coordinates, followed by an          
+/*  arbitrary number of optional user-defined floating-point attributes,     
+/*  followed by an integer boundary marker.  During the segment insertion    
+/*  phase, there is also a pointer from each vertex to a triangle that may   
+/*  contain it.  Each pointer is not always correct, but when one is, it     
+/*  speeds up segment insertion.  These pointers are assigned values once    
+/*  at the beginning of the segment insertion phase, and are not used or     
+/*  updated except during this phase.  Edge flipping during segment          
+/*  insertion will render some of them incorrect.  Hence, don't rely upon    
+/*  them for anything.                                                       
+/*                                                                           
+/*  Other than the exception mentioned above, vertices have no information   
+/*  about what triangles, subfacets, or subsegments they are linked to.      
+/*                                                                           
+/****************************************************************************
 
-/* The triangle data structure.  Each triangle contains three pointers to    */
-/*   adjoining triangles, plus three pointers to vertices, plus three        */
-/*   pointers to subsegments (declared below; these pointers are usually     */
-/*   `dummysub').  It may or may not also contain user-defined attributes    */
-/*   and/or a floating-point "area constraint."  It may also contain extra   */
-/*   pointers for nodes, when the user asks for high-order elements.         */
-/*   Because the size and structure of a `triangle' is not decided until     */
+/****************************************************************************
+/*                                                                           
+/*  Handles                                                                  
+/*                                                                           
+/*  The oriented triangle (`otri') and oriented subsegment (`osub') data     
+/*  structures defined below do not themselves store any part of the mesh.   
+/*  The mesh itself is made of `triangle's, `subseg's, and `vertex's.        
+/*                                                                           
+/*  Oriented triangles and oriented subsegments will usually be referred to  
+/*  as "handles."  A handle is essentially a pointer into the mesh; it       
+/*  allows you to "hold" one particular part of the mesh.  Handles are used  
+/*  to specify the regions in which one is traversing and modifying the mesh.
+/*  A single `triangle' may be held by many handles, or none at all.  (The   
+/*  latter case is not a memory leak, because the triangle is still          
+/*  connected to other triangles in the mesh.)                               
+/*                                                                           
+/*  An `otri' is a handle that holds a triangle.  It holds a specific edge   
+/*  of the triangle.  An `osub' is a handle that holds a subsegment.  It     
+/*  holds either the left or right side of the subsegment.                   
+/*                                                                           
+/*  Navigation about the mesh is accomplished through a set of mesh          
+/*  manipulation primitives, further below.  Many of these primitives take   
+/*  a handle and produce a new handle that holds the mesh near the first     
+/*  handle.  Other primitives take two handles and glue the corresponding    
+/*  parts of the mesh together.  The orientation of the handles is           
+/*  important.  For instance, when two triangles are glued together by the   
+/*  bond() primitive, they are glued at the edges on which the handles lie.  
+/*                                                                           
+/*  Because vertices have no information about which triangles they are      
+/*  attached to, I commonly represent a vertex by use of a handle whose      
+/*  origin is the vertex.  A single handle can simultaneously represent a    
+/*  triangle, an edge, and a vertex.                                         
+/*                                                                           
+/****************************************************************************
+
+/* The triangle data structure.  Each triangle contains three pointers to    
+/*   adjoining triangles, plus three pointers to vertices, plus three        
+/*   pointers to subsegments (declared below; these pointers are usually     
+/*   `dummysub').  It may or may not also contain user-defined attributes    
+/*   and/or a floating-point "area constraint."  It may also contain extra   
+/*   pointers for nodes, when the user asks for high-order elements.         
+/*   Because the size and structure of a `triangle' is not decided until     
 /*   runtime, I haven't simply declared the type `triangle' as a struct.     */
+
 
 typedef REAL **triangle;            /* Really:  typedef triangle *triangle   */
 
-/* An oriented triangle:  includes a pointer to a triangle and orientation.  */
-/*   The orientation denotes an edge of the triangle.  Hence, there are      */
-/*   three possible orientations.  By convention, each edge always points    */
+/* An oriented triangle:  includes a pointer to a triangle and orientation.   
+/*   The orientation denotes an edge of the triangle.  Hence, there are       
+/*   three possible orientations.  By convention, each edge always points   
 /*   counterclockwise about the corresponding triangle.                      */
 
 struct otri {
@@ -523,16 +508,16 @@ struct otri {
   int orient;                                         /* Ranges from 0 to 2. */
 };
 
-/* The subsegment data structure.  Each subsegment contains two pointers to  */
-/*   adjoining subsegments, plus four pointers to vertices, plus two         */
-/*   pointers to adjoining triangles, plus one boundary marker, plus one     */
+/* The subsegment data structure.  Each subsegment contains two pointers to  
+/*   adjoining subsegments, plus four pointers to vertices, plus two        
+/*   pointers to adjoining triangles, plus one boundary marker, plus one      
 /*   segment number.                                                         */
 
 typedef REAL **subseg;                  /* Really:  typedef subseg *subseg   */
 
-/* An oriented subsegment:  includes a pointer to a subsegment and an        */
-/*   orientation.  The orientation denotes a side of the edge.  Hence, there */
-/*   are two possible orientations.  By convention, the edge is always       */
+/* An oriented subsegment:  includes a pointer to a subsegment and an       
+/*   orientation.  The orientation denotes a side of the edge.  Hence, there 
+/*   are two possible orientations.  By convention, the edge is always       
 /*   directed so that the "side" denoted is the right side of the edge.      */
 
 struct osub {
@@ -540,14 +525,14 @@ struct osub {
   int ssorient;                                       /* Ranges from 0 to 1. */
 };
 
-/* The vertex data structure.  Each vertex is actually an array of REALs.    */
-/*   The number of REALs is unknown until runtime.  An integer boundary      */
-/*   marker, and sometimes a pointer to a triangle, is appended after the    */
+/* The vertex data structure.  Each vertex is actually an array of REALs.    
+/*   The number of REALs is unknown until runtime.  An integer boundary      
+/*   marker, and sometimes a pointer to a triangle, is appended after the    
 /*   REALs.                                                                  */
 
 typedef REAL *vertex;
 
-/* A queue used to store encroached subsegments.  Each subsegment's vertices */
+/* A queue used to store encroached subsegments.  Each subsegment's vertices  
 /*   are stored so that we can check whether a subsegment is still the same. */
 
 struct badsubseg {
@@ -555,8 +540,8 @@ struct badsubseg {
   vertex subsegorg, subsegdest;                         /* Its two vertices. */
 };
 
-/* A queue used to store bad triangles.  The key is the square of the cosine */
-/*   of the smallest angle of the triangle.  Each triangle's vertices are    */
+/* A queue used to store bad triangles.  The key is the square of the cosine  
+/*   of the smallest angle of the triangle.  Each triangle's vertices are   
 /*   stored so that one can check whether a triangle is still the same.      */
 
 struct badtriang {
@@ -566,8 +551,8 @@ struct badtriang {
   struct badtriang *nexttriang;             /* Pointer to next bad triangle. */
 };
 
-/* A stack of triangles flipped during the most recent vertex insertion.     */
-/*   The stack is used to undo the vertex insertion if the vertex encroaches */
+/* A stack of triangles flipped during the most recent vertex insertion.     
+/*   The stack is used to undo the vertex insertion if the vertex encroaches 
 /*   upon a subsegment.                                                      */
 
 struct flipstacker {
@@ -575,14 +560,14 @@ struct flipstacker {
   struct flipstacker *prevflip;               /* Previous flip in the stack. */
 };
 
-/* A node in a heap used to store events for the sweepline Delaunay          */
-/*   algorithm.  Nodes do not point directly to their parents or children in */
-/*   the heap.  Instead, each node knows its position in the heap, and can   */
-/*   look up its parent and children in a separate array.  The `eventptr'    */
-/*   points either to a `vertex' or to a triangle (in encoded format, so     */
-/*   that an orientation is included).  In the latter case, the origin of    */
-/*   the oriented triangle is the apex of a "circle event" of the sweepline  */
-/*   algorithm.  To distinguish site events from circle events, all circle   */
+/* A node in a heap used to store events for the sweepline Delaunay          
+/*   algorithm.  Nodes do not point directly to their parents or children in 
+/*   the heap.  Instead, each node knows its position in the heap, and can   
+/*   look up its parent and children in a separate array.  The `eventptr'    
+/*   points either to a `vertex' or to a triangle (in encoded format, so     
+/*   that an orientation is included).  In the latter case, the origin of    
+/*   the oriented triangle is the apex of a "circle event" of the sweepline  
+/*   algorithm.  To distinguish site events from circle events, all circle   
 /*   events are given an invalid (smaller than `xmin') x-coordinate `xkey'.  */
 
 struct event {
@@ -591,15 +576,15 @@ struct event {
   int heapposition;              /* Marks this event's position in the heap. */
 };
 
-/* A node in the splay tree.  Each node holds an oriented ghost triangle     */
-/*   that represents a boundary edge of the growing triangulation.  When a   */
-/*   circle event covers two boundary edges with a triangle, so that they    */
-/*   are no longer boundary edges, those edges are not immediately deleted   */
-/*   from the tree; rather, they are lazily deleted when they are next       */
-/*   encountered.  (Since only a random sample of boundary edges are kept    */
-/*   in the tree, lazy deletion is faster.)  `keydest' is used to verify     */
-/*   that a triangle is still the same as when it entered the splay tree; if */
-/*   it has been rotated (due to a circle event), it no longer represents a  */
+/* A node in the splay tree.  Each node holds an oriented ghost triangle     
+/*   that represents a boundary edge of the growing triangulation.  When a   
+/*   circle event covers two boundary edges with a triangle, so that they    
+/*   are no longer boundary edges, those edges are not immediately deleted   
+/*   from the tree; rather, they are lazily deleted when they are next       
+/*   encountered.  (Since only a random sample of boundary edges are kept    
+/*   in the tree, lazy deletion is faster.)  `keydest' is used to verify     
+/*   that a triangle is still the same as when it entered the splay tree; if 
+/*   it has been rotated (due to a circle event), it no longer represents a  
 /*   boundary edge and should be deleted.                                    */
 
 struct splaynode {
@@ -608,27 +593,27 @@ struct splaynode {
   struct splaynode *lchild, *rchild;              /* Children in splay tree. */
 };
 
-/* A type used to allocate memory.  firstblock is the first block of items.  */
-/*   nowblock is the block from which items are currently being allocated.   */
-/*   nextitem points to the next slab of free memory for an item.            */
-/*   deaditemstack is the head of a linked list (stack) of deallocated items */
-/*   that can be recycled.  unallocateditems is the number of items that     */
-/*   remain to be allocated from nowblock.                                   */
-/*                                                                           */
-/* Traversal is the process of walking through the entire list of items, and */
-/*   is separate from allocation.  Note that a traversal will visit items on */
-/*   the "deaditemstack" stack as well as live items.  pathblock points to   */
-/*   the block currently being traversed.  pathitem points to the next item  */
-/*   to be traversed.  pathitemsleft is the number of items that remain to   */
-/*   be traversed in pathblock.                                              */
-/*                                                                           */
-/* alignbytes determines how new records should be aligned in memory.        */
-/*   itembytes is the length of a record in bytes (after rounding up).       */
-/*   itemsperblock is the number of items allocated at once in a single      */
-/*   block.  itemsfirstblock is the number of items in the first block,      */
-/*   which can vary from the others.  items is the number of currently       */
-/*   allocated items.  maxitems is the maximum number of items that have     */
-/*   been allocated at once; it is the current number of items plus the      */
+/* A type used to allocate memory.  firstblock is the first block of items.  
+/*   nowblock is the block from which items are currently being allocated.   
+/*   nextitem points to the next slab of free memory for an item.            
+/*   deaditemstack is the head of a linked list (stack) of deallocated items 
+/*   that can be recycled.  unallocateditems is the number of items that     
+/*   remain to be allocated from nowblock.                                   
+/*                                                                           
+/* Traversal is the process of walking through the entire list of items, and 
+/*   is separate from allocation.  Note that a traversal will visit items on 
+/*   the "deaditemstack" stack as well as live items.  pathblock points to   
+/*   the block currently being traversed.  pathitem points to the next item  
+/*   to be traversed.  pathitemsleft is the number of items that remain to   
+/*   be traversed in pathblock.                                              
+/*                                                                           
+/* alignbytes determines how new records should be aligned in memory.        
+/*   itembytes is the length of a record in bytes (after rounding up).       
+/*   itemsperblock is the number of items allocated at once in a single      
+/*   block.  itemsfirstblock is the number of items in the first block,      
+/*   which can vary from the others.  items is the number of currently       
+/*   allocated items.  maxitems is the maximum number of items that have     
+/*   been allocated at once; it is the current number of items plus the      
 /*   number of records kept on deaditemstack.                                */
 
 struct memorypool {
@@ -666,8 +651,8 @@ unsigned long randomseed;                     /* Current random number seed. */
 
 struct mesh {
 
-/* Variables used to allocate memory for triangles, subsegments, vertices,   */
-/*   viri (triangles being eaten), encroached segments, bad (skinny or too   */
+/* Variables used to allocate memory for triangles, subsegments, vertices,   
+/*   viri (triangles being eaten), encroached segments, bad (skinny or too   
 /*   large) triangles, and splay tree nodes.                                 */
 
   struct memorypool triangles;
@@ -679,7 +664,7 @@ struct mesh {
   struct memorypool flipstackers;
   struct memorypool splaynodes;
 
-/* Variables that maintain the bad triangle queues.  The queues are          */
+/* Variables that maintain the bad triangle queues.  The queues are          
 /*   ordered from 4095 (highest priority) to 0 (lowest priority).            */
 
   struct badtriang *queuefront[4096];
@@ -753,37 +738,37 @@ struct mesh {
 
 struct behavior {
 
-/* Switches for the triangulator.                                            */
-/*   poly: -p switch.  refine: -r switch.                                    */
-/*   quality: -q switch.                                                     */
-/*     minangle: minimum angle bound, specified after -q switch.             */
-/*     goodangle: cosine squared of minangle.                                */
-/*     offconstant: constant used to place off-center Steiner points.        */
-/*   vararea: -a switch without number.                                      */
-/*   fixedarea: -a switch with number.                                       */
-/*     maxarea: maximum area bound, specified after -a switch.               */
-/*   usertest: -u switch.                                                    */
-/*   regionattrib: -A switch.  convex: -c switch.                            */
-/*   weighted: 1 for -w switch, 2 for -W switch.  jettison: -j switch        */
-/*   firstnumber: inverse of -z switch.  All items are numbered starting     */
-/*     from `firstnumber'.                                                   */
-/*   edgesout: -e switch.  voronoi: -v switch.                               */
-/*   neighbors: -n switch.  geomview: -g switch.                             */
-/*   nobound: -B switch.  nopolywritten: -P switch.                          */
-/*   nonodewritten: -N switch.  noelewritten: -E switch.                     */
-/*   noiterationnum: -I switch.  noholes: -O switch.                         */
-/*   noexact: -X switch.                                                     */
-/*   order: element order, specified after -o switch.                        */
-/*   nobisect: count of how often -Y switch is selected.                     */
-/*   steiner: maximum number of Steiner points, specified after -S switch.   */
-/*   incremental: -i switch.  sweepline: -F switch.                          */
-/*   dwyer: inverse of -l switch.                                            */
-/*   splitseg: -s switch.                                                    */
-/*   conformdel: -D switch.  docheck: -C switch.                             */
-/*   quiet: -Q switch.  verbose: count of how often -V switch is selected.   */
-/*   usesegments: -p, -r, -q, or -c switch; determines whether segments are  */
-/*     used at all.                                                          */
-/*                                                                           */
+/* Switches for the triangulator.                                            
+/*   poly: -p switch.  refine: -r switch.                                    
+/*   quality: -q switch.                                                     
+/*     minangle: minimum angle bound, specified after -q switch.             
+/*     goodangle: cosine squared of minangle.                                
+/*     offconstant: constant used to place off-center Steiner points.        
+/*   vararea: -a switch without number.                                      
+/*   fixedarea: -a switch with number.                                       
+/*     maxarea: maximum area bound, specified after -a switch.               
+/*   usertest: -u switch.                                                    
+/*   regionattrib: -A switch.  convex: -c switch.                            
+/*   weighted: 1 for -w switch, 2 for -W switch.  jettison: -j switch        
+/*   firstnumber: inverse of -z switch.  All items are numbered starting     
+/*     from `firstnumber'.                                                   
+/*   edgesout: -e switch.  voronoi: -v switch.                               
+/*   neighbors: -n switch.  geomview: -g switch.                             
+/*   nobound: -B switch.  nopolywritten: -P switch.                          
+/*   nonodewritten: -N switch.  noelewritten: -E switch.                     
+/*   noiterationnum: -I switch.  noholes: -O switch.                         
+/*   noexact: -X switch.                                                     
+/*   order: element order, specified after -o switch.                        
+/*   nobisect: count of how often -Y switch is selected.                     
+/*   steiner: maximum number of Steiner points, specified after -S switch.   
+/*   incremental: -i switch.  sweepline: -F switch.                          
+/*   dwyer: inverse of -l switch.                                            
+/*   splitseg: -s switch.                                                    
+/*   conformdel: -D switch.  docheck: -C switch.                             
+/*   quiet: -Q switch.  verbose: count of how often -V switch is selected.   
+/*   usesegments: -p, -r, -q, or -c switch; determines whether segments are  
+/*     used at all.                                                          
+/*                                                                           
 /* Read the instructions to find out the meaning of these switches.          */
 
   int poly, refine, quality, vararea, fixedarea, usertest;
@@ -823,126 +808,125 @@ struct behavior {
 };                                              /* End of `struct behavior'. */
 
 
-/*****************************************************************************/
-/*                                                                           */
-/*  Mesh manipulation primitives.  Each triangle contains three pointers to  */
-/*  other triangles, with orientations.  Each pointer points not to the      */
-/*  first byte of a triangle, but to one of the first three bytes of a       */
-/*  triangle.  It is necessary to extract both the triangle itself and the   */
-/*  orientation.  To save memory, I keep both pieces of information in one   */
-/*  pointer.  To make this possible, I assume that all triangles are aligned */
-/*  to four-byte boundaries.  The decode() routine below decodes a pointer,  */
-/*  extracting an orientation (in the range 0 to 2) and a pointer to the     */
-/*  beginning of a triangle.  The encode() routine compresses a pointer to a */
-/*  triangle and an orientation into a single pointer.  My assumptions that  */
-/*  triangles are four-byte-aligned and that the `unsigned long' type is     */
-/*  long enough to hold a pointer are two of the few kludges in this program.*/
-/*                                                                           */
-/*  Subsegments are manipulated similarly.  A pointer to a subsegment        */
-/*  carries both an address and an orientation in the range 0 to 1.          */
-/*                                                                           */
-/*  The other primitives take an oriented triangle or oriented subsegment,   */
-/*  and return an oriented triangle or oriented subsegment or vertex; or     */
-/*  they change the connections in the data structure.                       */
-/*                                                                           */
-/*  Below, triangles and subsegments are denoted by their vertices.  The     */
-/*  triangle abc has origin (org) a, destination (dest) b, and apex (apex)   */
-/*  c.  These vertices occur in counterclockwise order about the triangle.   */
-/*  The handle abc may simultaneously denote vertex a, edge ab, and triangle */
-/*  abc.                                                                     */
-/*                                                                           */
-/*  Similarly, the subsegment ab has origin (sorg) a and destination (sdest) */
-/*  b.  If ab is thought to be directed upward (with b directly above a),    */
-/*  then the handle ab is thought to grasp the right side of ab, and may     */
-/*  simultaneously denote vertex a and edge ab.                              */
-/*                                                                           */
-/*  An asterisk (*) denotes a vertex whose identity is unknown.              */
-/*                                                                           */
-/*  Given this notation, a partial list of mesh manipulation primitives      */
-/*  follows.                                                                 */
-/*                                                                           */
-/*                                                                           */
-/*  For triangles:                                                           */
-/*                                                                           */
-/*  sym:  Find the abutting triangle; same edge.                             */
-/*  sym(abc) -> ba*                                                          */
-/*                                                                           */
-/*  lnext:  Find the next edge (counterclockwise) of a triangle.             */
-/*  lnext(abc) -> bca                                                        */
-/*                                                                           */
-/*  lprev:  Find the previous edge (clockwise) of a triangle.                */
-/*  lprev(abc) -> cab                                                        */
-/*                                                                           */
-/*  onext:  Find the next edge counterclockwise with the same origin.        */
-/*  onext(abc) -> ac*                                                        */
-/*                                                                           */
-/*  oprev:  Find the next edge clockwise with the same origin.               */
-/*  oprev(abc) -> a*b                                                        */
-/*                                                                           */
-/*  dnext:  Find the next edge counterclockwise with the same destination.   */
-/*  dnext(abc) -> *ba                                                        */
-/*                                                                           */
-/*  dprev:  Find the next edge clockwise with the same destination.          */
-/*  dprev(abc) -> cb*                                                        */
-/*                                                                           */
-/*  rnext:  Find the next edge (counterclockwise) of the adjacent triangle.  */
-/*  rnext(abc) -> *a*                                                        */
-/*                                                                           */
-/*  rprev:  Find the previous edge (clockwise) of the adjacent triangle.     */
-/*  rprev(abc) -> b**                                                        */
-/*                                                                           */
-/*  org:  Origin          dest:  Destination          apex:  Apex            */
-/*  org(abc) -> a         dest(abc) -> b              apex(abc) -> c         */
-/*                                                                           */
-/*  bond:  Bond two triangles together at the resepective handles.           */
-/*  bond(abc, bad)                                                           */
-/*                                                                           */
-/*                                                                           */
-/*  For subsegments:                                                         */
-/*                                                                           */
-/*  ssym:  Reverse the orientation of a subsegment.                          */
-/*  ssym(ab) -> ba                                                           */
-/*                                                                           */
-/*  spivot:  Find adjoining subsegment with the same origin.                 */
-/*  spivot(ab) -> a*                                                         */
-/*                                                                           */
-/*  snext:  Find next subsegment in sequence.                                */
-/*  snext(ab) -> b*                                                          */
-/*                                                                           */
-/*  sorg:  Origin                      sdest:  Destination                   */
-/*  sorg(ab) -> a                      sdest(ab) -> b                        */
-/*                                                                           */
-/*  sbond:  Bond two subsegments together at the respective origins.         */
-/*  sbond(ab, ac)                                                            */
-/*                                                                           */
-/*                                                                           */
-/*  For interacting tetrahedra and subfacets:                                */
-/*                                                                           */
-/*  tspivot:  Find a subsegment abutting a triangle.                         */
-/*  tspivot(abc) -> ba                                                       */
-/*                                                                           */
-/*  stpivot:  Find a triangle abutting a subsegment.                         */
-/*  stpivot(ab) -> ba*                                                       */
-/*                                                                           */
-/*  tsbond:  Bond a triangle to a subsegment.                                */
-/*  tsbond(abc, ba)                                                          */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  Mesh manipulation primitives.  Each triangle contains three pointers to  
+/*  other triangles, with orientations.  Each pointer points not to the      
+/*  first byte of a triangle, but to one of the first three bytes of a       
+/*  triangle.  It is necessary to extract both the triangle itself and the   
+/*  orientation.  To save memory, I keep both pieces of information in one   
+/*  pointer.  To make this possible, I assume that all triangles are aligned 
+/*  to four-byte boundaries.  The decode() routine below decodes a pointer,  
+/*  extracting an orientation (in the range 0 to 2) and a pointer to the     
+/*  beginning of a triangle.  The encode() routine compresses a pointer to a 
+/*  triangle and an orientation into a single pointer.  My assumptions that  
+/*  triangles are four-byte-aligned and that the `unsigned long' type is     
+/*  long enough to hold a pointer are two of the few kludges in this program.
+/*                                                                           
+/*  Subsegments are manipulated similarly.  A pointer to a subsegment        
+/*  carries both an address and an orientation in the range 0 to 1.          
+/*                                                                           
+/*  The other primitives take an oriented triangle or oriented subsegment,   
+/*  and return an oriented triangle or oriented subsegment or vertex; or     
+/*  they change the connections in the data structure.                       
+/*                                                                           
+/*  Below, triangles and subsegments are denoted by their vertices.  The     
+/*  triangle abc has origin (org) a, destination (dest) b, and apex (apex)   
+/*  c.  These vertices occur in counterclockwise order about the triangle.   
+/*  The handle abc may simultaneously denote vertex a, edge ab, and triangle 
+/*  abc.                                                                     
+/*                                                                           
+/*  Similarly, the subsegment ab has origin (sorg) a and destination (sdest) 
+/*  b.  If ab is thought to be directed upward (with b directly above a),    
+/*  then the handle ab is thought to grasp the right side of ab, and may     
+/*  simultaneously denote vertex a and edge ab.                              
+/*                                                                           
+/*  An asterisk (*) denotes a vertex whose identity is unknown.              
+/*                                                                           
+/*  Given this notation, a partial list of mesh manipulation primitives      
+/*  follows.                                                                 
+/*                                                                           
+/*                                                                           
+/*  For triangles:                                                           
+/*                                                                           
+/*  sym:  Find the abutting triangle; same edge.                             
+/*  sym(abc) -> ba*                                                          
+/*                                                                           
+/*  lnext:  Find the next edge (counterclockwise) of a triangle.             
+/*  lnext(abc) -> bca                                                        
+/*                                                                           
+/*  lprev:  Find the previous edge (clockwise) of a triangle.                
+/*  lprev(abc) -> cab                                                        
+/*                                                                           
+/*  onext:  Find the next edge counterclockwise with the same origin.        
+/*  onext(abc) -> ac*                                                        
+/*                                                                           
+/*  oprev:  Find the next edge clockwise with the same origin.               
+/*  oprev(abc) -> a*b                                                        
+/*                                                                           
+/*  dnext:  Find the next edge counterclockwise with the same destination.   
+/*  dnext(abc) -> *ba                                                        
+/*                                                                           
+/*  dprev:  Find the next edge clockwise with the same destination.          
+/*  dprev(abc) -> cb*                                                        
+/*                                                                           
+/*  rnext:  Find the next edge (counterclockwise) of the adjacent triangle.  
+/*  rnext(abc) -> *a*                                                        
+/*                                                                           
+/*  rprev:  Find the previous edge (clockwise) of the adjacent triangle.     
+/*  rprev(abc) -> b**                                                        
+/*                                                                           
+/*  org:  Origin          dest:  Destination          apex:  Apex            
+/*  org(abc) -> a         dest(abc) -> b              apex(abc) -> c         
+/*                                                                           
+/*  bond:  Bond two triangles together at the resepective handles.           
+/*  bond(abc, bad)                                                           
+/*                                                                           
+/*                                                                           
+/*  For subsegments:                                                         
+/*                                                                           
+/*  ssym:  Reverse the orientation of a subsegment.                          
+/*  ssym(ab) -> ba                                                           
+/*                                                                           
+/*  spivot:  Find adjoining subsegment with the same origin.                 
+/*  spivot(ab) -> a*                                                         
+/*                                                                           
+/*  snext:  Find next subsegment in sequence.                                
+/*  snext(ab) -> b*                                                          
+/*                                                                           
+/*  sorg:  Origin                      sdest:  Destination                   
+/*  sorg(ab) -> a                      sdest(ab) -> b                        
+/*                                                                           
+/*  sbond:  Bond two subsegments together at the respective origins.         
+/*  sbond(ab, ac)                                                            
+/*                                                                           
+/*                                                                           
+/*  For interacting tetrahedra and subfacets:                                
+/*                                                                           
+/*  tspivot:  Find a subsegment abutting a triangle.                         
+/*  tspivot(abc) -> ba                                                       
+/*                                                                           
+/*  stpivot:  Find a triangle abutting a subsegment.                         
+/*  stpivot(ab) -> ba*                                                       
+/*                                                                           
+/*  tsbond:  Bond a triangle to a subsegment.                                
+/*  tsbond(abc, ba)                                                          
+/*                                                                           
 /*****************************************************************************/
 
-/********* Mesh manipulation primitives begin here                   *********/
-/**                                                                         **/
-/**                                                                         **/
+
+/********* Mesh manipulation primitives begin here                   *********/ 
 
 /* Fast lookup arrays to speed some of the mesh manipulation primitives.     */
 
 int plus1mod3[3] = {1, 2, 0};
 int minus1mod3[3] = {2, 0, 1};
 
-/********* Primitives for triangles                                  *********/
-/*                                                                           */
-/*                                                                           */
+/********* Primitives for triangles                                  ********
+/*                                                                           
+/*                                                                           
 
-/* decode() converts a pointer to an oriented triangle.  The orientation is  */
+/* decode() converts a pointer to an oriented triangle.  The orientation is  
 /*   extracted from the two least significant bits of the pointer.           */
 
 #define decode(ptr, otri)                                                     \
@@ -950,19 +934,19 @@ int minus1mod3[3] = {2, 0, 1};
   (otri).tri = (triangle *)                                                   \
                   ((unsigned long) (ptr) ^ (unsigned long) (otri).orient)
 
-/* encode() compresses an oriented triangle into a single pointer.  It       */
-/*   relies on the assumption that all triangles are aligned to four-byte    */
+/* encode() compresses an oriented triangle into a single pointer.  It      
+/*   relies on the assumption that all triangles are aligned to four-byte    
 /*   boundaries, so the two least significant bits of (otri).tri are zero.   */
 
 #define encode(otri)                                                          \
   (triangle) ((unsigned long) (otri).tri | (unsigned long) (otri).orient)
 
-/* The following handle manipulation primitives are all described by Guibas  */
-/*   and Stolfi.  However, Guibas and Stolfi use an edge-based data          */
-/*   structure, whereas I use a triangle-based data structure.               */
+/* The following handle manipulation primitives are all described by Guibas   
+/*   and Stolfi.  However, Guibas and Stolfi use an edge-based data       
+/*   structure, whereas I use a triangle-based data structure.              
 
-/* sym() finds the abutting triangle, on the same edge.  Note that the edge  */
-/*   direction is necessarily reversed, because the handle specified by an   */
+/* sym() finds the abutting triangle, on the same edge.  Note that the edge  
+/*   direction is necessarily reversed, because the handle specified by an    
 /*   oriented triangle is directed counterclockwise around the triangle.     */
 
 #define sym(otri1, otri2)                                                     \
@@ -991,8 +975,8 @@ int minus1mod3[3] = {2, 0, 1};
 #define lprevself(otri)                                                       \
   (otri).orient = minus1mod3[(otri).orient]
 
-/* onext() spins counterclockwise around a vertex; that is, it finds the     */
-/*   next edge with the same origin in the counterclockwise direction.  This */
+/* onext() spins counterclockwise around a vertex; that is, it finds the     
+/*   next edge with the same origin in the counterclockwise direction.  This  
 /*   edge is part of a different triangle.                                   */
 
 #define onext(otri1, otri2)                                                   \
@@ -1003,8 +987,8 @@ int minus1mod3[3] = {2, 0, 1};
   lprevself(otri);                                                            \
   symself(otri);
 
-/* oprev() spins clockwise around a vertex; that is, it finds the next edge  */
-/*   with the same origin in the clockwise direction.  This edge is part of  */
+/* oprev() spins clockwise around a vertex; that is, it finds the next edge 
+/*   with the same origin in the clockwise direction.  This edge is part of   
 /*   a different triangle.                                                   */
 
 #define oprev(otri1, otri2)                                                   \
@@ -1015,8 +999,8 @@ int minus1mod3[3] = {2, 0, 1};
   symself(otri);                                                              \
   lnextself(otri);
 
-/* dnext() spins counterclockwise around a vertex; that is, it finds the     */
-/*   next edge with the same destination in the counterclockwise direction.  */
+/* dnext() spins counterclockwise around a vertex; that is, it finds the   
+/*   next edge with the same destination in the counterclockwise direction.   
 /*   This edge is part of a different triangle.                              */
 
 #define dnext(otri1, otri2)                                                   \
@@ -1027,8 +1011,8 @@ int minus1mod3[3] = {2, 0, 1};
   symself(otri);                                                              \
   lprevself(otri);
 
-/* dprev() spins clockwise around a vertex; that is, it finds the next edge  */
-/*   with the same destination in the clockwise direction.  This edge is     */
+/* dprev() spins clockwise around a vertex; that is, it finds the next edge   
+/*   with the same destination in the clockwise direction.  This edge is     
 /*   part of a different triangle.                                           */
 
 #define dprev(otri1, otri2)                                                   \
@@ -1039,8 +1023,8 @@ int minus1mod3[3] = {2, 0, 1};
   lnextself(otri);                                                            \
   symself(otri);
 
-/* rnext() moves one edge counterclockwise about the adjacent triangle.      */
-/*   (It's best understood by reading Guibas and Stolfi.  It involves        */
+/* rnext() moves one edge counterclockwise about the adjacent triangle.  
+/*   (It's best understood by reading Guibas and Stolfi.  It involves      
 /*   changing triangles twice.)                                              */
 
 #define rnext(otri1, otri2)                                                   \
@@ -1053,8 +1037,8 @@ int minus1mod3[3] = {2, 0, 1};
   lnextself(otri);                                                            \
   symself(otri);
 
-/* rprev() moves one edge clockwise about the adjacent triangle.             */
-/*   (It's best understood by reading Guibas and Stolfi.  It involves        */
+/* rprev() moves one edge clockwise about the adjacent triangle.              
+/*   (It's best understood by reading Guibas and Stolfi.  It involves       
 /*   changing triangles twice.)                                              */
 
 #define rprev(otri1, otri2)                                                   \
@@ -1067,7 +1051,7 @@ int minus1mod3[3] = {2, 0, 1};
   lprevself(otri);                                                            \
   symself(otri);
 
-/* These primitives determine or set the origin, destination, or apex of a   */
+/* These primitives determine or set the origin, destination, or apex of a    
 /* triangle.                                                                 */
 
 #define org(otri, vertexptr)                                                  \
@@ -1094,9 +1078,9 @@ int minus1mod3[3] = {2, 0, 1};
   (otri1).tri[(otri1).orient] = encode(otri2);                                \
   (otri2).tri[(otri2).orient] = encode(otri1)
 
-/* Dissolve a bond (from one side).  Note that the other triangle will still */
-/*   think it's connected to this triangle.  Usually, however, the other     */
-/*   triangle is being deleted entirely, or bonded to another triangle, so   */
+/* Dissolve a bond (from one side).  Note that the other triangle will still  
+/*   think it's connected to this triangle.  Usually, however, the other     
+/*   triangle is being deleted entirely, or bonded to another triangle, so   
 /*   it doesn't matter.                                                      */
 
 #define dissolve(otri)                                                        \
@@ -1114,7 +1098,7 @@ int minus1mod3[3] = {2, 0, 1};
   (((otri1).tri == (otri2).tri) &&                                            \
    ((otri1).orient == (otri2).orient))
 
-/* Primitives to infect or cure a triangle with the virus.  These rely on    */
+/* Primitives to infect or cure a triangle with the virus.  These rely on   
 /*   the assumption that all subsegments are aligned to four-byte boundaries.*/
 
 #define infect(otri)                                                          \
@@ -1145,9 +1129,9 @@ int minus1mod3[3] = {2, 0, 1};
 #define setareabound(otri, value)                                             \
   ((REAL *) (otri).tri)[m->areaboundindex] = value
 
-/* Check or set a triangle's deallocation.  Its second pointer is set to     */
-/*   NULL to indicate that it is not allocated.  (Its first pointer is used  */
-/*   for the stack of dead items.)  Its fourth pointer (its first vertex)    */
+/* Check or set a triangle's deallocation.  Its second pointer is set to    
+/*   NULL to indicate that it is not allocated.  (Its first pointer is used   
+/*   for the stack of dead items.)  Its fourth pointer (its first vertex)     
 /*   is set to NULL in case a `badtriang' structure points to it.            */
 
 #define deadtri(tria)  ((tria)[1] == (triangle) NULL)
@@ -1157,12 +1141,10 @@ int minus1mod3[3] = {2, 0, 1};
   (tria)[3] = (triangle) NULL
 
 /********* Primitives for subsegments                                *********/
-/*                                                                           */
-/*                                                                           */
 
-/* sdecode() converts a pointer to an oriented subsegment.  The orientation  */
-/*   is extracted from the least significant bit of the pointer.  The two    */
-/*   least significant bits (one for orientation, one for viral infection)   */
+/* sdecode() converts a pointer to an oriented subsegment.  The orientation   
+/*   is extracted from the least significant bit of the pointer.  The two    
+/*   least significant bits (one for orientation, one for viral infection)  
 /*   are masked out to produce the real pointer.                             */
 
 #define sdecode(sptr, osub)                                                   \
@@ -1170,8 +1152,8 @@ int minus1mod3[3] = {2, 0, 1};
   (osub).ss = (subseg *)                                                      \
               ((unsigned long) (sptr) & ~ (unsigned long) 3l)
 
-/* sencode() compresses an oriented subsegment into a single pointer.  It    */
-/*   relies on the assumption that all subsegments are aligned to two-byte   */
+/* sencode() compresses an oriented subsegment into a single pointer.  It    
+/*   relies on the assumption that all subsegments are aligned to two-byte  
 /*   boundaries, so the least significant bit of (osub).ss is zero.          */
 
 #define sencode(osub)                                                         \
@@ -1186,7 +1168,7 @@ int minus1mod3[3] = {2, 0, 1};
 #define ssymself(osub)                                                        \
   (osub).ssorient = 1 - (osub).ssorient
 
-/* spivot() finds the other subsegment (from the same segment) that shares   */
+/* spivot() finds the other subsegment (from the same segment) that shares    
 /*   the same origin.                                                        */
 
 #define spivot(osub1, osub2)                                                  \
@@ -1235,8 +1217,8 @@ int minus1mod3[3] = {2, 0, 1};
 #define setsegdest(osub, vertexptr)                                           \
   (osub).ss[5 - (osub).ssorient] = (subseg) vertexptr
 
-/* These primitives read or set a boundary marker.  Boundary markers are     */
-/*   used to hold user-defined tags for setting boundary conditions in       */
+/* These primitives read or set a boundary marker.  Boundary markers are     
+/*   used to hold user-defined tags for setting boundary conditions in       
 /*   finite element solvers.                                                 */
 
 #define mark(osub)  (* (int *) ((osub).ss + 8))
@@ -1250,7 +1232,7 @@ int minus1mod3[3] = {2, 0, 1};
   (osub1).ss[(osub1).ssorient] = sencode(osub2);                              \
   (osub2).ss[(osub2).ssorient] = sencode(osub1)
 
-/* Dissolve a subsegment bond (from one side).  Note that the other          */
+/* Dissolve a subsegment bond (from one side).  Note that the other          
 /*   subsegment will still think it's connected to this subsegment.          */
 
 #define sdissolve(osub)                                                       \
@@ -1268,9 +1250,9 @@ int minus1mod3[3] = {2, 0, 1};
   (((osub1).ss == (osub2).ss) &&                                              \
    ((osub1).ssorient == (osub2).ssorient))
 
-/* Check or set a subsegment's deallocation.  Its second pointer is set to   */
-/*   NULL to indicate that it is not allocated.  (Its first pointer is used  */
-/*   for the stack of dead items.)  Its third pointer (its first vertex)     */
+/* Check or set a subsegment's deallocation.  Its second pointer is set to   
+/*   NULL to indicate that it is not allocated.  (Its first pointer is used  
+/*   for the stack of dead items.)  Its third pointer (its first vertex)     
 /*   is set to NULL in case a `badsubseg' structure points to it.            */
 
 #define deadsubseg(sub)  ((sub)[1] == (subseg) NULL)
@@ -1279,9 +1261,7 @@ int minus1mod3[3] = {2, 0, 1};
   (sub)[1] = (subseg) NULL;                                                   \
   (sub)[2] = (subseg) NULL
 
-/********* Primitives for interacting triangles and subsegments      *********/
-/*                                                                           */
-/*                                                                           */
+/********* Primitives for interacting triangles and subsegments      *********/ 
 
 /* tspivot() finds a subsegment abutting a triangle.                         */
 
@@ -1331,35 +1311,34 @@ int minus1mod3[3] = {2, 0, 1};
 #define setvertex2tri(vx, value)                                              \
   ((triangle *) (vx))[m->vertex2triindex] = value
 
-/**                                                                         **/
-/**                                                                         **/
-/********* Mesh manipulation primitives end here                     *********/
+ 
+/********* Mesh manipulation primitives end here                     ********
 
-/********* User-defined triangle evaluation routine begins here      *********/
-/**                                                                         **/
-/**                                                                         **/
+/********* User-defined triangle evaluation routine begins here      ********
+/**                                                                         *
+/**                                                                         *
 
-/*****************************************************************************/
-/*                                                                           */
-/*  triunsuitable()   Determine if a triangle is unsuitable, and thus must   */
-/*                    be further refined.                                    */
-/*                                                                           */
-/*  You may write your own procedure that decides whether or not a selected  */
-/*  triangle is too big (and needs to be refined).  There are two ways to do */
-/*  this.                                                                    */
-/*                                                                           */
-/*  (1)  Modify the procedure `triunsuitable' below, then recompile          */
-/*  Triangle.                                                                */
-/*                                                                           */
-/*  (2)  Define the symbol EXTERNAL_TEST (either by adding the definition    */
-/*  to this file, or by using the appropriate compiler switch).  This way,   */
-/*  you can compile triangle.c separately from your test.  Write your own    */
-/*  `triunsuitable' procedure in a separate C file (using the same prototype */
-/*  as below).  Compile it and link the object code with triangle.o.         */
-/*                                                                           */
-/*  This procedure returns 1 if the triangle is too large and should be      */
-/*  refined; 0 otherwise.                                                    */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  triunsuitable()   Determine if a triangle is unsuitable, and thus must   
+/*                    be further refined.                                    
+/*                                                                           
+/*  You may write your own procedure that decides whether or not a selected  
+/*  triangle is too big (and needs to be refined).  There are two ways to do 
+/*  this.                                                                    
+/*                                                                           
+/*  (1)  Modify the procedure `triunsuitable' below, then recompile          
+/*  Triangle.                                                                
+/*                                                                           
+/*  (2)  Define the symbol EXTERNAL_TEST (either by adding the definition    
+/*  to this file, or by using the appropriate compiler switch).  This way,   
+/*  you can compile triangle.c separately from your test.  Write your own    
+/*  `triunsuitable' procedure in a separate C file (using the same prototype 
+/*  as below).  Compile it and link the object code with triangle.o.         
+/*                                                                           
+/*  This procedure returns 1 if the triangle is too large and should be      
+/*  refined; 0 otherwise.                                                    
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef EXTERNAL_TEST
@@ -1407,13 +1386,8 @@ REAL area;                                      /* The area of the triangle. */
 
 #endif /* not EXTERNAL_TEST */
 
-/**                                                                         **/
-/**                                                                         **/
-/********* User-defined triangle evaluation routine ends here        *********/
 
 /********* Memory allocation and program exit wrappers begin here    *********/
-/**                                                                         **/
-/**                                                                         **/
 
 #ifdef ANSI_DECLARATORS
 void triexit(int status)
@@ -1455,20 +1429,12 @@ VOID *memptr;
   free(memptr);
 }
 
-/**                                                                         **/
-/**                                                                         **/
-/********* Memory allocation and program exit wrappers end here      *********/
+
 
 /********* User interaction routines begin here                      *********/
-/**                                                                         **/
-/**                                                                         **/
 
-/*****************************************************************************/
-/*                                                                           */
+
 /*  syntax()   Print list of command line switches.                          */
-/*                                                                           */
-/*****************************************************************************/
-
 #ifndef TRILIBRARY
 
 void syntax()
@@ -1543,12 +1509,8 @@ void syntax()
 
 #endif /* not TRILIBRARY */
 
-/*****************************************************************************/
-/*                                                                           */
-/*  info()   Print out complete instructions.                                */
-/*                                                                           */
-/*****************************************************************************/
-
+ 
+/*  info()   Print out complete instructions.                                */ 
 #ifndef TRILIBRARY
 
 void info()
@@ -3266,12 +3228,8 @@ void info()
 
 #endif /* not TRILIBRARY */
 
-/*****************************************************************************/
-/*                                                                           */
-/*  internalerror()   Ask the user to send me the defective product.  Exit.  */
-/*                                                                           */
-/*****************************************************************************/
-
+ 
+/*  internalerror()   Ask the user to send me the defective product.  Exit.  */ 
 void internalerror()
 {
   //printf("  Please report this bug to jrs@cs.berkeley.edu\n");
@@ -3280,12 +3238,9 @@ void internalerror()
   triexit(1);
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  parsecommandline()   Read the command line, identify switches, and set   */
-/*                       up options and file names.                          */
-/*                                                                           */
-/*****************************************************************************/
+ 
+/*  parsecommandline()   Read the command line, identify switches, and set   
+/*                       up options and file names.                          */ 
 
 #ifdef ANSI_DECLARATORS
 void parsecommandline(int argc, char **argv, struct behavior *b)
@@ -3650,23 +3605,23 @@ struct behavior *b;
 #endif /* not TRILIBRARY */
 }
 
-/**                                                                         **/
-/**                                                                         **/
-/********* User interaction routines begin here                      *********/
+/**                                                                         *
+/**                                                                         *
+/********* User interaction routines begin here                      ********
 
-/********* Debugging routines begin here                             *********/
-/**                                                                         **/
-/**                                                                         **/
+/********* Debugging routines begin here                             ********
+/**                                                                         *
+/**                                                                         *
 
-/*****************************************************************************/
-/*                                                                           */
-/*  printtriangle()   Print out the details of an oriented triangle.         */
-/*                                                                           */
-/*  I originally wrote this procedure to simplify debugging; it can be       */
-/*  called directly from the debugger, and presents information about an     */
-/*  oriented triangle in digestible form.  It's also used when the           */
-/*  highest level of verbosity (`-VVV') is specified.                        */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  printtriangle()   Print out the details of an oriented triangle.         
+/*                                                                           
+/*  I originally wrote this procedure to simplify debugging; it can be       
+/*  called directly from the debugger, and presents information about an     
+/*  oriented triangle in digestible form.  It's also used when the           
+/*  highest level of verbosity (`-VVV') is specified.                        
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -3752,15 +3707,15 @@ struct otri *t;
   //}
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  printsubseg()   Print out the details of an oriented subsegment.         */
-/*                                                                           */
-/*  I originally wrote this procedure to simplify debugging; it can be       */
-/*  called directly from the debugger, and presents information about an     */
-/*  oriented subsegment in digestible form.  It's also used when the highest */
-/*  level of verbosity (`-VVV') is specified.                                */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  printsubseg()   Print out the details of an oriented subsegment.         
+/*                                                                           
+/*  I originally wrote this procedure to simplify debugging; it can be       
+/*  called directly from the debugger, and presents information about an     
+/*  oriented subsegment in digestible form.  It's also used when the highest 
+/*  level of verbosity (`-VVV') is specified.                                
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -3840,21 +3795,16 @@ struct osub *s;
     //       printvertex[0], printvertex[1]);
 }
 
-/**                                                                         **/
-/**                                                                         **/
-/********* Debugging routines end here                               *********/
+ 
 
-/********* Memory management routines begin here                     *********/
-/**                                                                         **/
-/**                                                                         **/
+/********* Memory management routines begin here                     *********/ 
 
-/*****************************************************************************/
-/*                                                                           */
-/*  poolzero()   Set all of a pool's fields to zero.                         */
-/*                                                                           */
-/*  This procedure should never be called on a pool that has any memory      */
-/*  allocated to it, as that memory would leak.                              */
-/*                                                                           */
+ 
+/*  poolzero()   Set all of a pool's fields to zero.                         
+/*                                                                           
+/*  This procedure should never be called on a pool that has any memory      
+/*  allocated to it, as that memory would leak.                              
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -3881,14 +3831,14 @@ struct memorypool *pool;
   pool->pathitemsleft = 0;
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  poolrestart()   Deallocate all items in a pool.                          */
-/*                                                                           */
-/*  The pool is returned to its starting state, except that no memory is     */
-/*  freed to the operating system.  Rather, the previously allocated blocks  */
-/*  are ready to be reused.                                                  */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  poolrestart()   Deallocate all items in a pool.                          
+/*                                                                           
+/*  The pool is returned to its starting state, except that no memory is     
+/*  freed to the operating system.  Rather, the previously allocated blocks  
+/*  are ready to be reused.                                                  
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -3918,23 +3868,22 @@ struct memorypool *pool;
   pool->deaditemstack = (VOID *) NULL;
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  poolinit()   Initialize a pool of memory for allocation of items.        */
-/*                                                                           */
-/*  This routine initializes the machinery for allocating items.  A `pool'   */
-/*  is created whose records have size at least `bytecount'.  Items will be  */
-/*  allocated in `itemcount'-item blocks.  Each item is assumed to be a      */
-/*  collection of words, and either pointers or floating-point values are    */
-/*  assumed to be the "primary" word type.  (The "primary" word type is used */
-/*  to determine alignment of items.)  If `alignment' isn't zero, all items  */
-/*  will be `alignment'-byte aligned in memory.  `alignment' must be either  */
-/*  a multiple or a factor of the primary word size; powers of two are safe. */
-/*  `alignment' is normally used to create a few unused bits at the bottom   */
-/*  of each item's pointer, in which information may be stored.              */
-/*                                                                           */
-/*  Don't change this routine unless you understand it.                      */
-/*                                                                           */
+                                                              
+/*  poolinit()   Initialize a pool of memory for allocation of items.        
+/*                                                                           
+/*  This routine initializes the machinery for allocating items.  A `pool'   
+/*  is created whose records have size at least `bytecount'.  Items will be  
+/*  allocated in `itemcount'-item blocks.  Each item is assumed to be a      
+/*  collection of words, and either pointers or floating-point values are    
+/*  assumed to be the "primary" word type.  (The "primary" word type is used 
+/*  to determine alignment of items.)  If `alignment' isn't zero, all items  
+/*  will be `alignment'-byte aligned in memory.  `alignment' must be either  
+/*  a multiple or a factor of the primary word size; powers of two are safe. 
+/*  `alignment' is normally used to create a few unused bits at the bottom   
+/*  of each item's pointer, in which information may be stored.              
+/*                                                                           
+/*  Don't change this routine unless you understand it.                      
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -3979,11 +3928,9 @@ int alignment;
   poolrestart(pool);
 }
 
-/*****************************************************************************/
-/*                                                                           */
+ 
 /*  pooldeinit()   Free to the operating system all memory taken by a pool.  */
-/*                                                                           */
-/*****************************************************************************/
+
 
 #ifdef ANSI_DECLARATORS
 void pooldeinit(struct memorypool *pool)
@@ -4000,11 +3947,8 @@ struct memorypool *pool;
   }
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  poolalloc()   Allocate space for an item.                                */
-/*                                                                           */
-/*****************************************************************************/
+ 
+/*  poolalloc()   Allocate space for an item.                                */ 
 
 #ifdef ANSI_DECLARATORS
 VOID *poolalloc(struct memorypool *pool)
@@ -4061,12 +4005,12 @@ struct memorypool *pool;
   return newitem;
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  pooldealloc()   Deallocate space for an item.                            */
-/*                                                                           */
-/*  The deallocated space is stored in a queue for later reuse.              */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  pooldealloc()   Deallocate space for an item.                            
+/*                                                                           
+/*  The deallocated space is stored in a queue for later reuse.              
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -4084,13 +4028,9 @@ VOID *dyingitem;
   pool->items--;
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  traversalinit()   Prepare to traverse the entire list of items.          */
-/*                                                                           */
-/*  This routine is used in conjunction with traverse().                     */
-/*                                                                           */
-/*****************************************************************************/
+                                    
+//  traversalinit()   Prepare to traverse the entire list of items.   This routine is used in conjunction with traverse().                     
+ 
 
 #ifdef ANSI_DECLARATORS
 void traversalinit(struct memorypool *pool)
@@ -4114,18 +4054,18 @@ struct memorypool *pool;
   pool->pathitemsleft = pool->itemsfirstblock;
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  traverse()   Find the next item in the list.                             */
-/*                                                                           */
-/*  This routine is used in conjunction with traversalinit().  Be forewarned */
-/*  that this routine successively returns all items in the list, including  */
-/*  deallocated ones on the deaditemqueue.  It's up to you to figure out     */
-/*  which ones are actually dead.  Why?  I don't want to allocate extra      */
-/*  space just to demarcate dead items.  It can usually be done more         */
-/*  space-efficiently by a routine that knows something about the structure  */
-/*  of the item.                                                             */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  traverse()   Find the next item in the list.                             
+/*                                                                           
+/*  This routine is used in conjunction with traversalinit().  Be forewarned 
+/*  that this routine successively returns all items in the list, including  
+/*  deallocated ones on the deaditemqueue.  It's up to you to figure out     
+/*  which ones are actually dead.  Why?  I don't want to allocate extra      
+/*  space just to demarcate dead items.  It can usually be done more         
+/*  space-efficiently by a routine that knows something about the structure  
+/*  of the item.                                                             
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -4165,32 +4105,32 @@ struct memorypool *pool;
   return newitem;
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  dummyinit()   Initialize the triangle that fills "outer space" and the   */
-/*                omnipresent subsegment.                                    */
-/*                                                                           */
-/*  The triangle that fills "outer space," called `dummytri', is pointed to  */
-/*  by every triangle and subsegment on a boundary (be it outer or inner) of */
-/*  the triangulation.  Also, `dummytri' points to one of the triangles on   */
-/*  the convex hull (until the holes and concavities are carved), making it  */
-/*  possible to find a starting triangle for point location.                 */
-/*                                                                           */
-/*  The omnipresent subsegment, `dummysub', is pointed to by every triangle  */
-/*  or subsegment that doesn't have a full complement of real subsegments    */
-/*  to point to.                                                             */
-/*                                                                           */
-/*  `dummytri' and `dummysub' are generally required to fulfill only a few   */
-/*  invariants:  their vertices must remain NULL and `dummytri' must always  */
-/*  be bonded (at offset zero) to some triangle on the convex hull of the    */
-/*  mesh, via a boundary edge.  Otherwise, the connections of `dummytri' and */
-/*  `dummysub' may change willy-nilly.  This makes it possible to avoid      */
-/*  writing a good deal of special-case code (in the edge flip, for example) */
-/*  for dealing with the boundary of the mesh, places where no subsegment is */
-/*  present, and so forth.  Other entities are frequently bonded to          */
-/*  `dummytri' and `dummysub' as if they were real mesh entities, with no    */
-/*  harm done.                                                               */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  dummyinit()   Initialize the triangle that fills "outer space" and the   
+/*                omnipresent subsegment.                                    
+/*                                                                           
+/*  The triangle that fills "outer space," called `dummytri', is pointed to  
+/*  by every triangle and subsegment on a boundary (be it outer or inner) of 
+/*  the triangulation.  Also, `dummytri' points to one of the triangles on   
+/*  the convex hull (until the holes and concavities are carved), making it  
+/*  possible to find a starting triangle for point location.                 
+/*                                                                           
+/*  The omnipresent subsegment, `dummysub', is pointed to by every triangle  
+/*  or subsegment that doesn't have a full complement of real subsegments    
+/*  to point to.                                                             
+/*                                                                           
+/*  `dummytri' and `dummysub' are generally required to fulfill only a few   
+/*  invariants:  their vertices must remain NULL and `dummytri' must always  
+/*  be bonded (at offset zero) to some triangle on the convex hull of the    
+/*  mesh, via a boundary edge.  Otherwise, the connections of `dummytri' and 
+/*  `dummysub' may change willy-nilly.  This makes it possible to avoid      
+/*  writing a good deal of special-case code (in the edge flip, for example) 
+/*  for dealing with the boundary of the mesh, places where no subsegment is 
+/*  present, and so forth.  Other entities are frequently bonded to          
+/*  `dummytri' and `dummysub' as if they were real mesh entities, with no    
+/*  harm done.                                                               
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -4263,14 +4203,13 @@ int subsegbytes;
   }
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  initializevertexpool()   Calculate the size of the vertex data structure */
-/*                           and initialize its memory pool.                 */
-/*                                                                           */
-/*  This routine also computes the `vertexmarkindex' and `vertex2triindex'   */
-/*  indices used to find values within each vertex.                          */
-/*                                                                           */
+                                                                
+/*  initializevertexpool()   Calculate the size of the vertex data structure 
+/*                           and initialize its memory pool.                 
+/*                                                                           
+/*  This routine also computes the `vertexmarkindex' and `vertex2triindex'   
+/*  indices used to find values within each vertex.                          
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -4305,15 +4244,15 @@ struct behavior *b;
            sizeof(REAL));
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  initializetrisubpools()   Calculate the sizes of the triangle and        */
-/*                            subsegment data structures and initialize      */
-/*                            their memory pools.                            */
-/*                                                                           */
-/*  This routine also computes the `highorderindex', `elemattribindex', and  */
-/*  `areaboundindex' indices used to find values within each triangle.       */
-/*                                                                           */
+
+
+/*  initializetrisubpools()   Calculate the sizes of the triangle and        
+/*                            subsegment data structures and initialize      
+/*                            their memory pools.                            
+/*                                                                           
+/*  This routine also computes the `highorderindex', `elemattribindex', and  
+/*  `areaboundindex' indices used to find values within each triangle.       
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -4376,12 +4315,8 @@ struct behavior *b;
     dummyinit(m, b, m->triangles.itembytes, 0);
   }
 }
-
-/*****************************************************************************/
-/*                                                                           */
-/*  triangledealloc()   Deallocate space for a triangle, marking it dead.    */
-/*                                                                           */
-/*****************************************************************************/
+ 
+/*  triangledealloc()   Deallocate space for a triangle, marking it dead.    */ 
 
 #ifdef ANSI_DECLARATORS
 void triangledealloc(struct mesh *m, triangle *dyingtriangle)
@@ -4397,12 +4332,8 @@ triangle *dyingtriangle;
   killtri(dyingtriangle);
   pooldealloc(&m->triangles, (VOID *) dyingtriangle);
 }
-
-/*****************************************************************************/
-/*                                                                           */
-/*  triangletraverse()   Traverse the triangles, skipping dead ones.         */
-/*                                                                           */
-/*****************************************************************************/
+ 
+/*  triangletraverse()   Traverse the triangles, skipping dead ones.         */  
 
 #ifdef ANSI_DECLARATORS
 triangle *triangletraverse(struct mesh *m)
@@ -4422,12 +4353,8 @@ struct mesh *m;
   } while (deadtri(newtriangle));                         /* Skip dead ones. */
   return newtriangle;
 }
-
-/*****************************************************************************/
-/*                                                                           */
-/*  subsegdealloc()   Deallocate space for a subsegment, marking it dead.    */
-/*                                                                           */
-/*****************************************************************************/
+ 
+/*  subsegdealloc()   Deallocate space for a subsegment, marking it dead.    */ 
 
 #ifdef ANSI_DECLARATORS
 void subsegdealloc(struct mesh *m, subseg *dyingsubseg)
@@ -4443,12 +4370,9 @@ subseg *dyingsubseg;
   killsubseg(dyingsubseg);
   pooldealloc(&m->subsegs, (VOID *) dyingsubseg);
 }
+ 
 
-/*****************************************************************************/
-/*                                                                           */
-/*  subsegtraverse()   Traverse the subsegments, skipping dead ones.         */
-/*                                                                           */
-/*****************************************************************************/
+/*  subsegtraverse()   Traverse the subsegments, skipping dead ones.         */ 
 
 #ifdef ANSI_DECLARATORS
 subseg *subsegtraverse(struct mesh *m)
@@ -4468,12 +4392,8 @@ struct mesh *m;
   } while (deadsubseg(newsubseg));                        /* Skip dead ones. */
   return newsubseg;
 }
-
-/*****************************************************************************/
-/*                                                                           */
-/*  vertexdealloc()   Deallocate space for a vertex, marking it dead.        */
-/*                                                                           */
-/*****************************************************************************/
+ 
+/*  vertexdealloc()   Deallocate space for a vertex, marking it dead.        */ 
 
 #ifdef ANSI_DECLARATORS
 void vertexdealloc(struct mesh *m, vertex dyingvertex)
@@ -4489,12 +4409,8 @@ vertex dyingvertex;
   setvertextype(dyingvertex, DEADVERTEX);
   pooldealloc(&m->vertices, (VOID *) dyingvertex);
 }
-
-/*****************************************************************************/
-/*                                                                           */
-/*  vertextraverse()   Traverse the vertices, skipping dead ones.            */
-/*                                                                           */
-/*****************************************************************************/
+ 
+/*  vertextraverse()   Traverse the vertices, skipping dead ones.            */ 
 
 #ifdef ANSI_DECLARATORS
 vertex vertextraverse(struct mesh *m)
@@ -4514,13 +4430,8 @@ struct mesh *m;
   } while (vertextype(newvertex) == DEADVERTEX);          /* Skip dead ones. */
   return newvertex;
 }
-
-/*****************************************************************************/
-/*                                                                           */
-/*  badsubsegdealloc()   Deallocate space for a bad subsegment, marking it   */
-/*                       dead.                                               */
-/*                                                                           */
-/*****************************************************************************/
+ 
+/*  badsubsegdealloc()   Deallocate space for a bad subsegment, marking it   */ 
 
 #ifndef CDT_ONLY
 
@@ -4540,12 +4451,8 @@ struct badsubseg *dyingseg;
 }
 
 #endif /* not CDT_ONLY */
-
-/*****************************************************************************/
-/*                                                                           */
-/*  badsubsegtraverse()   Traverse the bad subsegments, skipping dead ones.  */
-/*                                                                           */
-/*****************************************************************************/
+ 
+/*  badsubsegtraverse()   Traverse the bad subsegments, skipping dead ones.  */ 
 
 #ifndef CDT_ONLY
 
@@ -4570,16 +4477,16 @@ struct mesh *m;
 
 #endif /* not CDT_ONLY */
 
-/*****************************************************************************/
-/*                                                                           */
-/*  getvertex()   Get a specific vertex, by number, from the list.           */
-/*                                                                           */
-/*  The first vertex is number 'firstnumber'.                                */
-/*                                                                           */
-/*  Note that this takes O(n) time (with a small constant, if VERTEXPERBLOCK */
-/*  is large).  I don't care to take the trouble to make it work in constant */
-/*  time.                                                                    */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  getvertex()   Get a specific vertex, by number, from the list.           
+/*                                                                           
+/*  The first vertex is number 'firstnumber'.                                
+/*                                                                           
+/*  Note that this takes O(n) time (with a small constant, if VERTEXPERBLOCK 
+/*  is large).  I don't care to take the trouble to make it work in constant 
+/*  time.                                                                    
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -4617,11 +4524,8 @@ int number;
   return (vertex) (foundvertex + m->vertices.itembytes * (number - current));
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  triangledeinit()   Free all remaining allocated memory.                  */
-/*                                                                           */
-/*****************************************************************************/
+ 
+//  triangledeinit()   Free all remaining allocated memory.                  */ 
 
 #ifdef ANSI_DECLARATORS
 void triangledeinit(struct mesh *m, struct behavior *b)
@@ -4649,20 +4553,12 @@ struct behavior *b;
   }
 #endif /* not CDT_ONLY */
 }
+ 
 
-/**                                                                         **/
-/**                                                                         **/
-/********* Memory management routines end here                       *********/
+/********* Constructors begin here                                   *********/ 
 
-/********* Constructors begin here                                   *********/
-/**                                                                         **/
-/**                                                                         **/
-
-/*****************************************************************************/
-/*                                                                           */
-/*  maketriangle()   Create a new triangle with orientation zero.            */
-/*                                                                           */
-/*****************************************************************************/
+ 
+//  maketriangle()   Create a new triangle with orientation zero.           
 
 #ifdef ANSI_DECLARATORS
 void maketriangle(struct mesh *m, struct behavior *b, struct otri *newotri)
@@ -4702,12 +4598,8 @@ struct otri *newotri;
   newotri->orient = 0;
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  makesubseg()   Create a new subsegment with orientation zero.            */
-/*                                                                           */
-/*****************************************************************************/
-
+ 
+// makesubseg()   Create a new subsegment with orientation zero.            */ 
 #ifdef ANSI_DECLARATORS
 void makesubseg(struct mesh *m, struct osub *newsubseg)
 #else /* not ANSI_DECLARATORS */
@@ -4736,41 +4628,38 @@ struct osub *newsubseg;
   newsubseg->ssorient = 0;
 }
 
-/**                                                                         **/
-/**                                                                         **/
-/********* Constructors end here                                     *********/
+ 
+
 
 /********* Geometric primitives begin here                           *********/
-/**                                                                         **/
-/**                                                                         **/
+ 
 
-/* The adaptive exact arithmetic geometric predicates implemented herein are */
-/*   described in detail in my paper, "Adaptive Precision Floating-Point     */
-/*   Arithmetic and Fast Robust Geometric Predicates."  See the header for a */
-/*   full citation.                                                          */
+/* The adaptive exact arithmetic geometric predicates implemented herein are 
+/*   described in detail in my paper, "Adaptive Precision Floating-Point     
+/*   Arithmetic and Fast Robust Geometric Predicates."  See the header for a 
+/*   full citation.                                                          
 
-/* Which of the following two methods of finding the absolute values is      */
-/*   fastest is compiler-dependent.  A few compilers can inline and optimize */
-/*   the fabs() call; but most will incur the overhead of a function call,   */
-/*   which is disastrously slow.  A faster way on IEEE machines might be to  */
-/*   mask the appropriate bit, but that's difficult to do in C without       */
-/*   forcing the value to be stored to memory (rather than be kept in the    */
+/* Which of the following two methods of finding the absolute values is      
+/*   fastest is compiler-dependent.  A few compilers can inline and optimize 
+/*   the fabs() call; but most will incur the overhead of a function call,   
+/*   which is disastrously slow.  A faster way on IEEE machines might be to  
+/*   mask the appropriate bit, but that's difficult to do in C without       
+/*   forcing the value to be stored to memory (rather than be kept in the    
 /*   register to which the optimizer assigned it).                           */
 
-#define Absolute(a)  ((a) >= 0.0 ? (a) : -(a))
-/* #define Absolute(a)  fabs(a) */
+#define Absolute(a)  ((a) >= 0.0 ? (a) : -(a)) 
 
-/* Many of the operations are broken up into two pieces, a main part that    */
-/*   performs an approximate operation, and a "tail" that computes the       */
-/*   roundoff error of that operation.                                       */
-/*                                                                           */
-/* The operations Fast_Two_Sum(), Fast_Two_Diff(), Two_Sum(), Two_Diff(),    */
-/*   Split(), and Two_Product() are all implemented as described in the      */
-/*   reference.  Each of these macros requires certain variables to be       */
-/*   defined in the calling routine.  The variables `bvirt', `c', `abig',    */
-/*   `_i', `_j', `_k', `_l', `_m', and `_n' are declared `INEXACT' because   */
-/*   they store the result of an operation that may incur roundoff error.    */
-/*   The input parameter `x' (or the highest numbered `x_' parameter) must   */
+/* Many of the operations are broken up into two pieces, a main part that    
+/*   performs an approximate operation, and a "tail" that computes the       
+/*   roundoff error of that operation.                                       
+/*                                                                           
+/* The operations Fast_Two_Sum(), Fast_Two_Diff(), Two_Sum(), Two_Diff(),    
+/*   Split(), and Two_Product() are all implemented as described in the      
+/*   reference.  Each of these macros requires certain variables to be       
+/*   defined in the calling routine.  The variables `bvirt', `c', `abig',    
+/*   `_i', `_j', `_k', `_l', `_m', and `_n' are declared `INEXACT' because   
+/*   they store the result of an operation that may incur roundoff error.    
+/*   The input parameter `x' (or the highest numbered `x_' parameter) must   
 /*   also be declared `INEXACT'.                                             */
 
 #define Fast_Two_Sum_Tail(a, b, x, y) \
@@ -4821,8 +4710,7 @@ struct osub *newsubseg;
   x = (REAL) (a * b); \
   Two_Product_Tail(a, b, x, y)
 
-/* Two_Product_Presplit() is Two_Product() where one of the inputs has       */
-/*   already been split.  Avoids redundant splitting.                        */
+// Two_Product_Presplit() is Two_Product() where one of the inputs has already been split.  Avoids redundant splitting.                        */
 
 #define Two_Product_Presplit(a, b, bhi, blo, x, y) \
   x = (REAL) (a * b); \
@@ -4844,8 +4732,7 @@ struct osub *newsubseg;
   x = (REAL) (a * a); \
   Square_Tail(a, x, y)
 
-/* Macros for summing expansions of various fixed lengths.  These are all    */
-/*   unrolled versions of Expansion_Sum().                                   */
+// Macros for summing expansions of various fixed lengths.  These are all unrolled versions of Expansion_Sum().                       
 
 #define Two_One_Sum(a1, a0, b, x2, x1, x0) \
   Two_Sum(a0, b , _i, x0); \
@@ -4872,23 +4759,23 @@ struct osub *newsubseg;
   Two_Sum(_i, _0, _k, x1); \
   Fast_Two_Sum(_j, _k, x3, x2)
 
-/*****************************************************************************/
-/*                                                                           */
-/*  exactinit()   Initialize the variables used for exact arithmetic.        */
-/*                                                                           */
-/*  `epsilon' is the largest power of two such that 1.0 + epsilon = 1.0 in   */
-/*  floating-point arithmetic.  `epsilon' bounds the relative roundoff       */
-/*  error.  It is used for floating-point error analysis.                    */
-/*                                                                           */
-/*  `splitter' is used to split floating-point numbers into two half-        */
-/*  length significands for exact multiplication.                            */
-/*                                                                           */
-/*  I imagine that a highly optimizing compiler might be too smart for its   */
-/*  own good, and somehow cause this routine to fail, if it pretends that    */
-/*  floating-point arithmetic is too much like real arithmetic.              */
-/*                                                                           */
-/*  Don't change this routine unless you fully understand it.                */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  exactinit()   Initialize the variables used for exact arithmetic.        
+/*                                                                           
+/*  `epsilon' is the largest power of two such that 1.0 + epsilon = 1.0 in   
+/*  floating-point arithmetic.  `epsilon' bounds the relative roundoff       
+/*  error.  It is used for floating-point error analysis.                    
+/*                                                                           
+/*  `splitter' is used to split floating-point numbers into two half-        
+/*  length significands for exact multiplication.                            
+/*                                                                           
+/*  I imagine that a highly optimizing compiler might be too smart for its   
+/*  own good, and somehow cause this routine to fail, if it pretends that    
+/*  floating-point arithmetic is too much like real arithmetic.              
+/*                                                                           
+/*  Don't change this routine unless you fully understand it.                
+/*                                                                           
 /*****************************************************************************/
 
 void exactinit()
@@ -4950,18 +4837,18 @@ void exactinit()
   o3derrboundC = (26.0 + 288.0 * epsilon) * epsilon * epsilon;
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  fast_expansion_sum_zeroelim()   Sum two expansions, eliminating zero     */
-/*                                  components from the output expansion.    */
-/*                                                                           */
-/*  Sets h = e + f.  See my Robust Predicates paper for details.             */
-/*                                                                           */
-/*  If round-to-even is used (as with IEEE 754), maintains the strongly      */
-/*  nonoverlapping property.  (That is, if e is strongly nonoverlapping, h   */
-/*  will be also.)  Does NOT maintain the nonoverlapping or nonadjacent      */
-/*  properties.                                                              */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  fast_expansion_sum_zeroelim()   Sum two expansions, eliminating zero     
+/*                                  components from the output expansion.    
+/*                                                                           
+/*  Sets h = e + f.  See my Robust Predicates paper for details.             
+/*                                                                           
+/*  If round-to-even is used (as with IEEE 754), maintains the strongly      
+/*  nonoverlapping property.  (That is, if e is strongly nonoverlapping, h   
+/*  will be also.)  Does NOT maintain the nonoverlapping or nonadjacent      
+/*  properties.                                                              
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -5043,19 +4930,20 @@ REAL *h;
   return hindex;
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  scale_expansion_zeroelim()   Multiply an expansion by a scalar,          */
-/*                               eliminating zero components from the        */
-/*                               output expansion.                           */
-/*                                                                           */
-/*  Sets h = be.  See my Robust Predicates paper for details.                */
-/*                                                                           */
-/*  Maintains the nonoverlapping property.  If round-to-even is used (as     */
-/*  with IEEE 754), maintains the strongly nonoverlapping and nonadjacent    */
-/*  properties as well.  (That is, if e has one of these properties, so      */
-/*  will h.)                                                                 */
-/*                                                                           */
+
+/****************************************************************************
+/*                                                                           
+/*  scale_expansion_zeroelim()   Multiply an expansion by a scalar,          
+/*                               eliminating zero components from the        
+/*                               output expansion.                           
+/*                                                                           
+/*  Sets h = be.  See my Robust Predicates paper for details.                
+/*                                                                           
+/*  Maintains the nonoverlapping property.  If round-to-even is used (as     
+/*  with IEEE 754), maintains the strongly nonoverlapping and nonadjacent    
+/*  properties as well.  (That is, if e has one of these properties, so      
+/*  will h.)                                                                 
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -5106,14 +4994,8 @@ REAL *h;
   return hindex;
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  estimate()   Produce a one-word estimate of an expansion's value.        */
-/*                                                                           */
-/*  See my Robust Predicates paper for details.                              */
-/*                                                                           */
-/*****************************************************************************/
 
+//  estimate()   Produce a one-word estimate of an expansion's value.   See my Robust Predicates paper for details.         
 #ifdef ANSI_DECLARATORS
 REAL estimate(int elen, REAL *e)
 #else /* not ANSI_DECLARATORS */
@@ -5133,24 +5015,24 @@ REAL *e;
   return Q;
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  counterclockwise()   Return a positive value if the points pa, pb, and   */
-/*                       pc occur in counterclockwise order; a negative      */
-/*                       value if they occur in clockwise order; and zero    */
-/*                       if they are collinear.  The result is also a rough  */
-/*                       approximation of twice the signed area of the       */
-/*                       triangle defined by the three points.               */
-/*                                                                           */
-/*  Uses exact arithmetic if necessary to ensure a correct answer.  The      */
-/*  result returned is the determinant of a matrix.  This determinant is     */
-/*  computed adaptively, in the sense that exact arithmetic is used only to  */
-/*  the degree it is needed to ensure that the returned value has the        */
-/*  correct sign.  Hence, this function is usually quite fast, but will run  */
-/*  more slowly when the input points are collinear or nearly so.            */
-/*                                                                           */
-/*  See my Robust Predicates paper for details.                              */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  counterclockwise()   Return a positive value if the points pa, pb, and   
+/*                       pc occur in counterclockwise order; a negative      
+/*                       value if they occur in clockwise order; and zero    
+/*                       if they are collinear.  The result is also a rough  
+/*                       approximation of twice the signed area of the       
+/*                       triangle defined by the three points.               
+/*                                                                           
+/*  Uses exact arithmetic if necessary to ensure a correct answer.  The      
+/*  result returned is the determinant of a matrix.  This determinant is     
+/*  computed adaptively, in the sense that exact arithmetic is used only to  
+/*  the degree it is needed to ensure that the returned value has the        
+/*  correct sign.  Hence, this function is usually quite fast, but will run  
+/*  more slowly when the input points are collinear or nearly so.            
+/*                                                                           
+/*  See my Robust Predicates paper for details.                              
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -5292,23 +5174,23 @@ vertex pc;
   return counterclockwiseadapt(pa, pb, pc, detsum);
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  incircle()   Return a positive value if the point pd lies inside the     */
-/*               circle passing through pa, pb, and pc; a negative value if  */
-/*               it lies outside; and zero if the four points are cocircular.*/
-/*               The points pa, pb, and pc must be in counterclockwise       */
-/*               order, or the sign of the result will be reversed.          */
-/*                                                                           */
-/*  Uses exact arithmetic if necessary to ensure a correct answer.  The      */
-/*  result returned is the determinant of a matrix.  This determinant is     */
-/*  computed adaptively, in the sense that exact arithmetic is used only to  */
-/*  the degree it is needed to ensure that the returned value has the        */
-/*  correct sign.  Hence, this function is usually quite fast, but will run  */
-/*  more slowly when the input points are cocircular or nearly so.           */
-/*                                                                           */
-/*  See my Robust Predicates paper for details.                              */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  incircle()   Return a positive value if the point pd lies inside the     
+/*               circle passing through pa, pb, and pc; a negative value if  
+/*               it lies outside; and zero if the four points are cocircular.
+/*               The points pa, pb, and pc must be in counterclockwise       
+/*               order, or the sign of the result will be reversed.          
+/*                                                                           
+/*  Uses exact arithmetic if necessary to ensure a correct answer.  The      
+/*  result returned is the determinant of a matrix.  This determinant is     
+/*  computed adaptively, in the sense that exact arithmetic is used only to  
+/*  the degree it is needed to ensure that the returned value has the        
+/*  correct sign.  Hence, this function is usually quite fast, but will run  
+/*  more slowly when the input points are cocircular or nearly so.           
+/*                                                                           
+/*  See my Robust Predicates paper for details.                              
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -5950,26 +5832,27 @@ vertex pd;
   return incircleadapt(pa, pb, pc, pd, permanent);
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  orient3d()   Return a positive value if the point pd lies below the      */
-/*               plane passing through pa, pb, and pc; "below" is defined so */
-/*               that pa, pb, and pc appear in counterclockwise order when   */
-/*               viewed from above the plane.  Returns a negative value if   */
-/*               pd lies above the plane.  Returns zero if the points are    */
-/*               coplanar.  The result is also a rough approximation of six  */
-/*               times the signed volume of the tetrahedron defined by the   */
-/*               four points.                                                */
-/*                                                                           */
-/*  Uses exact arithmetic if necessary to ensure a correct answer.  The      */
-/*  result returned is the determinant of a matrix.  This determinant is     */
-/*  computed adaptively, in the sense that exact arithmetic is used only to  */
-/*  the degree it is needed to ensure that the returned value has the        */
-/*  correct sign.  Hence, this function is usually quite fast, but will run  */
-/*  more slowly when the input points are coplanar or nearly so.             */
-/*                                                                           */
-/*  See my Robust Predicates paper for details.                              */
-/*                                                                           */
+
+/****************************************************************************
+/*                                                                           
+/*  orient3d()   Return a positive value if the point pd lies below the      
+/*               plane passing through pa, pb, and pc; "below" is defined so 
+/*               that pa, pb, and pc appear in counterclockwise order when   
+/*               viewed from above the plane.  Returns a negative value if   
+/*               pd lies above the plane.  Returns zero if the points are    
+/*               coplanar.  The result is also a rough approximation of six  
+/*               times the signed volume of the tetrahedron defined by the   
+/*               four points.                                                
+/*                                                                           
+/*  Uses exact arithmetic if necessary to ensure a correct answer.  The      
+/*  result returned is the determinant of a matrix.  This determinant is     
+/*  computed adaptively, in the sense that exact arithmetic is used only to  
+/*  the degree it is needed to ensure that the returned value has the        
+/*  correct sign.  Hence, this function is usually quite fast, but will run  
+/*  more slowly when the input points are coplanar or nearly so.             
+/*                                                                           
+/*  See my Robust Predicates paper for details.                              
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -6462,22 +6345,22 @@ REAL dheight;
                        permanent);
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  nonregular()   Return a positive value if the point pd is incompatible   */
-/*                 with the circle or plane passing through pa, pb, and pc   */
-/*                 (meaning that pd is inside the circle or below the        */
-/*                 plane); a negative value if it is compatible; and zero if */
-/*                 the four points are cocircular/coplanar.  The points pa,  */
-/*                 pb, and pc must be in counterclockwise order, or the sign */
-/*                 of the result will be reversed.                           */
-/*                                                                           */
-/*  If the -w switch is used, the points are lifted onto the parabolic       */
-/*  lifting map, then they are dropped according to their weights, then the  */
-/*  3D orientation test is applied.  If the -W switch is used, the points'   */
-/*  heights are already provided, so the 3D orientation test is applied      */
-/*  directly.  If neither switch is used, the incircle test is applied.      */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  nonregular()   Return a positive value if the point pd is incompatible   
+/*                 with the circle or plane passing through pa, pb, and pc   
+/*                 (meaning that pd is inside the circle or below the        
+/*                 plane); a negative value if it is compatible; and zero if 
+/*                 the four points are cocircular/coplanar.  The points pa,  
+/*                 pb, and pc must be in counterclockwise order, or the sign 
+/*                 of the result will be reversed.                           
+/*                                                                           
+/*  If the -w switch is used, the points are lifted onto the parabolic       
+/*  lifting map, then they are dropped according to their weights, then the  
+/*  3D orientation test is applied.  If the -W switch is used, the points'   
+/*  heights are already provided, so the 3D orientation test is applied      
+/*  directly.  If neither switch is used, the incircle test is applied.      
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -6507,18 +6390,18 @@ vertex pd;
   }
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  findcircumcenter()   Find the circumcenter of a triangle.                */
-/*                                                                           */
-/*  The result is returned both in terms of x-y coordinates and xi-eta       */
-/*  (barycentric) coordinates.  The xi-eta coordinate system is defined in   */
-/*  terms of the triangle:  the origin of the triangle is the origin of the  */
-/*  coordinate system; the destination of the triangle is one unit along the */
-/*  xi axis; and the apex of the triangle is one unit along the eta axis.    */
-/*  This procedure also returns the square of the length of the triangle's   */
-/*  shortest edge.                                                           */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  findcircumcenter()   Find the circumcenter of a triangle.                
+/*                                                                           
+/*  The result is returned both in terms of x-y coordinates and xi-eta       
+/*  (barycentric) coordinates.  The xi-eta coordinate system is defined in   
+/*  terms of the triangle:  the origin of the triangle is the origin of the  
+/*  coordinate system; the destination of the triangle is one unit along the 
+/*  xi axis; and the apex of the triangle is one unit along the eta axis.    
+/*  This procedure also returns the square of the length of the triangle's   
+/*  shortest edge.                                                           
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -6625,15 +6508,9 @@ int offcenter;
   *eta = (xdo * dy - ydo * dx) * (2.0 * denominator);
 }
 
-/**                                                                         **/
-/**                                                                         **/
-/********* Geometric primitives end here                             *********/
-
-/*****************************************************************************/
-/*                                                                           */
-/*  triangleinit()   Initialize some variables.                              */
-/*                                                                           */
-/*****************************************************************************/
+ 
+ 
+// triangleinit()   Initialize some variables. 
 
 #ifdef ANSI_DECLARATORS
 void triangleinit(struct mesh *m)
@@ -6664,16 +6541,14 @@ struct mesh *m;
   exactinit();                     /* Initialize exact arithmetic constants. */
 }
 
+ 
+/*  randomnation()   Generate a random number between 0 and `choices' - 1.   
+/*                                                                           
+/*  This is a simple linear congruential random number generator.  Hence, it 
+/*  is a bad random number generator, but good enough for most randomized    
+/*  geometric algorithms.                                                    
+/*                                                                           
 /*****************************************************************************/
-/*                                                                           */
-/*  randomnation()   Generate a random number between 0 and `choices' - 1.   */
-/*                                                                           */
-/*  This is a simple linear congruential random number generator.  Hence, it */
-/*  is a bad random number generator, but good enough for most randomized    */
-/*  geometric algorithms.                                                    */
-/*                                                                           */
-/*****************************************************************************/
-
 #ifdef ANSI_DECLARATORS
 unsigned long randomnation(unsigned int choices)
 #else /* not ANSI_DECLARATORS */
@@ -6686,16 +6561,10 @@ unsigned int choices;
   return randomseed / (714025l / choices + 1);
 }
 
-/********* Mesh quality testing routines begin here                  *********/
-/**                                                                         **/
-/**                                                                         **/
+/********* Mesh quality testing routines begin here                  *********/ 
 
-/*****************************************************************************/
-/*                                                                           */
-/*  checkmesh()   Test the mesh for topological consistency.                 */
-/*                                                                           */
-/*****************************************************************************/
-
+ 
+//  checkmesh()   Test the mesh for topological consistency.   
 #ifndef REDUCED
 
 #ifdef ANSI_DECLARATORS
@@ -6787,14 +6656,10 @@ struct behavior *b;
   b->noexact = saveexact;
 }
 
-#endif /* not REDUCED */
+#endif  
 
-/*****************************************************************************/
-/*                                                                           */
-/*  checkdelaunay()   Ensure that the mesh is (constrained) Delaunay.        */
-/*                                                                           */
-/*****************************************************************************/
-
+ 
+// checkdelaunay()   Ensure that the mesh is (constrained) Delaunay.       
 #ifndef REDUCED
 
 #ifdef ANSI_DECLARATORS
@@ -6892,17 +6757,16 @@ struct behavior *b;
   b->noexact = saveexact;
 }
 
-#endif /* not REDUCED */
+#endif  
 
-/*****************************************************************************/
-/*                                                                           */
-/*  enqueuebadtriang()   Add a bad triangle data structure to the end of a   */
-/*                       queue.                                              */
-/*                                                                           */
-/*  The queue is actually a set of 4096 queues.  I use multiple queues to    */
-/*  give priority to smaller angles.  I originally implemented a heap, but   */
-/*  the queues are faster by a larger margin than I'd suspected.             */
-/*                                                                           */
+ 
+/*  enqueuebadtriang()   Add a bad triangle data structure to the end of a   
+/*                       queue.                                              
+/*                                                                           
+/*  The queue is actually a set of 4096 queues.  I use multiple queues to    
+/*  give priority to smaller angles.  I originally implemented a heap, but   
+/*  the queues are faster by a larger margin than I'd suspected.             
+/*                                                                           
 /*****************************************************************************/
 
 #ifndef CDT_ONLY
@@ -7002,14 +6866,11 @@ struct badtriang *badtri;
 
 #endif /* not CDT_ONLY */
 
-/*****************************************************************************/
-/*                                                                           */
-/*  enqueuebadtri()   Add a bad triangle to the end of a queue.              */
-/*                                                                           */
-/*  Allocates a badtriang data structure for the triangle, then passes it to */
-/*  enqueuebadtriang().                                                      */
-/*                                                                           */
-/*****************************************************************************/
+ 
+/*  enqueuebadtri()   Add a bad triangle to the end of a queue.              
+/*                                                                           
+/*  Allocates a badtriang data structure for the triangle, then passes it to 
+/*  enqueuebadtriang().                                                      */ 
 
 #ifndef CDT_ONLY
 
@@ -7042,12 +6903,9 @@ vertex enqdest;
 
 #endif /* not CDT_ONLY */
 
-/*****************************************************************************/
-/*                                                                           */
-/*  dequeuebadtriang()   Remove a triangle from the front of the queue.      */
-/*                                                                           */
-/*****************************************************************************/
-
+ 
+// dequeuebadtriang()   Remove a triangle from the front of the queue.      */
+ 
 #ifndef CDT_ONLY
 
 #ifdef ANSI_DECLARATORS
@@ -7078,27 +6936,26 @@ struct mesh *m;
 
 #endif /* not CDT_ONLY */
 
-/*****************************************************************************/
-/*                                                                           */
-/*  checkseg4encroach()   Check a subsegment to see if it is encroached; add */
-/*                        it to the list if it is.                           */
-/*                                                                           */
-/*  A subsegment is encroached if there is a vertex in its diametral lens.   */
-/*  For Ruppert's algorithm (-D switch), the "diametral lens" is the         */
-/*  diametral circle.  For Chew's algorithm (default), the diametral lens is */
-/*  just big enough to enclose two isosceles triangles whose bases are the   */
-/*  subsegment.  Each of the two isosceles triangles has two angles equal    */
-/*  to `b->minangle'.                                                        */
-/*                                                                           */
-/*  Chew's algorithm does not require diametral lenses at all--but they save */
-/*  time.  Any vertex inside a subsegment's diametral lens implies that the  */
-/*  triangle adjoining the subsegment will be too skinny, so it's only a     */
-/*  matter of time before the encroaching vertex is deleted by Chew's        */
-/*  algorithm.  It's faster to simply not insert the doomed vertex in the    */
-/*  first place, which is why I use diametral lenses with Chew's algorithm.  */
-/*                                                                           */
-/*  Returns a nonzero value if the subsegment is encroached.                 */
-/*                                                                           */
+ 
+/*  checkseg4encroach()   Check a subsegment to see if it is encroached; add 
+/*                        it to the list if it is.                           
+/*                                                                           
+/*  A subsegment is encroached if there is a vertex in its diametral lens.   
+/*  For Ruppert's algorithm (-D switch), the "diametral lens" is the         
+/*  diametral circle.  For Chew's algorithm (default), the diametral lens is 
+/*  just big enough to enclose two isosceles triangles whose bases are the   
+/*  subsegment.  Each of the two isosceles triangles has two angles equal    
+/*  to `b->minangle'.                                                        
+/*                                                                           
+/*  Chew's algorithm does not require diametral lenses at all--but they save 
+/*  time.  Any vertex inside a subsegment's diametral lens implies that the  
+/*  triangle adjoining the subsegment will be too skinny, so it's only a     
+/*  matter of time before the encroaching vertex is deleted by Chew's        
+/*  algorithm.  It's faster to simply not insert the doomed vertex in the    
+/*  first place, which is why I use diametral lenses with Chew's algorithm.  
+/*                                                                           
+/*  Returns a nonzero value if the subsegment is encroached.                 
+/*                                                                           
 /*****************************************************************************/
 
 #ifndef CDT_ONLY
@@ -7204,16 +7061,16 @@ struct osub *testsubseg;
 
 #endif /* not CDT_ONLY */
 
-/*****************************************************************************/
-/*                                                                           */
-/*  testtriangle()   Test a triangle for quality and size.                   */
-/*                                                                           */
-/*  Tests a triangle to see if it satisfies the minimum angle condition and  */
-/*  the maximum area condition.  Triangles that aren't up to spec are added  */
-/*  to the bad triangle queue.                                               */
-/*                                                                           */
-/*****************************************************************************/
 
+/****************************************************************************
+/*                                                                           
+/*  testtriangle()   Test a triangle for quality and size.                   
+/*                                                                           
+/*  Tests a triangle to see if it satisfies the minimum angle condition and  
+/*  the maximum area condition.  Triangles that aren't up to spec are added  
+/*  to the bad triangle queue.                                               
+/*                                                                           
+/*****************************************************************************/
 #ifndef CDT_ONLY
 
 #ifdef ANSI_DECLARATORS
@@ -7380,26 +7237,24 @@ struct otri *testtri;
 
 #endif /* not CDT_ONLY */
 
-/**                                                                         **/
-/**                                                                         **/
-/********* Mesh quality testing routines end here                    *********/
+
 
 /********* Point location routines begin here                        *********/
-/**                                                                         **/
-/**                                                                         **/
 
-/*****************************************************************************/
-/*                                                                           */
-/*  makevertexmap()   Construct a mapping from vertices to triangles to      */
-/*                    improve the speed of point location for segment        */
-/*                    insertion.                                             */
-/*                                                                           */
-/*  Traverses all the triangles, and provides each corner of each triangle   */
-/*  with a pointer to that triangle.  Of course, pointers will be            */
-/*  overwritten by other pointers because (almost) each vertex is a corner   */
-/*  of several triangles, but in the end every vertex will point to some     */
-/*  triangle that contains it.                                               */
-/*                                                                           */
+
+
+/****************************************************************************
+/*                                                                           
+/*  makevertexmap()   Construct a mapping from vertices to triangles to      
+/*                    improve the speed of point location for segment        
+/*                    insertion.                                             
+/*                                                                           
+/*  Traverses all the triangles, and provides each corner of each triangle   
+/*  with a pointer to that triangle.  Of course, pointers will be            
+/*  overwritten by other pointers because (almost) each vertex is a corner   
+/*  of several triangles, but in the end every vertex will point to some     
+/*  triangle that contains it.                                               
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -11276,6 +11131,7 @@ FILE *polyfile;
   if (!b->quiet) {
     //printf("Reconstructing mesh.\n");
   }
+
   /* Allocate a temporary array that maps each vertex to some adjacent */
   /*   triangle.  I took care to allocate all the permanent memory for */
   /*   triangles and subsegments first.                                */
@@ -11545,7 +11401,7 @@ FILE *polyfile;
     }
   }
 
-  /* Mark the remaining edges as not being attached to any subsegment. */
+  /* Mark the remaining edges as not being attached to any subsegment. 
   /* Also, count the (yet uncounted) boundary edges.                   */
   for (i = 0; i < m->vertices.items; i++) {
     /* Search the stack of triangles adjacent to a vertex. */
@@ -11570,31 +11426,31 @@ FILE *polyfile;
   return hullsize;
 }
 
-#endif /* not CDT_ONLY */
+#endif 
 
-/**                                                                         **/
-/**                                                                         **/
-/********* General mesh construction routines end here               *********/
+/**                                                                         *
+/**                                                                         *
+/********* General mesh construction routines end here               ********
 
-/********* Segment insertion begins here                             *********/
-/**                                                                         **/
-/**                                                                         **/
+/********* Segment insertion begins here                             ********
+/**                                                                         *
+/**                                                                         *
 
-/*****************************************************************************/
-/*                                                                           */
-/*  finddirection()   Find the first triangle on the path from one point     */
-/*                    to another.                                            */
-/*                                                                           */
-/*  Finds the triangle that intersects a line segment drawn from the         */
-/*  origin of `searchtri' to the point `searchpoint', and returns the result */
-/*  in `searchtri'.  The origin of `searchtri' does not change, even though  */
-/*  the triangle returned may differ from the one passed in.  This routine   */
-/*  is used to find the direction to move in to get from one point to        */
-/*  another.                                                                 */
-/*                                                                           */
-/*  The return value notes whether the destination or apex of the found      */
-/*  triangle is collinear with the two points in question.                   */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  finddirection()   Find the first triangle on the path from one point     
+/*                    to another.                                            
+/*                                                                           
+/*  Finds the triangle that intersects a line segment drawn from the         
+/*  origin of `searchtri' to the point `searchpoint', and returns the result 
+/*  in `searchtri'.  The origin of `searchtri' does not change, even though  
+/*  the triangle returned may differ from the one passed in.  This routine   
+/*  is used to find the direction to move in to get from one point to        
+/*  another.                                                                 
+/*                                                                           
+/*  The return value notes whether the destination or apex of the found      
+/*  triangle is collinear with the two points in question.                   
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -14085,12 +13941,8 @@ FILE **polyfile;
 
 #endif /* not TRILIBRARY */
 
-/*****************************************************************************/
-/*                                                                           */
-/*  transfernodes()   Read the vertices from memory.                         */
-/*                                                                           */
-/*****************************************************************************/
-
+ 
+// transfernodes()   Read the vertices from memory.
 #ifdef TRILIBRARY
 
 #ifdef ANSI_DECLARATORS
@@ -14168,15 +14020,10 @@ int numberofpointattribs;
   m->xminextreme = 10 * m->xmin - 9 * m->xmax;
 }
 
-#endif /* TRILIBRARY */
+#endif 
 
-/*****************************************************************************/
-/*                                                                           */
-/*  readholes()   Read the holes, and possibly regional attributes and area  */
-/*                constraints, from a .poly file.                            */
-/*                                                                           */
-/*****************************************************************************/
-
+ 
+// readholes()   Read the holes, and possibly regional attributes and area constraints, from a .poly file.             
 #ifndef TRILIBRARY
 
 #ifdef ANSI_DECLARATORS
@@ -14289,11 +14136,11 @@ int *regions;
 
 #endif /* not TRILIBRARY */
 
-/*****************************************************************************/
-/*                                                                           */
-/*  finishfile()   Write the command line to the output file so the user     */
-/*                 can remember how the file was generated.  Close the file. */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  finishfile()   Write the command line to the output file so the user     
+/*                 can remember how the file was generated.  Close the file. 
+/*                                                                           
 /*****************************************************************************/
 
 #ifndef TRILIBRARY
@@ -14321,14 +14168,15 @@ char **argv;
 
 #endif /* not TRILIBRARY */
 
+/****************************************************************************
+/*                                                                           
+/*  writenodes()   Number the vertices and write them to a .node file.       
+/*                                                                           
+/*  To save memory, the vertex numbers are written over the boundary markers 
+/*  after the vertices are written to a file.                                
+/*                                                                           
 /*****************************************************************************/
-/*                                                                           */
-/*  writenodes()   Number the vertices and write them to a .node file.       */
-/*                                                                           */
-/*  To save memory, the vertex numbers are written over the boundary markers */
-/*  after the vertices are written to a file.                                */
-/*                                                                           */
-/*****************************************************************************/
+
 
 #ifdef TRILIBRARY
 
@@ -14462,14 +14310,14 @@ char **argv;
 #endif /* not TRILIBRARY */
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  numbernodes()   Number the vertices.                                     */
-/*                                                                           */
-/*  Each vertex is assigned a marker equal to its number.                    */
-/*                                                                           */
-/*  Used when writenodes() is not called because no .node file is written.   */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  numbernodes()   Number the vertices.                                     
+/*                                                                           
+/*  Each vertex is assigned a marker equal to its number.                    
+/*                                                                           
+/*  Used when writenodes() is not called because no .node file is written.   
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef ANSI_DECLARATORS
@@ -14496,10 +14344,10 @@ struct behavior *b;
   }
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  writeelements()   Write the triangles to an .ele file.                   */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  writeelements()   Write the triangles to an .ele file.                   
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef TRILIBRARY
@@ -14637,10 +14485,10 @@ char **argv;
 #endif /* not TRILIBRARY */
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  writepoly()   Write the segments and holes to a .poly file.              */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  writepoly()   Write the segments and holes to a .poly file.              
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef TRILIBRARY
@@ -14783,12 +14631,8 @@ char **argv;
 #endif /* not TRILIBRARY */
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  writeedges()   Write the edges to an .edge file.                         */
-/*                                                                           */
-/*****************************************************************************/
-
+ 
+// Write the edges to an .edge file.   
 #ifdef TRILIBRARY
 
 #ifdef ANSI_DECLARATORS
@@ -14880,7 +14724,7 @@ char **argv;
 #ifdef TRILIBRARY
         elist[index++] = vertexmark(p1);
         elist[index++] = vertexmark(p2);
-#endif /* TRILIBRARY */
+#endif 
         if (b->nobound) {
 #ifndef TRILIBRARY
           /* Edge number, indices of two endpoints. */
@@ -14927,20 +14771,20 @@ char **argv;
 #endif /* not TRILIBRARY */
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  writevoronoi()   Write the Voronoi diagram to a .v.node and .v.edge      */
-/*                   file.                                                   */
-/*                                                                           */
-/*  The Voronoi diagram is the geometric dual of the Delaunay triangulation. */
-/*  Hence, the Voronoi vertices are listed by traversing the Delaunay        */
-/*  triangles, and the Voronoi edges are listed by traversing the Delaunay   */
-/*  edges.                                                                   */
-/*                                                                           */
-/*  WARNING:  In order to assign numbers to the Voronoi vertices, this       */
-/*  procedure messes up the subsegments or the extra nodes of every          */
-/*  element.  Hence, you should call this procedure last.                    */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  writevoronoi()   Write the Voronoi diagram to a .v.node and .v.edge      
+/*                   file.                                                   
+/*                                                                           
+/*  The Voronoi diagram is the geometric dual of the Delaunay triangulation. 
+/*  Hence, the Voronoi vertices are listed by traversing the Delaunay        
+/*  triangles, and the Voronoi edges are listed by traversing the Delaunay   
+/*  edges.                                                                   
+/*                                                                           
+/*  WARNING:  In order to assign numbers to the Voronoi vertices, this       
+/*  procedure messes up the subsegments or the extra nodes of every          
+/*  element.  Hence, you should call this procedure last.                    
+/*                                                                           
 /*****************************************************************************/
 
 #ifdef TRILIBRARY
@@ -15262,13 +15106,13 @@ char **argv;
 #endif /* not TRILIBRARY */
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  writeoff()   Write the triangulation to an .off file.                    */
-/*                                                                           */
-/*  OFF stands for the Object File Format, a format used by the Geometry     */
-/*  Center's Geomview package.                                               */
-/*                                                                           */
+/****************************************************************************
+/*                                                                           
+/*  writeoff()   Write the triangulation to an .off file.                    
+/*                                                                           
+/*  OFF stands for the Object File Format, a format used by the Geometry     
+/*  Center's Geomview package.                                               
+/*                                                                           
 /*****************************************************************************/
 
 #ifndef TRILIBRARY
@@ -15340,17 +15184,9 @@ char **argv;
 }
 
 #endif /* not TRILIBRARY */
+ 
 
-/**                                                                         **/
-/**                                                                         **/
-/********* File I/O routines end here                                *********/
-
-/*****************************************************************************/
-/*                                                                           */
-/*  quality_statistics()   Print statistics about the quality of the mesh.   */
-/*                                                                           */
-/*****************************************************************************/
-
+// quality_statistics()   Print statistics about the quality of the mesh.
 #ifdef ANSI_DECLARATORS
 void quality_statistics(struct mesh *m, struct behavior *b)
 #else /* not ANSI_DECLARATORS */
@@ -15551,13 +15387,8 @@ struct behavior *b;
   }
   //printf("\n");
 }
-
-/*****************************************************************************/
-/*                                                                           */
-/*  statistics()   Print all sorts of cool facts.                            */
-/*                                                                           */
-/*****************************************************************************/
-
+ 
+//statistics()   Print all sorts of cool facts.        
 #ifdef ANSI_DECLARATORS
 void statistics(struct mesh *m, struct behavior *b)
 #else /* not ANSI_DECLARATORS */
@@ -15651,32 +15482,32 @@ struct behavior *b;
   }
 }
 
-/*****************************************************************************/
-/*                                                                           */
-/*  main() or triangulate()   Gosh, do everything.                           */
-/*                                                                           */
-/*  The sequence is roughly as follows.  Many of these steps can be skipped, */
-/*  depending on the command line switches.                                  */
-/*                                                                           */
-/*  - Initialize constants and parse the command line.                       */
-/*  - Read the vertices from a file and either                               */
-/*    - triangulate them (no -r), or                                         */
-/*    - read an old mesh from files and reconstruct it (-r).                 */
-/*  - Insert the PSLG segments (-p), and possibly segments on the convex     */
-/*      hull (-c).                                                           */
-/*  - Read the holes (-p), regional attributes (-pA), and regional area      */
-/*      constraints (-pa).  Carve the holes and concavities, and spread the  */
-/*      regional attributes and area constraints.                            */
-/*  - Enforce the constraints on minimum angle (-q) and maximum area (-a).   */
-/*      Also enforce the conforming Delaunay property (-q and -a).           */
-/*  - Compute the number of edges in the resulting mesh.                     */
-/*  - Promote the mesh's linear triangles to higher order elements (-o).     */
-/*  - Write the output files and print the statistics.                       */
-/*  - Check the consistency and Delaunay property of the mesh (-C).          */
-/*                                                                           */
+
+/****************************************************************************
+/*                                                                           
+/*  main() or triangulate()   Gosh, do everything.                           
+/*                                                                           
+/*  The sequence is roughly as follows.  Many of these steps can be skipped, 
+/*  depending on the command line switches.                                  
+/*                                                                           
+/*  - Initialize constants and parse the command line.                       
+/*  - Read the vertices from a file and either                               
+/*    - triangulate them (no -r), or                                         
+/*    - read an old mesh from files and reconstruct it (-r).                 
+/*  - Insert the PSLG segments (-p), and possibly segments on the convex     
+/*      hull (-c).                                                           
+/*  - Read the holes (-p), regional attributes (-pA), and regional area      
+/*      constraints (-pa).  Carve the holes and concavities, and spread the  
+/*      regional attributes and area constraints.                            
+/*  - Enforce the constraints on minimum angle (-q) and maximum area (-a).   
+/*      Also enforce the conforming Delaunay property (-q and -a).           
+/*  - Compute the number of edges in the resulting mesh.                     
+/*  - Promote the mesh's linear triangles to higher order elements (-o).     
+/*  - Write the output files and print the statistics.                       
+/*  - Check the consistency and Delaunay property of the mesh (-C).          
+/*                                                                           
 /*****************************************************************************/
 #ifdef TRILIBRARY
-
 #ifdef ANSI_DECLARATORS
 void triangulate(char *triswitches, struct triangulateio *in,
                  struct triangulateio *out, struct triangulateio *vorout)
@@ -15686,7 +15517,7 @@ char *triswitches;
 struct triangulateio *in;
 struct triangulateio *out;
 struct triangulateio *vorout;
-#endif /* not ANSI_DECLARATORS */
+#endif  
 
 #else /* not TRILIBRARY */
 
@@ -15698,8 +15529,7 @@ int argc;
 char **argv;
 #endif /* not ANSI_DECLARATORS */
 
-#endif /* not TRILIBRARY */
-
+#endif 
 {
   struct mesh m;
   struct behavior b;
@@ -15707,24 +15537,25 @@ char **argv;
   REAL *regionarray;   /* Array of regional attributes and area constraints. */
 #ifndef TRILIBRARY
   FILE *polyfile;
-#endif /* not TRILIBRARY */
+#endif  
+
 #ifndef NO_TIMER
   /* Variables for timing the performance of Triangle.  The types are */
   /*   defined in sys/time.h.                                         */
   struct timeval tv0, tv1, tv2, tv3, tv4, tv5, tv6;
   struct timezone tz;
-#endif /* not NO_TIMER */
+#endif  
 
 #ifndef NO_TIMER
   gettimeofday(&tv0, &tz);
-#endif /* not NO_TIMER */
+#endif 
 
   triangleinit(&m);
 #ifdef TRILIBRARY
   parsecommandline(1, &triswitches, &b);
-#else /* not TRILIBRARY */
+#else 
   parsecommandline(argc, argv, &b);
-#endif /* not TRILIBRARY */
+#endif 
   m.steinerleft = b.steiner;
 
 #ifdef TRILIBRARY
@@ -15733,18 +15564,19 @@ char **argv;
                 in->numberofpointattributes);
 #else /* not TRILIBRARY */
   readnodes(&m, &b, b.innodefilename, b.inpolyfilename, &polyfile);
-#endif /* not TRILIBRARY */
+#endif 
 
 #ifndef NO_TIMER
   if (!b.quiet) {
     gettimeofday(&tv1, &tz);
   }
-#endif /* not NO_TIMER */
+#endif  
 
 #ifdef CDT_ONLY
   m.hullsize = delaunay(&m, &b);                /* Triangulate the vertices. */
-#else /* not CDT_ONLY */
-  if (b.refine) {
+#else 
+  if (b.refine)
+  {
     /* Read and reconstruct a mesh. */
 #ifdef TRILIBRARY
     m.hullsize = reconstruct(&m, &b, in->trianglelist,
@@ -15757,10 +15589,11 @@ char **argv;
     m.hullsize = reconstruct(&m, &b, b.inelefilename, b.areafilename,
                              b.inpolyfilename, polyfile);
 #endif /* not TRILIBRARY */
-  } else {
+  } else 
+  {
     m.hullsize = delaunay(&m, &b);              /* Triangulate the vertices. */
   }
-#endif /* not CDT_ONLY */
+#endif  
 
 #ifndef NO_TIMER
   if (!b.quiet) {
@@ -15773,17 +15606,18 @@ char **argv;
     //printf(" milliseconds:  %ld\n", 1000l * (tv2.tv_sec - tv1.tv_sec) +
            (tv2.tv_usec - tv1.tv_usec) / 1000l);
   }
-#endif /* not NO_TIMER */
+#endif  
 
-  /* Ensure that no vertex can be mistaken for a triangular bounding */
-  /*   box vertex in insertvertex().                                 */
+  // Ensure that no vertex can be mistaken for a triangular bounding box vertex in insertvertex().                 
   m.infvertex1 = (vertex) NULL;
   m.infvertex2 = (vertex) NULL;
   m.infvertex3 = (vertex) NULL;
 
-  if (b.usesegments) {
+  if (b.usesegments)
+  {
     m.checksegments = 1;                /* Segments will be introduced next. */
-    if (!b.refine) {
+    if (!b.refine) 
+    {
       /* Insert PSLG segments and/or convex hull segments. */
 #ifdef TRILIBRARY
       formskeleton(&m, &b, in->segmentlist,
@@ -15803,23 +15637,27 @@ char **argv;
              (tv3.tv_usec - tv2.tv_usec) / 1000l);
     }
   }
-#endif /* not NO_TIMER */
+#endif 
 
-  if (b.poly && (m.triangles.items > 0)) {
+  if (b.poly && (m.triangles.items > 0)) 
+  {
 #ifdef TRILIBRARY
     holearray = in->holelist;
     m.holes = in->numberofholes;
     regionarray = in->regionlist;
     m.regions = in->numberofregions;
-#else /* not TRILIBRARY */
+#else  
     readholes(&m, &b, polyfile, b.inpolyfilename, &holearray, &m.holes,
               &regionarray, &m.regions);
 #endif /* not TRILIBRARY */
-    if (!b.refine) {
+    if (!b.refine) 
+    {
       /* Carve out holes and concavities. */
       carveholes(&m, &b, holearray, m.holes, regionarray, m.regions);
     }
-  } else {
+  } 
+  else 
+  {
     /* Without a PSLG, there can be no holes or regional attributes   */
     /*   or area constraints.  The following are set to zero to avoid */
     /*   an accidental free() later.                                  */
@@ -15835,13 +15673,14 @@ char **argv;
              (tv4.tv_usec - tv3.tv_usec) / 1000l);
     }
   }
-#endif /* not NO_TIMER */
+#endif 
 
 #ifndef CDT_ONLY
-  if (b.quality && (m.triangles.items > 0)) {
+  if (b.quality && (m.triangles.items > 0)) 
+  {
     enforcequality(&m, &b);           /* Enforce angle and area constraints. */
   }
-#endif /* not CDT_ONLY */
+#endif  
 
 #ifndef NO_TIMER
   if (!b.quiet) {
@@ -15854,44 +15693,44 @@ char **argv;
     }
 #endif /* not CDT_ONLY */
   }
-#endif /* not NO_TIMER */
+#endif  
 
   /* Calculate the number of edges. */
   m.edges = (3l * m.triangles.items + m.hullsize) / 2l;
 
-  if (b.order > 1) {
-    highorder(&m, &b);       /* Promote elements to higher polynomial order. */
-  }
-  if (!b.quiet) {
-    //printf("\n");
-  }
+  if (b.order > 1)  
+    highorder(&m, &b);       /* Promote elements to higher polynomial order. */  
 
 #ifdef TRILIBRARY
-  if (b.jettison) {
+  if (b.jettison) 
     out->numberofpoints = m.vertices.items - m.undeads;
-  } else {
-    out->numberofpoints = m.vertices.items;
-  }
+  else 
+    out->numberofpoints = m.vertices.items; 
+
   out->numberofpointattributes = m.nextras;
   out->numberoftriangles = m.triangles.items;
   out->numberofcorners = (b.order + 1) * (b.order + 2) / 2;
   out->numberoftriangleattributes = m.eextras;
   out->numberofedges = m.edges;
-  if (b.usesegments) {
+  if (b.usesegments) 
     out->numberofsegments = m.subsegs.items;
-  } else {
+  else 
     out->numberofsegments = m.hullsize;
-  }
-  if (vorout != (struct triangulateio *) NULL) {
+
+  if (vorout != (struct triangulateio *) NULL) 
+  {
     vorout->numberofpoints = m.triangles.items;
     vorout->numberofpointattributes = m.nextras;
     vorout->numberofedges = m.edges;
   }
-#endif /* TRILIBRARY */
-  /* If not using iteration numbers, don't write a .node file if one was */
-  /*   read, because the original one would be overwritten!              */
-  if (b.nonodewritten || (b.noiterationnum && m.readnodefile)) {
-    if (!b.quiet) {
+
+#endif 
+
+  /* If not using iteration numbers, don't write a .node file if one was  read, because the original one would be overwritten!              */
+  if (b.nonodewritten || (b.noiterationnum && m.readnodefile))
+  {
+    if (!b.quiet) 
+    {
 #ifdef TRILIBRARY
       //printf("NOT writing vertices.\n");
 #else /* not TRILIBRARY */
@@ -15899,24 +15738,29 @@ char **argv;
 #endif /* not TRILIBRARY */
     }
     numbernodes(&m, &b);         /* We must remember to number the vertices. */
-  } else {
+  }
+  else {
     /* writenodes() numbers the vertices too. */
 #ifdef TRILIBRARY
     writenodes(&m, &b, &out->pointlist, &out->pointattributelist,
                &out->pointmarkerlist);
 #else /* not TRILIBRARY */
     writenodes(&m, &b, b.outnodefilename, argc, argv);
-#endif /* TRILIBRARY */
+#endif 
   }
-  if (b.noelewritten) {
-    if (!b.quiet) {
+  if (b.noelewritten)
+  {
+    if (!b.quiet)
+    {
 #ifdef TRILIBRARY
       //printf("NOT writing triangles.\n");
 #else /* not TRILIBRARY */
       //printf("NOT writing an .ele file.\n");
 #endif /* not TRILIBRARY */
     }
-  } else {
+  } 
+  else
+  {
 #ifdef TRILIBRARY
     writeelements(&m, &b, &out->trianglelist, &out->triangleattributelist);
 #else /* not TRILIBRARY */
@@ -15999,7 +15843,7 @@ char **argv;
     //printf("Total running milliseconds:  %ld\n",
            1000l * (tv6.tv_sec - tv0.tv_sec) +
            (tv6.tv_usec - tv0.tv_usec) / 1000l);
-#endif /* not NO_TIMER */
+#endif 
 
     statistics(&m, &b);
   }

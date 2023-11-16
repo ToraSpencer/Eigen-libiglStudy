@@ -268,9 +268,13 @@
 
 #define TRILIBRARY
 #define ANSI_DECLARATORS
+
+// FOR TEST:
+#ifndef  _WIN64
 #define SINGLE
+#endif
+
 #define NO_TIMER
- 
 
 #ifdef SINGLE
 #define REAL float

@@ -41,7 +41,7 @@ void genAABBmesh(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 
 
 #ifdef USE_TRIANGLE_H
-
+ 
 //	重载1：封闭边界线点集得到面网格，可以是平面也可以是曲面，不在网格内部插点，三角片尺寸不可控。
 template <typename DerivedO, typename DerivedC>
 bool circuit2mesh(Eigen::PlainObjectBase<DerivedO>& vers, Eigen::MatrixXi& tris, \
@@ -51,6 +51,7 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedO>& vers, Eigen::MatrixXi& tris,
 	using RowVector3O = Eigen::Matrix<ScalarO, 1, 3>;
 	using Matrix3O = Eigen::Matrix<ScalarO, 3, 3>;
 	using MatrixXO = Eigen::Matrix<ScalarO, Eigen::Dynamic, Eigen::Dynamic>;
+	using MatrixXR = Eigen::Matrix<TRI_REAL, Eigen::Dynamic, Eigen::Dynamic>;
 
 	unsigned circCount = circVers.rows();
 	unsigned versCount = circVers.rows();
@@ -73,9 +74,9 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedO>& vers, Eigen::MatrixXi& tris,
 	vers = (vers * rotation.transpose()).eval();
 
 	// 3. 旋转后的点数据写入到triangulate()接口的输入结构体中。
-	Eigen::MatrixXf vers2D;
+	MatrixXR vers2D;
 	Eigen::MatrixXi edges2D;
-	vers2D = vers.transpose().topRows(2).cast<float>();
+	vers2D = vers.transpose().topRows(2).cast<TRI_REAL>();
 	edges2D.resize(2, versCount);
 	for (unsigned i = 0; i < versCount; i++)
 	{
@@ -126,15 +127,19 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris,
 {
 	using ScalarV = typename DerivedV::Scalar;
 	using ScalarN = typename DerivedN::Scalar;
+	using MatrixXR = Eigen::Matrix<TRI_REAL, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3R = Eigen::Matrix<TRI_REAL, 3, 3>;
+	using Matrix4R = Eigen::Matrix<TRI_REAL, 4, 4>;
+	using RowVector3R = Eigen::Matrix<TRI_REAL, 1, 3>;
 	const int versLoopCount = versLoop.rows();
 
 	// 1. 求一个仿射变换：
-	Eigen::RowVector3f loopCenter = versLoop.colwise().mean().array().cast<float>();
-	Eigen::Matrix4f rotationHomo{ Eigen::Matrix4f::Identity() };
-	Eigen::Matrix4f translationHomo{ Eigen::Matrix4f::Identity() };
-	Eigen::Matrix4f affineHomo, affineInvHomo;
-	Eigen::Matrix3f rotation;
-	getRotationMat(rotation, Eigen::RowVector3f{ 0, 0, 1 }, Eigen::RowVector3f{ normDir.array().cast<float>() });
+	RowVector3R loopCenter = versLoop.colwise().mean().array().cast<TRI_REAL>();
+	Matrix4R rotationHomo{ Matrix4R::Identity() };
+	Matrix4R translationHomo{ Matrix4R::Identity() };
+	Matrix4R affineHomo, affineInvHomo;
+	Matrix3R rotation;
+	getRotationMat(rotation, RowVector3R{ 0, 0, 1 }, RowVector3R{ normDir.array().cast<TRI_REAL>() });
 	rotationHomo.topLeftCorner(3, 3) = rotation;
 	translationHomo(0, 3) = loopCenter(0);
 	translationHomo(1, 3) = loopCenter(1);
@@ -143,7 +148,7 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris,
 	affineInvHomo = affineHomo.inverse();
 
 	// 1. 插点的三角剖分：
-	Eigen::MatrixXf versLoopHomo0, versLoopHomo, versLoop0, vers2D;
+	MatrixXR versLoopHomo0, versLoopHomo, versLoop0, vers2D;
 	Eigen::MatrixXi edges2D(2, versLoopCount);
 	vers2HomoVers(versLoopHomo, versLoop);
 	versLoopHomo0 = affineInvHomo * versLoopHomo;
@@ -184,7 +189,7 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris,
 	triangulate(triStr, &triIn, &triOut, NULL);
 
 	// 2. 处理三角剖分后的结果；
-	Eigen::MatrixXf versTmp, versTmpHomo;
+	MatrixXR versTmp, versTmpHomo;
 	const int versCount = triOut.numberofpoints;						// 插点后的网格的点数； 
 	versTmp.resize(versCount, 3);
 	versTmp.setZero();
@@ -196,7 +201,7 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris,
 	vers2HomoVers(versTmpHomo, versTmp);
 	versTmpHomo = (affineHomo * versTmpHomo).eval();
 	homoVers2Vers(versTmp, versTmpHomo);
-	versTmp.topRows(versLoopCount) = versLoop.array().cast<float>();
+	versTmp.topRows(versLoopCount) = versLoop.array().cast<TRI_REAL>();
 	tris.resize(3, triOut.numberoftriangles);
 	std::memcpy(tris.data(), triOut.trianglelist, sizeof(int) * 3 * triOut.numberoftriangles);
 	tris.transposeInPlace();

@@ -1252,10 +1252,10 @@ int main(int argc, char** argv)
 
 	// TEST_MYEIGEN_BASIC_MATH::test0();
 
-	// TEST_MYEIGEN_MODELING::test3();
+	TEST_MYEIGEN_MODELING::test3();
 
-	TEST_DENSE_MAT::test7();
-
+	// TEST_DENSE_MAT::test7();
+	 
 	// TEST_SDF::test1();
 
 	std::cout << "main() finished." << std::endl;

@@ -95,25 +95,25 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>G:\gitRepositories\eigen3.4.0;$(ProjectDir);$(VC_IncludePath);$(WindowsSDK_IncludePath);$(ProjectDir)..\libigl_CGAL_openGL\external\eigen;$(ProjectDir)..\libigl_CGAL_openGL\external\glad\include;$(ProjectDir)..\libigl_CGAL_openGL\external\glfw\include;$(ProjectDir)..\libigl_CGAL_openGL\tutorial;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\include;$(ProjectDir)..\libigl_CGAL_openGL\cmake\..\external\eigen;..\MeshFix-V2.1-master\include\TMesh;..\MeshFix-V2.1-master\include\Kernel;$(ProjectDir);G:\gitRepositories\SDFGen_study\SDFGEN_DLL</IncludePath>
-    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>G:\gitRepositories\eigen3.4.0;$(ProjectDir);G:\gitRepositories\SDFGen_study\SDFGEN_DLL</IncludePath>
+    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;G:\gitRepositories\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>G:\gitRepositories\eigen3.4.0;$(ProjectDir);$(VC_IncludePath);$(WindowsSDK_IncludePath);..\libigl_CGAL_openGL\external\eigen;..\libigl_CGAL_openGL\external\glad\include;..\libigl_CGAL_openGL\external\glfw\include;..\libigl_CGAL_openGL\tutorial;..\libigl_CGAL_openGL\cmake\..\include;..\libigl_CGAL_openGL\cmake\..\external\eigen;..\MeshFix-V2.1-master\include\TMesh;$(IncludePath);G:\gitRepositories\SDFGen_study\SDFGEN_DLL</IncludePath>
-    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>G:\gitRepositories\eigen3.4.0;$(ProjectDir);G:\gitRepositories\SDFGen_study\SDFGEN_DLL</IncludePath>
+    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;G:\gitRepositories\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>G:\gitRepositories\eigen3.4.0;$(ProjectDir);;G:\gitRepositories\SDFGen_study\SDFGEN_DLL</IncludePath>
-    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;G:\gitRepositories\SDFGen_study\buildx64\SDFGEN_DLL/$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>G:\gitRepositories\eigen3.4.0;$(ProjectDir);G:\gitRepositories\SDFGen_study\SDFGEN_DLL</IncludePath>
+    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;G:\gitRepositories\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>G:\gitRepositories\eigen3.4.0;$(ProjectDir);;G:\gitRepositories\SDFGen_study\SDFGEN_DLL</IncludePath>
-    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;G:\gitRepositories\SDFGen_study\buildx64\SDFGEN_DLL/$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>G:\gitRepositories\eigen3.4.0;$(ProjectDir);G:\gitRepositories\SDFGen_study\SDFGEN_DLL</IncludePath>
+    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;G:\gitRepositories\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnabled>false</VcpkgEnabled>

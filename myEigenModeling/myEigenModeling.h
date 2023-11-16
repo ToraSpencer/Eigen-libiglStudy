@@ -37,10 +37,18 @@
 #pragma comment(lib, "myEigenPMP.lib")
 
 
-//  64位环境下，triangulate.cpp里" x = vertexloop[0] = pointlist[coordindex++];"这一句会抛出异常，需要研究
-#ifndef _WIN64
 #define USE_TRIANGLE_H
-#endif
+
+////  64位环境下，triangulate.cpp里" x = vertexloop[0] = pointlist[coordindex++];"这一句会抛出异常，需要研究
+//#ifndef _WIN64
+//#define USE_TRIANGLE_H
+//#endif
+
+#ifdef  _WIN64
+#define TRI_REAL double
+#else
+#define TRI_REAL float
+#endif  
 
 #ifdef  USE_TRIANGLE_H
 #include "triangulate.h"
