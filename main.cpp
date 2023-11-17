@@ -1304,7 +1304,7 @@ int testCmd_laplaceFaring(int argc, char** argv)
 
 int main(int argc, char** argv)
 { 
-	TEST_REPRESENTATIONS::test1();
+	// TEST_REPRESENTATIONS::test1();
 
 	// TEST_MYEIGEN_IO::test0();
 
@@ -1314,7 +1314,7 @@ int main(int argc, char** argv)
 
 	// TEST_DENSE_MAT::test7();
 	 
-	// TEST_SDF::test1();
+	TEST_SDF::test1();
 
 	std::cout << "main() finished." << std::endl;
 }

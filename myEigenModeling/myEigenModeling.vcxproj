@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\triangle\triangle.h" />
+    <ClInclude Include="MC_tables.cpp" />
     <ClInclude Include="MC_tables.h" />
     <ClInclude Include="myEigenModeling.h" />
   </ItemGroup>

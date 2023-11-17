@@ -12,10 +12,13 @@
     <ClInclude Include="myEigenModeling.h">
       <Filter>Head Files</Filter>
     </ClInclude>
-    <ClInclude Include="MC_tables.h">
+    <ClInclude Include="..\triangle\triangle.h">
       <Filter>Head Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\triangle\triangle.h">
+    <ClInclude Include="MC_tables.cpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MC_tables.h">
       <Filter>Head Files</Filter>
     </ClInclude>
   </ItemGroup>
