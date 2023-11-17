@@ -51,7 +51,8 @@
 #endif  
 
 #ifdef  USE_TRIANGLE_H
-#include "triangulate.h"
+#include "triangle/triangle.h"
+#pragma comment(lib, "triangle.lib")
 #endif
  
 

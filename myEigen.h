@@ -18,15 +18,7 @@
 #include <thread>
 #include <limits>
 #include <windows.h>
- 
-//#define USE_TRIANGLE_H
-#ifdef USE_TRIANGLE_H
-// 和algorithm工程一样，使用单精度；libigl库中封装的三角剖分使用的是双精度；
-#define ANSI_DECLARATORS
-#define REAL DOUBLE
-#define VOID int
-#include "triangulate.h"
-#endif
+  
 
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
@@ -36,19 +28,16 @@
 #include "myEigenIO/myEigenIO.h"
 #pragma comment(lib,"myEigenIO.lib")	
 
- 
 #include "myEigenBasicMath/myEigenBasicMath.h"
 #pragma comment(lib, "myEigenBasicMath.lib")
-
- 
-#include "myEigenModeling/myEigenModeling.h"
-#pragma comment(lib, "myEigenModeling.lib")
-
 
 #include "myEigenPMP/myEigenPMP.h"
 #pragma comment(lib, "myEigenPMP.lib")
 
+#include "myEigenModeling/myEigenModeling.h"
+#pragma comment(lib, "myEigenModeling.lib")
 
+ 
 /////////////////////////////////////////////////////////////////////////////////////////////////// debug tools
 
 // 传入函数子或函数指针遍历stl容器

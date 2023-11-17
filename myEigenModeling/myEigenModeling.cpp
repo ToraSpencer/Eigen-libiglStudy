@@ -108,7 +108,7 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedO>& vers, Eigen::MatrixXi& tris,
 	memset(&triOut, 0, sizeof(triangulateio));
 
 	// 4. 执行二维三角剖分，得到输出网格三角片数据，不取顶点坐标数据，顶点坐标数据使用旋转操作前的。
-	char triStr[256] = "pY";
+	char triStr[256] = "pYQ";
 	triangulate(triStr, &triIn, &triOut, NULL);
 	tris.resize(3, triOut.numberoftriangles);
 	std::memcpy(tris.data(), triOut.trianglelist, sizeof(int) * 3 * triOut.numberoftriangles);
@@ -184,8 +184,8 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris,
 	memset(&triOut, 0, sizeof(triangulateio));
 
 	char triStr[256];
-	//		"p" - 折线段; "a" - 最大三角片面积; "q" - Quality; "Y" - 边界上不插入点;
-	sprintf_s(triStr, "pq30.0a%fYY", maxTriArea);
+	//		"p" - 折线段; "a" - 最大三角片面积; "q" - Quality; "Y" - 边界上不插入点; "Q" - quiet;
+	sprintf_s(triStr, "pq30.0a%fYYQ", maxTriArea);
 	triangulate(triStr, &triIn, &triOut, NULL);
 
 	// 2. 处理三角剖分后的结果；

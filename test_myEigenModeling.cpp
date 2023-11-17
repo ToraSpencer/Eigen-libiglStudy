@@ -208,7 +208,7 @@ namespace TEST_MYEIGEN_MODELING
 		Eigen::MatrixXd versLoop, versLoop2D;
 		Eigen::MatrixXi tris;
 
-		objReadVerticesMat(versLoop, "G:\\gitRepositories\\matlabCode\\ò¢°å\\data\\curveFitUpper2.obj");
+		objReadVerticesMat(versLoop, "E:\\ò¢°å\\curveFitUpper2.obj");
 
 		Eigen::RowVector3d center = versLoop.colwise().mean();
 		versLoop2D = versLoop.rowwise() - center;

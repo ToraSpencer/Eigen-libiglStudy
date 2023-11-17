@@ -4,6 +4,8 @@
 #include <io.h>
 #include <winuser.h>
 
+#include "triMesh.h"
+#include "representations.h"
 
 #include "test_dense_mat.h"
 #include "test_sparse_mat.h"
@@ -228,7 +230,61 @@ namespace MY_DEBUG
 }
 using namespace MY_DEBUG;
 
- 
+
+////////////////////////////////////////////////////////////////////////////// TEST: 不同的几何表象：
+namespace TEST_REPRESENTATIONS
+{
+	void test1() 
+	{
+		triMeshF mesh;
+		readOBJ(mesh, "E:/材料/tooth.obj");
+
+		// 1. 元素索引
+		std::vector<verF>& vers = mesh.vertices;
+		debugDisp("vers[0][0] == ", vers[0][0]);
+
+		vers[0][0] = INFINITY;
+		debugDisp("vers[0][0] == ", vers[0][0]);
+
+		// debugDisp("vers[0][3] == ", vers[0][3]);			// 会抛出std::out_of_range异常；
+
+		// 2. 简单的运算
+		verF ver1 = vers[1] - vers[3];
+		verF ver2 = vers[2] - vers[3];
+		const verF& ver3 = vers[3];
+		debugDisp("ver1 == ", ver1);
+		debugDisp("ver2 == ", ver2);
+		debugDisp("ver3 == ", ver3);
+		debugDisp("ver2 - ver1 == ", ver2 - ver1);
+		debugDisp("ver3 - ver1 == ", ver3 - ver1);
+		debugDisp("0.5 * ver1 == ", 0.5 * ver1);
+		debugDisp("ver1 * 0.5 == ", ver1 * 0.5);
+		debugDisp("ver1 / 0.5 == ", ver1 / 0.5);
+		debugDisp("\n\n");
+
+		ver1 *= 2;
+		debugDisp("ver1 *= 2; ver1 == ", ver1);
+
+		ver2 = ver2 + ver3; 
+		debugDisp("ver2 = ver2 + ver3; ver2 == ", ver2);
+
+		ver1 = ver1 - ver3;
+		auto tmp = -ver3;
+		debugDisp("ver1 = ver1 - ver3; ver1 == ", ver1);
+		debugDisp("tmp == ", tmp);
+
+		// 3. cast()方法
+		auto retCast = ver1.cast<int>();
+		debugDisp("typeid(ver1).name() == ", typeid(ver1).name());
+		debugDisp("typeid(retCast).name() == ", typeid(retCast).name());
+
+		debugDisp("finished.");
+	}
+
+}
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////// TEST: 网格缺陷的检测和修复：
 namespace MESH_REPAIR 
@@ -1248,11 +1304,13 @@ int testCmd_laplaceFaring(int argc, char** argv)
 
 int main(int argc, char** argv)
 { 
+	TEST_REPRESENTATIONS::test1();
+
 	// TEST_MYEIGEN_IO::test0();
 
 	// TEST_MYEIGEN_BASIC_MATH::test0();
 
-	TEST_MYEIGEN_MODELING::test3();
+	// TEST_MYEIGEN_MODELING::test2();
 
 	// TEST_DENSE_MAT::test7();
 	 

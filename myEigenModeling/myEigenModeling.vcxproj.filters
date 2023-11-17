@@ -12,10 +12,10 @@
     <ClInclude Include="myEigenModeling.h">
       <Filter>Head Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\triangulate.h">
+    <ClInclude Include="MC_tables.h">
       <Filter>Head Files</Filter>
     </ClInclude>
-    <ClInclude Include="MC_tables.h">
+    <ClInclude Include="..\triangle\triangle.h">
       <Filter>Head Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -24,9 +24,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="templateSpecialization.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\triangulate.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
