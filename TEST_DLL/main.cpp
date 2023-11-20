@@ -301,8 +301,7 @@ namespace TEST_JAW_PALATE
 								
 		输出：
 				versUpperBdry, versLowerBdry						精调之前的上下底面边界线；
-				affineUpperHomo, affineLowerHomo				上下颌仿射变换矩阵；
-	
+				affineUpperHomo, affineLowerHomo				上下颌仿射变换矩阵；	
 	*/
 	void test1()
 	{

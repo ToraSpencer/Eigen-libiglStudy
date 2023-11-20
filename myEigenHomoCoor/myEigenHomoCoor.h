@@ -19,16 +19,6 @@
 #include <limits>
 #include <windows.h>
 
-//#define USE_TRIANGLE_H
-
-#ifdef USE_TRIANGLE_H
-// 和algorithm工程一样，使用单精度；libigl库中封装的三角剖分使用的是双精度；
-#define ANSI_DECLARATORS
-#define REAL DOUBLE
-#define VOID int
-#include "triangulate.h"
-#endif
-
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
 #define WIN32_LEAN_AND_MEAN             // 从 Windows 头文件中排除极少使用的内容

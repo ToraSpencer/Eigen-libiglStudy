@@ -625,6 +625,65 @@ namespace TEST_MYEIGEN_PMP
 
 		debugDisp("finished.");
 	}
+
+
+	// 测试计算网格的领域性质
+	void test3() 
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		objReadMeshMat(vers, tris, "E:/材料/tooth.obj");
+		debugWriteMesh("meshInput", vers, tris);
+
+		// get1ring()——得到网格顶点1领域的信息；
+		const int index0 = 0;
+		std::vector<std::unordered_set<int>> vIdx1ring, tIdx1ring;
+		Eigen::MatrixXf vers1ring;
+		Eigen::MatrixXi tris1ring;
+		get1ring(vIdx1ring, tIdx1ring, vers, tris);
+		subFromIdxCon(vers1ring, vers, vIdx1ring[index0]);
+		subFromIdxCon(tris1ring, tris, tIdx1ring[index0]);
+		debugWriteVers("ver0", vers.row(0));
+		debugWriteVers("vers1ring0", vers1ring);
+		debugWriteMesh("tris1ring0", vers, tris1ring);
+
+
+		debugDisp("finished.");
+	}
+
+
+	// 测试区域生长算法：
+	void test4() 
+	{
+		Eigen::MatrixXf vers;
+		Eigen::MatrixXi tris;
+		objReadMeshMat(vers, tris, "E:/材料/meshArrangeResult.obj");
+		debugWriteMesh("meshInput", vers, tris);
+
+		Eigen::MatrixXd versOutter;
+		Eigen::MatrixXi trisOutter;
+		robustTriangleGrowOuterSurf(versOutter, trisOutter, vers, tris);
+		debugWriteMesh("meshOutter", versOutter, trisOutter);
+
+		debugDisp("finished.");
+	}
+
+
+	// 测试获取网格属性：
+	void test5() 
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		objReadMeshMat(vers, tris, "E:/材料/holeMesh.obj"); 
+		debugWriteMesh("meshInput", vers, tris);
+
+		// 1. 获取网格边缘：
+		Eigen::MatrixXi bdrys;
+		bdryEdges(bdrys, tris);
+		debugWriteEdges("bdrys", bdrys, vers);
+
+		debugDisp("finished.");
+	}
 }
 
 

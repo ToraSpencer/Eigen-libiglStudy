@@ -223,7 +223,7 @@ bool circuitGetTris(Eigen::MatrixXi& tris, const std::vector<int>& indexes, cons
  
 // 得到三角网格的有向边数据
 template <typename DerivedI>
-bool getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedI>& tris)
+bool getEdges(Eigen::MatrixXi& edges, const Eigen::MatrixBase<DerivedI>& tris)
 {
 	/*
 		bool getEdges(

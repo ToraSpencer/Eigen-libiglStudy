@@ -5,7 +5,7 @@
 #include <Eigen/Sparse>
 #include <iostream>
 
-namespace SPARSEMAT
+namespace TEST_SPARSE_MAT
 {
 	void test00();
 	void test0();

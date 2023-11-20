@@ -526,7 +526,7 @@ namespace MESH_REPAIR
 			Eigen::SparseMatrix<int> adjSM, adjSM_eCount, adjSM_eIdx;
 			Eigen::VectorXi connectedLabels, connectedCount, connectedTriLabels, connectedTriCount;
 			Eigen::VectorXi connectedLabelsSCT, connectedCountSCT;
-			adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
+			tris2adjMat(adjSM_eCount, adjSM_eIdx, tris);
 			adjSM = adjSM_eCount;
 			traverseSparseMatrix(adjSM, [&adjSM](auto& iter)
 				{
@@ -1304,18 +1304,8 @@ int testCmd_laplaceFaring(int argc, char** argv)
 
 int main(int argc, char** argv)
 { 
-	// TEST_REPRESENTATIONS::test1();
+	TEST_MYEIGEN_PMP::test5();
 
-	// TEST_MYEIGEN_IO::test0();
-
-	// TEST_MYEIGEN_BASIC_MATH::test0();
-
-	// TEST_MYEIGEN_MODELING::test2();
-
-	// TEST_DENSE_MAT::test7();
-	 
-	TEST_SDF::test1();
-
-	std::cout << "main() finished." << std::endl;
+	debugDisp("main() finished."); 
 }
 

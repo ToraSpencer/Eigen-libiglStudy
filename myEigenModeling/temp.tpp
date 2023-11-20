@@ -129,7 +129,7 @@ bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 	}
 
 	// 3. 生成三角剖分信息：
-	triangulateio inputTrig, outputTrig;
+	TRIANGLE_LIB::triangulateio inputTrig, outputTrig;
 	{
 		inputTrig.numberofpoints = versCount;
 		inputTrig.pointlist = vers2Dtrans.data();
@@ -153,13 +153,13 @@ bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 		inputTrig.numberofregions = 0;
 		inputTrig.regionlist = nullptr;
 
-		memset(&outputTrig, 0, sizeof(triangulateio));		// 初始化输出结构体。 
+		memset(&outputTrig, 0, sizeof(TRIANGLE_LIB::triangulateio));		// 初始化输出结构体。 
 	}
 
 	// 4. 执行三角剖分，拷贝结果：   
 	char strCopy[512];
 	strcpy(strCopy, strSwitcher);
-	triangulate(strCopy, &inputTrig, &outputTrig, NULL);					// p——平面直线图，Y——不插点。  
+	TRIANGLE_LIB::triangulate(strCopy, &inputTrig, &outputTrig, NULL);					// p——平面直线图，Y——不插点。  
 
 	//		4.1 生成输出三角片
 	int trisOutCount = outputTrig.numberoftriangles;
@@ -234,7 +234,7 @@ bool triangulateRefineMesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 	}
 
 	// 3. 生成三角剖分信息：
-	triangulateio inputTrig, outputTrig;
+	TRIANGLE_LIB::triangulateio inputTrig, outputTrig;
 	{
 		inputTrig.numberofpoints = versCount;
 		inputTrig.pointlist = vers2Dtrans.data();
@@ -258,13 +258,13 @@ bool triangulateRefineMesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 		inputTrig.numberofregions = 0;
 		inputTrig.regionlist = NULL;
 
-		memset(&outputTrig, 0, sizeof(triangulateio));		// 初始化输出结构体。 
+		memset(&outputTrig, 0, sizeof(TRIANGLE_LIB::triangulateio));		// 初始化输出结构体。 
 	}
 
 	// 3. 执行三角剖分，拷贝结果：   
 	char strCopy[512];
 	strcpy(strCopy, strSwitcher);
-	triangulate(strCopy, &inputTrig, &outputTrig, NULL);					// p——平面直线图，Y——不插点。  
+	TRIANGLE_LIB::triangulate(strCopy, &inputTrig, &outputTrig, NULL);					// p——平面直线图，Y——不插点。  
 
 	//		3.1 生成输出三角片
 	int trisOutCount = outputTrig.numberoftriangles;

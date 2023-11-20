@@ -90,12 +90,12 @@ namespace MY_DEBUG
 using namespace MY_DEBUG;
 
 
-namespace SPARSEMAT
+namespace TEST_SPARSE_MAT
 {
 	// 测试自己写的稀疏矩阵相关的轮子：
 	void test00() 
 	{
-		// traverseSparseMatrix()——传入函数子遍历稀疏矩阵中的元素；
+		// 1. traverseSparseMatrix()——传入函数子遍历稀疏矩阵中的元素；
 		Eigen::MatrixXi m1(Eigen::MatrixXi::Zero(4, 5));
 		m1(1, 1) = 3;
 		m1(1, 2) = 2;
@@ -119,7 +119,7 @@ namespace SPARSEMAT
 			});
 
 
-		//	dispSpMat()——打印稀疏矩阵非零元素
+		//	2. dispSpMat()——打印稀疏矩阵非零元素
 		dispSpMat(sm1);
  
 		Eigen::SparseMatrix<int, Eigen::RowMajor> sm11 = m1.sparseView();
@@ -267,13 +267,13 @@ namespace SPARSEMAT
 	// 稀疏矩阵的基本变换和操作
 	void test1()
 	{
-		// 求和——没有dense matrix里的.colwise().sum()和.rowwise().sum()操作，可以使用左/右乘向量来实现：
+		// 1. 求和——没有dense matrix里的.colwise().sum()和.rowwise().sum()操作，可以使用左/右乘向量来实现：
 		Eigen::MatrixXf m1 = Eigen::MatrixXf::Random(4, 5);
 		Eigen::MatrixXf m2(4, 5);
 		m2 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20;
 		std::cout << "m1 == \n" << m1 << std::endl;
 
-		// sparseView()方法；
+		// 2. sparseView()方法；
 		Eigen::SparseMatrix<float> sm1 = m1.sparseView();
 		Eigen::SparseMatrix<float> sm2 = m2.sparseView();
 		Eigen::RowVectorXf colSum = Eigen::RowVectorXf::Ones(4) * sm1;			// 左乘一个全1行向量，得到按列求和的结果。
@@ -281,7 +281,7 @@ namespace SPARSEMAT
 		std::cout << "按列求和结果：\n" << colSum << std::endl;
 		std::cout << "按行求和结果：\n" << rowSum << std::endl << std::endl;
 
-		// 列优先存储稀疏矩阵的row()方法返回的引用是只读的，不可以被赋值。
+		// 3. 列优先存储稀疏矩阵的row()方法返回的引用是只读的，不可以被赋值。
 		std::cout << "遍历第i列：" << std::endl;
 		for (Eigen::SparseMatrix<float>::InnerIterator it(sm1, 1); it; ++it)				// 内维度就是存储优先的维度，如这里使用默认的列优先存储，这里的it就是某一列的迭代器；
 			std::cout << it.value() << ", ";
@@ -392,5 +392,7 @@ namespace SPARSEMAT
 			return;
 		std::cout << "x == \n" << x << std::endl;
 	}
+
+
 }
 

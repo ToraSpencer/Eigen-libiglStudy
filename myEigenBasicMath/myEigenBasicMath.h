@@ -363,7 +363,7 @@ bool subFromIdxVec(Eigen::PlainObjectBase<DerivedO>& matOut,\
 
 // 按照索引容器（只能是STL容器）从输入矩阵中提取元素
 template <typename DerivedO, typename DerivedI, typename IndexContainer>
-bool subFromIdxCon(Eigen::MatrixBase<DerivedO>& matOut, \
+bool subFromIdxCon(Eigen::PlainObjectBase<DerivedO>& matOut, \
 	const Eigen::MatrixBase<DerivedI>& matIn, const IndexContainer& con)
 {
 	using ScalarO = typename DerivedO::Scalar;

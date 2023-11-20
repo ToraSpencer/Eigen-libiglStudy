@@ -84,8 +84,8 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedO>& vers, Eigen::MatrixXi& tris,
 		edges2D(1, i) = (i + 1) % versCount + 1;
 	}
 
-	triangulateio triIn;
-	triangulateio triOut;
+	TRIANGLE_LIB::triangulateio triIn;
+	TRIANGLE_LIB::triangulateio triOut;
 	triIn.numberofpoints = versCount;
 	triIn.pointlist = vers2D.data();
 	triIn.numberofpointattributes = 0;
@@ -105,11 +105,11 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedO>& vers, Eigen::MatrixXi& tris,
 
 	triIn.numberofregions = 0;
 	triIn.regionlist = NULL;
-	memset(&triOut, 0, sizeof(triangulateio));
+	memset(&triOut, 0, sizeof(TRIANGLE_LIB::triangulateio));
 
 	// 4. 执行二维三角剖分，得到输出网格三角片数据，不取顶点坐标数据，顶点坐标数据使用旋转操作前的。
 	char triStr[256] = "pYQ";
-	triangulate(triStr, &triIn, &triOut, NULL);
+	TRIANGLE_LIB::triangulate(triStr, &triIn, &triOut, NULL);
 	tris.resize(3, triOut.numberoftriangles);
 	std::memcpy(tris.data(), triOut.trianglelist, sizeof(int) * 3 * triOut.numberoftriangles);
 	tris.transposeInPlace();
@@ -160,8 +160,8 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris,
 		edges2D(1, i) = (i + 1) % versLoopCount + 1;
 	}
 
-	triangulateio triIn;
-	triangulateio triOut;
+	TRIANGLE_LIB::triangulateio triIn;
+	TRIANGLE_LIB::triangulateio triOut;
 	triIn.numberofpoints = versLoopCount;
 	triIn.pointlist = vers2D.data();
 	triIn.numberofpointattributes = 0;
@@ -181,12 +181,12 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris,
 
 	triIn.numberofregions = 0;
 	triIn.regionlist = NULL;
-	memset(&triOut, 0, sizeof(triangulateio));
+	memset(&triOut, 0, sizeof(TRIANGLE_LIB::triangulateio));
 
 	char triStr[256];
 	//		"p" - 折线段; "a" - 最大三角片面积; "q" - Quality; "Y" - 边界上不插入点; "Q" - quiet;
 	sprintf_s(triStr, "pq30.0a%fYYQ", maxTriArea);
-	triangulate(triStr, &triIn, &triOut, NULL);
+	TRIANGLE_LIB::triangulate(triStr, &triIn, &triOut, NULL);
 
 	// 2. 处理三角剖分后的结果；
 	MatrixXR versTmp, versTmpHomo;

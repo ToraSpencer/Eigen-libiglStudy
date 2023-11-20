@@ -1194,7 +1194,7 @@ namespace IGL_BASIC_PMP
 
 		// 1. 生成邻接矩阵：
 		Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
-		adjMatrix(adjSM_eCount, adjSM_eIdx, tris);
+		tris2adjMat(adjSM_eCount, adjSM_eIdx, tris);
 
 		Eigen::SparseMatrix<int> adjSM = adjSM_eCount;
 		traverseSparseMatrix(adjSM, [&](auto& iter)
@@ -1604,7 +1604,7 @@ namespace IGL_MODELLING
 				cornerState |= 1 << i;
 
 		// 2. 确定当前立方体中和等值面相交的边；
-		int edgeState = MC_TABLES::edgeStateCodes[cornerState];		// 立方体顶点状态编码映射为相交边编码；
+		int edgeState = MARCHING_CUBES_TABLES::edgeStateCodes[cornerState];		// 立方体顶点状态编码映射为相交边编码；
 		if (edgeState == 0)
 			return;															// 表示当前立方体整体都在等值面外部或内部，没有交点；
 
@@ -1613,8 +1613,8 @@ namespace IGL_MODELLING
 		{
 			if (edgeState & (1 << i))					// 若等值面和当前边相交：
 			{
-				int vaIdxRela = MC_TABLES::cubeEdges[i][0];			// 当前边两端点的相对索引；
-				int vbIdxRela = MC_TABLES::cubeEdges[i][1];
+				int vaIdxRela = MARCHING_CUBES_TABLES::cubeEdges[i][0];			// 当前边两端点的相对索引；
+				int vbIdxRela = MARCHING_CUBES_TABLES::cubeEdges[i][1];
 
 				// 生成边上的顶点：
 				int vaIdx = cornerIdx(vaIdxRela);				// 当前边两端点的绝对索引，是栅格中的顶点索引；
@@ -1650,16 +1650,16 @@ namespace IGL_MODELLING
 		// 4. 生成当前立方体中的三角片，一个立方体中最多生成5个三角片；
 		for (int i = 0; i < 5; i++)
 		{
-			if (MC_TABLES::cubeTriangles[cornerState][3 * i] < 0)
+			if (MARCHING_CUBES_TABLES::cubeTriangles[cornerState][3 * i] < 0)
 				break;
 
 			if (curTrisCount == trisResult.rows())
 				trisResult.conservativeResize(trisResult.rows() * 2 + 1, trisResult.cols());
 
 			// 新增三角片数据中的顶点索引，是相对索引；
-			int vaIdxRela = MC_TABLES::cubeTriangles[cornerState][3 * i + 0];
-			int vbIdxRela = MC_TABLES::cubeTriangles[cornerState][3 * i + 1];
-			int vcIdxRela = MC_TABLES::cubeTriangles[cornerState][3 * i + 2];
+			int vaIdxRela = MARCHING_CUBES_TABLES::cubeTriangles[cornerState][3 * i + 0];
+			int vbIdxRela = MARCHING_CUBES_TABLES::cubeTriangles[cornerState][3 * i + 1];
+			int vcIdxRela = MARCHING_CUBES_TABLES::cubeTriangles[cornerState][3 * i + 2];
 
 			assert(isctVerIdxes[vaIdxRela] >= 0);
 			assert(isctVerIdxes[vbIdxRela] >= 0);

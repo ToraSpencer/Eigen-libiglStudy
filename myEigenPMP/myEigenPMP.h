@@ -94,7 +94,7 @@ bool circuitGetTris(Eigen::MatrixXi& tris, const std::vector<int>& indexes, cons
 
 // 输入网格三角片数据，得到有向边数据：
 template <typename DerivedI>
-bool getEdges(Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedI>& tris);
+bool getEdges(Eigen::MatrixXi& edges, const Eigen::MatrixBase<DerivedI>& tris);
  
 
 // 生成有序环路的边数据；
@@ -136,16 +136,19 @@ bool trianglesBarycenter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& barys
 	const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
 
+
 // 计算网格所有三角片的归一化法向量
 template<typename DerivedN, typename DerivedV, typename DerivedI>
 bool trianglesNorm(Eigen::PlainObjectBase<DerivedN>& triNorms, \
 	const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
 
+
 template<typename DerivedV, typename DerivedI>
 bool trianglesPlane(Eigen::MatrixXd& planeCoeff, \
 	const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
+
 
 // 计算三角网格每个三角片的面积：
 template<typename DerivedA, typename DerivedV, typename DerivedI>
@@ -153,25 +156,165 @@ bool trisArea(Eigen::PlainObjectBase<DerivedA>& trisAreaVec, \
 	const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::MatrixBase<DerivedI>& tris);
 
+
 // 计算水密的三角网格的体积；
 template<typename DerivedV, typename DerivedI>
 double meshVolume(const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
 
 
-template<typename Index>
-bool adjMatrix(Eigen::SparseMatrix<Index>& adjSM_eCount, \
-	Eigen::SparseMatrix<Index>& adjSM_eIdx, const Eigen::MatrixXi& tris, \
-	const Eigen::MatrixXi& edges0);
+// 输入有向边数据，得到顶点邻接矩阵：
+/*
+	bool edges2adjMat(
+			Eigen::SparseMatrix<int>& adjSM_eCount,			权重为该有向边重复次数的邻接矩阵；
+			Eigen::SparseMatrix<int>& adjSM_eIdx,				权重为该有向边索引的邻接矩阵；
+			const Eigen::MatrixBase<DerivedI>& edges			有向边矩阵；
+			)
+
+*/
+template <typename DerivedI>
+bool edges2adjMat(Eigen::SparseMatrix<int>& adjSM_eCount,\
+	Eigen::SparseMatrix<int>& adjSM_eIdx, const Eigen::MatrixBase<DerivedI>& edges)
+{
+	assert((edges.rows() > 0) && "Assert!!! edges should'nt be empty.");
+	assert((2 == edges.cols()) && "Assert!!! edges should be a 2 column matrix.");
+
+	const int versCount = edges.maxCoeff() + 1;
+	const int edgesCount = edges.rows();
+	std::vector<Eigen::Triplet<int>> smElems, smElems_weighted;
+	smElems.reserve(edgesCount);
+	smElems_weighted.reserve(edgesCount);
+	for (int i = 0; i < edgesCount; ++i)
+	{
+		smElems.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), 1});
+		smElems_weighted.push_back(Eigen::Triplet<int>{edges(i, 0), edges(i, 1), i});
+	}
+
+	adjSM_eCount.resize(versCount, versCount);
+	adjSM_eIdx.resize(versCount, versCount);
+	adjSM_eCount.setFromTriplets(smElems.begin(), smElems.end());									// 权重为该有向边重复的次数；
+	adjSM_eIdx.setFromTriplets(smElems_weighted.begin(), smElems_weighted.end());		// 权重为该有向边的索引；
 
 
+	return true;
+}
+
+
+// 求三角网格的不同权重的邻接矩阵 
+/*
+	template<typename int>
+	bool tris2adjMat(
+		Eigen::SparseMatrix<int>& adjSM_eCount,			权重为边数目的邻接矩阵
+		Eigen::SparseMatrix<int>& adjSM_eIdx,				权重为边索引的邻接矩阵；
+		const Eigen::MatrixXi& tris,											输入网格的三角片		
+		const Eigen::MatrixXi& edges0 = Eigen::MatrixXi{}			输入网格的边信息；默认情形下此项为空，在此函数中计算边数据；
+		);
+
+*/ 
 template<typename DerivedI>
-bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, \
-	const Eigen::PlainObjectBase<DerivedI>& tris);
+bool tris2adjMat(Eigen::SparseMatrix<int>& adjSM_eCount, \
+	Eigen::SparseMatrix<int>& adjSM_eIdx, const Eigen::MatrixBase<DerivedI>& tris)
+{
+	Eigen::MatrixXi edges;
+	getEdges(edges, tris);
+	edges2adjMat(adjSM_eCount, adjSM_eIdx, edges);
 
+	return true;
+}
+
+
+// 边缘有向边，重载1：
 template<typename DerivedI>
-bool bdryEdges(Eigen::PlainObjectBase<DerivedI>& bdrys, \
-	std::vector<int>& bdryTriIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
+bool bdryEdges(Eigen::MatrixXi& bdrys, const Eigen::MatrixBase<DerivedI>& tris)
+{
+	Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
+	tris2adjMat(adjSM_eCount, adjSM_eIdx, tris);
+	Eigen::SparseMatrix<int> adjSM_tmp, adjSM_ueCount;
+
+	// 1. 确定边缘无向边：
+	spMatTranspose(adjSM_tmp, adjSM_eCount);
+	adjSM_ueCount = adjSM_eCount + adjSM_tmp;				// 无向边邻接矩阵，权重是该边的重复次数；
+
+	std::vector<std::pair<int, int>> bdryUeVec;						// 所有边缘无向边；约定无向边表示为前大后小的索引对；
+	traverseSparseMatrix(adjSM_ueCount, [&](auto& iter)
+		{
+			if (1 == iter.value() && iter.row() > iter.col())
+				bdryUeVec.push_back({ iter.row(), iter.col() });
+		});
+
+	// 2. 由边缘无向边确定边缘有向边：
+	std::vector<std::pair<int, int>> bdryVec;
+	bdryVec.reserve(bdryUeVec.size());
+	for (const auto& pair : bdryUeVec)
+	{
+		if (adjSM_eCount.coeff(pair.first, pair.second) > 0)
+			bdryVec.push_back({ pair.first, pair.second });
+		else
+			bdryVec.push_back({ pair.second, pair.first });
+	}
+	edges2mat(bdrys, bdryVec);
+
+	return true;
+}
+
+
+// 边缘有向边， 重载2：
+template<typename DerivedI>
+bool bdryEdges(Eigen::MatrixXi& bdrys, std::vector<int>& bdryTriIdxes, \
+	const Eigen::MatrixBase<DerivedI>& tris)
+{
+	/*
+		bool bdryEdges(
+				Eigen::PlainObjectBase<DerivedI>& bdrys,					bdrysCount * 2，边缘边数据，是有向边；
+				std::vector<int>& bdryTriIdxes,										包含边缘边的三角片索引；
+				const Eigen::PlainObjectBase<DerivedI>& tris				trisCount * 3, 网格三角片数据；
+				)
+
+	*/
+
+	// 1. 查找网格的边缘有向边；
+	if (!bdryEdges(bdrys, tris))
+		return false;
+
+	if (0 == bdrys.rows())
+		return true;
+
+	const unsigned trisCount = tris.rows();
+
+	// 2. 确认边缘非流形边所在的三角片索引：
+	Eigen::MatrixXi edgeAs = Eigen::MatrixXi::Zero(trisCount, 2);
+	Eigen::MatrixXi edgeBs = Eigen::MatrixXi::Zero(trisCount, 2);
+	Eigen::MatrixXi edgeCs = Eigen::MatrixXi::Zero(trisCount, 2);
+	Eigen::MatrixXi vaIdxes = tris.col(0);
+	Eigen::MatrixXi vbIdxes = tris.col(1);
+	Eigen::MatrixXi vcIdxes = tris.col(2);
+
+	// 3. 生成有向边编码-三角片字典：
+	std::unordered_multimap<std::int64_t, unsigned> edgesMap;			// 一条有向边正常情况下只关联一个三角片，若关联多个，则是非流形边；
+	for (unsigned i = 0; i < trisCount; ++i)
+	{
+		std::int64_t codeA = encodeEdge(vbIdxes(i), vcIdxes(i));
+		std::int64_t codeB = encodeEdge(vcIdxes(i), vaIdxes(i));
+		std::int64_t codeC = encodeEdge(vaIdxes(i), vbIdxes(i));
+		edgesMap.insert({ codeA, i });
+		edgesMap.insert({ codeB, i });
+		edgesMap.insert({ codeC, i });
+	}
+
+	// 4. 在字典中查找所有边缘边所在的三角片索引：
+	for (unsigned i = 0; i < bdrys.rows(); ++i)
+	{
+		std::int64_t code = encodeEdge(bdrys(i, 0), bdrys(i, 1));
+		auto iter = edgesMap.find(code);
+		unsigned codeCounts = edgesMap.count(code);
+		for (unsigned k = 0; k < codeCounts; ++k)
+			bdryTriIdxes.push_back((iter++)->second);
+	}
+
+	return true;
+}
+
+
 
 using tVec = std::vector<std::vector<int>>;
 template <typename DerivedI>
@@ -190,6 +333,33 @@ bool cotLaplacian(Eigen::SparseMatrix<Tl>& L, \
 	const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::MatrixXi& tris);
 
+// 计算网格中所有顶点的1ring信息——1ring的顶点索引、三角片索引；
+template<typename DerivedV, typename DerivedI>
+bool get1ring(std::vector<std::unordered_set<int>>& vIdx1ring, std::vector<std::unordered_set<int>>& tIdx1ring,\
+	const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixBase<DerivedI>& tris)
+{
+	const int versCount = vers.rows();
+	const int trisCount = tris.rows();
+	vIdx1ring.resize(versCount);
+	tIdx1ring.resize(versCount);
+	for (int i = 0; i < trisCount; ++i)
+	{
+		int vaIdx = static_cast<int>(tris(i, 0));
+		int vbIdx = static_cast<int>(tris(i, 1));
+		int vcIdx = static_cast<int>(tris(i, 2));
+		vIdx1ring[vaIdx].insert(vbIdx);
+		vIdx1ring[vaIdx].insert(vcIdx);
+		vIdx1ring[vbIdx].insert(vaIdx);
+		vIdx1ring[vbIdx].insert(vcIdx);
+		vIdx1ring[vcIdx].insert(vaIdx);
+		vIdx1ring[vcIdx].insert(vbIdx);
+		tIdx1ring[vaIdx].insert(i);
+		tIdx1ring[vbIdx].insert(i);
+		tIdx1ring[vcIdx].insert(i);
+	}
+	 
+	return true;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 点云编辑：
 
@@ -250,23 +420,50 @@ bool laplaceFaring(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 template <typename DerivedV, typename DerivedI>
 bool triangleGrow(Eigen::PlainObjectBase<DerivedV>& versOut,\
 	Eigen::PlainObjectBase<DerivedI>& trisOut, 	\
-	const Eigen::PlainObjectBase<DerivedV>& vers, \
-	const Eigen::PlainObjectBase<DerivedI>& tris, const int triIdx);
+	const Eigen::MatrixBase<DerivedV>& vers, \
+	const Eigen::MatrixBase<DerivedI>& tris, const int triIdx);
 
 
 template <typename DerivedV>
 bool triangleGrowSplitMesh(std::vector<DerivedV>& meshesVersOut, \
 	std::vector<Eigen::MatrixXi>& meshesTrisOut, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
+	const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
 
-template <typename T>
-bool triangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, \
-	Eigen::MatrixXi& trisOut, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers,\
-	const Eigen::MatrixXi& tris, const bool blRemIso, const int startIdx);
 
-template <typename T>
-bool robustTriangleGrowOuterSurf(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& versOut, Eigen::MatrixXi& trisOut, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, const Eigen::MatrixXi& tris, const bool blRemIso);
+// 三角片区域生长得到最外层网格；
+/*
+	template <typename DerivedVo, typename DerivedVi>
+	bool triangleGrowOuterSurf(
+		Eigen::PlainObjectBase<DerivedVo>& versOut, \		输出网格
+		Eigen::MatrixXi& trisOut, 
+		const Eigen::MatrixBase<DerivedVi>& vers, \			输入网格
+		const Eigen::MatrixXi& tris,
+		const bool blRemIso,													是否去除孤立顶点
+		const int startIdx															区域生长起始的三角片索引；
+		)
+
+*/
+template <typename DerivedVo, typename DerivedVi>
+bool triangleGrowOuterSurf(Eigen::PlainObjectBase<DerivedVo>& versOut, \
+	Eigen::MatrixXi& trisOut, const Eigen::MatrixBase<DerivedVi>& vers,\
+	const Eigen::MatrixXi& tris, const bool blRemIso = true, const int startIdx = -1);
+
+
+// robustTriangleGrowOuterSurf()——提升了鲁棒性的三角片生长，避免了某些反向三角片的干扰； 
+/*
+	template <typename DerivedVo, typename DerivedVi>
+	bool robustTriangleGrowOuterSurf(
+		Eigen::PlainObjectBase<DerivedVo>& versOut, \		输出网格
+		Eigen::MatrixXi& trisOut,
+		const Eigen::MatrixBase<DerivedVi>& vers, \			输入网格
+		const Eigen::MatrixXi& tris,
+		const bool blRemIso,													是否去除孤立顶点
+		)
+
+*/
+template <typename DerivedVo, typename DerivedVi>
+bool robustTriangleGrowOuterSurf(Eigen::PlainObjectBase<DerivedVo>& versOut, Eigen::MatrixXi& trisOut, \
+	const Eigen::MatrixBase<DerivedVi>& vers, const Eigen::MatrixXi& tris, const bool blRemIso = true);
 
 template <typename DerivedI>
 bool uEdgeGrow(std::vector<Eigen::MatrixXi>& circs, std::vector<Eigen::MatrixXi >& segs, \
@@ -337,11 +534,15 @@ bool fillSmallHoles(Eigen::Matrix<IndexType, Eigen::Dynamic, Eigen::Dynamic>& ne
 	const std::vector<Eigen::Matrix<IndexType, Eigen::Dynamic, 1>>& holes);
 
 template <typename DerivedV>
-std::vector<unsigned> checkIsoVers(const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
+std::vector<unsigned> checkIsoVers(const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris);
 
-template <typename DerivedV>
-bool removeIsoVers(Eigen::PlainObjectBase<DerivedV>& versOut, Eigen::MatrixXi& trisOut, \
-	const Eigen::PlainObjectBase<DerivedV>& vers, const Eigen::MatrixXi& tris, const std::vector<unsigned>& isoVerIdxes);
+
+// 去除网格中的孤立顶点：
+template <typename DerivedVo, typename DerivedVi>
+bool removeIsoVers(Eigen::PlainObjectBase<DerivedVo>& versOut, Eigen::MatrixXi& trisOut, \
+	const Eigen::MatrixBase<DerivedVi>& vers, const Eigen::MatrixXi& tris, \
+	const std::vector<unsigned>& isoVerIdxes);
+
 
 template <typename DerivedV>
 Eigen::VectorXi checkDegEdges(const Eigen::MatrixXi& edges, const Eigen::PlainObjectBase<DerivedV>& edgeArrows, \

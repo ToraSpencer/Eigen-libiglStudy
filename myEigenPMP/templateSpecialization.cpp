@@ -32,7 +32,7 @@ template bool interpolateToLine<Eigen::MatrixXf, double>(Eigen::PlainObjectBase<
 template bool getCircleVers(Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, const unsigned versCount);
 template bool getCircleVers(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, const unsigned versCount);
 
-template bool getEdges<Eigen::MatrixXi>(Eigen::MatrixXi&, const Eigen::PlainObjectBase<Eigen::MatrixXi>&);
+template bool getEdges<Eigen::MatrixXi>(Eigen::MatrixXi&, const Eigen::MatrixBase<Eigen::MatrixXi>&);
 
 template bool getSortedLoopEdges<Eigen::MatrixXi, int>(Eigen::PlainObjectBase<Eigen::MatrixXi>&, const int);
 template bool getSortedLoopEdges<Eigen::MatrixXi, unsigned>(Eigen::PlainObjectBase<Eigen::MatrixXi>&, const unsigned);
