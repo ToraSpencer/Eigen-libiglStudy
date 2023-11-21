@@ -220,39 +220,6 @@ bool circuitGetTris(Eigen::MatrixXi& tris, const std::vector<int>& indexes, cons
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 图形属性：
- 
-// 得到三角网格的有向边数据
-template <typename DerivedI>
-bool getEdges(Eigen::MatrixXi& edges, const Eigen::MatrixBase<DerivedI>& tris)
-{
-	/*
-		bool getEdges(
-				Eigen::MatrixXi& edges,
-				const Eigen::PlainObjectBase<DerivedI>& tris
-				)
-
-		三条边在edges中的排列顺序为[bc; ca; ab]；其所对的顶点标记corner分别为0, 1, 2，即a,b,c;
-		边索引到三角片索引的映射——边eIdx0所在的三角片triIdx0 == eIdx0 % trisCount;
-		三角片triIdx0和corner0到边索引的映射——eIdx0 = corner0 * trisCount + triIdx0;
-		边索引到corner的映射——corner0 = eIdx0 / trisCount;
-	*/
-	const unsigned trisCount = tris.rows();
-	const unsigned edgesCount = 3 * trisCount;
-	const unsigned versCount = tris.maxCoeff() + 1;
-
-	edges = Eigen::MatrixXi::Zero(edgesCount, 2);
-	Eigen::MatrixXi vaIdxes = tris.col(0).array().cast<int>();
-	Eigen::MatrixXi vbIdxes = tris.col(1).array().cast<int>();
-	Eigen::MatrixXi vcIdxes = tris.col(2).array().cast<int>();
-	edges.block(0, 0, trisCount, 1) = vbIdxes;
-	edges.block(trisCount, 0, trisCount, 1) = vcIdxes;
-	edges.block(trisCount * 2, 0, trisCount, 1) = vaIdxes;
-	edges.block(0, 1, trisCount, 1) = vcIdxes;
-	edges.block(trisCount, 1, trisCount, 1) = vaIdxes;
-	edges.block(trisCount * 2, 1, trisCount, 1) = vbIdxes;
-
-	return true;
-}
 
 
 // 生成有序环路的边数据；

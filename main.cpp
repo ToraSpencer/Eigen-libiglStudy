@@ -533,7 +533,7 @@ namespace MESH_REPAIR
 					if (iter.value() > 0)
 						iter.valueRef() = 1;
 				});
-			scCount = simplyConnectedRegion(adjSM, connectedLabels, connectedCount);
+			scCount = simplyConnectedRegion(connectedLabels, connectedCount, adjSM);
 			if (scCount > 1)
 				debugDisp(OBJfileNames[i], ".obj ！！！存在", scCount, "个顶点联通区域。");
 
@@ -1304,7 +1304,14 @@ int testCmd_laplaceFaring(int argc, char** argv)
 
 int main(int argc, char** argv)
 { 
-	TEST_MYEIGEN_PMP::test5();
+	// TEST_MYEIGEN_PMP::test4();
+
+	// TEST_DENSE_MAT::test000();
+
+	Eigen::MatrixXd vers;
+	Eigen::MatrixXi tris;
+	objReadMeshMat(vers, tris, "E:/材料/meshArranged.obj");
+	removeSickDupTris(vers, tris);
 
 	debugDisp("main() finished."); 
 }

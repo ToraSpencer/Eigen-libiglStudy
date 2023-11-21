@@ -103,7 +103,7 @@ namespace TEST_DENSE_MAT
 	// 暂时无法分类：
 	void test000()
 	{
-		// 矩阵索引：
+		// 1. 矩阵索引：
 		std::vector<int> rowVec{ 1, 3, 4 };
 		std::vector<int> colVec{ 5, 2, 0 };
 
@@ -111,10 +111,23 @@ namespace TEST_DENSE_MAT
 		Eigen::MatrixXi A = Eigen::MatrixXi::Random(4, 6);
 		std::cout << "Initial matrix A:\n" << A << "\n\n";
 
-		// 查看eigen库的版本：
+		// 2. 查看eigen库的版本：
 		std::cout << EIGEN_WORLD_VERSION << std::endl;
 		std::cout << EIGEN_MAJOR_VERSION << std::endl;
 		std::cout << EIGEN_MINOR_VERSION << std::endl;		// 版本为3.3.7;
+
+		// 3. 
+		{
+			Eigen::MatrixXi m1(3, 4);
+			Eigen::Matrix2i m2;
+			Eigen::VectorXi v1(5);
+			debugDisp("m1.RowsAtCompileTime == ", m1.RowsAtCompileTime);
+			debugDisp("m1.ColsAtCompileTime == ", m1.ColsAtCompileTime);
+			debugDisp("m2.RowsAtCompileTime == ", m2.RowsAtCompileTime);
+			debugDisp("m2.ColsAtCompileTime == ", m2.ColsAtCompileTime);
+			debugDisp("v1.RowsAtCompileTime == ", v1.RowsAtCompileTime);
+			debugDisp("v1.ColsAtCompileTime == ", v1.ColsAtCompileTime);
+		}
 	}
 
 
@@ -143,14 +156,14 @@ namespace TEST_DENSE_MAT
 		Eigen::VectorXd v1(3);			// 注意是列向量
 		std::cout << v1 << std::endl;
 
-		// 堆Array
+		// 1. 堆Array
 		ArrayXXd a1(2, 2), a2(2, 2);
 		a1 << 1, 2, 3, 4;											// operator << 填充元素是行优先的顺序；
 		a2 << 1, 2, 3, 4;
 		std::cout << "a1 = \n" << a1 << std::endl;
 		std::cout << "a1*a2 = \n" << a1 * a2 << std::endl;
 
-		// 生成特殊向量的接口——LinSpaced(元素数，起点，终点)
+		// 2. 生成特殊向量的接口——LinSpaced(元素数，起点，终点)
 		int start = 0;
 		int end = 10;
 		Eigen::VectorXi vi1 = Eigen::VectorXi::LinSpaced(end - start + 1, start, end);
@@ -159,12 +172,12 @@ namespace TEST_DENSE_MAT
 		Eigen::VectorXf vf1 = Eigen::VectorXf::LinSpaced(5, 0, 10.0);
 		std::cout << "vf1 == " << vf1 << std::endl;
 
-		// 生成特殊矩阵的接口——Random(), Constant(), Ones()....
+		// 3. 生成特殊矩阵的接口——Random(), Constant(), Ones()....
 		Eigen::MatrixXd m2 = Eigen::MatrixXd::Random(3, 3);              // 矩阵类static方法——Random()——返回随机矩阵
 		Eigen::MatrixXd m3 = Eigen::MatrixXd::Constant(3, 3, 1.2);		// 常数矩阵，前面是尺寸，后面是值；
 		Eigen::MatrixXd m4 = Eigen::MatrixXd::Ones(1, 2);					// 全1矩阵
  
-		// 数据存在栈上的矩阵类型
+		// 4. 数据存在栈上的矩阵类型
 		Matrix3d mm1 = Matrix3d::Random();
 		Vector3d vv1(1, 2, 3);
 		std::cout << "m2 = \n" << m2 << std::endl << std::endl;
@@ -983,8 +996,7 @@ namespace TEST_DENSE_MAT
 		Eigen::RowVector3f v1;
 		Eigen::VectorXi v2{ Eigen::RowVectorXi::Ones(6)};
 		Eigen::Matrix3d m1(Matrix3d::Ones());
-		Eigen::MatrixXi m2(5, 6);
-		 
+		Eigen::MatrixXi m2(5, 6);		 
 		
 		// 各种各样的return type:
 		auto ret1 = m1.row(1);												// Eigen::Block<>

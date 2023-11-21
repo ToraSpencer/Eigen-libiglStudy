@@ -153,7 +153,6 @@ void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, \
 
 
 
-
 /////////////////////////////////////////////////////////////////////////////////////////////////// basic math tools:
 
 // 传入函数子遍历稠密矩阵中的元素，函数子接受的参数是类型为typename Derived::Scalar的矩阵元素对象
@@ -516,7 +515,6 @@ bool matInsertCols(Eigen::PlainObjectBase<Derived>& mat, \
 }
 
 
-
 // 输入flag向量，得到新老索引的映射关系； 
 /*
 	void flagVec2oldNewIdxInfo(
@@ -554,9 +552,34 @@ void flagVec2oldNewIdxInfo(std::vector<int>& oldNewIdxInfo, \
 	newOldIdxInfo.shrink_to_fit();
 }
 
-// 
+
+// 返回一个flag列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；
 template <typename Derived1, typename Derived2>
-Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& rowVec);
+Eigen::VectorXi rowInMat(const Eigen::MatrixBase<Derived1>& mat, \
+	const Eigen::MatrixBase<Derived2>& rowVec)
+{
+	using T = typename Derived1::Scalar;
+	const int rows = mat.rows();
+	const int cols = mat.cols();
+	Eigen::VectorXi retVec(rows);
+	assert(rowVec.cols() == cols, "Error!!! Tow mats size do not match.");
+
+	// 逐列比较：
+	Eigen::MatrixXi tempMat(rows, cols);
+	for (int i = 0; i < cols; ++i)
+	{
+		T value = static_cast<T>(rowVec(i));
+		tempMat.col(i) = (mat.col(i).array() == value).select(\
+				Eigen::VectorXi::Ones(rows), Eigen::VectorXi::Zero(rows));
+	}
+
+	retVec = tempMat.col(0);
+	if (cols > 1)
+		for (int i = 1; i < cols; ++i)
+			retVec = retVec.array() * tempMat.col(i).array();			// 逐列相乘：
+
+	return retVec;
+}
 
 
 // 生成稀疏矩阵，类似于MATLAB中的sparse()

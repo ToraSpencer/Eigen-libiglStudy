@@ -219,28 +219,6 @@ bool vecInsertVec(Eigen::Matrix<T, Eigen::Dynamic, 1>& vec1, const Eigen::Matrix
 }
 
 
-// 返回一个flag列向量retVec，若mat的第i行和行向量vec相等，则retVec(i)==1，否则等于0；
-template <typename Derived1, typename Derived2>
-Eigen::VectorXi rowInMat(const Eigen::PlainObjectBase<Derived1>& mat, const Eigen::PlainObjectBase<Derived2>& rowVec)
-{
-	int rows = mat.rows();
-	int cols = mat.cols();
-	Eigen::VectorXi retVec(rows);
-	assert(rowVec.cols() == cols, "Error!!! Tow mats size do not match.");
-
-	// 逐列比较：
-	Eigen::MatrixXi tempMat(rows, cols);
-	for (int i = 0; i < cols; ++i)
-		tempMat.col(i) = (mat.col(i).array() == rowVec(i)).select(Eigen::VectorXi::Ones(rows), Eigen::VectorXi::Zero(rows));
-
-	retVec = tempMat.col(0);
-
-	if (cols > 1)
-		for (int i = 1; i < cols; ++i)
-			retVec = retVec.array() * tempMat.col(i).array();			// 逐列相乘：
-
-	return retVec;
-}
 
 
 // 生成稀疏矩阵，和matlab中的sparse()类似；

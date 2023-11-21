@@ -112,88 +112,6 @@ namespace TEST_MYEIGEN
 	}
 
 
-	// 测试区域生长triangleGrow();
-	void test1() 
-	{
-		Eigen::MatrixXd vers, versOut;
-		Eigen::MatrixXi tris, trisOut;
-		objReadMeshMat(vers, tris, "E:/材料/fatTeeth.obj");
-		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
-
-		std::vector<Eigen::MatrixXd> meshesVersOut;
-		std::vector<Eigen::MatrixXi> meshesTrisOut;
-		triangleGrowSplitMesh(meshesVersOut, meshesTrisOut, vers, tris);
-
-		for (int i = 0; i<meshesVersOut.size(); ++i) 
-		{
-			char str[256];
-			sprintf_s(str, "E:/triangleGrowSplitOut%d.obj", i);
-			objWriteMeshMat(str, meshesVersOut[i], meshesTrisOut[i]);
-		}
-
-		triangleGrow(versOut, trisOut, vers, tris, 0);
-		objWriteMeshMat("E:/triangleGrowOut0.obj", versOut, trisOut);
-
-		versOut.resize(0, 0);
-		trisOut.resize(0, 0);
-		triangleGrow(versOut, trisOut, vers, tris, 16666);
-		objWriteMeshMat("E:/triangleGrowOut16666.obj", versOut, trisOut);
-
-		std::cout << "finished." << std::endl;
-	}
-
-
-	// 测试区域生长实现的重叠三角片检测：
-	void test11()
-	{
-		Eigen::MatrixXd vers, versOut;
-		Eigen::MatrixXi tris, trisOut;
-		objReadMeshMat(vers, tris, "E:/材料/jawMeshDense_algSimp_60000.obj");
-		objWriteMeshMat("E:/triangleGrowInput.obj", vers, tris);
-
-		std::vector<std::pair<int, int>> opTrisPairs;
-		int olCount = findOverLapTris(opTrisPairs, vers, tris);
-
-
-		debugDisp("finished.");
-	}
-
-
-	// 测试区域生长实现的网格三角片朝向矫正：
-	void test111() 
-	{
-		Eigen::MatrixXd vers, versOut;
-		Eigen::MatrixXi tris, trisOut;
-		objReadMeshMat(vers, tris, "E:/材料/meshWrongTriDir.obj");
-		
-		debugWriteMesh("meshInput", vers, tris);
-
-		int corrCount = correctTriDirs(trisOut, vers, tris);
-		debugDisp("correctTriDirs == ", corrCount);
-		debugWriteMesh("meshsOut", vers, trisOut);
-		
-		debugDisp("finished.");
-	}
-
-
-	// 顶点区域生长提取单连通网格：
-	void test1111() 
-	{
-		Eigen::MatrixXd vers, versTmp;
-		Eigen::MatrixXi tris, trisTmp;
-		objReadMeshMat(vers, tris, "E:/材料/arrangeResult.obj");
-
-		std::vector<Eigen::MatrixXd> compVers;
-		std::vector<Eigen::MatrixXi> compTris;
-		simplyConnectedSplitMesh(compVers, compTris, vers, tris);
-
-		for(int k = 0; k<compVers.size(); ++k)
-			debugWriteMesh((std::string{ "compMesh_" } + std::to_string(k)).c_str(), compVers[k], compTris[k]);
-
-		debugDisp("finished.");
-	}
-
-
 	// 检测重复三角片，重复顶点，
 	void test2() 
 	{
@@ -568,7 +486,6 @@ namespace TEST_MYEIGEN_BASIC_MATH
 
 
 
-
 // 测试myEigenPMP中的接口
 namespace TEST_MYEIGEN_PMP
 {
@@ -655,18 +572,38 @@ namespace TEST_MYEIGEN_PMP
 	// 测试区域生长算法：
 	void test4() 
 	{
-		Eigen::MatrixXf vers;
-		Eigen::MatrixXi tris;
+		Eigen::MatrixXf vers, versOut;
+		Eigen::MatrixXi tris, trisOut;
 		objReadMeshMat(vers, tris, "E:/材料/meshArrangeResult.obj");
 		debugWriteMesh("meshInput", vers, tris);
 
+		// 1. 区域生长提取 最外层网格；
 		Eigen::MatrixXd versOutter;
 		Eigen::MatrixXi trisOutter;
 		robustTriangleGrowOuterSurf(versOutter, trisOutter, vers, tris);
 		debugWriteMesh("meshOutter", versOutter, trisOutter);
 
+		// 2. 测试区域生长实现的网格三角片朝向矫正：
+#if 0				// 当前有错误；
+		objReadMeshMat(vers, tris, "E:/材料/meshWrongTriDir.obj");
+		int corrCount = correctTriDirs(trisOut, vers, tris);
+		debugDisp("correctTriDirs == ", corrCount);
+		debugWriteMesh("meshsOut", vers, trisOut);
+#endif
+
+		// 3. 区域生长逐个分解出单连通网格
+		Eigen::MatrixXd versTmp;
+		Eigen::MatrixXi trisTmp;
+		std::vector<Eigen::MatrixXd> compVers;
+		std::vector<Eigen::MatrixXi> compTris;
+		objReadMeshMat(vers, tris, "E:/材料/threeTeeth.obj");
+		simplyConnectedSplitMesh(compVers, compTris, vers, tris);
+		for (int k = 0; k < compVers.size(); ++k)
+			debugWriteMesh((std::string{ "compMesh_" } + std::to_string(k)).c_str(), compVers[k], compTris[k]); 
+
 		debugDisp("finished.");
-	}
+	} 
+	    
 
 
 	// 测试获取网格属性：
