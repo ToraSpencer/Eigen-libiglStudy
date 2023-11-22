@@ -52,60 +52,6 @@ std::pair<double, double> polar2cart(const T radius, const T theta)
 }
 
 
-// Eigen向量转换为std::vector，重载1: 
-template<typename T, typename Derived>
-void eigenVec2Vec(std::vector<T>& vOut, const Eigen::PlainObjectBase<Derived>& vIn)
-{
-	assert(1 == vIn.rows() || 1 == vIn.cols(), "assert!!! Input arg vIn should be a vector.");
-	unsigned elemCount = vIn.rows() * vIn.cols();
-	vOut.clear();
-	vOut.resize(elemCount);
-	for (unsigned i = 0; i < elemCount; ++i)
-		vOut[i] = static_cast<T>(vIn(i));
-}
-
-
-// Eigen向量转换为std::vector，重载2: 
-template<typename Derived>
-std::vector<typename Derived::Scalar>  eigenVec2Vec(const Eigen::PlainObjectBase<Derived>& vIn)
-{
-	using Scalar = typename Derived::Scalar;
-	assert(1 == vIn.rows() || 1 == vIn.cols(), "assert!!! Input arg vIn should be a vector.");
-
-	unsigned elemCount = vIn.rows() * vIn.cols();
-	std::vector<Scalar> vOut(elemCount, 1);
-	std::memcpy(&vOut[0], vIn.data(), sizeof(Scalar) * elemCount);
-
-	return vOut;
-}
-
-
-// std::向量转换为eigen向量， 重载1；
-template<typename Derived, typename T>
-void vec2EigenVec(Eigen::PlainObjectBase<Derived>& vOut, const std::vector<T>& vIn)
-{
-	using Scalar = typename Derived::Scalar; 
-	unsigned elemCount = vIn.size();
-	vOut.resize(0);
-	vOut.resize(elemCount);
-	for (unsigned i = 0; i < elemCount; ++i)
-		vOut(i) = static_cast<Scalar>(vIn[i]);
-}
-
-
-// std::向量转换为eigen向量， 重载2——返回列向量；
-template<typename T>
-Eigen::Matrix<T, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<T>& vIn)
-{
-	unsigned elemCount = vIn.size();
-	Eigen::Matrix<T, Eigen::Dynamic, 1> vOut;
-	vOut.resize(elemCount, 1);
-	std::memcpy(vOut.data(), &vIn[0], sizeof(T) * elemCount);
-
-	return vOut;
-}
-
-
 // 霍纳方法（秦九昭算法）求多项式的值
 template<typename T, int N>
 double hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const double x)

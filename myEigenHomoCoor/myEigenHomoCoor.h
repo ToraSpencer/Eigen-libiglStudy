@@ -101,7 +101,7 @@ Eigen::MatrixXf homoVers2VersF(const Eigen::MatrixBase<DerivedV>& versIn)
 
 
 template <typename DerivedV>
-Eigen::MatrixXf homoVers2VersD(const Eigen::MatrixBase<DerivedV>& versIn)
+Eigen::MatrixXd homoVers2VersD(const Eigen::MatrixBase<DerivedV>& versIn)
 {
 	Eigen::MatrixXd versOut;
 	homoVers2Vers(versOut, versIn);

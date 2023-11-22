@@ -1306,13 +1306,11 @@ int main(int argc, char** argv)
 { 
 	// TEST_MYEIGEN_PMP::test4();
 
-	// TEST_DENSE_MAT::test000();
+	 TEST_DENSE_MAT::test1();
 
-	Eigen::MatrixXd vers;
-	Eigen::MatrixXi tris;
-	objReadMeshMat(vers, tris, "E:/材料/meshArranged.obj");
-	removeSickDupTris(vers, tris);
-
+	// TEST_MYEIGEN_MODELING::test1();
+	 
+ 
 	debugDisp("main() finished."); 
 }
 

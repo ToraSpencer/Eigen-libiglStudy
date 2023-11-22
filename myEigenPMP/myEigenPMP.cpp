@@ -99,41 +99,7 @@ std::vector<int> decodeTrianagle(const std::uint64_t code)
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 生成基础图元：
-
-// 输入起点、终点、空间采样率，插值生成一条直线点云；
-template <typename DerivedVo, typename ScalarVi>
-bool interpolateToLine(Eigen::PlainObjectBase<DerivedVo>& vers, \
-	const Eigen::Matrix<ScalarVi, 1, 3>& start, const Eigen::Matrix<ScalarVi, 1, 3>& end, \
-	const float SR, const bool SE)
-{
-	if (vers.rows() > 0)
-		return false;
-
-	Eigen::RowVector3d startD = start.array().cast<double>();
-	Eigen::RowVector3d endD = end.array().cast<double>();
-	Eigen::RowVector3d dir = endD - startD;
-	float length = dir.norm();
-	dir.normalize();
-	if (length <= SR)
-		return true;
-
-	if (SE)
-		matInsertRows(vers, startD);
-
-	float lenth0 = 0;
-	for (unsigned i = 1; (length - lenth0) > 0.8 * SR; i++)			// 确保最后一个点距离终点不能太近。
-	{
-		Eigen::RowVector3d temp = startD + SR * i * dir;
-		matInsertRows(vers, temp);
-		lenth0 = SR * (i + 1);		// 下一个temp的长度。
-	}
-
-	if (SE)
-		matInsertRows(vers, endD);
-
-	return true;
-};
-
+ 
 
 // 生成XOY平面内的圆圈点集：
 template <typename T>

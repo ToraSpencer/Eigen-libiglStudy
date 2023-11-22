@@ -196,24 +196,59 @@ template<typename T, int N>
 float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x);
 
 
-// eigen向量转换为std向量, 重载1
+
+// Eigen向量转换为std::vector，重载1: 
 template<typename T, typename Derived>
-void eigenVec2Vec(std::vector<T>& vOut, const Eigen::PlainObjectBase<Derived>& vIn);
+void eigenVec2Vec(std::vector<T>& vOut, const Eigen::MatrixBase<Derived>& vIn)
+{
+	assert(1 == vIn.rows() || 1 == vIn.cols(), "assert!!! Input arg vIn should be a vector.");
+	unsigned elemCount = vIn.rows() * vIn.cols();
+	vOut.clear();
+	vOut.resize(elemCount);
+	for (unsigned i = 0; i < elemCount; ++i)
+		vOut[i] = static_cast<T>(vIn(i));
+}
 
 
-// eigen向量转换为std向量，重载2
+// Eigen向量转换为std::vector，重载2: 
 template<typename Derived>
-std::vector<typename Derived::Scalar> eigenVec2Vec(const Eigen::PlainObjectBase<Derived>& vIn);
+std::vector<typename Derived::Scalar>  eigenVec2Vec(const Eigen::MatrixBase<Derived>& vIn)
+{
+	using Scalar = typename Derived::Scalar;
+	assert(1 == vIn.rows() || 1 == vIn.cols(), "assert!!! Input arg vIn should be a vector.");
+
+	unsigned elemCount = vIn.rows() * vIn.cols();
+	std::vector<Scalar> vOut(elemCount, 1);
+	std::memcpy(&vOut[0], &vIn(0), sizeof(Scalar) * elemCount);
+
+	return vOut;
+}
 
 
-// std::向量转换为eigen列向量， 重载1
+// std::向量转换为eigen向量， 重载1；
 template<typename Derived, typename T>
-void vec2EigenVec(Eigen::PlainObjectBase<Derived>& vOut, const std::vector<T>& vIn);
+void vec2EigenVec(Eigen::PlainObjectBase<Derived>& vOut, const std::vector<T>& vIn)
+{
+	using Scalar = typename Derived::Scalar;
+	unsigned elemCount = vIn.size();
+	vOut.resize(0);
+	vOut.resize(elemCount);
+	for (unsigned i = 0; i < elemCount; ++i)
+		vOut(i) = static_cast<Scalar>(vIn[i]);
+}
 
 
-// std::向量转换为eigen列向量， 重载2；
+// std::向量转换为eigen向量， 重载2——返回列向量；
 template<typename T>
-Eigen::Matrix<T, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<T>& vIn);
+Eigen::Matrix<T, Eigen::Dynamic, 1> vec2EigenVec(const std::vector<T>& vIn)
+{
+	unsigned elemCount = vIn.size();
+	Eigen::Matrix<T, Eigen::Dynamic, 1> vOut;
+	vOut.resize(elemCount, 1);
+	std::memcpy(vOut.data(), &vIn[0], sizeof(T) * elemCount);
+
+	return vOut;
+}
 
 
 // 输入旋转信息得到旋转矩阵，重载1——输入旋转轴向量，旋转角度，返回旋转矩阵：
@@ -321,13 +356,16 @@ void getRotationMat(Eigen::Matrix<ScalarVO, 3, 3>& rotation, \
 template <typename DerivedO, typename DerivedI, typename DerivedVI>
 bool subFromIdxVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
 	const Eigen::MatrixBase<DerivedI>& matIn, const Eigen::MatrixBase<DerivedVI>& vec)
-{ 
+{
 	using ScalarO = typename DerivedO::Scalar;
+	matOut.resize(0, 0);
+	if (0 == vec.rows())
+		return true;
+
 	int maxIdx = static_cast<int>(vec.maxCoeff());
 	assert((maxIdx < matIn.rows()) && "Assesrt!!! index out of range in matIn.");
 	assert((1 == vec.rows() || 1 == vec.cols()) && "Assesrt!!! input vec is not a vector.");
 
-	matOut.resize(0, 0);
 	matOut.resize(vec.size(), matIn.cols());
 	for (unsigned i = 0; i < vec.rows(); ++i)
 	{
@@ -341,11 +379,14 @@ bool subFromIdxVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
 
 // 按照索引向量从输入矩阵中提取元素，重载2——索引向量为std::vector<>
 template <typename DerivedO, typename DerivedI, typename Index>
-bool subFromIdxVec(Eigen::PlainObjectBase<DerivedO>& matOut,\
+bool subFromIdxVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
 	const Eigen::MatrixBase<DerivedI>& matIn, const std::vector<Index>& vec)
-{ 
+{
 	using ScalarO = typename DerivedO::Scalar;
-	assert((!vec.empty()) && "Assert!!! input vec should not be empty.");
+	matOut.resize(0, 0);
+	if (vec.empty())
+		return true;
+
 	int maxIdx = static_cast<int>(*std::max_element(vec.begin(), vec.end()));
 	assert((maxIdx < matIn.rows()) && "Assesrt!!! index out of range in matIn.");
 
@@ -366,12 +407,14 @@ bool subFromIdxCon(Eigen::PlainObjectBase<DerivedO>& matOut, \
 	const Eigen::MatrixBase<DerivedI>& matIn, const IndexContainer& con)
 {
 	using ScalarO = typename DerivedO::Scalar;
-	assert((!con.empty()) && "Assert!!! input vec should not be empty.");
+	matOut.resize(0, 0);
+	if (con.empty())
+		return true;
+
 	int maxIdx = static_cast<int>(*std::max_element(con.begin(), con.end()));
 	assert((maxIdx < matIn.rows()) && "Assesrt!!! index out of range in matIn.");
 
 	matOut.resize(con.size(), matIn.cols());
-
 	auto iter = con.begin();
 	for (unsigned i = 0; iter != con.end(); ++i)
 	{
@@ -445,6 +488,27 @@ bool subFromFlagVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
 }
  
 
+// 根据flag向量从源向量中提取元素生成输出向量
+template <typename DerivedO, typename DerivedI, typename DerivedVI>
+bool subVecFromFlagVec(Eigen::PlainObjectBase<DerivedO>& vecOut, \
+	const Eigen::MatrixBase<DerivedI>& vecIn, const Eigen::MatrixBase<DerivedVI>& vec)
+{
+	using ScalarO = typename DerivedO::Scalar;
+	assert((1 == vec.rows() || 1 == vec.cols()) && "Assesrt!!! input vec is not a vector.");
+	assert((vec.size() == vecIn.rows()) && "Assert!!! input vec and vecIn do not match.");
+
+	vecOut.resize(0);
+	vecOut.resize(vec.sum());
+
+	int count = 0;
+	for (int i = 0; i < vec.rows(); ++i)
+		if (vec(i) > 0)
+			vecOut.row(count++) = vecIn.row(i).array().cast<ScalarO>();
+
+	return true;
+}
+
+
 //
 Eigen::VectorXi flagVec2IdxVec(const Eigen::VectorXi& flag);
 
@@ -472,6 +536,9 @@ bool matInsertRows(Eigen::PlainObjectBase<Derived1>& mat, \
 	const Eigen::MatrixBase<Derived2>& mat1)
 {
 	using Scalar = typename Derived1::Scalar;
+	if (0 == mat1.rows())
+		return true;
+
 	assert((0 == mat.cols()) || (mat.cols() == mat1.cols()) && "Assert!!! Matrix size not match.");
 	const int cols = mat1.cols();
 	const int currentRows = mat.rows();
@@ -489,6 +556,9 @@ bool matInsertCols(Eigen::PlainObjectBase<Derived1>& mat, \
 	const Eigen::MatrixBase<Derived2>& mat1)
 {
 	using Scalar = typename Derived1::Scalar;
+	if (0 == mat1.rows())
+		return true;
+
 	assert((0 == mat.rows()) || (mat.rows() == mat1.rows()), "Assert!!! Matrix size not match.");
 	const int rows = mat1.rows();
 	const int currentCols = mat.cols();
@@ -499,20 +569,6 @@ bool matInsertCols(Eigen::PlainObjectBase<Derived1>& mat, \
 	return true;
 }
 
-
-template <typename Derived, typename Scalar, int N>
-bool matInsertCols(Eigen::PlainObjectBase<Derived>& mat, \
-	const Eigen::Matrix<Scalar, N, 1>& vec)
-{
-	using ScalarO = typename Derived::Scalar;
-	assert((0 == mat.rows()) || (mat.rows() == vec.rows()), "Error!!! Matrix size not match.");
-	unsigned rows = vec.rows();
-	unsigned currentCols = mat.cols();
-	mat.conservativeResize(rows, currentCols + 1);
-	mat.col(currentCols) = vec.array().cast<ScalarO>();
-
-	return true;
-}
 
 
 // 输入flag向量，得到新老索引的映射关系； 

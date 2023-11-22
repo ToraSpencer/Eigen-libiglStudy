@@ -304,9 +304,15 @@ namespace TEST_DENSE_MAT
 
 		v1.resize(10);
 		v1 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 0;
-		Eigen::VectorXd::Index minIdx;
+		Eigen::VectorXd::Index minIdx, maxIdx;
 		min = v1.minCoeff(&minIdx);
-		std::cout << "向量中最小元素：" << min << ", 索引：" << minIdx << std::endl;
+		debugDisp("向量中最小元素：min == " , min , ", 索引minIdx == ：" , minIdx); 
+
+		v1 <<  -INFINITY, 2, 3, 4, 5, 6, 7, 8, INFINITY, 0;
+		min = v1.minCoeff(&minIdx);					// 元素中可以有INFINITY，但是不可以有NAN，否则运行时会抛出异常；
+		max = v1.maxCoeff(&maxIdx);
+		debugDisp("向量中最小元素：min == ", min, ", 索引minIdx == ：", minIdx);
+		debugDisp("向量中最大元素：max == ", max, ", 索引maxIdx == ：", maxIdx);
 
 		// all(), any(), count()——矩阵元素的搜索
 		ArrayXXf a1(3, 3);

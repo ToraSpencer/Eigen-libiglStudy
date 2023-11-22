@@ -18,16 +18,7 @@ template std::int64_t encodeUedge<std::int64_t>(const std::int64_t, const std::i
  
 template std::uint64_t encodeTriangle<int>(const int , const int, const int);
 template std::uint64_t encodeTriangle<unsigned>(const unsigned, const unsigned, const unsigned);
-template std::uint64_t encodeTriangle<std::int64_t>(const std::int64_t, const std::int64_t, const std::int64_t);
-
-template bool interpolateToLine<Eigen::MatrixXf, float>(Eigen::PlainObjectBase<Eigen::MatrixXf>&, \
-	const Eigen::Matrix<float, 1, 3>&, const Eigen::Matrix<float, 1, 3>&, const float, const bool);
-template bool interpolateToLine<Eigen::MatrixXd, double>(Eigen::PlainObjectBase<Eigen::MatrixXd>&, \
-	const Eigen::Matrix<double, 1, 3>&, const Eigen::Matrix<double, 1, 3>&, const float, const bool);
-template bool interpolateToLine<Eigen::MatrixXd, float>(Eigen::PlainObjectBase<Eigen::MatrixXd>&, \
-	const Eigen::Matrix<float, 1, 3>&, const Eigen::Matrix<float, 1, 3>&, const float, const bool);
-template bool interpolateToLine<Eigen::MatrixXf, double>(Eigen::PlainObjectBase<Eigen::MatrixXf>&, \
-	const Eigen::Matrix<double, 1, 3>&, const Eigen::Matrix<double, 1, 3>&, const float, const bool);
+template std::uint64_t encodeTriangle<std::int64_t>(const std::int64_t, const std::int64_t, const std::int64_t); 
 
 template bool getCircleVers(Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, const unsigned versCount);
 template bool getCircleVers(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& vers, const float radius, const unsigned versCount);
