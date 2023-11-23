@@ -284,8 +284,6 @@ namespace TEST_REPRESENTATIONS
 }
 
 
-
-
 ////////////////////////////////////////////////////////////////////////////// TEST: 网格缺陷的检测和修复：
 namespace MESH_REPAIR 
 {
@@ -1187,7 +1185,6 @@ namespace TEMP_TEST
 		std::cout << "finished." << std::endl;
 	}
 
-
 }
 
 
@@ -1301,15 +1298,68 @@ int testCmd_laplaceFaring(int argc, char** argv)
 }
   
 
+//
+template<typename DerivedVp, typename DerivedV>
+double calcSolidAngle(const Eigen::MatrixBase<DerivedVp>& pos,\
+	const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+{
+	const int versCount = vers.rows();
+	const int trisCount = tris.rows();
+
+	// 1. 计算每个三角片的重心： 
+	Eigen::MatrixXd barys(trisCount, 3), normals(trisCount, 3); 
+	Eigen::Matrix3d triVers;
+	Eigen::RowVector3d va, vb, vc, normDir;
+	Eigen::RowVectorXd areas(trisCount);
+	for (int i = 0; i < trisCount; ++i)
+	{
+		va = vers.row(tris(i, 0)).array().cast<double>();
+		vb = vers.row(tris(i, 1)).array().cast<double>();
+		vc = vers.row(tris(i, 2)).array().cast<double>();
+		triVers.row(0) = va;
+		triVers.row(1) = vb;
+		triVers.row(2) = vc;
+		barys.row(i) = triVers.colwise().mean();
+		normDir = (vc - vb).cross(va - vb);
+		double crossNorm = normDir.norm();
+		areas(i) = 0.5 * crossNorm;  
+		normals.row(i) = normDir / crossNorm;
+	}
+
+	// 2. 
+	Eigen::RowVector3d posD = pos.array().cast<double>();
+	Eigen::MatrixXd arrows = barys.rowwise() - posD;
+	Eigen::VectorXd weights(trisCount), arrowLenDb(trisCount);
+	for (int i = 0; i < trisCount; ++i)
+	{
+		arrowLenDb(i) = arrows.row(i).norm();
+		arrowLenDb(i) *= arrowLenDb(i);
+		Eigen::RowVector3d arr = arrows.row(i).normalized();
+		Eigen::RowVector3d norm = normals.row(i);
+		weights(i) = arr.dot(norm);
+	} 
+	
+	Eigen::VectorXd tmp = weights.array() * areas.array() / arrowLenDb.array();
+
+	return tmp.sum();
+}
+
 
 int main(int argc, char** argv)
 { 
 	// TEST_MYEIGEN_PMP::test4();
 
-	 TEST_DENSE_MAT::test1();
+	 // TEST_DENSE_MAT::test1();
 
 	// TEST_MYEIGEN_MODELING::test1();
 	 
+	Eigen::MatrixXf vers;
+	Eigen::MatrixXi tris;
+	objReadMeshMat(vers, tris, "E:/材料/tooth.obj");
+	double SA = calcSolidAngle(Eigen::RowVector3f{0, 0, 0}, vers, tris);
+	debugDisp("SA == ", SA);
+	debugDisp("SA/(4*pi) == ", SA/(4*pi));
+
  
 	debugDisp("main() finished."); 
 }

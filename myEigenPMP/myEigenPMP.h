@@ -1612,7 +1612,7 @@ int removeSickDupTris(const Eigen::MatrixBase<DerivedV>& vers, Eigen::MatrixXi& 
 	Eigen::VectorXi flags{ Eigen::VectorXi::Ones(trisCount) };			// flag向量，需要去除的三角片标0；
 	std::unordered_set<std::uint64_t> triCodeSet;
 
-	// 遍历三角片
+	// 1. 遍历三角片，找出非法、重复三角片索引，在flag向量中标记为0；
 	for (int i = 0; i < trisCount; ++i)
 	{
 		// 三角片中的索引值不在0~versCount-1之间则为非法三角片；貌似有些STL文件中会出现这种情形；
@@ -1634,10 +1634,12 @@ int removeSickDupTris(const Eigen::MatrixBase<DerivedV>& vers, Eigen::MatrixXi& 
 			flags(i) = 0;				// 重复三角片非法；
 	}
 
+	// 2. 根据flag向量提取新的三角片数据替代原有的;
 	Eigen::MatrixXi tmpMat;
 	subFromFlagVec(tmpMat, tris, flags);
 	tris = tmpMat;
 
+	// 3. 计算去除的三角片数；
 	int removeCount = trisCount - tris.rows();
 	return removeCount;
 }
@@ -1652,7 +1654,6 @@ template <typename DerivedI>
 bool checkSickTris(std::vector<int>& sickIdxes, const Eigen::PlainObjectBase<DerivedI>& tris);
 
 
- 
 
 // 暂时未整理的实现：
 #include "temp.tpp"
