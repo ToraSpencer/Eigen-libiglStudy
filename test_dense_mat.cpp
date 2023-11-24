@@ -627,10 +627,16 @@ namespace TEST_DENSE_MAT
 		debugDisp("\n\n");
 
 		// 按元素操作需要使用array()
-		Eigen::MatrixXf result = m1.array() * Eigen::MatrixXf::Ones(5, 6).array();
-		debugDisp("按元素相乘： \n", result, "\n"); 
+		Eigen::VectorXf v1(6), v2(6);
+		v1 << 1, 2, 3, 4, 5, 6;
+		v2 << 0.1, 0.2, 0.3, 0.4, 0.5, 0.6;
+		Eigen::VectorXf result1 = v1.array() * v2.array();
+		Eigen::VectorXf result2 = v1.array() / v2.array();
+		debugDisp("按元素运算： \n result1 == \n", result1, "\n"); 
+		debugDisp( "result2 == \n", result2, "\n");
 
-		// array的sqrt(), pow(), isX()方法：
+		// array的sqrt(), pow(), isX()方法： 
+		Eigen::MatrixXf result;
 		result = m1.array().sqrt();
 		debugDisp("按元素开方： \n", result, "\n"); 
 
@@ -644,9 +650,9 @@ namespace TEST_DENSE_MAT
 		debugDisp(".array() = 常数来给矩阵元素赋值：\n", m1, "\n"); 
 
 		Eigen::MatrixXf m2 = Eigen::MatrixXf::Ones(5, 6);
-		auto result2 = (m1.array() < m2.array());
-		debugDisp("类似于MATLAB中的逻辑矩阵： \n", result2, "\n"); 
-		debugDisp("typeid(result2).name() == ", typeid(result2).name());
+		auto result3 = (m1.array() < m2.array());
+		debugDisp("类似于MATLAB中的逻辑矩阵： \n", result3, "\n"); 
+		debugDisp("typeid(result3).name() == ", typeid(result3).name());
 
 		debugDisp("finished.");
 	}

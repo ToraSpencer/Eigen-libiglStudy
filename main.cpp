@@ -1310,7 +1310,7 @@ double calcSolidAngle(const Eigen::MatrixBase<DerivedVp>& pos,\
 	Eigen::MatrixXd barys(trisCount, 3), normals(trisCount, 3); 
 	Eigen::Matrix3d triVers;
 	Eigen::RowVector3d va, vb, vc, normDir;
-	Eigen::RowVectorXd areas(trisCount);
+	Eigen::VectorXd areas(trisCount);
 	for (int i = 0; i < trisCount; ++i)
 	{
 		va = vers.row(tris(i, 0)).array().cast<double>();
@@ -1323,25 +1323,27 @@ double calcSolidAngle(const Eigen::MatrixBase<DerivedVp>& pos,\
 		normDir = (vc - vb).cross(va - vb);
 		double crossNorm = normDir.norm();
 		areas(i) = 0.5 * crossNorm;  
-		normals.row(i) = normDir / crossNorm;
+		normals.row(i) = normDir.normalized();
 	}
 
 	// 2. 
 	Eigen::RowVector3d posD = pos.array().cast<double>();
 	Eigen::MatrixXd arrows = barys.rowwise() - posD;
 	Eigen::VectorXd weights(trisCount), arrowLenDb(trisCount);
+	Eigen::VectorXd resultVec(trisCount);
 	for (int i = 0; i < trisCount; ++i)
 	{
-		arrowLenDb(i) = arrows.row(i).norm();
-		arrowLenDb(i) *= arrowLenDb(i);
-		Eigen::RowVector3d arr = arrows.row(i).normalized();
+		Eigen::RowVector3d arr = arrows.row(i);
+		arrowLenDb(i) = arr.dot(arr);
+		arr.normalize(); 
 		Eigen::RowVector3d norm = normals.row(i);
 		weights(i) = arr.dot(norm);
+		// resultVec(i) = weights(i) * areas(i) / arrowLenDb(i);
 	} 
 	
-	Eigen::VectorXd tmp = weights.array() * areas.array() / arrowLenDb.array();
+	resultVec = weights.array() * areas.array()/arrowLenDb.array(); 
 
-	return tmp.sum();
+	return resultVec.sum();
 }
 
 
@@ -1349,14 +1351,14 @@ int main(int argc, char** argv)
 { 
 	// TEST_MYEIGEN_PMP::test4();
 
-	 // TEST_DENSE_MAT::test1();
+	// TEST_DENSE_MAT::test5();
 
 	// TEST_MYEIGEN_MODELING::test1();
 	 
 	Eigen::MatrixXf vers;
 	Eigen::MatrixXi tris;
-	objReadMeshMat(vers, tris, "E:/材料/tooth.obj");
-	double SA = calcSolidAngle(Eigen::RowVector3f{0, 0, 0}, vers, tris);
+	objReadMeshMat(vers, tris, "E:/材料/sphere.obj");
+	double SA = calcSolidAngle(Eigen::RowVector3f{0, 0, 0.8}, vers, tris);
 	debugDisp("SA == ", SA);
 	debugDisp("SA/(4*pi) == ", SA/(4*pi));
 
