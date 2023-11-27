@@ -221,11 +221,16 @@ namespace TRIANGLE_MESH
 	}
 }
 
+
+// 顶点类
 using verF = TRIANGLE_MESH::triplet<float>;									// 单精度顶点；
 using verD = TRIANGLE_MESH::triplet<double>;								// 双精度顶点；
+
+// 三角网格类
 using triMeshF = TRIANGLE_MESH::triMesh<float, int>;					// 单精度顶点网格；
 using triMeshD = TRIANGLE_MESH::triMesh<double, int>;				// 双精度顶点网格；
 
+// IO methods:
 bool readOBJ(std::vector<verF>& vers, const char* fileName);
 bool readOBJ(std::vector<verD>& vers, const char* fileName);
 bool readOBJ(triMeshF& mesh, const char* fileName);

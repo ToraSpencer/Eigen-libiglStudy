@@ -1347,6 +1347,7 @@ double calcSolidAngle(const Eigen::MatrixBase<DerivedVp>& pos,\
 }
 
 
+
 int main(int argc, char** argv)
 { 
 	// TEST_MYEIGEN_PMP::test4();

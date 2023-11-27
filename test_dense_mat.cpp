@@ -114,7 +114,7 @@ namespace TEST_DENSE_MAT
 		// 2. 查看eigen库的版本：
 		std::cout << EIGEN_WORLD_VERSION << std::endl;
 		std::cout << EIGEN_MAJOR_VERSION << std::endl;
-		std::cout << EIGEN_MINOR_VERSION << std::endl;		// 版本为3.3.7;
+		std::cout << EIGEN_MINOR_VERSION << std::endl;		// 版本为3.4.0
 
 		// 3. 
 		{
@@ -982,6 +982,7 @@ namespace TEST_DENSE_MAT
 				 CwiseBinaryOpImpl<> → MatrixBase<> → ...
 	*/
 	
+
 	// 若传入参数中希望包含各种return type的对象，应使用Eigen::MatrixBase<>类型；
 	template<typename Derived>										// Derived是具体的矩阵类型，如Eigen::Matrix<int,1,-1,1,1,-1>
 	void foo(Eigen::MatrixBase<Derived>& base)				// Eigen::MatrixBase<>是任意稠密矩阵、向量的基类；

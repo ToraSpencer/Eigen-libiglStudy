@@ -22,13 +22,32 @@ void vers2mat(Eigen::PlainObjectBase<DerivedV>& versMat, \
 
 
 template <typename DerivedV, typename TV>
-void ver2vec(Eigen::PlainObjectBase<DerivedV>& verVec, const TRIANGLE_MESH::triplet<TV>& ver)
+void ver2vec(Eigen::PlainObjectBase<DerivedV>& verVec, \
+	const TRIANGLE_MESH::triplet<TV>& ver)
 {
 	using ScalarV = typename DerivedV::Scalar;
 	assert((3 != verVec.size()) && "assert!!! verVec should be a 3 elements vector.");
 	verVec(0) = static_cast<ScalarV>(ver.x);
 	verVec(1) = static_cast<ScalarV>(ver.y);
 	verVec(2) = static_cast<ScalarV>(ver.z);
+}
+
+
+template <typename TV>
+Eigen::RowVector3f ver2vecF(const TRIANGLE_MESH::triplet<TV>& ver)
+{
+	Eigen::RowVector3f vec;
+	ver2vec(vec, ver);
+	return vec;
+}
+
+
+template <typename TV>
+Eigen::RowVector3d ver2vecD(const TRIANGLE_MESH::triplet<TV>& ver)
+{
+	Eigen::RowVector3d vec;
+	ver2vec(vec, ver);
+	return vec;
 }
 
 
@@ -55,6 +74,7 @@ std::vector<verF> mat2versF(const Eigen::MatrixBase<DerivedV>& versMat)
 	mat2vers(vers, versMat);
 	return vers;
 }
+
 
 template <typename DerivedV>
 std::vector<verD> mat2versD(const Eigen::MatrixBase<DerivedV>& versMat)

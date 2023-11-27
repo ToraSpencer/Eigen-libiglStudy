@@ -103,10 +103,7 @@
 #include <igl/topological_hole_fill.h>
 
 
-// 静态库：
-
-
-
+// 静态库： 
 namespace IGL_BASIC
 { 
 	void test00();
@@ -141,8 +138,7 @@ namespace IGL_BASIC
 
 
 namespace IGL_DIF_GEO
-{
-	
+{	
 	void test0();
 	void test1();
 	void test2();
@@ -238,51 +234,5 @@ namespace IGL_BASIC_PMP
 	void test16();
 }
 
-
-// IGL实现的生成数字模型相关算法；
-namespace IGL_MODELLING
-{
-	
-	void test0();
-	void test1(); 
-	void test2();
-	void test3(); 
-	void test33();
-	void test4(); 
-	void test5();
-	void test6();
-	void test7(); 
-	void test8();
-	void test9();
-	void test10();
-	void test11();
-	void test12();
-	void test13();
-	void test14();
-	void test15();
-	void test16();
-}
-
-
-// IGL中网格变形相关；
-namespace IGL_DEFORMATION
-{
-	
-	void test0();
-	void test1();
-	void test2();
-	void test3(); 
-	void test4();
-	void test5();
-	void test6();
-	void test7();
-	void test8();
-	void test9();
-	void test10();
-	void test11();
-	void test12();
-	void test13();
-	void test14();
-	void test15();
-	void test16();
-}
+ 
+ 
