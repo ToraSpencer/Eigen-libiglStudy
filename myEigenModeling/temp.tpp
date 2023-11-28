@@ -73,6 +73,10 @@ bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 	const char* strSwitcher)
 {
 	using ScalarO = typename DerivedVo::Scalar;
+	using MatrixXR = Eigen::Matrix<TRI_REAL, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3R = Eigen::Matrix<TRI_REAL, 3, 3>;
+	using Matrix4R = Eigen::Matrix<TRI_REAL, 4, 4>;
+	using RowVector3R = Eigen::Matrix<TRI_REAL, 1, 3>;
 
 	assert((2 == versIn.cols() || 3 == versIn.cols()) && "assert!!! input vertices should be in 2 or 3 dimension space.");
 
@@ -97,7 +101,7 @@ bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 
 	// 1. 生成输入顶点数据、边缘数据 
 	Eigen::MatrixXi bdrys;													// 连成闭合回路的一系列的边
-	Eigen::MatrixXf vers2Dtrans(2, versCount);
+	MatrixXR vers2Dtrans(2, versCount);
 	int bdryEdgesCount = 0;
 	{
 		for (const auto& vec : bdryLoops)
@@ -110,21 +114,21 @@ bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 
 		for (int i = 0; i < versCount; ++i)
 		{
-			vers2Dtrans(0, i) = static_cast<float>(versIn(i, 0));
-			vers2Dtrans(1, i) = static_cast<float>(versIn(i, 1));
+			vers2Dtrans(0, i) = static_cast<TRI_REAL>(versIn(i, 0));
+			vers2Dtrans(1, i) = static_cast<TRI_REAL>(versIn(i, 1));
 		}
 	}
 
 	// 2. 生成输入的洞的数据：
 	const int holesCount = holeCenters.rows();
-	Eigen::MatrixXf  versHole2Dtrans;
+	MatrixXR  versHole2Dtrans;
 	if (holesCount > 0)
 	{
 		versHole2Dtrans.resize(2, holesCount);
 		for (int i = 0; i < holesCount; ++i)
 		{
-			versHole2Dtrans(0, i) = static_cast<float>(holeCenters(i, 0));
-			versHole2Dtrans(1, i) = static_cast<float>(holeCenters(i, 1));
+			versHole2Dtrans(0, i) = static_cast<TRI_REAL>(holeCenters(i, 0));
+			versHole2Dtrans(1, i) = static_cast<TRI_REAL>(holeCenters(i, 1));
 		}
 	}
 
@@ -172,12 +176,13 @@ bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 
 	//		4.2 生成输出点云：
 	const int versOutCount = outputTrig.numberofpoints;
-	Eigen::MatrixXf versOutF(2, versOutCount);
-	std::memcpy(versOutF.data(), reinterpret_cast<float*>(outputTrig.pointlist), sizeof(float) * 2 * versOutCount);
-	versOutF.transposeInPlace();
-	versOutF.conservativeResize(versOutCount, 3);
-	versOutF.col(2).setZero();
-	versOut = versOutF.array().cast<ScalarO>();
+	MatrixXR versOutTmp(2, versOutCount);
+	std::memcpy(versOutTmp.data(), reinterpret_cast<TRI_REAL*>(\
+		outputTrig.pointlist), sizeof(TRI_REAL) * 2 * versOutCount);
+	versOutTmp.transposeInPlace();
+	versOutTmp.conservativeResize(versOutCount, 3);
+	versOutTmp.col(2).setZero();
+	versOut = versOutTmp.array().cast<ScalarO>();
 
 	return true;
 }
@@ -203,6 +208,10 @@ bool triangulateRefineMesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 	const char* strSwitcher)
 {
 	using ScalarO = typename DerivedVo::Scalar;
+	using MatrixXR = Eigen::Matrix<TRI_REAL, Eigen::Dynamic, Eigen::Dynamic>;
+	using Matrix3R = Eigen::Matrix<TRI_REAL, 3, 3>;
+	using Matrix4R = Eigen::Matrix<TRI_REAL, 4, 4>;
+	using RowVector3R = Eigen::Matrix<TRI_REAL, 1, 3>;
 
 	assert((2 == versIn.cols() || 3 == versIn.cols()) && "assert!!! input vertices should be in 2 or 3 dimension space.");
 	const int versCount = versIn.rows();
@@ -211,7 +220,7 @@ bool triangulateRefineMesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 
 	// 1. 生成边缘信息和洞的信息
 	Eigen::MatrixXi edgesData;													// 连成闭合回路的一系列的边
-	Eigen::MatrixXf vers2Dtrans(2, versCount);
+	MatrixXR vers2Dtrans(2, versCount);
 	int edgesCount = 0;
 	{
 		edgesData = edges.array() + 1;
@@ -219,8 +228,8 @@ bool triangulateRefineMesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 		edgesCount = edgesData.cols();
 		for (int i = 0; i < versCount; ++i)
 		{
-			vers2Dtrans(0, i) = static_cast<float>(versIn(i, 0));
-			vers2Dtrans(1, i) = static_cast<float>(versIn(i, 1));
+			vers2Dtrans(0, i) = static_cast<TRI_REAL>(versIn(i, 0));
+			vers2Dtrans(1, i) = static_cast<TRI_REAL>(versIn(i, 1));
 		}
 	}
 
@@ -277,13 +286,13 @@ bool triangulateRefineMesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 
 	//		3.2 生成输出点云：
 	const int versOutCount = outputTrig.numberofpoints;
-	Eigen::MatrixXf versOutF(2, versOutCount);
-	std::memcpy(versOutF.data(), reinterpret_cast<float*>(
-		outputTrig.pointlist), sizeof(float) * 2 * versOutCount);
-	versOutF.transposeInPlace();
-	versOutF.conservativeResize(versOutCount, 3);
-	versOutF.col(2).setZero();
-	versOut = versOutF.array().cast<ScalarO>();
+	MatrixXR versOutTmp(2, versOutCount);
+	std::memcpy(versOutTmp.data(), reinterpret_cast<TRI_REAL*>(
+		outputTrig.pointlist), sizeof(TRI_REAL) * 2 * versOutCount);
+	versOutTmp.transposeInPlace();
+	versOutTmp.conservativeResize(versOutCount, 3);
+	versOutTmp.col(2).setZero();
+	versOut = versOutTmp.array().cast<ScalarO>();
 
 	return true;
 }

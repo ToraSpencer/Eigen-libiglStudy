@@ -71,8 +71,6 @@ namespace TRIANGLE_MESH
 
 		for (unsigned i = 0; i < nOldVertCnt / 3; i++)
 		{
-			unsigned nVCnt = 0;
-
 			for (unsigned k = 0; k < 3; k++)
 			{
 				unsigned nOldIdx = i * 3 + k;
@@ -350,18 +348,17 @@ namespace TRIANGLE_MESH
 			fin.read(buffer, fileLen);
 
 			unsigned offset = 80;			// 跳过最开始的文件头（存贮文件名，80个字节）；
-			unsigned nVertDataCount = *(std::uint32_t*)(buffer + offset);		// 三角片数量；
+			unsigned trisCount = *(std::uint32_t*)(buffer + offset);		// 三角片数量；
 			offset += 4;							// 二进制stl文件中，坐标都是REAL32、索引都是UINT32, 都是4字节；
 
 			//从二进制文件读取顶点信息
 			verV pt{ 0, 0, 0 };
-			tmpVers.resize(nVertDataCount * 3);
+			tmpVers.resize(trisCount * 3);
 
-			for (unsigned k = 0; k < nVertDataCount; k++)
+			for (unsigned i = 0; i < trisCount; i++)
 			{
 				offset += 4 * 3;					//normal
-
-				for (unsigned i = 0; i < 3; i++)
+				for (unsigned k = 0; k < 3; k++)
 				{
 					pt.x = static_cast<TV>(*(float*)(buffer + offset));
 					offset += 4;
@@ -369,8 +366,7 @@ namespace TRIANGLE_MESH
 					offset += 4;
 					pt.z = static_cast<TV>(*(float*)(buffer + offset));
 					offset += 4;
-
-					tmpVers[3 * k + i] = pt;
+					tmpVers[3 * i + k] = pt;
 				}
 				offset += 2;
 			}

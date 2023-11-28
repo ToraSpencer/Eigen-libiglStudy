@@ -85,6 +85,15 @@ std::vector<verD> mat2versD(const Eigen::MatrixBase<DerivedV>& versMat)
 }
 
 
+template <typename DerivedI>
+std::vector<TRIANGLE_MESH::triplet<int>> mat2tris(\
+	const Eigen::MatrixBase<DerivedI>& trisMat)
+{
+	std::vector<TRIANGLE_MESH::triplet<int>> tris;
+	mat2vers(tris, trisMat);
+	return tris;
+}
+
 template <typename DerivedV, typename TV, typename TI>
 void triMesh2mat(Eigen::PlainObjectBase<DerivedV>& versMat,\
 	Eigen::MatrixXi& trisMat, const TRIANGLE_MESH::triMesh<TV, TI>& mesh)

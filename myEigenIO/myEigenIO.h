@@ -167,75 +167,143 @@ void objReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers,
 template	<typename Scalar>
 void objReadVerticesMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
 		const char* fileName);
+ 
+
+template	<typename DerivedVO, typename DerivedVI>
+void GetVertsAndSurfs(Eigen::PlainObjectBase<DerivedVO>& versOut, \
+	Eigen::MatrixXi& trisOut, const Eigen::MatrixBase<DerivedVI>& versIn)
+{
+	using ScalarO = typename DerivedVO::Scalar;
+
+	auto vertHash = [](const Eigen::RowVector3f& v)->std::size_t
+	{
+		return std::hash<float>()(v(0)) + \
+			std::hash<float>()(v(1)) + \
+			std::hash<float>()(v(2));
+	};
+
+	auto vertComp = [](const Eigen::RowVector3f& v0, const Eigen::RowVector3f& v1)->bool
+	{
+		double dbThreshold = 1.e-14;
+		if (std::fabs(v0(0) - v1(0)) > dbThreshold)
+			return false;
+		if (std::fabs(v0(1) - v1(1)) > dbThreshold)
+			return false;
+		if (std::fabs(v0(2) - v1(2)) > dbThreshold)
+			return false;
+		return true;
+	};
+
+	versOut.resize(0, 0);
+	trisOut.resize(0, 0);
+
+	// 修改说明：原先去除重复点的方法时间复杂度过高，改用hashmap
+	unsigned versCountOld = versIn.rows();
+	unsigned trisCount = versCountOld / 3;
+	std::vector<unsigned> tmpTri(3, 0);
+	trisOut.resize(trisCount, 3);
+	versOut.resize(versCountOld, 3);
+	std::unordered_map<Eigen::RowVector3f, unsigned, decltype(vertHash), decltype(vertComp)> mapVerts;
+
+	unsigned vIdx = 0;
+	unsigned nOldIdx = 0;
+	for (unsigned i = 0; i < trisCount; i++)
+	{ 
+		for (unsigned k = 0; k < 3; k++)
+		{
+			nOldIdx = i * 3 + k;
+			Eigen::RowVector3f v = versIn.row(nOldIdx).cast<float>();
+			if (0 == mapVerts.count(v))
+			{
+				mapVerts.insert(std::make_pair(v, vIdx));
+				versOut.row(vIdx) = v.cast<ScalarO>();
+				vIdx++;
+			}
+			auto iter = mapVerts.find(v);
+			tmpTri[k] = iter->second;
+		}
+ 
+		trisOut(i, 0) = static_cast<int>(tmpTri[0]);
+		trisOut(i, 1) = static_cast<int>(tmpTri[1]);
+		trisOut(i, 2) = static_cast<int>(tmpTri[2]);
+	}
+
+	// shrink to fit：
+	versOut.conservativeResize(vIdx, 3);
+}
 
 
 // STL文件中读取网格数据：
-#if 0
-template <typename DerivedV, typename DerivedI>
-void stlReadMeshMat(Eigen::PlainObjectBase<DerivedV>& vers, \
-	Eigen::PlainObjectBase<DerivedI>& tris, const char* fileName, const bool blIsAscii = false)
+template	<typename DerivedV>
+bool stlReadMeshMat(Eigen::PlainObjectBase<DerivedV>& meshVers, Eigen::MatrixXi& meshTris,\
+	const char* fileName, const bool blIsAscii = false)
 {
 	using ScalarV = typename DerivedV::Scalar;
-	using ScalarI = typename DerivedI::Scalar;
-	using RowVector3V = Eigen::MatrixX<ScalarV, Eigen::Dynamic, Eigen::Dynamic>;
-	vers.resize(0, 0);
-	tris.resize(0, 0);
+	int versCount = 0;
+	int index = 0;
+	meshVers.resize(0, 0);
+	meshTris.resize(0, 0);
+
 	if (blIsAscii)
 	{
+		Eigen::MatrixXd tmpVers;
 		std::ifstream fin(fileName, std::ios::in);
 
-		fin.seekg(0, std::ios::end);			 //seek to the end
+		fin.seekg(0, std::ios::end);	//seek to the end
 		unsigned fileLen = (unsigned)fin.tellg();
-		if (0 == fileLen)							 // file is empty
+		if (0 == fileLen)					// file is empty 
 			return false;
-
-		fin.seekg(0, std::ios::beg);		//seek to the beg
+		fin.seekg(0, std::ios::beg);	//seek to the beg
 
 		char* pFileBuf = new char[fileLen + 1];
 		std::memset(pFileBuf, 0, fileLen + 1);
 		fin.read(pFileBuf, fileLen);
 
-		char* pTemp = NULL;
-		pTemp = pFileBuf;
+		char* pTemp = pFileBuf;
 		char tempBuffer[1024];
 		unsigned nMaxSize = 1024;
 		unsigned nReadLen = 0;
 		unsigned nRet = 0;
+
 		while (nReadLen < fileLen)
 		{
+			index = versCount;
+			versCount++;
+			tmpVers.conservativeResize(versCount, 3);
 			nRet = readNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
-			if (0 == nRet) 
-				break; 
+			if (0 == nRet)
+				break;
 			if (std::strcmp(tempBuffer, "vertex") == 0)    //顶点信息
 			{
-				RowVector3V vert;
 				nRet = readNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
-				if (0 == nRet) 
-					break; 
-				vert(0) = static_cast<ScalarV>(atof(tempBuffer));
+				if (0 == nRet)
+					break;
+				tmpVers(index, 0) = atof(tempBuffer);
 				nRet = readNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
-				if (0 == nRet) 
-					break; 
-				vert(1) = static_cast<ScalarV>(atof(tempBuffer));
+				if (0 == nRet)
+					break;
+				tmpVers(index, 1) = atof(tempBuffer);
 				nRet = readNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
-				if (0 == nRet) 
-					break; 
-				vert(2) = static_cast<ScalarV>(atof(tempBuffer));
-				matInsertRows(vers, vert); 
+				if (0 == nRet)
+					break;
+				tmpVers(index, 2) = atof(tempBuffer);
 			}
 		}
 		delete(pFileBuf);
-		 
+
+		GetVertsAndSurfs(meshVers, meshTris, tmpVers);
+
 		return true;
 	}
-	else
+	else     // 二进制格式：
 	{
+		Eigen::MatrixXf tmpVers;
 		std::ifstream fin(fileName, std::ios::in | std::ios::binary);
 
-		fin.seekg(0, std::ios::end);   //seek to the end
+		fin.seekg(0, std::ios::end);	 // seek to the end
 		unsigned fileLen = (unsigned)fin.tellg();
-		if (0 == fileLen)		 // file is empty 
-			return false; 
+		if (0 == fileLen)					// file is empty 
+			return false;
 
 		fin.seekg(0, std::ios::beg);
 		unsigned len = fin.tellg();
@@ -243,41 +311,36 @@ void stlReadMeshMat(Eigen::PlainObjectBase<DerivedV>& vers, \
 		std::memset(buffer, 0, fileLen + 1);
 		fin.read(buffer, fileLen);
 
-		unsigned offset = 80;
-		unsigned nVertDataCount = *(unsigned*)(buffer + offset);   //获取nVertDataCount
-		offset += sizeof(int32_t);
+		unsigned offset = 80;			// 跳过最开始的文件头（存贮文件名，80个字节）；
+		unsigned trisCount = *(std::uint32_t*)(buffer + offset);		// 三角片数量；
+		offset += 4;							// 二进制stl文件中，坐标都是REAL32、索引都是UINT32, 都是4字节；
 
-		//从二进制文件读取顶点信息
-		VFVECTOR3 pt = VFVECTOR3::ZERO;
-
-		mVerts.resize(nVertDataCount * 3);
-
-		for (unsigned k = 0; k < nVertDataCount; k++)
+		//从二进制文件读取顶点信息 
+		tmpVers.resize(trisCount * 3, 3);
+		for (unsigned i = 0; i < trisCount; i++)
 		{
-			offset += 4 * 3;										//normal
-
-			for (unsigned i = 0; i < 3; i++)
+			offset += 4 * 3;								// 跳过法向信息
+			for (unsigned k = 0; k < 3; k++)				// 依次存储每个三角片的三个顶点坐标；
 			{
-				pt.x = *(float*)(buffer + offset);
+				index = 3 * i + k;
+				tmpVers(index, 0) = *(float*)(buffer + offset);
 				offset += 4;
-				pt.y = *(float*)(buffer + offset);
+				tmpVers(index, 1) = *(float*)(buffer + offset);
 				offset += 4;
-				pt.z = *(float*)(buffer + offset);
+				tmpVers(index, 2) = *(float*)(buffer + offset);
 				offset += 4;
-
-				mVerts[3 * k + i] = pt;
 			}
-
 			offset += 2;
 		}
 		delete(buffer);
 
-		GetVertsAndSurfs(vVerts, vSurfs);
+		GetVertsAndSurfs(meshVers, meshTris, tmpVers);
 
 		return true;
 	}
+
+	return true;
 }
-#endif
 
 
 // 顶点写入OBJ文件
@@ -472,111 +535,6 @@ void objWriteCoorSys(const char* pathName, const Eigen::MatrixBase<DerivedVo>& o
 }
 
 
-
-#if 0			// 当前有问题
-template <typename Scalar>
-bool stlReadMeshMat(Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>& vers, \
-	Eigen::MatrixXi& tris, const char* fileName, bool blAscii = false)
-{
-	if (blAscii)
-	{
-#if 0
-		std::ifstream fin(fileName, std::ios::in);
-
-		fin.seekg(0, std::ios::end);			//seek to the end
-		unsigned fileLen = (unsigned)fin.tellg();
-		if (0 == fileLen)							 // file is empty 
-			return false;
-		fin.seekg(0, std::ios::beg);			//seek to the beg
-
-		char* pFileBuf = new char[fileLen + 1];
-		std::memset(pFileBuf, 0, fileLen + 1);
-		fin.read(pFileBuf, fileLen);
-
-		char* pTemp = NULL;
-		pTemp = pFileBuf;
-		char tempBuffer[1024];
-		unsigned nMaxSize = 1024;
-		unsigned nReadLen = 0;
-		unsigned nRet = 0;
-		while (nReadLen < fileLen)
-		{
-			nRet = ReadNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
-			if (0 == nRet)
-				break;
-			if (std::strcmp(tempBuffer, "vertex") == 0)			//顶点信息
-			{
-				VFVECTOR3 vert;
-				nRet = ReadNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
-				if (0 == nRet)
-					break;
-				vert.x = (float)atof(tempBuffer);
-				nRet = ReadNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
-				if (0 == nRet)
-					break;
-			}
-			vert.y = (float)atof(tempBuffer);
-			nRet = ReadNextData(pTemp, nReadLen, tempBuffer, nMaxSize);
-			if (0 == nRet)
-				break;
-			vert.z = (float)atof(tempBuffer);
-			mVerts.push_back(vert);
-		}
-	}
-	delete(pFileBuf);
-	GetVertsAndSurfs(vVerts, vSurfs);
-#endif
-
-	return true;
-}
-	else
-	{
-	std::ifstream fin(fileName, std::ios::in | std::ios::binary);
-
-	fin.seekg(0, std::ios::end);   //seek to the end
-	unsigned fileLen = (unsigned)fin.tellg();
-	if (0 == fileLen)			 // file is empty 
-		return false;
-
-	fin.seekg(0, std::ios::beg);
-	unsigned len = fin.tellg();
-	char* buffer = new char[fileLen + 1];
-	std::memset(buffer, 0, fileLen + 1);
-	fin.read(buffer, fileLen);
-
-	unsigned offset = 80;
-	unsigned nVertDataCount = *(unsigned*)(buffer + offset);		   //获取nVertDataCount
-	offset += sizeof(int32_t);
-
-	//从二进制文件读取顶点信息
-	VFVECTOR3 pt = VFVECTOR3::ZERO;
-	mVerts.resize(nVertDataCount * 3);
-
-	for (unsigned k = 0; k < nVertDataCount; k++)
-	{
-		offset += 4 * 3; //normal
-
-		for (unsigned i = 0; i < 3; i++)
-		{
-			pt.x = *(float*)(buffer + offset);
-			offset += 4;
-			pt.y = *(float*)(buffer + offset);
-			offset += 4;
-			pt.z = *(float*)(buffer + offset);
-			offset += 4;
-
-			mVerts[3 * k + i] = pt;
-		}
-
-		offset += 2;
-	}
-	delete(buffer);
-
-	GetVertsAndSurfs(vVerts, vSurfs);
-
-	return true;
-	}
-}
-#endif
+ 
 
 #include "temp.tpp"

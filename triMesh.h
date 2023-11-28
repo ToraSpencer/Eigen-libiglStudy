@@ -168,6 +168,11 @@ namespace TRIANGLE_MESH
 	{
 		std::vector<triplet<TV>> vertices;
 		std::vector<triplet<TI>> triangles;
+
+		triMesh() {}
+		triMesh(const std::vector<triplet<TV>>& vers, \
+			const std::vector<triplet<TI>>& tris): vertices(vers), triangles(tris)
+		{}
 	};
 
 

@@ -169,7 +169,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="main_test_dll.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="my_cgal_dll.h" />

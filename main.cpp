@@ -1356,12 +1356,8 @@ int main(int argc, char** argv)
 
 	// TEST_MYEIGEN_MODELING::test1();
 	 
-	Eigen::MatrixXf vers;
-	Eigen::MatrixXi tris;
-	objReadMeshMat(vers, tris, "E:/材料/sphere.obj");
-	double SA = calcSolidAngle(Eigen::RowVector3f{0, 0, 0.8}, vers, tris);
-	debugDisp("SA == ", SA);
-	debugDisp("SA/(4*pi) == ", SA/(4*pi));
+	TEST_MYEIGEN_IO::test0();
+ 
 
  
 	debugDisp("main() finished."); 
