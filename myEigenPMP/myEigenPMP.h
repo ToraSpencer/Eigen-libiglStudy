@@ -61,6 +61,7 @@ template <typename DerivedI>
 bool buildAdjacency(Eigen::MatrixXi& ttAdj_mnEdge, std::vector<tVec>& ttAdj_nmnEdge, \
 	std::vector<tVec>& ttAdj_nmnOppEdge, const Eigen::MatrixBase<DerivedI>& tris);
 
+
 /////////////////////////////////////////////////////////////////////////////////////////////////// 表象转换接口：
 
 // std::vector<std::pair<int, int>>表示的边数据转换为矩阵表示：
@@ -842,6 +843,9 @@ bool get1ring(std::vector<std::unordered_set<int>>& vIdx1ring, std::vector<std::
 	return true;
 }
 
+
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////////// 点云编辑：
 
 // 基于laplacian的回路光顺
@@ -862,6 +866,102 @@ bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, \
 template<typename DerivedV>
 bool sortLoop2D(Eigen::PlainObjectBase<DerivedV>& loop, \
 	const bool blCounterClockWise = true, 	const float thresholdDis = 10);
+
+
+// 环路点云均匀化：
+template <typename DerivedVO, typename DerivedVI>
+bool arrangeLoop(Eigen::PlainObjectBase<DerivedVO>& loopOut, \
+	Eigen::MatrixBase<DerivedVI>& loopIn, const int tarVersCount)
+{
+	const int dim = loopIn.cols();
+	using ScalarO = typename DerivedVO::Scalar;
+	using MatrixXO = Eigen::Matrix<ScalarO, Eigen::Dynamic, Eigen::Dynamic>;
+	using RowVectorXO = Eigen::Matrix<ScalarO, 1, Eigen::Dynamic>;
+
+	// 1.计算输出环路的期望边长；
+	const int versCount = loopIn.rows();
+	float length = 0;
+	float eLen = 0;
+	float tarEdgeLen = 0;								// 期望的精简后的环路平均边长；
+	RowVectorXO arrow;
+	std::vector<ScalarO> edgeLens(versCount);		
+	for (int i = 0; i < versCount - 1; ++i)
+	{
+		arrow = (loopIn.row(i + 1) - loopIn.row(i)).cast<ScalarO>();
+		eLen = arrow.norm();
+		edgeLens[i] = eLen;
+		length += eLen;
+	}
+	arrow = (loopIn.row(0) - loopIn.row(versCount - 1)).cast<ScalarO>();
+	eLen = arrow.norm();
+	edgeLens[versCount - 1] = eLen;
+	length += eLen;
+	tarEdgeLen = length / tarVersCount;
+
+	// 2. 对长度大于0.5 * tarEdgeLen的边进行插值： 
+	int index = 0;
+	int stepCount = 0;
+	int versCountNew = 0;
+	float threshold = 0.5 * tarEdgeLen;
+	float step = 0;
+	MatrixXO loopNew;											// 插值均匀化以后的回路点云；
+	RowVectorXO newVer;
+	loopNew.resize(3 * std::max(versCount, tarVersCount), dim);
+	loopNew.row(index++) = loopIn.row(0).cast<ScalarO>(); 
+	for (int i = 0; i < versCount - 1; ++i)
+	{
+		eLen = edgeLens[i];
+		if (eLen > threshold)				// 若原边长大于阈值，则插点：
+		{
+			arrow = (loopIn.row(i + 1) - loopIn.row(i)).cast<ScalarO>();
+			arrow.normalize();
+			stepCount = std::ceil(eLen/threshold);
+			step = eLen / stepCount;
+			for (int k = 0; k < stepCount; ++k)
+			{
+				newVer = loopIn.row(i).cast<ScalarO>() + k * step * arrow;
+				loopNew.row(index++) = newVer;
+			}
+		}
+		loopNew.row(index++) = loopIn.row(i + 1).cast<ScalarO>();
+	}
+	eLen = edgeLens[versCount - 1];
+	if (eLen > threshold)						// 若原边长大于阈值，则插点：
+	{
+		arrow = (loopIn.row(0) - loopIn.row(versCount - 1)).cast<ScalarO>();
+		arrow.normalize();
+		stepCount = std::ceil(eLen / threshold);
+		step = eLen / stepCount;
+		for (int k = 0; k < stepCount; ++k)
+		{
+			newVer = loopIn.row(versCount - 1).cast<ScalarO>() + k * step * arrow;
+			loopNew.row(index++) = newVer;
+		}
+	}
+	versCountNew = index;
+	loopNew.conservativeResize(versCountNew, dim);
+
+	// 3. 插值之后的回路精简： 
+	float accumLen = 0;
+	index = 0;
+	loopOut.resize(versCountNew, dim);
+	loopOut.row(index++) = loopNew.row(0);
+	for (int i = 1; i < versCountNew; ++i)
+	{
+		eLen = (loopNew.row(i) - loopNew.row(i - 1)).norm();
+		accumLen += eLen;
+		if (accumLen >= tarEdgeLen * index)
+		{
+			loopOut.row(index++) = loopNew.row(i);
+			if (tarVersCount == index)
+				break;
+		}
+	}
+	loopOut.conservativeResize(index, dim);
+
+	return true;
+}
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 三角网格编辑：

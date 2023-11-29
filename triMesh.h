@@ -140,6 +140,14 @@ namespace TRIANGLE_MESH
 			return arrow.length();
 		}
 
+		void normalize()
+		{
+			double len = this->length();
+			this->x = this->x / len;
+			this->y = this->y / len;
+			this->z = this->z / len;
+		}
+
 		template <typename Ti>
 		double dot(const triplet<Ti>& t) const 
 		{

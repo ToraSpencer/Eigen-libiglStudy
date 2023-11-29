@@ -540,8 +540,14 @@ namespace TEST_MYEIGEN_PMP
 		objReadVerticesMat(versLoop, "E:/材料/LoopBdryUnsorted.obj");
 		debugWriteVers("versInput", versLoop);
 
+		// 1. 测试回路有序化：
 		sortLoop2D(versLoop);
-		debugWriteVers("versOut", versLoop);
+		debugWriteVers("loopSorted", versLoop);
+
+		// 2. 测试回路均匀化：
+		Eigen::MatrixXd versLoopArr;
+		arrangeLoop(versLoopArr, versLoop, 500);
+		debugWriteVers("loopArr", versLoopArr);
 
 		debugDisp("finished.");
 	}
@@ -607,7 +613,6 @@ namespace TEST_MYEIGEN_PMP
 		debugDisp("finished.");
 	} 
 	    
-
 
 	// 测试获取网格属性：
 	void test5() 
