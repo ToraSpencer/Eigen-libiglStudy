@@ -721,14 +721,44 @@ Eigen::MatrixXd kron(const Eigen::MatrixBase<Derived1>& m11, \
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 线性方程组：
 
 // 解线性方程组
-template<typename T, int N>
-bool solveLinearEquation(Eigen::Matrix<T, N, 1>& x, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<T, N, 1>& b);
 
-// 解多组线性方程组
+// 解恰定的稠密线性方程组Ax == b;
+template<typename DerivedX, typename DerivedA, typename DerivedB>
+bool solveLinearEquation(Eigen::PlainObjectBase<DerivedX>& x, const Eigen::MatrixBase<DerivedA>& A, \
+	const Eigen::MatrixBase<DerivedB>& b)
+{
+	using ScalarX = typename DerivedX::Scalar;
+	using MatrixXx = Eigen::Matrix<ScalarX, Eigen::Dynamic, Eigen::Dynamic>;
+	using VectorXx = Eigen::Matrix<ScalarX, Eigen::Dynamic, 1>;
+
+	// 解线性方程组Ax == b;
+	VectorXx b0 = b.array().cast<ScalarX>();
+	Eigen::JacobiSVD<MatrixXx> svdSolver(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	x = svdSolver.solve(b0);
+
+	return true;
+}
+
+// 解一系列恰定的稠密线性方程组AX == B;
 template <typename T>
 bool solveLinearEquations(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& B);
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& B)
+{
+	if (A.rows() != B.rows())
+		return false;
+
+	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	X.resize(A.cols(), B.cols());
+	for (int i = 0; i < B.cols(); ++i)
+	{
+		Eigen::Matrix < T, Eigen::Dynamic, 1> x = svdSolver.solve(B.col(i));
+		X.col(i) = x;
+	}
+
+	return true;
+}
+
 
 // 通过SVD求稠密矩阵的条件数：
 template<typename T>
@@ -737,6 +767,30 @@ double calcCondNum(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& m);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 插值、拟合：
+
+// 输入三维点云，输出拟合的平面方程系数(a,b,c,d)，其中(a,b,c)是平面的单位法向量；
+template <typename T, typename DerivedV>
+bool versFitPlane(std::vector<T>& coeffs, const Eigen::MatrixBase<DerivedV>& versSample) 
+{
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+	using Vector4T = Eigen::Matrix<T, 4, 1>;
+	assert(versSample.rows() > 0 && "Assert!!! input vertices mat is empty.");
+	assert(3 == versSample.cols() && "Assert!!! input vertices should be in 3D space.");
+	const int versCount = versSample.rows();
+	MatrixXT A(versCount, 4);
+	A.leftCols(3) = versSample.cast<T>();
+	A.col(3).setOnes();
+	
+	// A矩阵奇异值分解：
+	Eigen::JacobiSVD<MatrixXT> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	MatrixXT V = svd.matrixV();				// 右奇异矩阵；
+	Vector4T x = V.col(3);
+	double length = std::sqrt(x(0) * x(0) + x(1) * x(1) + x(2)* x(2));
+	x.array() /= length;
+	eigenVec2Vec(coeffs, x);
+
+	return true;
+}
 
 //
 void polyInterpolation();

@@ -209,40 +209,7 @@ bool spMatTranspose(Eigen::SparseMatrix<T>& smOut, const Eigen::SparseMatrix<T>&
 
 	return true;
 }
-
-
-// 解恰定的稠密线性方程组Ax == b;
-template<typename T, int N>
-bool solveLinearEquation(Eigen::Matrix<T, N, 1>& x, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<T, N, 1>& b)
-{
-	// 解线性方程组Ax == b;
-	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	x = svdSolver.solve(b);
-
-	return true;
-}
-
-
-// 解一系列恰定的稠密线性方程组AX == B;
-template <typename T>
-bool solveLinearEquations(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& B)
-{
-	if (A.rows() != B.rows())
-		return false;
-
-	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	X.resize(A.cols(), B.cols());
-	for (int i = 0; i < B.cols(); ++i)
-	{
-		Eigen::Matrix < T, Eigen::Dynamic, 1> x = svdSolver.solve(B.col(i));
-		X.col(i) = x;
-	}
-
-	return true;
-}
+ 
 
 
 // 通过SVD求稠密矩阵的条件数：
@@ -255,7 +222,6 @@ double calcCondNum(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& m)
 	T sMin = sValues.minCoeff();
 	return static_cast<double>(sMax / sMin);
 }
-
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 插值、拟合：

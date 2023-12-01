@@ -128,26 +128,6 @@ template bool spMatTranspose(Eigen::SparseMatrix<int>& smOut, const Eigen::Spars
 template bool spMatTranspose(Eigen::SparseMatrix<float>& smOut, const Eigen::SparseMatrix<float>& smIn);
 template bool spMatTranspose(Eigen::SparseMatrix<double>& smOut, const Eigen::SparseMatrix<double>& smIn);
 
-template bool solveLinearEquation(Eigen::Matrix<float, 2, 1>& x, const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<float, 2, 1>& b);
-template bool solveLinearEquation(Eigen::Matrix<float, 3, 1>& x, const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<float, 3, 1>& b);
-template bool solveLinearEquation(Eigen::Matrix<float, 4, 1>& x, const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<float, 4, 1>& b);
-template bool solveLinearEquation(Eigen::Matrix<double, 2, 1>& x, const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<double, 2, 1>& b);
-template bool solveLinearEquation(Eigen::Matrix<double, 3, 1>& x, const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<double, 3, 1>& b);
-template bool solveLinearEquation(Eigen::Matrix<double, 4, 1>& x, const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<double, 4, 1>& b);
-
-template bool solveLinearEquations(Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& X, \
-	const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& B);
-template bool solveLinearEquations(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& X, \
-	const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& A, \
-	const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& B);
-
 template double calcCondNum(const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& m);
 template double calcCondNum(const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& m);
  

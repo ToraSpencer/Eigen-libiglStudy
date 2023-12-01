@@ -176,7 +176,6 @@ bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 	const std::vector<Eigen::VectorXi>& bdryLoops, \
 	const char* strSwitcher = "pY");
 
-
 // 三角剖分提升网格质量：
 template <typename DerivedVo, typename DerivedIt, typename DerivedVi, typename DerivedIe>
 bool triangulateRefineMesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
@@ -266,23 +265,20 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedO>& vers, Eigen::MatrixXi& tris,
 template <typename DerivedV, typename DerivedL, typename DerivedN>
 bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris, \
 	const Eigen::MatrixBase<DerivedL>& versLoop, \
-	const Eigen::MatrixBase<DerivedN>& normDir, const float maxTriArea)
+	const Eigen::MatrixBase<DerivedN>& normDir, \
+	const float maxTriArea, const bool blRemesh = true)
 {
 	using ScalarV = typename DerivedV::Scalar;
 	using ScalarN = typename DerivedN::Scalar;
-	using MatrixXR = Eigen::Matrix<TRI_REAL, Eigen::Dynamic, Eigen::Dynamic>;
-	using Matrix3R = Eigen::Matrix<TRI_REAL, 3, 3>;
-	using Matrix4R = Eigen::Matrix<TRI_REAL, 4, 4>;
-	using RowVector3R = Eigen::Matrix<TRI_REAL, 1, 3>;
 	const int versLoopCount = versLoop.rows();
 
 	// 1. 求一个仿射变换：
-	RowVector3R loopCenter = versLoop.colwise().mean().array().cast<TRI_REAL>();
-	Matrix4R rotationHomo{ Matrix4R::Identity() };
-	Matrix4R translationHomo{ Matrix4R::Identity() };
-	Matrix4R affineHomo, affineInvHomo;
-	Matrix3R rotation;
-	getRotationMat(rotation, RowVector3R{ 0, 0, 1 }, RowVector3R{ normDir.array().cast<TRI_REAL>() });
+	Eigen::RowVector3d loopCenter = versLoop.colwise().mean().array().cast<double>();
+	Eigen::Matrix4d rotationHomo{ Eigen::Matrix4d::Identity() };
+	Eigen::Matrix4d translationHomo{ Eigen::Matrix4d::Identity() };
+	Eigen::Matrix4d affineHomo, affineInvHomo;
+	Eigen::Matrix3d rotation;
+	getRotationMat(rotation, Eigen::RowVector3d{ 0, 0, 1 }, Eigen::RowVector3d{ normDir.array().cast<double>() });
 	rotationHomo.topLeftCorner(3, 3) = rotation;
 	translationHomo(0, 3) = loopCenter(0);
 	translationHomo(1, 3) = loopCenter(1);
@@ -290,79 +286,28 @@ bool circuit2mesh(Eigen::PlainObjectBase<DerivedV>& vers, Eigen::MatrixXi& tris,
 	affineHomo = translationHomo * rotationHomo;
 	affineInvHomo = affineHomo.inverse();
 
-	// 1. 插点的三角剖分：
-	MatrixXR versLoopHomo0, versLoopHomo, versLoop0, vers2D;
+	// 2. 输入回路变换到本征坐标系，做插点的三角剖分，再变换回原坐标系；
+	Eigen::MatrixXd versLoopHomo0, versLoopHomo, versLoop0, vers2D, versTmp, versTmpHomo;
 	Eigen::MatrixXi edges2D(2, versLoopCount);
-	vers2HomoVers(versLoopHomo, versLoop);
-	versLoopHomo0 = affineInvHomo * versLoopHomo;
-	homoVers2Vers(versLoop0, versLoopHomo0);
-	vers2D = versLoop0.transpose().topRows(2);
-	for (unsigned i = 0; i < versLoopCount; i++)
-	{
-		edges2D(0, i) = i + 1;
-		edges2D(1, i) = (i + 1) % versLoopCount + 1;
-	}
-
-	TRIANGLE_LIB::triangulateio triIn;
-	TRIANGLE_LIB::triangulateio triOut;
-	triIn.numberofpoints = versLoopCount;
-	triIn.pointlist = vers2D.data();
-	triIn.numberofpointattributes = 0;
-	triIn.pointattributelist = NULL;
-	triIn.pointmarkerlist = NULL;
-
-	triIn.numberofsegments = versLoopCount;
-	triIn.segmentlist = (int*)edges2D.data();
-	triIn.segmentmarkerlist = NULL;
-
-	triIn.numberoftriangles = 0;
-	triIn.numberofcorners = 0;
-	triIn.numberoftriangleattributes = 0;
-
-	triIn.numberofholes = 0;
-	triIn.holelist = NULL;
-
-	triIn.numberofregions = 0;
-	triIn.regionlist = NULL;
-	memset(&triOut, 0, sizeof(TRIANGLE_LIB::triangulateio));
-
+	Eigen::VectorXi loopVec{ Eigen::VectorXi::LinSpaced(versLoopCount, 0, versLoopCount - 1) };
 	char triStr[256];
-	//		"p" - 折线段; "a" - 最大三角片面积; "q" - Quality; "Y" - 边界上不插入点; "Q" - quiet;
-	sprintf_s(triStr, "pq30.0a%fYYQ", maxTriArea);
-	TRIANGLE_LIB::triangulate(triStr, &triIn, &triOut, NULL);
+	versLoop0 = homoVers2VersD(affineInvHomo * vers2HomoVersD(versLoop));
+	sprintf_s(triStr, "pq30.0a%fYYQ", maxTriArea);		// "p" - 折线段; "a" - 最大三角片面积; "q" - Quality; "Y" - 边界上不插入点; "Q" - quiet;
+	triangulateVers2Mesh(versTmp, tris, versLoop0, std::vector<Eigen::VectorXi>{loopVec}, triStr); 
+	versTmp = homoVers2VersD(affineHomo * vers2HomoVersD(versTmp));
+	versTmp.topRows(versLoopCount) = versLoop.array().cast<double>();			// 边缘点使用原始坐标；
 
-	// 2. 处理三角剖分后的结果；
-	MatrixXR versTmp, versTmpHomo;
-	const int versCount = triOut.numberofpoints;						// 插点后的网格的点数； 
-	versTmp.resize(versCount, 3);
-	versTmp.setZero();
-	for (size_t i = 0; i < versCount; i++)
+	// 4. 此时网格内部是个平面，边界和输入边界线相同，需要在保持边界线的情形下光顺网格： 
+	if (blRemesh)
 	{
-		versTmp(i, 0) = triOut.pointlist[i * 2];
-		versTmp(i, 1) = triOut.pointlist[i * 2 + 1];
+		std::vector<int> fixedVerIdxes(versLoopCount);
+		for (int i = 0; i < versLoopCount; ++i)
+			fixedVerIdxes[i] = i;
+		if (!laplaceFaring(vers, versTmp, tris, 0.1, 50, fixedVerIdxes))
+			return false;
 	}
-	vers2HomoVers(versTmpHomo, versTmp);
-	versTmpHomo = (affineHomo * versTmpHomo).eval();
-	homoVers2Vers(versTmp, versTmpHomo);
-	versTmp.topRows(versLoopCount) = versLoop.array().cast<TRI_REAL>();
-	tris.resize(3, triOut.numberoftriangles);
-	std::memcpy(tris.data(), triOut.trianglelist, sizeof(int) * 3 * triOut.numberoftriangles);
-	tris.transposeInPlace();
-	tris.array() -= 1;
-
-	// for debug——打印光顺前的网格；
-#if 0
-	{
-		objWriteMeshMat("E:/meshOutNoFaring.obj", versTmp, tris);
-	}
-#endif
-
-	// 3. 此时网格内部是个平面，边界和输入边界线相同，需要在保持边界线的情形下光顺网格： 
-	std::vector<int> fixedVerIdxes(versLoopCount);
-	for (int i = 0; i < versLoopCount; ++i)
-		fixedVerIdxes[i] = i;
-	if (!laplaceFaring(vers, versTmp, tris, 0.1, 50, fixedVerIdxes))
-		return false;
+	else
+		vers = versTmp.array().cast<ScalarV>();
 
 	return true;
 }

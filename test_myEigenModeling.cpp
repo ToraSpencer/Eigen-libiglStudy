@@ -167,7 +167,7 @@ namespace TEST_MYEIGEN_MODELING
 		interpolateToLine(axis, Eigen::RowVector3f{ 0, 0, 0 }, Eigen::RowVector3f{ 0, 0, 5 }, 0.5);
 		cylinderVers.resize(0, 0);
 		cylinderTris.resize(0, 0);
-		genCylinder(cylinderVers, cylinderTris, axis, std::make_pair(10.0, 20.0));
+		genCylinder(cylinderVers, cylinderTris, axis, std::make_pair(10.0, 20.0));	// 重载3；
 		debugWriteMesh("pillar", cylinderVers, cylinderTris);
 
 		cylinderVers.resize(0, 0);
@@ -204,19 +204,23 @@ namespace TEST_MYEIGEN_MODELING
 	// 测试边界回路生成曲面网格
 	void test2()
 	{
-		Eigen::MatrixXf vers;
+		Eigen::MatrixXf vers, vers2;
 		Eigen::MatrixXd versLoop, versLoop2D;
-		Eigen::MatrixXi tris;
+		Eigen::MatrixXi tris, tris2;
 
-		objReadVerticesMat(versLoop, "E:\\颌板\\curveFitUpper2.obj");
+		objReadVerticesMat(versLoop, "E:\\颌板\\颌板示例\\2\\curveFitLower.obj");
+		debugWriteVers("versLoop", versLoop);
 
 		Eigen::RowVector3d center = versLoop.colwise().mean();
 		versLoop2D = versLoop.rowwise() - center;
 		versLoop2D = versLoop2D.leftCols(2).eval();
 
-		circuit2mesh(vers, tris, versLoop, Eigen::RowVector3d{ 0, 0, -1 }, 1.0f);
+		circuit2mesh(vers, tris, versLoop);						// 重载1
+		circuit2mesh(vers2, tris2, versLoop, Eigen::RowVector3d{ 0, 0, -1 }, 1.0f, false);			// 重载2；
 
 		debugWriteMesh("meshOut", vers, tris);
+		debugWriteMesh("meshOut2", vers2, tris2);
+ 
 
 		debugDisp("finished.");
 	}

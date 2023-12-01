@@ -489,8 +489,9 @@ namespace TEST_DENSE_MAT
 		Vector3d b = Vector3d::Random();
 		Vector3d x;
 		Eigen::MatrixXd X;
-		solveLinearEquation<double>(x, A, b);
+		solveLinearEquation(x, A, b);
 		solveLinearEquations<double>(X, A, B);
+
 		std::cout << "A == \n" << A << std::endl;
 		std::cout << "b == \n" << b << std::endl;
 		std::cout << "B == \n" << B << std::endl;

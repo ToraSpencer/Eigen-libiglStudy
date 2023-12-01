@@ -485,6 +485,43 @@ namespace TEST_MYEIGEN_BASIC_MATH
 
 		debugDisp("finished.");
 	}
+
+
+	// 测试最小二乘拟合：
+	void test1() 
+	{
+		Eigen::MatrixXf versLoop;
+		objReadVerticesMat(versLoop, "E:\\颌板\\颌板示例\\2\\curveFitLower.obj");
+		debugWriteVers("versLoop", versLoop);
+
+		Eigen::RowVector3f centerF = versLoop.colwise().mean();
+		Eigen::MatrixXf versPlane;
+		Eigen::MatrixXi trisPlane;
+		Eigen::Vector4f x;
+		Eigen::VectorXf beta;
+		Eigen::RowVector3f pos0, norm;
+		float a, b, c, d, x0, y0, z0, lambda;
+		x0 = centerF(0);
+		y0 = centerF(1);
+		z0 = centerF(2);
+		 
+		// 拟合平面：
+		std::vector<float> coeffs;
+		versFitPlane(coeffs, versLoop);
+		a = coeffs[0];
+		b = coeffs[1];
+		c = coeffs[2];
+		d = coeffs[3];
+
+		// 打印拟合出的平面；
+		norm = Eigen::RowVector3f{ a, b, c };
+		lambda = -d - centerF.dot(norm);
+		pos0 = centerF + lambda * norm;
+		genRoundSurfMesh(versPlane, trisPlane, pos0, norm, 30, 100);
+		debugWriteMesh("plane", versPlane, trisPlane);
+
+		debugDisp("finished.");
+	}
 }
 
 

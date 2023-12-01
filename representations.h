@@ -26,7 +26,8 @@ void ver2vec(Eigen::PlainObjectBase<DerivedV>& verVec, \
 	const TRIANGLE_MESH::triplet<TV>& ver)
 {
 	using ScalarV = typename DerivedV::Scalar;
-	assert((3 != verVec.size()) && "assert!!! verVec should be a 3 elements vector.");
+	const int size = verVec.size();
+	assert((3 == verVec.size()) && "assert!!! verVec should be a 3 elements vector.");
 	verVec(0) = static_cast<ScalarV>(ver.x);
 	verVec(1) = static_cast<ScalarV>(ver.y);
 	verVec(2) = static_cast<ScalarV>(ver.z);
@@ -93,6 +94,7 @@ std::vector<TRIANGLE_MESH::triplet<int>> mat2tris(\
 	mat2vers(tris, trisMat);
 	return tris;
 }
+
 
 template <typename DerivedV, typename TV, typename TI>
 void triMesh2mat(Eigen::PlainObjectBase<DerivedV>& versMat,\
