@@ -240,6 +240,80 @@ namespace MY_DEBUG
 using namespace MY_DEBUG;
 
 
+
+// 读取inputMESH文件夹中的.mesh文件，在viewer中展示：
+int testCmd_showMESHfile(int argc, char** argv)
+{  
+	// 生成路径：
+	int   nPos;
+	CString   cPath;
+	GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
+	nPos = cPath.ReverseFind('\\');
+	cPath = cPath.Left(nPos);
+	std::string path{ CT2CA{cPath} };
+	std::string pathMESH = path + "\\inputMESH"; 
+	CString fileConfig = cPath + "\\config.ini";
+
+	// 1. 读取部件网格  
+	std::cout << "读取输入网格..." << std::endl;
+	std::vector<std::string> fileNames, tmpStrVec, MESHfileNames;
+	std::vector<Eigen::MatrixXd> meshesVers;
+	std::vector<Eigen::MatrixXi> meshesTris;
+	std::vector<Eigen::MatrixXi> meshesTets;
+
+	getFileNames(pathMESH.c_str(), tmpStrVec, false);
+	const unsigned meshesCount = tmpStrVec.size();
+
+	if (0 == meshesCount)
+	{
+		debugDisp("输入文件夹为空。");
+		return -1;
+	}
+
+	if (meshesCount > 1)
+	{
+		debugDisp("只能输入一个.mesh文件");
+		return -1;
+	}
+
+	MESHfileNames.reserve(meshesCount);
+	for (const auto& str : tmpStrVec)
+	{
+		std::string tailStr = str.substr(str.size() - 5, 5);				//	".mesh"
+		if (".mesh" == tailStr)
+		{
+			fileNames.push_back(str);
+			unsigned index = str.find_last_of("/");
+			std::string MESHfileName = str.substr(index, str.size() - index - 5);			// "/" + obj文件名，不含路径和.obj后缀；
+			MESHfileNames.push_back(MESHfileName);
+		}
+	}
+	meshesVers.resize(meshesCount);
+	meshesTris.resize(meshesCount);
+	meshesTets.resize(meshesCount); 
+	for (unsigned i = 0; i < meshesCount; ++i)
+		igl::readMESH(fileNames[i].c_str(), meshesVers[i], meshesTets[i], meshesTris[i]); 
+ 
+
+	// 2. 使用viewer渲染网格：
+
+	// 1. 窗口中装载数据；
+	viewer.data().set_mesh(meshesVers[0], meshesTris[0]);
+
+	// 2. 设定三轴旋转；默认是两轴旋转，set_rotation_type()方法可以指定其他旋转风格
+	viewer.core().set_rotation_type(igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL);
+
+	// 3. show_lines指定是否画出网格线；
+	viewer.data().show_lines = 0;
+
+	// 4. 进入渲染循环：
+	viewer.launch();
+ 
+	debugDisp("finished.");
+
+	return 0;
+}
+
   
 
 int main(int argc, char** argv)
@@ -248,7 +322,9 @@ int main(int argc, char** argv)
 
 	// IGL_MODELLING::test1();
 
-	IGL_BASIC::test1();
+	// IGL_BASIC::test1();
+
+	testCmd_showMESHfile(argc, argv);
 
 	std::cout << "main() finished." << std::endl;
 }

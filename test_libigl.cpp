@@ -98,7 +98,7 @@ using namespace MY_DEBUG;
 namespace IGL_BASIC
 {
 	Eigen::MatrixXd vers, newVers, normals;
-	Eigen::MatrixXi tris;
+	Eigen::MatrixXi tris, tets;
 	Eigen::SparseMatrix<double> L;
 
 	// igl中基础的矩阵算子：
@@ -249,7 +249,7 @@ namespace IGL_BASIC
 	// libigl中的显示窗口类Viewer——基本用法：
 	void test1() 
 	{
-		igl::readOBJ("E:/材料/bunny.obj", vers, tris);
+		igl::readMESH("E:/材料/hand.mesh", vers, tets, tris);
 
 		// Viewer::data()——返回viewer中数据对象的引用；
 
