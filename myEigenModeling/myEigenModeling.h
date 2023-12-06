@@ -363,6 +363,10 @@ bool genCylinder(Eigen::PlainObjectBase<DerivedVo>& vers, Eigen::MatrixXi& tris,
 	using MatrixXB = Eigen::Matrix<ScalarB, Eigen::Dynamic, Eigen::Dynamic>;
 	using Matrix3B = Eigen::Matrix<ScalarB, 3, 3>;
 	using RowVector3B = Eigen::Matrix<ScalarB, 1, 3>;
+
+	vers.resize(0, 0);
+	tris.resize(0, 0);
+
 	unsigned circVersCount = btmVers.rows();					// 横截面一圈的顶点数；
 	unsigned circCount = axisVers.rows();							// 圈数；
 	unsigned versCount = circVersCount * circCount;
@@ -435,6 +439,9 @@ bool genCylinder(Eigen::PlainObjectBase<DerivedVo>& vers, Eigen::MatrixXi& tris,
 	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
 	using Matrix3T = Eigen::Matrix<T, 3, 3>;
 	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	vers.resize(0, 0);
+	tris.resize(0, 0);
 
 	MatrixXT circuit(30, 3);
 	circuit.setZero();

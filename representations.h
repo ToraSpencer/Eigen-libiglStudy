@@ -2,7 +2,7 @@
 #include "triMesh.h"
 
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////// 表象之间的转换：
+////////////////////////////////////////////////////////////////////////////////////////////////////////// 数组表象→矩阵表象
 
 template <typename DerivedV, typename TV>
 void vers2mat(Eigen::PlainObjectBase<DerivedV>& versMat, \
@@ -52,6 +52,71 @@ Eigen::RowVector3d ver2vecD(const TRIANGLE_MESH::triplet<TV>& ver)
 }
 
 
+template <typename DerivedV, typename TV, typename TI>
+void triMesh2mat(Eigen::PlainObjectBase<DerivedV>& versMat, \
+	Eigen::MatrixXi& trisMat, const TRIANGLE_MESH::triMesh<TV, TI>& mesh)
+{
+	using ScalarV = typename DerivedV::Scalar;
+	const int versCount = static_cast<int>(mesh.vertices.size());
+	const int trisCount = static_cast<int>(mesh.triangles.size());
+	versMat.resize(0, 0);
+	trisMat.resize(0, 0);
+	versMat.resize(versCount, 3);
+	for (int i = 0; i < versCount; ++i)
+	{
+		versMat(i, 0) = static_cast<ScalarV>(mesh.vertices[i].x);
+		versMat(i, 1) = static_cast<ScalarV>(mesh.vertices[i].y);
+		versMat(i, 2) = static_cast<ScalarV>(mesh.vertices[i].z);
+	}
+	trisMat.resize(trisCount, 3);
+	for (int i = 0; i < trisCount; ++i)
+	{
+		trisMat(i, 0) = static_cast<int>(mesh.triangles[i].x);
+		trisMat(i, 1) = static_cast<int>(mesh.triangles[i].y);
+		trisMat(i, 2) = static_cast<int>(mesh.triangles[i].z);
+	}
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////// 矩阵表象→数组表象
+
+template<typename TV, typename DerivedV>
+void vec2ver(TRIANGLE_MESH::triplet<TV>& ver, const Eigen::MatrixBase<DerivedV>& vec) 
+{
+	ver.x = static_cast<TV>(vec(0));
+	ver.y = static_cast<TV>(vec(1));
+	ver.z = static_cast<TV>(vec(2));
+}
+
+
+template <typename DerivedV>
+verF vec2verF(const Eigen::MatrixBase<DerivedV>& vec)
+{
+	verF ver;
+	vec2ver(ver, vec);
+	return ver;
+}
+
+
+template <typename DerivedV>
+verF vec2verD(const Eigen::MatrixBase<DerivedV>& vec)
+{
+	verD ver;
+	vec2ver(ver, vec);
+	return ver;
+}
+
+
+template <typename DerivedV>
+TRIANGLE_MESH::triplet<int> vec2tri(const Eigen::MatrixBase<DerivedV>& vec)
+{
+	TRIANGLE_MESH::triplet<int> tri;
+	vec2ver(tri, vec);
+	return tri;
+}
+
+
 template <typename TV, typename DerivedV>
 void mat2vers(std::vector<TRIANGLE_MESH::triplet<TV>>& vers, \
 		const Eigen::MatrixBase<DerivedV>& versMat)
@@ -93,32 +158,6 @@ std::vector<TRIANGLE_MESH::triplet<int>> mat2tris(\
 	std::vector<TRIANGLE_MESH::triplet<int>> tris;
 	mat2vers(tris, trisMat);
 	return tris;
-}
-
-
-template <typename DerivedV, typename TV, typename TI>
-void triMesh2mat(Eigen::PlainObjectBase<DerivedV>& versMat,\
-	Eigen::MatrixXi& trisMat, const TRIANGLE_MESH::triMesh<TV, TI>& mesh)
-{
-	using ScalarV = typename DerivedV::Scalar;
-	const int versCount = static_cast<int>(mesh.vertices.size());
-	const int trisCount = static_cast<int>(mesh.triangles.size());
-	versMat.resize(0, 0);
-	trisMat.resize(0, 0);
-	versMat.resize(versCount, 3);
-	for (int i = 0; i < versCount; ++i)
-	{
-		versMat(i, 0) = static_cast<ScalarV>(mesh.vertices[i].x);
-		versMat(i, 1) = static_cast<ScalarV>(mesh.vertices[i].y);
-		versMat(i, 2) = static_cast<ScalarV>(mesh.vertices[i].z);
-	}
-	trisMat.resize(trisCount, 3);
-	for (int i = 0; i < trisCount; ++i)
-	{
-		trisMat(i, 0) = static_cast<int>(mesh.triangles[i].x);
-		trisMat(i, 1) = static_cast<int>(mesh.triangles[i].y);
-		trisMat(i, 2) = static_cast<int>(mesh.triangles[i].z);
-	}
 }
 
 

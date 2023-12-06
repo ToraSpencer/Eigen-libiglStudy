@@ -96,6 +96,7 @@ bool interpolateToLine(Eigen::PlainObjectBase<DerivedVo>& vers, \
 	const Eigen::MatrixBase<DerivedVs>& start, const Eigen::MatrixBase<DerivedVe>& end, \
 	const float SR, const bool SE = true)
 {
+	vers.resize(0, 0);
 	if (vers.rows() > 0)
 		return false;
 

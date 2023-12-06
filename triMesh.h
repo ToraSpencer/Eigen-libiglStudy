@@ -178,9 +178,36 @@ namespace TRIANGLE_MESH
 		std::vector<triplet<TI>> triangles;
 
 		triMesh() {}
+		triMesh(const triMesh& mesh) = default;
 		triMesh(const std::vector<triplet<TV>>& vers, \
 			const std::vector<triplet<TI>>& tris): vertices(vers), triangles(tris)
 		{}
+
+		triMesh(triMesh&& mesh)
+		{
+			this->vertices = std::move(mesh.vertices);
+			this->triangles = std::move(mesh.triangles);
+		}
+
+		triMesh& operator=(const triMesh& mesh) = default;
+
+		triMesh& operator=(triMesh&& mesh) 
+		{
+			this->vertices = std::move(mesh.vertices);
+			this->triangles = std::move(mesh.triangles);
+			return *this;
+		}
+
+		// Íø¸ñ´®Áª 
+		void concatenate(const triMesh& mesh)
+		{
+			size_t versCount0 = this->vertices.size();
+			this->vertices.insert(this->vertices.end(), mesh.vertices.begin(), mesh.vertices.end());
+			this->triangles.reserve(this->triangles.size() + mesh.triangles.size());
+			for (const auto& tri : mesh.triangles)
+				this->triangles.push_back(triplet<TI>{static_cast<TI>(tri.x + versCount0),\
+					static_cast<TI>(tri.y + versCount0), static_cast<TI>(tri.z + versCount0)});
+		} 
 	};
 
 

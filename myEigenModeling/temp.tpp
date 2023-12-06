@@ -308,6 +308,9 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 	using Matrix3T = Eigen::Matrix<T, 3, 3>;
 	using RowVector3T = Eigen::Matrix<T, 1, 3>;
 
+	vers.resize(0, 0);
+	tris.resize(0, 0);
+
 	// 1. 生成XOY平面内的方框顶点：
 	float length = sizePair.first;
 	float width = sizePair.second;
@@ -374,6 +377,9 @@ bool genCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::
 	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
 	using Matrix3T = Eigen::Matrix<T, 3, 3>;
 	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	vers.resize(0, 0);
+	tris.resize(0, 0);
 
 	int circVersCount = topLoop.rows();					// 一圈横截面环路的顶点数；
 	int circCount = axisVers.rows();							// 圈数；
@@ -499,6 +505,9 @@ bool genCylinder(Eigen::PlainObjectBase<DerivedVo>& vers, 	Eigen::MatrixXi& tris
 		return true;
 	}; 
 
+	vers.resize(0, 0);
+	tris.resize(0, 0);
+
 	int circVersCount = topLoop.rows();							// 一圈横截面环路的顶点数；
 	int circCount = 2 + layersCount - 1;							// 圈数；
 	int versCount = circVersCount * circCount;
@@ -594,6 +603,9 @@ bool genAlignedCylinder(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, 
 	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
 	using Matrix3T = Eigen::Matrix<T, 3, 3>;
 	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+
+	vers.resize(0, 0);
+	tris.resize(0, 0);
 
 	// 生成XOY平面内的方框顶点：
 	float length = sizePair.first;
