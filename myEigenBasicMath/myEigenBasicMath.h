@@ -811,6 +811,38 @@ template<typename T>
 Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& sampleVers);
  
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////// 欧氏几何
+
+// 输入平面上一点和平面法向，得到平面方程系数；
+/*
+	平面方程: ax +by+cz+d=0;
+			其中(a, b, c)是平面正向法向量，是单位向量；
+
+*/
+template <typename T, typename DerivedV>
+bool getPlaneCoeff(std::vector<T>& coeffs, const Eigen::MatrixBase<DerivedV>& planeVer, \
+	const Eigen::MatrixBase<DerivedV>& planeNorm)
+{	
+	coeffs.clear(); 
+	T a = static_cast<T>(planeNorm(0));
+	T b = static_cast<T>(planeNorm(1));
+	T c = static_cast<T>(planeNorm(2));
+	T d = static_cast<T>(-a * planeVer(0) - b * planeVer(1) - c*planeVer(2));
+	coeffs = std::vector<T>{a, b, c, d};
+	return true;
+}
+
+
+// 平面到顶点的符号距离：
+template<typename T, typename DerivedV>
+double disPlane2Vert(const std::vector<T>& coeffs, const Eigen::MatrixBase<DerivedV>& ver)
+{
+	return static_cast<double>(coeffs[0] * ver(0) + coeffs[1] * ver(1) + coeffs[2] * ver(2) + coeffs[3]);
+}
+
+ 
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 滤波：
 
 // 矩阵的空域线性滤波——！！！注：滤波mask尺寸必须为奇数！！！
