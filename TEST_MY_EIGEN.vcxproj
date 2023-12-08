@@ -95,25 +95,25 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>G:\gitRepositories\eigen3.4.0;$(ProjectDir);G:\gitRepositories\SDFGen_study\SDFGEN_DLL</IncludePath>
-    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;G:\gitRepositories\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)\..\eigen3.4.0;$(ProjectDir);$(SolutionDir)\..\SDFGen_study\SDFGEN_DLL</IncludePath>
+    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;$(SolutionDir)\..\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>G:\gitRepositories\eigen3.4.0;$(ProjectDir);G:\gitRepositories\SDFGen_study\SDFGEN_DLL</IncludePath>
-    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;G:\gitRepositories\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)\..\eigen3.4.0;$(ProjectDir);$(SolutionDir)\..\SDFGen_study\SDFGEN_DLL</IncludePath>
+    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;$(SolutionDir)\..\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>G:\gitRepositories\eigen3.4.0;$(ProjectDir);G:\gitRepositories\SDFGen_study\SDFGEN_DLL</IncludePath>
-    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;G:\gitRepositories\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)\..\eigen3.4.0;$(ProjectDir);$(SolutionDir)\..\SDFGen_study\SDFGEN_DLL</IncludePath>
+    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;$(SolutionDir)\..\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>G:\gitRepositories\eigen3.4.0;$(ProjectDir);G:\gitRepositories\SDFGen_study\SDFGEN_DLL</IncludePath>
-    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;G:\gitRepositories\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)\..\eigen3.4.0;$(ProjectDir);$(SolutionDir)\..\SDFGen_study\SDFGEN_DLL</IncludePath>
+    <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;$(SolutionDir)\..\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnabled>false</VcpkgEnabled>
