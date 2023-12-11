@@ -1354,7 +1354,7 @@ int main(int argc, char** argv)
 
 	// TEST_DENSE_MAT::test5();
 
-	// TEST_MYEIGEN_MODELING::test2();
+	TEST_MYEIGEN_MODELING::test2();
 	 
 	// TEST_MYEIGEN_IO::test0();
 

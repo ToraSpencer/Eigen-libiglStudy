@@ -157,6 +157,7 @@ bool genRoundSurfMesh(Eigen::PlainObjectBase<DerivedVO>& versOut, Eigen::MatrixX
 							禁止在边缘边上插入新点；
 				-YY		prohibits the insertion of Steiner points on any segment, including internal segments.
 							禁止在任何原有边上插入新点；
+				-Q		(queit) 不在控制台上打印信息；
 
 */
 template <typename DerivedVo, typename DerivedI, typename DerivedVi, typename DerivedVh>
@@ -165,7 +166,7 @@ bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 	const Eigen::PlainObjectBase<DerivedVi>& versIn, \
 	const std::vector<Eigen::VectorXi>& bdryLoops, \
 	const Eigen::PlainObjectBase<DerivedVh>& holeCenters, \
-	const char* strSwitcher = "pY");
+	const char* strSwitcher = "pYQ");
 
 
 // 重载2：2D点云三角剖分得到面网格——不带洞
@@ -174,7 +175,7 @@ bool triangulateVers2Mesh(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 	Eigen::PlainObjectBase<DerivedI>& trisOut, \
 	const Eigen::PlainObjectBase<DerivedVi>& versIn, \
 	const std::vector<Eigen::VectorXi>& bdryLoops, \
-	const char* strSwitcher = "pY");
+	const char* strSwitcher = "pYQ");
 
 // 三角剖分提升网格质量：
 template <typename DerivedVo, typename DerivedIt, typename DerivedVi, typename DerivedIe>
