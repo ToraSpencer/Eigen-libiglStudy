@@ -1350,16 +1350,16 @@ double calcSolidAngle(const Eigen::MatrixBase<DerivedVp>& pos,\
 
 int main(int argc, char** argv)
 { 
-	// TEST_MYEIGEN_PMP::test2();
+	TEST_SCIENTIFIC_CALC::test5();
 
-	// TEST_DENSE_MAT::test5();
-
-	TEST_MYEIGEN_MODELING::test2();
-	 
-	// TEST_MYEIGEN_IO::test0();
-
-	// TEST_MYEIGEN_BASIC_MATH::test1();
-
+	//Eigen::MatrixXf vers, lenMat;
+	//Eigen::MatrixXi tris;
+	//objReadMeshMat(vers, tris, "E:\\抽壳加支撑/乐芸予_程序生成_切底3.3854_支撑1.9_remeshed.obj");
+	//edge_lengths(lenMat, vers, tris);
+	//float maxLen = lenMat.maxCoeff();
+	//float minLen = lenMat.minCoeff();
+	//debugDisp("maxLen == ", maxLen);
+	//debugDisp("minLen == ", minLen);
 
 	debugDisp("main() finished."); 
 }

@@ -30,7 +30,8 @@ const double pi = 3.14159265359;
 	basic math tools
 	矩阵的增删查改和运算
 	拟合、插值
-
+	欧氏几何
+	滤波
 */
 
 
@@ -194,7 +195,6 @@ double hornersPoly(const Eigen::Matrix<T, N, 1>& coeffs, const double x);
 // 求多项式的一阶微分
 template<typename T, int N>
 float polyDiff(const Eigen::Matrix<T, N, 1>& coeffs, const float x);
-
 
 
 // Eigen向量转换为std::vector，重载1: 
@@ -517,6 +517,46 @@ Eigen::VectorXi flagVec2IdxVec(const Eigen::VectorXi& flag);
 Eigen::VectorXi IdxVec2FlagVec(const Eigen::VectorXi& idxVec, const unsigned size);
 
 
+template <typename DerivedV>
+bool PCA3d(std::vector<Eigen::RowVector3d>& resultVecs,\
+	std::vector<double>& resultVals, const Eigen::MatrixBase<DerivedV>& samples)
+{
+	assert(3 == samples.cols() && "Assert!!! Samples should be in 3-dimension space.");
+
+	// 1. 所有顶点作为三维样本数据，存入矩阵A中，一行一个样本，
+	const int  N = samples.rows();											// 样本容量； 
+	Eigen::MatrixXd A = samples.array().cast<double>();
+	Eigen::RowVector3d miu = A.colwise().mean();				// 样本均值——miu向量
+
+	// 2. 均值点平移到原点的样本矩阵
+	Eigen::MatrixXd B = A - Eigen::MatrixXd::Ones(N, 1) * miu;
+
+	// 3. 求样本的协方差矩阵：
+	Eigen::Matrix3d C = B.transpose() * B / (N - 1);
+
+	// 4. 求协方差矩阵的特征值和特征向量
+	Eigen::EigenSolver<Eigen::Matrix3d> es(C);
+	Eigen::Matrix3d D = es.pseudoEigenvalueMatrix();			// 对角线元素是特征值
+	Eigen::Matrix3d V = es.pseudoEigenvectors();					// 每一个列向量都是特征向量。
+ 
+	// 5. 输出：
+	std::map<double, Eigen::RowVector3d> tmpMap;
+	tmpMap.insert(std::make_pair(D(0, 0), Eigen::RowVector3d{V.col(0).transpose()}));
+	tmpMap.insert(std::make_pair(D(1, 1), Eigen::RowVector3d{ V.col(1).transpose() }));
+	tmpMap.insert(std::make_pair(D(2, 2), Eigen::RowVector3d{ V.col(2).transpose() }));
+	auto iter = tmpMap.begin();
+	resultVecs.reserve(3);
+	resultVals.reserve(3); 
+	for (int i = 0; i < 3; ++i)
+	{
+		resultVals.push_back(iter->first);
+		resultVecs.push_back(iter->second);
+		iter++;
+	}
+
+	return true;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 矩阵的增删查改和运算
 
@@ -568,7 +608,6 @@ bool matInsertCols(Eigen::PlainObjectBase<Derived1>& mat, \
 
 	return true;
 }
-
 
 
 // 输入flag向量，得到新老索引的映射关系； 

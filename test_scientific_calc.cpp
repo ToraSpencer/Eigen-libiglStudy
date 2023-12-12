@@ -205,8 +205,28 @@ namespace TEST_SCIENTIFIC_CALC
 	// 主成分分析：
 	void test5()
 	{
+		Eigen::MatrixXf vers;
+		Eigen::MatrixXi tris;
+		//objReadMeshMat(vers, tris, "E:/材料/jawMesh1.obj");
+		//debugWriteMesh("meshInput", vers, tris); 
+		objReadVerticesMat(vers, "E:/temp/versProjIntr2.obj");
+		debugWriteVers("versInput", vers);
 
+		std::vector<Eigen::RowVector3d> resultVecs;
+		std::vector<double> resultVals;
+		PCA3d(resultVecs, resultVals, vers);
+		Eigen::RowVector3d vec_normal, vec_pca1, vec_pca2;
+		vec_normal = resultVecs[0];
+		vec_pca1 = resultVecs[1];
+		vec_pca2 = resultVecs[2]; 
 
+		// 
+		Eigen::RowVector3f center = vers.colwise().mean();
+		objWriteDirection("E:/normDir.obj", center, vec_normal);
+		objWriteDirection("E:/pcaDir1.obj", center, vec_pca1);
+		objWriteDirection("E:/pcaDir2.obj", center, vec_pca2);
+
+		debugDisp("finished.");
 	}
 
 
