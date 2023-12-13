@@ -39,18 +39,26 @@ namespace TRIANGLE_MESH
 	};
 
 
-	template <typename TV, typename TI>
-	void GetVertsAndSurfs(std::vector<triplet<TV>>& vVerts, std::vector<triplet<TI>>& vSurfs, \
-		const std::vector<triplet<TV>>& versIn)
+	// 自定义顶点哈希函数：
+	template <typename TV>
+	class vertHash
 	{
-		auto vertHash = [](const triplet<TV>& v)->std::size_t
+	public:
+		std::size_t operator()(const triplet<TV>& v) const
 		{
-			return std::hash<decltype(v.x)>()(v.x)	+ \
+			return std::hash<decltype(v.x)>()(v.x) + \
 				std::hash<decltype(v.y)>()(v.y) + \
 				std::hash<decltype(v.z)>()(v.z);
-		};
+		}
+	};
 
-		auto vertComp = [](const triplet<TV>& v0, const triplet<TV>& v1)->bool
+
+	// 自定义顶点等价比较器：
+	template <typename TV>
+	class vertComp
+	{
+	public:
+		bool operator()(const triplet<TV>& v0, const triplet<TV>& v1) const
 		{
 			double dbThreshold = 1.e-14;
 			if (std::fabs(v0.x - v1.x) > dbThreshold)
@@ -60,14 +68,20 @@ namespace TRIANGLE_MESH
 			if (std::fabs(v0.z - v1.z) > dbThreshold)
 				return false;
 			return true;
-		};
+		}
+	};
 
+
+	template <typename TV, typename TI>
+	void GetVertsAndSurfs(std::vector<triplet<TV>>& vVerts, std::vector<triplet<TI>>& vSurfs, \
+		const std::vector<triplet<TV>>& versIn)
+	{
 		// 修改说明：原先去除重复点的方法时间复杂度过高，改用hashmap
 		unsigned nOldVertCnt = versIn.size();
 		std::vector<unsigned> tmpTri(3, 0);
 		vSurfs.resize(nOldVertCnt / 3);
 		vVerts.reserve(nOldVertCnt);
-		std::unordered_map<triplet<TV>, unsigned, decltype(vertHash), decltype(vertComp)> mapVerts;
+		std::unordered_map<triplet<TV>, unsigned, vertHash<TV>, vertComp<TV>> mapVerts;
 
 		for (unsigned i = 0; i < nOldVertCnt / 3; i++)
 		{
