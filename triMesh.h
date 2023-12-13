@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 #include <stdexcept>
 
