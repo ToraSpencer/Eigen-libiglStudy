@@ -5,6 +5,7 @@
 #include <vector>
 #include <stdexcept>
 
+
 namespace TRIANGLE_MESH
 {
 	////////////////////////////////////////////////////////////////////////////////////////////// triplet<>Àà
@@ -197,6 +198,12 @@ namespace TRIANGLE_MESH
 			this->vertices = std::move(mesh.vertices);
 			this->triangles = std::move(mesh.triangles);
 			return *this;
+		}
+
+		void clear() 
+		{
+			this->vertices.clear();
+			this->triangles.clear();
 		}
 
 		// Íø¸ñ´®Áª 
