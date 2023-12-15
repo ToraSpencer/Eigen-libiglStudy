@@ -58,11 +58,11 @@ namespace TRIANGLE_MESH
 		{}
 
 		void upDate()
-		{
+		{ 
 			this->tMesh.vertices.resize(versCountValid);
 			this->tMesh.triangles.resize(trisCountValid);
 			versSize = versCountValid;
-			trisSize = trisCountValid;
+			trisSize = trisCountValid; 
 		}
 
 		void clear() 
