@@ -25,6 +25,7 @@
 #include "myEigenBasicMath/myEigenBasicMath.h"
 #pragma comment(lib, "myEigenBasicMath.lib")
 
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary types: 
 template <typename T>
 struct DOUBLET

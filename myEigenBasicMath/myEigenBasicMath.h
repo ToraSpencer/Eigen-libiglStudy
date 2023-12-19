@@ -517,6 +517,7 @@ Eigen::VectorXi flagVec2IdxVec(const Eigen::VectorXi& flag);
 Eigen::VectorXi IdxVec2FlagVec(const Eigen::VectorXi& idxVec, const unsigned size);
 
 
+// 三维情形下的主成分分析：
 template <typename DerivedV>
 bool PCA3d(std::vector<Eigen::RowVector3d>& resultVecs,\
 	std::vector<double>& resultVals, const Eigen::MatrixBase<DerivedV>& samples)
@@ -526,7 +527,7 @@ bool PCA3d(std::vector<Eigen::RowVector3d>& resultVecs,\
 	// 1. 所有顶点作为三维样本数据，存入矩阵A中，一行一个样本，
 	const int  N = samples.rows();											// 样本容量； 
 	Eigen::MatrixXd A = samples.array().cast<double>();
-	Eigen::RowVector3d miu = A.colwise().mean();				// 样本均值——miu向量
+	Eigen::RowVector3d miu = A.colwise().mean();				// 样本均值——miu向量，也是所有顶点的重心；
 
 	// 2. 均值点平移到原点的样本矩阵
 	Eigen::MatrixXd B = A - Eigen::MatrixXd::Ones(N, 1) * miu;
