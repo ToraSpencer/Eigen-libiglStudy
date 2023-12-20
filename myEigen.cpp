@@ -666,6 +666,134 @@ namespace TEST_MYEIGEN_PMP
 
 		debugDisp("finished.");
 	}
+
+
+	// 有向边的区域生长：
+	/*
+		bool edgeGrow(
+			std::vector<std::vector<int>>& loops,									
+			const Eigen::MatrixBase<DerivedI>& edges
+			) 
+	*/
+	template <typename IndexType, typename DerivedI>
+	bool edgeGrow(std::vector<std::vector<IndexType>>& loops, \
+		const Eigen::MatrixBase<DerivedI>& edges) 
+	{   
+		assert(edges.rows() > 0, "Assert!!! input edges is a empty matrix.");
+		assert(edges.cols() == 2, "Assert!!! input edges is not a edge matrix.");
+		loops.clear();
+
+		// 1. 通过有向边得到邻接矩阵：
+		Eigen::SparseMatrix<int> adjSM_eCount, adjSM_eIdx;
+		edges2adjMat(adjSM_eCount, adjSM_eIdx, edges);
+		Eigen::SparseMatrix<int>& adjSM = adjSM_eCount;
+
+		// 2. 检测是否有非流形边（即重复的有向边）存在；
+		bool blNmnEdge = false;
+		traverseSparseMatrix(adjSM, [&adjSM, &blNmnEdge](auto& iter) 
+			{
+				if (iter.value() > 1)
+				{
+					blNmnEdge = true;
+					return;
+				}
+			});
+		if (blNmnEdge)
+		{
+			// debugDisp("输入边数据中存在非流形边");
+			return false;
+		}
+
+		// 3. 建立有向边数据的顶点索引字典； 
+		std::unordered_set<IndexType> isctIdxes;				 
+		for (int i = 0; i < edges.rows(); ++i)
+		{
+			isctIdxes.insert(static_cast<IndexType>(edges(i, 0)));
+			isctIdxes.insert(static_cast<IndexType>(edges(i, 1)));
+		}
+
+		// 4. 有向边生长的循环 
+		while (!isctIdxes.empty())			  
+		{
+			std::vector<IndexType> currentLoop;						// 当前收集顶点的loop
+			std::unordered_set<IndexType> auxiSet;
+			IndexType tail = *isctIdxes.begin();
+			IndexType head = -1;
+			isctIdxes.erase(isctIdxes.begin());				// 收集到一个顶点则从字典中删除；
+			auxiSet.insert(tail);
+			currentLoop.push_back(tail);
+
+			while (1)
+			{
+				bool blFindHead = false;
+				for (Eigen::SparseMatrix<int>::InnerIterator it(adjSM, tail); it; ++it)			// 列优先存储时，InnerIterator即列内迭代器；
+				{
+					head = static_cast<IndexType>(it.row());
+					auto iter = auxiSet.insert(head);
+					if (!iter.second)			 // 若插入失败，则跳过这条边，继续找下一条；否则存入该边起点，break；
+						continue;
+					else
+					{
+						blFindHead = true;
+						currentLoop.push_back(head);
+						isctIdxes.erase(head);
+						break;
+					}
+				}
+
+				if (!blFindHead)
+					break;
+
+				// 在邻接矩阵中删除本次循环中收集到的有向边：
+				adjSM.prune([&](const Eigen::Index& row, const Eigen::Index& col, const float& value)->bool
+					{
+						if (head == static_cast<IndexType>(row) && \
+							tail == static_cast<IndexType>(col))
+							return false;
+						else
+							return true;            // 返回true的元素被保留；
+					});
+
+				// 以本次循环收集到的有向边的head顶点为下一次循环的tail顶点；
+				tail = head;
+			}
+
+			loops.push_back(currentLoop);
+		}
+
+		return true;
+	}
+
+
+	// 测试有向边区域生长：
+	void test6() 
+	{
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		objReadMeshMat(vers, tris, "E:/材料/surfsTwo.obj");
+		debugWriteMesh("meshInput", vers, tris);
+
+		// 1. 找出所有边缘有向边：
+		Eigen::MatrixXi bdrys;
+		bdryEdges(bdrys, tris);
+		debugWriteEdges("bdrys", bdrys, vers);
+
+		// 2. 有向边生长：
+		std::vector<std::vector<int>> loops;
+		edgeGrow(loops, bdrys);
+
+		// 3. 输出：
+		for (int i = 0; i < loops.size(); ++i)
+		{
+			Eigen::MatrixXd loopVers;
+			subFromIdxVec(loopVers, vers, loops[i]);
+			char str[256];
+			sprintf_s(str, "loop%d", i);
+			debugWriteVers(str, loopVers);
+		}
+
+		debugDisp("test6() finished.");
+	}
 }
 
 
