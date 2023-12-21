@@ -1352,7 +1352,17 @@ int main(int argc, char** argv)
 { 
 	// TEST_SCIENTIFIC_CALC::test5(); 
 
-	TEST_MYEIGEN_PMP::test6();
+	//TEST_MYEIGEN_PMP::test6();
+
+	Eigen::MatrixXd bdryNew, bdryOld, dirLine;
+	objReadVerticesMat(bdryNew, "E:/bdryUpper.obj");
+	objReadVerticesMat(dirLine, "E:/pcaDir1.obj");
+
+	Eigen::RowVector3d dir;
+	dir = dirLine.row(1) - dirLine.row(0);
+	dir.normalize();
+	bdryOld = bdryNew.rowwise() - 3.0 * dir;
+	debugWriteVers("bdryOld", bdryOld);
 
 	debugDisp("main() finished."); 
 }

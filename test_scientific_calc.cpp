@@ -207,8 +207,11 @@ namespace TEST_SCIENTIFIC_CALC
 	{
 		Eigen::MatrixXf vers;
 		Eigen::MatrixXi tris;
-		objReadMeshMat(vers, tris, "E:/²ÄÁÏ/jawMesh1.obj");
-		debugWriteMesh("meshInput", vers, tris);  
+
+		//objReadMeshMat(vers, tris, "E:/²ÄÁÏ/jawMesh1.obj");
+		//debugWriteMesh("meshInput", vers, tris);  
+
+		objReadVerticesMat(vers, "E:/²ÄÁÏ/jawVersProj.obj");
 		debugWriteVers("versInput", vers);
 
 		std::vector<Eigen::RowVector3d> resultVecs;
