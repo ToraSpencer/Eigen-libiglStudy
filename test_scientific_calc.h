@@ -35,7 +35,6 @@ namespace TEST_SCIENTIFIC_CALC
 
 namespace IGL_MATH
 {
-	
 	void test0();
 	void test1();
 	void test2();

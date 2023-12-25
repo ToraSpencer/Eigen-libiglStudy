@@ -153,6 +153,3 @@ template void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, \
 	const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& vers, unsigned m);
 template void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, \
 	const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& vers, unsigned m);
- 
-template Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>& sampleVers);
-template Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& sampleVers);

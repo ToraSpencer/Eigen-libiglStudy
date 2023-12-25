@@ -22,6 +22,10 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="myEigen.cpp" />
     <ClCompile Include="test_dense_mat.cpp" />
+    <ClCompile Include="test_imgui.cpp" />
+    <ClCompile Include="TEST_IMGUI\fitcurve.cpp" />
+    <ClCompile Include="TEST_IMGUI\MathUtil.cpp" />
+    <ClCompile Include="TEST_IMGUI\myapp.cpp" />
     <ClCompile Include="test_myEigenModeling.cpp" />
     <ClCompile Include="test_scientific_calc.cpp" />
     <ClCompile Include="test_sparse_mat.cpp" />
@@ -32,6 +36,10 @@
     <ClInclude Include="representations.h" />
     <ClInclude Include="test_dense_mat.h" />
     <ClInclude Include="myEigen.h" />
+    <ClInclude Include="test_imgui.h" />
+    <ClInclude Include="TEST_IMGUI\fitcurve.h" />
+    <ClInclude Include="TEST_IMGUI\MathUtil.h" />
+    <ClInclude Include="TEST_IMGUI\myapp.h" />
     <ClInclude Include="test_myEigenModeling.h" />
     <ClInclude Include="test_scientific_calc.h" />
     <ClInclude Include="test_sparse_mat.h" />
@@ -116,10 +124,10 @@
     <LibraryPath>$(ProjectDir)/$(Platform)\$(Configuration)\;$(SolutionDir)\..\SDFGen_study\$(Platform)\$(Configuration)\;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
-    <VcpkgEnabled>false</VcpkgEnabled>
-    <VcpkgManifestInstall>false</VcpkgManifestInstall>
-    <VcpkgAutoLink>false</VcpkgAutoLink>
-    <VcpkgApplocalDeps>false</VcpkgApplocalDeps>
+    <VcpkgEnabled>true</VcpkgEnabled>
+    <VcpkgManifestInstall>true</VcpkgManifestInstall>
+    <VcpkgAutoLink>true</VcpkgAutoLink>
+    <VcpkgApplocalDeps>true</VcpkgApplocalDeps>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

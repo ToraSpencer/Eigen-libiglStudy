@@ -638,8 +638,8 @@ bool sortLoop2D(Eigen::PlainObjectBase<DerivedV>& loop, \
 					Eigen::VectorXi::Ones(versCount), Eigen::VectorXi::Zero(versCount));
 		if (0 == flagVec.sum())
 			return false;							// shoud not happen;
-		subFromFlagVec(versTmp, versOld, flagVec);
-		flagVec2oldNewIdxInfo(oldNewIdxInfo, newOldIdxInfo, flagVec);
+		subFromFlagVec(versTmp, versOld, eigenVec2Vec(flagVec));
+		flagVec2oldNewIdxInfo(oldNewIdxInfo, newOldIdxInfo, eigenVec2Vec(flagVec));
 
 		// 2.2 在选中的顶点中搜索距离ver1最近的顶点，作为第二个顶点；
 		std::pair<ScalarV, int> retPair = nearestSearch(versTmp, ver1);
@@ -709,8 +709,8 @@ bool sortLoop2D(Eigen::PlainObjectBase<DerivedV>& loop, \
 		if (0 == flagVec.sum())
 			return false;							// shoud not happen;
 		versTmp2 = versTmp;
-		subFromFlagVec(versTmp, versTmp2, flagVec);
-		flagVec2oldNewIdxInfo(oldNewIdxInfo, newOldIdxInfo, flagVec);
+		subFromFlagVec(versTmp, versTmp2, eigenVec2Vec(flagVec));
+		flagVec2oldNewIdxInfo(oldNewIdxInfo, newOldIdxInfo, eigenVec2Vec(flagVec));
 		std::pair<ScalarV, int> retPair = nearestSearch(versTmp, RowVector2S{0, 0});
 
 		// 3.4 距离阈值检测——不这样做，可能会把跳过的角点包含进来；
@@ -1273,8 +1273,8 @@ bool triangleGrowOuterSurf(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 	}
 	if (blDegTris)
 	{
-		subFromFlagVec(trisClean, tris, flagValidTri);
-		subFromFlagVec(triNorms, tmpNorms, flagValidTri);
+		subFromFlagVec(trisClean, tris, eigenVec2Vec(flagValidTri));
+		subFromFlagVec(triNorms, tmpNorms, eigenVec2Vec(flagValidTri));
 		trisCount = trisClean.rows();
 		edgesCount = 3 * trisCount;
 	}
@@ -2188,7 +2188,7 @@ int mergeDegEdges(Eigen::PlainObjectBase<DerivedV>& newVers, Eigen::MatrixXi& ne
 	// 1. 提取退化有向边
 	int degCount = degEdgeFlags.sum();				// 退化有向边的数量
 	Eigen::MatrixXi degEdges;
-	subFromFlagVec(degEdges, edges, degEdgeFlags);
+	subFromFlagVec(degEdges, edges, eigenVec2Vec(degEdgeFlags));
 
 	// for debug:
 	if (1)

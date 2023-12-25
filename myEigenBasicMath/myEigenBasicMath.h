@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <map>
 #include <algorithm>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <cmath>
@@ -427,20 +428,21 @@ bool subFromIdxCon(Eigen::PlainObjectBase<DerivedO>& matOut, \
 
 
 // 根据flag向量从源矩阵中提取元素生成输出矩阵，重载1：
-template <typename DerivedO, typename DerivedI, typename DerivedVI>
+template <typename DerivedO, typename DerivedI, typename TI>
 bool subFromFlagVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
-	const Eigen::MatrixBase<DerivedI>& matIn, const Eigen::MatrixBase<DerivedVI>& vec)
+	const Eigen::MatrixBase<DerivedI>& matIn, const std::vector<TI>& vec)
 { 
 	using ScalarO = typename DerivedO::Scalar;
-	assert((1 == vec.rows() || 1 == vec.cols()) && "Assesrt!!! input vec is not a vector.");
 	assert((vec.size() == matIn.rows()) && "Assert!!! input vec and matIn do not match.");
-
 	matOut.resize(0, 0);
-	matOut.resize(vec.sum(), matIn.cols());
+
+	int rowsOut = static_cast<int>(std::accumulate(vec.begin(), vec.end(), 0));
+	int colsOut = matIn.cols(); 
+	matOut.resize(rowsOut, colsOut);
 
 	int count = 0;
-	for (unsigned i = 0; i < vec.rows(); ++i)
-		if (vec(i) > 0)
+	for (unsigned i = 0; i < vec.size(); ++i)
+		if (vec[i] > 0)
 			matOut.row(count++) = matIn.row(i).array().cast<ScalarO>();
 
 	return true;
@@ -448,25 +450,24 @@ bool subFromFlagVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
 
 
 // 根据flag向量从源矩阵中提取元素生成输出矩阵，重载2：输出
-template <typename DerivedO, typename DerivedI, typename DerivedVI>
+template <typename DerivedO, typename DerivedI, typename TI>
 bool subFromFlagVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
 	std::vector<int>& oldNewIdxInfo, std::vector<int>& newOldIdxInfo, \
-	const Eigen::MatrixBase<DerivedI>& matIn, const Eigen::MatrixBase<DerivedVI>& vec)
+	const Eigen::MatrixBase<DerivedI>& matIn, const std::vector<TI>& vec)
 {
-	using ScalarO = typename DerivedO::Scalar;
-	assert((1 == vec.rows() || 1 == vec.cols()) && "Assesrt!!! input vec is not a vector.");
+	using ScalarO = typename DerivedO::Scalar; 
 	assert((vec.size() == matIn.rows()) && "Assert!!! input vec and matIn do not match.");
 	matOut.resize(0, 0);
 
 	// 1. 抽取vec标记为1的层数：
-	const int N = vec.rows();
-	const int M = vec.sum();
+	const int N = vec.size();
+	const int M = static_cast<int>(std::accumulate(vec.begin(), vec.end(), 0));
 	int count = 0; 
 	oldNewIdxInfo.clear();
 	newOldIdxInfo.clear();
 	matOut.resize(M, matIn.cols());
-	for (unsigned i = 0; i < vec.rows(); ++i)
-		if (vec(i) > 0)
+	for (unsigned i = 0; i < vec.size(); ++i)
+		if (vec[i] > 0)
 			matOut.row(count++) = matIn.row(i).array().cast<ScalarO>();
 
 	// 2. 生成新老索引映射表：
@@ -476,7 +477,7 @@ bool subFromFlagVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
 	for (int k = 0; k < N; ++k)
 	{
 		int oldIdx = k;
-		if (vec(oldIdx) > 0)
+		if (vec[oldIdx] > 0)
 		{
 			int newIdx = index++;
 			oldNewIdxInfo[oldIdx] = newIdx;
@@ -489,20 +490,20 @@ bool subFromFlagVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
  
 
 // 根据flag向量从源向量中提取元素生成输出向量
-template <typename DerivedO, typename DerivedI, typename DerivedVI>
+template <typename DerivedO, typename DerivedI, typename TI>
 bool subVecFromFlagVec(Eigen::PlainObjectBase<DerivedO>& vecOut, \
-	const Eigen::MatrixBase<DerivedI>& vecIn, const Eigen::MatrixBase<DerivedVI>& vec)
+	const Eigen::MatrixBase<DerivedI>& vecIn, const std::vector<TI>& vec)
 {
-	using ScalarO = typename DerivedO::Scalar;
-	assert((1 == vec.rows() || 1 == vec.cols()) && "Assesrt!!! input vec is not a vector.");
+	using ScalarO = typename DerivedO::Scalar; 
 	assert((vec.size() == vecIn.rows()) && "Assert!!! input vec and vecIn do not match.");
-
 	vecOut.resize(0);
-	vecOut.resize(vec.sum());
+
+	int rowsOut = static_cast<int>(std::accumulate(vec.begin(), vec.end(), 0));
+	vecOut.resize(rowsOut);
 
 	int count = 0;
-	for (int i = 0; i < vec.rows(); ++i)
-		if (vec(i) > 0)
+	for (int i = 0; i < vec.size(); ++i)
+		if (vec[i] > 0)
 			vecOut.row(count++) = vecIn.row(i).array().cast<ScalarO>();
 
 	return true;
@@ -623,13 +624,12 @@ bool matInsertCols(Eigen::PlainObjectBase<Derived1>& mat, \
 	-1 == oldNewIdxInfo(i)表示原点云中索引为i的点没有被选中，在新点云中没有对应；
 	index0 == newOldIdxInfo(i)表示新点云中索引为i的点，在原点云中的索引为index0;
 */
-template <typename DerivedVI>
+template <typename TI>
 void flagVec2oldNewIdxInfo(std::vector<int>& oldNewIdxInfo, \
-		std::vector<int>& newOldIdxInfo, const Eigen::MatrixBase<DerivedVI>& flagVec) 
+		std::vector<int>& newOldIdxInfo, const std::vector<TI>& flagVec) 
 {
-	const int versCount = flagVec.size();
-	assert((1 == flagVec.rows() || 1 == flagVec.cols()) && "assert!!! input flagVec is not a Eigen vector.");
-	const int versCountNew = static_cast<int>(flagVec.sum());
+	const int versCount = flagVec.size(); 
+	const int versCountNew = static_cast<int>(std::accumulate(flagVec.begin(), flagVec.end(), 0));
 	assert((versCount > 0) && "assert!!! input flagVec should not be empty.");
 	oldNewIdxInfo.clear();
 	newOldIdxInfo.clear();
@@ -639,7 +639,7 @@ void flagVec2oldNewIdxInfo(std::vector<int>& oldNewIdxInfo, \
 	int index = 0;
 	for (int i = 0; i < versCount; ++i)
 	{
-		if (static_cast<int>(flagVec(i)) > 0)
+		if (static_cast<int>(flagVec[i]) > 0)
 		{
 			oldNewIdxInfo[i] = index++;
 			newOldIdxInfo.push_back(i);
@@ -841,14 +841,73 @@ void gaussInterpolation();
 // 
 void leastSquarePolyFitting();
 
+
 // 岭回归多项式拟合曲线
 template <typename T>
 void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, \
 	unsigned m = 4);
 
+
 // 最小二乘法拟合（逼近）标准椭圆（长短轴和xy坐标轴对齐）
-template<typename T>
-Eigen::VectorXd fittingStandardEllipse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& sampleVers);
+template<typename DerivedV>
+Eigen::VectorXd fittingStandardEllipse(const Eigen::MatrixBase<DerivedV>& sampleVers)
+{
+	/*
+		Eigen::VectorXd fittingStandardEllipse(								// 返回列向量(a,c,d,e,f)，为标准椭圆方程的系数；
+					const Eigen::MatrixXf& sampleVers					// 输入的样本点，必须是在XOY平面上的点；
+		)
+	*/
+	const double epsilon = 1e-8;							// 浮点数绝对值小于此值时认为为0；
+	using T = typename DerivedV::Scalar;
+	using VectorXT = Eigen::Matrix<T, Eigen::Dynamic, 1>;
+	using RowVector3T = Eigen::Matrix<T, 1, 3>;
+	using MatrixXT = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+
+	// 标准椭圆方程：a*x^2 + c*y^2 + d*x + e*y + f  = 0，其中a*c > 0
+	Eigen::VectorXd x(Eigen::VectorXd::Zero(5));
+
+	unsigned m = sampleVers.rows();				// sample count;
+	Eigen::VectorXd x0(Eigen::VectorXd::Zero(m));
+	Eigen::VectorXd y0(Eigen::VectorXd::Zero(m));
+	for (unsigned i = 0; i < m; ++i)
+	{
+		x0(i) = static_cast<double>(sampleVers(i, 0));
+		y0(i) = static_cast<double>(sampleVers(i, 1));
+	}
+
+	// alpha = [x^2, y^2, x, y, 1]; 样本信息矩阵：A = [alpha1; alpha2; .... alpham]; 椭圆方程写为：A*x = 0;
+	Eigen::MatrixXd A = Eigen::MatrixXd::Ones(m, 5);
+	A.col(0) = x0.array() * x0.array();
+	A.col(1) = y0.array() * y0.array();
+	A.col(2) = x0;
+	A.col(3) = y0;
+
+	Eigen::MatrixXd ATA = A.transpose().eval() * A;
+	Eigen::MatrixXd B(Eigen::MatrixXd::Zero(5, 5));
+	B(0, 1) = 1;
+	B(1, 0) = 1;
+	Eigen::MatrixXd S = ATA.inverse() * B.transpose();
+
+	// 求S的特征值，特征向量：
+	Eigen::EigenSolver<Eigen::MatrixXd> es(S);
+	Eigen::MatrixXd D = es.pseudoEigenvalueMatrix();			// 对角线元素是特征值
+	Eigen::MatrixXd V = es.pseudoEigenvectors();					// 每一个列向量都是特征向量。
+
+	// 寻找特征值不为0，且满足约束条件的特征向量：
+	for (unsigned i = 0; i < V.cols(); ++i)
+	{
+		double eigenValue = D(i, i);
+		if (std::abs(eigenValue) < epsilon)
+			continue;
+		x = V.col(i);
+		double a = x(0);
+		double c = x(1);
+		if (a * c > 0)
+			break;
+	}
+
+	return x;
+}
  
 
 

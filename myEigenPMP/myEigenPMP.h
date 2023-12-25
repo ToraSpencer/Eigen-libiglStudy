@@ -1452,7 +1452,7 @@ bool simplyConnectedSplitMesh(std::vector<Eigen::Matrix<T, Eigen::Dynamic, Eigen
 	{
 		Eigen::VectorXi flag = (connectedLabels.array() == i).select(Eigen::VectorXi::Ones(versCount), Eigen::VectorXi::Zero(versCount));
 		std::vector<int> oldNewIdxInfo, newOldIdxInfo;
-		subFromFlagVec(compVers[i], oldNewIdxInfo, newOldIdxInfo, vers0, flag);
+		subFromFlagVec(compVers[i], oldNewIdxInfo, newOldIdxInfo, vers0, eigenVec2Vec(flag));
 		compTris[i] = tris0;
 		int* ptrData = compTris[i].data();
 		for (int k = 0; k < compTris[i].size(); ++k)
@@ -1737,7 +1737,7 @@ int removeSickDupTris(const Eigen::MatrixBase<DerivedV>& vers, Eigen::MatrixXi& 
 
 	// 2. 根据flag向量提取新的三角片数据替代原有的;
 	Eigen::MatrixXi tmpMat;
-	subFromFlagVec(tmpMat, tris, flags);
+	subFromFlagVec(tmpMat, tris, eigenVec2Vec(flags));
 	tris = tmpMat;
 
 	// 3. 计算去除的三角片数；

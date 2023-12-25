@@ -697,7 +697,7 @@ namespace TEST_TRIANGULATION
 		readOBJ(versIn, trisIn, "E:/ò¢°å/mesh_side_ini_param_2.obj");
 		bdryInner = Eigen::VectorXi::LinSpaced(versCount1, 0, versCount1 - 1);
 		bdryOuter = Eigen::VectorXi::LinSpaced(versCount1, versCount1 + versCount2 - 1, versCount1);
-		subFromFlagVec(versInner, versIn, bdryInner);
+		subFromFlagVec(versInner, versIn, eigenVec2Vec(bdryInner));
 		innerCenter = versInner.colwise().mean();
 
 		triangulateVers2Mesh(versOut, trisOut, versIn, std::vector<Eigen::VectorXi>{bdryInner, bdryOuter}, innerCenter, "pra3.0");

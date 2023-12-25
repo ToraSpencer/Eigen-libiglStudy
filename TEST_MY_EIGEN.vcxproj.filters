@@ -9,6 +9,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
+    <Filter Include="myImgui">
+      <UniqueIdentifier>{df5c8dd0-568d-4fe8-b458-18d0c6dba7e2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -31,6 +34,18 @@
     </ClCompile>
     <ClCompile Include="triMesh.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="test_imgui.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="TEST_IMGUI\MathUtil.cpp">
+      <Filter>myImgui</Filter>
+    </ClCompile>
+    <ClCompile Include="TEST_IMGUI\fitcurve.cpp">
+      <Filter>myImgui</Filter>
+    </ClCompile>
+    <ClCompile Include="TEST_IMGUI\myapp.cpp">
+      <Filter>myImgui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -57,6 +72,18 @@
     </ClInclude>
     <ClInclude Include="representations.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="test_imgui.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="TEST_IMGUI\MathUtil.h">
+      <Filter>myImgui</Filter>
+    </ClInclude>
+    <ClInclude Include="TEST_IMGUI\fitcurve.h">
+      <Filter>myImgui</Filter>
+    </ClInclude>
+    <ClInclude Include="TEST_IMGUI\myapp.h">
+      <Filter>myImgui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

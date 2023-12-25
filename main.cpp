@@ -11,6 +11,7 @@
 #include "test_sparse_mat.h"
 #include "test_scientific_calc.h" 
 #include "test_myEigenModeling.h"
+#include "test_imgui.h"
  
  
 // 当前问题-easy
@@ -548,8 +549,9 @@ namespace MESH_REPAIR
 				for (int i = 0; i < sctCount; ++i)
 				{
 					Eigen::MatrixXi selectedTris;
-					Eigen::VectorXi flags = (i == connectedLabelsSCT.array()).select(Eigen::VectorXi::Ones(trisCount), Eigen::VectorXi::Zero(trisCount));
-					subFromFlagVec(selectedTris, tris, flags);
+					Eigen::VectorXi flags = (i == connectedLabelsSCT.array()).select(\
+						Eigen::VectorXi::Ones(trisCount), Eigen::VectorXi::Zero(trisCount));
+					subFromFlagVec(selectedTris, tris, eigenVec2Vec(flags));
 
 					ss.str("");
 					ss << "meshSCT_" << i;
@@ -1075,7 +1077,7 @@ namespace MESH_REPAIR
 				int smallIdx = areas(0) < areas(1) ? pair.first : pair.second;
 				triFlags(smallIdx) = 0;
 			}
-			subFromFlagVec(trisOut, tris, triFlags);
+			subFromFlagVec(trisOut, tris, eigenVec2Vec(triFlags));
 			tris = trisOut;
 			debugWriteMesh("noOpTris", vers, tris);
 		}
@@ -1133,7 +1135,7 @@ namespace MESH_REPAIR
 		for (const auto& index : sickTriIdxes)
 			flags(index) = 0;
 		Eigen::MatrixXi tmpTris;
-		subFromFlagVec(tmpTris, tris, flags);
+		subFromFlagVec(tmpTris, tris, eigenVec2Vec(flags));
 		tris = tmpTris;
 			
 		// 
@@ -1186,45 +1188,6 @@ namespace TEMP_TEST
 	}
 
 }
-
-
-
-////////////////////////////////////////////////////////////////////////////// TEST: 生成二维环路点集的SDF:
-namespace TEST_SDF2D 
-{
-	// 计算XOY平面上的二维环路点集的符号距离场；要求环路右手螺旋方向平行于z轴正向；
-	template<typename DerivedV>
-	bool genSDF2d(std::vector<double>& SDFvalues, Eigen::MatrixXd& gridVers, const Eigen::PlainObjectBase<DerivedV>& vers, \
-		const double step) 
-	{
-		/*
-			bool genSDF2d(
-				std::vector<double>& SDFvalues,											输出的符号距离场值；
-				Eigen::MatrixXd& gridVers,														采样点点集；
-				const Eigen::PlainObjectBase<DerivedV>& vers,					环路点集, vers.cols() == 2;
-				const double step																	采样步长；
-				) 		
-		*/
-		assert(2 == vers.cols(), "Error!!! input vertices should be 2D vertices.");
-
-
-
-		return true;
-	}
-
-
-	void test0() 
-	{
-		Eigen::MatrixXd vers, vers2D;
-		objReadVerticesMat(vers, "E:/材料/bdryUpper2D.obj");
-		vers2D = vers.leftCols(2);
-		debugWriteVers2D("versInput", vers2D);
-
-		debugDisp("finished.");
-	}
-
-}
-
 
 
 ////////////////////////////////////////////////////////////////////////////// 生成控制台程序工具：
@@ -1349,20 +1312,9 @@ double calcSolidAngle(const Eigen::MatrixBase<DerivedVp>& pos,\
 
 
 int main(int argc, char** argv)
-{ 
-	// TEST_SCIENTIFIC_CALC::test5(); 
+{  
+	TEST_IMGUI::test1();
 
-	//TEST_MYEIGEN_PMP::test6();
-
-	Eigen::MatrixXd bdryNew, bdryOld, dirLine;
-	objReadVerticesMat(bdryNew, "E:/bdryUpper.obj");
-	objReadVerticesMat(dirLine, "E:/pcaDir1.obj");
-
-	Eigen::RowVector3d dir;
-	dir = dirLine.row(1) - dirLine.row(0);
-	dir.normalize();
-	bdryOld = bdryNew.rowwise() - 3.0 * dir;
-	debugWriteVers("bdryOld", bdryOld);
 
 	debugDisp("main() finished."); 
 }

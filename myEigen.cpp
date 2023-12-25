@@ -465,10 +465,10 @@ namespace TEST_MYEIGEN_BASIC_MATH
 			subFromIdxCon(m2, m1, std::list{ 1, 2, 3 });
 			debugDisp("m2 == \n", m2, "\n");
 
-			subFromFlagVec(m2, m1, Eigen::Vector4i{0, 1, 0, 1});
+			subFromFlagVec(m2, m1, eigenVec2Vec(Eigen::Vector4i{0, 1, 0, 1}));
 			debugDisp("m2 == \n", m2, "\n");
 
-			subFromFlagVec(m2, oldNewIdxInfo, newOldIdxInfo, m1, Eigen::Vector4i{0, 1, 1, 1});
+			subFromFlagVec(m2, oldNewIdxInfo, newOldIdxInfo, m1, eigenVec2Vec(Eigen::Vector4i{0, 1, 1, 1}));
 			debugDisp("m2 == \n", m2, "\n");
 
 			debugDisp("oldNewIdxInfo: ");
@@ -476,7 +476,7 @@ namespace TEST_MYEIGEN_BASIC_MATH
 			debugDisp("newOldIdxInfo: ");
 			traverseSTL(newOldIdxInfo, disp<int>);
 
-			flagVec2oldNewIdxInfo(oldNewIdxInfo, newOldIdxInfo, Eigen::Vector4i{ 0, 1, 1, 1 });
+			flagVec2oldNewIdxInfo(oldNewIdxInfo, newOldIdxInfo, eigenVec2Vec(Eigen::Vector4i{ 0, 1, 1, 1 }));
 			debugDisp("oldNewIdxInfo: ");
 			traverseSTL(oldNewIdxInfo, disp<int>);
 			debugDisp("newOldIdxInfo: ");

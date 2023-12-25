@@ -37,7 +37,7 @@ std::unordered_set<int> oneRingTriIdxes(const int verIdx0, \
 	Eigen::VectorXi flagVec = tmpMat.rowwise().sum();
 	Eigen::VectorXi tmpVec{ Eigen::VectorXi::LinSpaced(trisCount, 0, trisCount - 1) };
 	Eigen::VectorXi selected;
-	subFromFlagVec(selected, tmpVec, flagVec);
+	subFromFlagVec(selected, tmpVec, eigenVec2Vec(flagVec));
 
 	for (int i = 0; i < selected.size(); ++i)
 		nbrIdxes.insert(selected(i));
