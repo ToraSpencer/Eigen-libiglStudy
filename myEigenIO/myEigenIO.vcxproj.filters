@@ -31,5 +31,6 @@
     <None Include="temp.tpp">
       <Filter>源文件</Filter>
     </None>
+    <None Include="ClassDiagram.cd" />
   </ItemGroup>
 </Project>

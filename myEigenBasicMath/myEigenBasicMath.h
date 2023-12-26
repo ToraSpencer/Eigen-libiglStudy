@@ -35,6 +35,22 @@ const double pi = 3.14159265359;
 	ÂË²¨
 */
 
+///////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary types: 
+template <typename T>
+struct DOUBLET
+{
+	T x;
+	T y;
+};
+
+template <typename T>
+struct TRIPLET
+{
+	T x;
+	T y;
+	T z;
+};
+
 
 // ²¢ÐÐforÑ­»·
 template<typename Func>

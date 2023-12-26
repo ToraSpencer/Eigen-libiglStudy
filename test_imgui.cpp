@@ -134,14 +134,18 @@ namespace MY_IMGUI
     }
 
 
-    void PlotLineSegments(const std::vector<float>& pos_x, const std::vector<float>& pos_y, ImDrawList* draw_list,
-        ImU32 line_col, ImU32 point_col, ImVec2 ul = g_canvas_pos_ul, ImVec2 br = g_canvas_pos_br) {
+    void PlotLineSegments(const std::vector<float>& pos_x, const std::vector<float>& pos_y, \
+        ImDrawList* draw_list, ImU32 line_col, ImU32 point_col, ImVec2 ul = g_canvas_pos_ul,\
+        ImVec2 br = g_canvas_pos_br) 
+    {
         const size_t n = pos_x.size();
-        for (size_t i = 1; i < n; i++) {
+        for (size_t i = 1; i < n; i++) 
+        {
             draw_list->AddLine({ ul.x + pos_x[i - 1], br.y - pos_y[i - 1] },
                 { ul.x + pos_x[i], br.y - pos_y[i] }, line_col, 2.0f);
         }
-        for (size_t i = 0; i < n; i++) {
+        for (size_t i = 0; i < n; i++) 
+        {
             draw_list->AddCircleFilled({ ul.x + pos_x[i], br.y - pos_y[i] }, 5.0f, point_col);
             draw_list->AddCircle({ ul.x + pos_x[i], br.y - pos_y[i] }, 5.0f, point_col);
         }
@@ -182,6 +186,54 @@ namespace MY_IMGUI
         ImGuiIO& io = ImGui::GetIO();
         (void)io;
 
+        ImGui::StyleColorsDark();
+
+        ImGui_ImplGlfw_InitForOpenGL(g_window, true);
+        ImGui_ImplOpenGL3_Init("#version 330 core");
+
+        return true;
+    }
+
+
+    bool InitializeHW3() 
+    {
+        glfwInit();
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+
+        // 1. 创建窗口：
+        g_window = glfwCreateWindow(g_width, g_height, "GAMES102 hw3", nullptr, nullptr);
+        if (g_window == nullptr) 
+        {
+            std::cerr << "Failed to create GLFW window" << std::endl;
+            glfwTerminate();
+            return false;
+        }
+
+        // 2. 
+        glfwMakeContextCurrent(g_window);
+        if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) 
+        {
+            std::cout << "Failed to load glad" << std::endl;
+            glfwTerminate();
+            return false;
+        }
+
+        // 3. 
+        glViewport(0, 0, g_width, g_height);
+        std::cout << "GL_VERSION: " << glGetString(GL_VERSION) << std::endl;
+        std::cout << "GL_VENDOR: " << glGetString(GL_VENDOR) << std::endl;
+        std::cout << "GL_RENDERER: " << glGetString(GL_RENDERER) << std::endl;
+
+        // 4. 
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO();
+        (void)io;
+
+        // 5. 
         ImGui::StyleColorsDark();
 
         ImGui_ImplGlfw_InitForOpenGL(g_window, true);
@@ -241,34 +293,36 @@ struct CurveData
 
     void Plot(ImDrawList* draw_list) const 
     {
-        if (visible && !pos_x.empty()) 
-        {
-            PlotLineSegments(pos_x, pos_y, draw_list, line_color, point_color);
-        }
+        if (visible && !pos_x.empty())  
+            PlotLineSegments(pos_x, pos_y, draw_list, line_color, point_color); 
     }
 
-    void PlotXT(const std::vector<float>& pos_t, ImDrawList* draw_list, ImVec2 canvas_ul, ImVec2 canvas_br) const {
+    void PlotXT(const std::vector<float>& pos_t, ImDrawList* draw_list, ImVec2 canvas_ul, ImVec2 canvas_br) const 
+    {
         const size_t n = pos_x.size();
-        if (!visible || n == 0) {
+        if (!visible || n == 0)  
             return;
-        }
+
         std::vector<float> pos_x_t = pos_x;
         std::vector<float> pos_t_t = pos_t;
-        for (size_t i = 0; i < n; i++) {
+        for (size_t i = 0; i < n; i++) 
+        {
             pos_x_t[i] = pos_x_t[i] / (g_canvas_pos_br.x - g_canvas_pos_ul.x) * (canvas_br.y - canvas_ul.y);
             pos_t_t[i] = pos_t_t[i] * (canvas_br.x - canvas_ul.x);
         }
         PlotLineSegments(pos_t_t, pos_x_t, draw_list, line_color, point_color, canvas_ul, canvas_br);
     }
 
-    void PlotYT(const std::vector<float>& pos_t, ImDrawList* draw_list, ImVec2 canvas_ul, ImVec2 canvas_br) const {
+    void PlotYT(const std::vector<float>& pos_t, ImDrawList* draw_list, ImVec2 canvas_ul, ImVec2 canvas_br) const
+    {
         const size_t n = pos_y.size();
-        if (!visible || n == 0) {
+        if (!visible || n == 0) 
             return;
-        }
+        
         std::vector<float> pos_y_t = pos_y;
         std::vector<float> pos_t_t = pos_t;
-        for (size_t i = 0; i < n; i++) {
+        for (size_t i = 0; i < n; i++) 
+        {
             pos_y_t[i] = pos_y_t[i] / (g_canvas_pos_br.y - g_canvas_pos_ul.y) * (canvas_br.y - canvas_ul.y);
             pos_t_t[i] = pos_t_t[i] * (canvas_br.x - canvas_ul.x);
         }
@@ -501,18 +555,22 @@ namespace TEST_IMGUI
 
     void test1()
     {
-        if (!Initialize())  
+        // 0. initialize & prepare data:
+        if (!InitializeHW3())
             return; 
 
-        std::vector<float> in_pos_x;
+        //      样本点数据；
+        std::vector<float> in_pos_x;        
         std::vector<float> in_pos_y;
 
-        bool inter_update = false;
+        //      插值拟合曲线数据：
+        bool inter_update = false;              // 更新标识符，插入/删除顶点时会变为true;
         CurveData inter_uniform{ IM_COL32(255, 50, 50, 255), IM_COL32(255, 80, 80, 255) };
         CurveData inter_chordal{ IM_COL32(50, 255, 50, 255), IM_COL32(80, 255, 80, 255) };
         CurveData inter_centripetal{ IM_COL32(50, 50, 255, 255), IM_COL32(80, 80, 255, 255) };
         CurveData inter_foley{ IM_COL32(150, 150, 255, 255), IM_COL32(180, 180, 255, 255) };
 
+        //      逼近拟合曲线数据：
         bool approx_update = false;
         int approx_m = 0;
         int approx_m_temp = 0;
@@ -521,34 +579,47 @@ namespace TEST_IMGUI
         CurveData approx_centripetal{ IM_COL32(255, 255, 50, 255), IM_COL32(255, 255, 80, 255) };
         CurveData approx_foley{ IM_COL32(255, 150, 150, 255), IM_COL32(255, 180, 180, 255) };
 
+        //      样条插值拟合曲线数据：
         bool spline_update = false;
         CurveData spline_uniform{ IM_COL32(255, 100, 50, 255), IM_COL32(255, 130, 80, 255) };
         CurveData spline_chordal{ IM_COL32(50, 255, 100, 255), IM_COL32(80, 255, 130, 255) };
         CurveData spline_centripetal{ IM_COL32(100, 50, 255, 255), IM_COL32(130, 80, 255, 255) };
         CurveData spline_foley{ IM_COL32(170, 255, 170, 255), IM_COL32(200, 255, 200, 255) };
 
+        //      自己写的三次B样条插值：
+        bool my_CBS_update = false;
+        CurveData mySpline{ IM_COL32(100, 50, 255, 255), IM_COL32(130, 80, 255, 255) };
+        CurveData mySpline_loop{ IM_COL32(170, 255, 170, 255), IM_COL32(200, 255, 200, 255) };
+
+        //      
         float lb = 0.0f;
         float rb = 1.0f;
         float step = (rb - lb) / 60.0f;
         std::vector<float> out_pos_t;
         for (float x = lb; x <= rb; x += step) 
-            out_pos_t.push_back(x);
+            out_pos_t.push_back(x);       
         
-
         ImGuiIO& io = ImGui::GetIO();
         ImFontConfig font_config;
         font_config.SizePixels = 24.0f;
         io.Fonts->AddFontDefault(&font_config);
 
+        // 1. 主循环：
+        bool blIsLoop = true;
+        bool blShowMCS = false;
         while (!glfwWindowShouldClose(g_window)) 
         {
+            // w1.
             BeginFrame();
+
+            // w2.
             if (glfwGetKey(g_window, GLFW_KEY_ESCAPE) == GLFW_PRESS) 
                 break;
             
-
+            // w3. 添加各种控件：
             if (ImGui::Begin("Config"))
             {
+                // w3.1. 插值拟合控件栏
                 ImGui::Text("Interpolation");
                 ImGui::ColorButton("##1", ImColor(inter_uniform.line_color).Value);
                 ImGui::SameLine();
@@ -563,8 +634,9 @@ namespace TEST_IMGUI
                 ImGui::SameLine();
                 ImGui::Checkbox("Foley##1", &inter_foley.visible);
 
+                // w3.2. 逼近拟合控件栏
                 ImGui::Separator();
-                ImGui::Text("Fitting");
+                ImGui::Text("Approx");
                 ImGui::ColorButton("##5", ImColor(approx_uniform.line_color).Value);
                 ImGui::SameLine();
                 ImGui::Checkbox("Uniform##2", &approx_uniform.visible);
@@ -585,6 +657,7 @@ namespace TEST_IMGUI
                     approx_update = true;
                 }
 
+                // w3.3. 样条插值控件栏
                 ImGui::Separator();
                 ImGui::Text("Cubic Spline");
                 ImGui::ColorButton("##9", ImColor(spline_uniform.line_color).Value);
@@ -600,6 +673,18 @@ namespace TEST_IMGUI
                 ImGui::SameLine();
                 ImGui::Checkbox("Foley##3", &spline_foley.visible);
 
+                // w3.4. 自己写的三次B样条插值控件栏
+                ImGui::Separator();
+                ImGui::Text("my Cubic Spline");
+                ImGui::ColorButton("##13", ImColor(mySpline.line_color).Value);
+                ImGui::SameLine();
+                ImGui::Checkbox("MyCBS##3", &blShowMCS);
+                ImGui::SameLine();
+                ImGui::Checkbox("isLoop##4", &blIsLoop);
+                mySpline.visible = blShowMCS && (!blIsLoop);
+                mySpline_loop.visible = blShowMCS && blIsLoop;
+
+                // 重置按钮
                 ImGui::Separator();
                 bool reset = ImGui::Button("Reset");
                 if (reset)
@@ -618,27 +703,31 @@ namespace TEST_IMGUI
                     spline_chordal.Clear();
                     spline_centripetal.Clear();
                     spline_foley.Clear();
+                    mySpline.Clear();
+                    mySpline_loop.Clear();
                 }
                 ImGui::End();
             }
 
+            // w4. 主画布
             if (ImGui::Begin("Canvas")) 
             {
+                // w4.1. 设置画布尺寸：
                 g_canvas_pos_ul = ImGui::GetCursorScreenPos();
                 ImVec2 canvas_size = ImGui::GetContentRegionAvail();
                 if (canvas_size.x < 50.0f) 
-                    canvas_size.x = 50.0f;
-                
+                    canvas_size.x = 50.0f;                
                 if (canvas_size.y < 50.0f) 
-                    canvas_size.y = 50.0f;
-                
+                    canvas_size.y = 50.0f;                
                 g_canvas_pos_br = ImVec2(g_canvas_pos_ul.x + canvas_size.x, g_canvas_pos_ul.y + canvas_size.y);
 
+                // w4.2
                 ImGuiIO& io = ImGui::GetIO();
                 ImDrawList* draw_list = ImGui::GetWindowDrawList();
                 draw_list->AddRectFilled(g_canvas_pos_ul, g_canvas_pos_br, IM_COL32(50, 50, 50, 255));
                 draw_list->AddRect(g_canvas_pos_ul, g_canvas_pos_br, IM_COL32(255, 255, 255, 255));
 
+                // w4.3
                 ImGui::InvisibleButton("canvas", canvas_size);
                 const bool is_hovered = ImGui::IsItemHovered();
                 if (is_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
@@ -648,6 +737,7 @@ namespace TEST_IMGUI
                     inter_update = true;
                     approx_update = true;
                     spline_update = true;
+                    my_CBS_update = true;
                 }
                 else if (is_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) 
                 {
@@ -670,9 +760,11 @@ namespace TEST_IMGUI
                         inter_update = true;
                         approx_update = true;
                         spline_update = true;
+                        my_CBS_update = true;
                     }
                 }
 
+                // w4.4. 更新插值拟合曲线
                 if (inter_update) 
                 {
                     inter_uniform.in_pos_t = MathUtil::ParameterizationUniform(in_pos_x, in_pos_y);
@@ -693,6 +785,8 @@ namespace TEST_IMGUI
 
                     inter_update = false;
                 }
+
+                // w4.5. 更新逼近拟合曲线：
                 if (approx_update)
                 {
                     approx_uniform.in_pos_t = inter_uniform.in_pos_t;
@@ -721,6 +815,8 @@ namespace TEST_IMGUI
 
                     approx_update = false;
                 }
+
+                // w4.6. 更新样条插值拟合曲线：
                 if (spline_update)
                 {
                     spline_uniform.in_pos_t = inter_uniform.in_pos_t;
@@ -742,6 +838,22 @@ namespace TEST_IMGUI
                     spline_update = false;
                 }
 
+                // w4.7 更新自己写的三次B样条插值曲线：
+                if (my_CBS_update)
+                {
+                    // ！！！to be continued:      暂时使用作业中原来的三次B样条
+                    mySpline.in_pos_t = inter_uniform.in_pos_t;
+                    mySpline.pos_x = MathUtil::CubicSpline(spline_uniform.in_pos_t, in_pos_x, lb, rb, step);
+                    mySpline.pos_y = MathUtil::CubicSpline(spline_uniform.in_pos_t, in_pos_y, lb, rb, step); 
+
+                    mySpline_loop.in_pos_t = inter_uniform.in_pos_t;
+                    mySpline_loop.pos_x = MathUtil::CubicSpline(spline_uniform.in_pos_t, in_pos_x, lb, rb, step);
+                    mySpline_loop.pos_y = MathUtil::CubicSpline(spline_uniform.in_pos_t, in_pos_y, lb, rb, step);
+
+                    my_CBS_update = false;
+                }
+
+                // 生成绘图曲线：
                 inter_uniform.Plot(draw_list);
                 inter_chordal.Plot(draw_list);
                 inter_centripetal.Plot(draw_list);
@@ -757,10 +869,14 @@ namespace TEST_IMGUI
                 spline_centripetal.Plot(draw_list);
                 spline_foley.Plot(draw_list);
 
+                mySpline.Plot(draw_list);
+                mySpline_loop.Plot(draw_list);
+
                 PlotLineSegments(in_pos_x, in_pos_y, draw_list, IM_COL32(255, 255, 255, 0), IM_COL32(255, 255, 255, 255));
                 ImGui::End();
             }
 
+            // w5. X-T画布
             if (ImGui::Begin("X-T"))
             {
                 ImVec2 canvas_pos_ul = ImGui::GetCursorScreenPos();
@@ -795,6 +911,7 @@ namespace TEST_IMGUI
                 ImGui::End();
             }
 
+            // w6. Y-T画布
             if (ImGui::Begin("Y-T")) 
             {
                 ImVec2 canvas_pos_ul = ImGui::GetCursorScreenPos();
@@ -828,6 +945,7 @@ namespace TEST_IMGUI
 
                 ImGui::End();
             }
+
 
             EndFrame();
         }

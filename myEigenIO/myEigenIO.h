@@ -26,23 +26,6 @@
 #pragma comment(lib, "myEigenBasicMath.lib")
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary types: 
-template <typename T>
-struct DOUBLET
-{
-	T x;
-	T y;
-};
-
-template <typename T>
-struct TRIPLET
-{
-	T x;
-	T y;
-	T z;
-}; 
-
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary interface:
 unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize);
 
