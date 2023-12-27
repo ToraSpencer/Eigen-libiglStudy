@@ -2,6 +2,7 @@
 #include <vector>
 #include "Eigen/Dense"
 
+
 namespace 
 {
 constexpr float Sqr(float x)
@@ -15,17 +16,17 @@ Eigen::MatrixXf LeastSquares(const std::vector<Eigen::Vector2f>&in_pos,\
     const int n = in_pos.size();
     Eigen::MatrixXf A(m + 1, m + 1);
     std::vector<float> pow_temp(n, 1.0f);
-    for (int i = 0; i < 2 * m + 1; i++) {
+    for (int i = 0; i < 2 * m + 1; i++) 
+    {
         float sum = 0;
-        for (int j = 0; j < n; j++) {
+        for (int j = 0; j < n; j++) 
+        {
             sum += pow_temp[j];
             pow_temp[j] *= in_pos[j].x();
         }
-        for (int j = 0; j <= i; j++) {
-            if (j <= m && i - j <= m) {
-                A(j, i - j) = sum;
-            }
-        }
+        for (int j = 0; j <= i; j++) 
+            if (j <= m && i - j <= m) 
+                A(j, i - j) = sum;       
     }
 
     Eigen::MatrixXf norm = Eigen::MatrixXf::Identity(m + 1, m + 1);
@@ -33,9 +34,11 @@ Eigen::MatrixXf LeastSquares(const std::vector<Eigen::Vector2f>&in_pos,\
 
     Eigen::MatrixXf Y(m + 1, 1);
     std::fill(pow_temp.begin(), pow_temp.end(), 1.0f);
-    for (int i = 0; i <= m; i++) {
+    for (int i = 0; i <= m; i++) 
+    {
         Y(i, 0) = 0.0f;
-        for (int j = 0; j < n; j++) {
+        for (int j = 0; j < n; j++) 
+        {
             Y(i, 0) += in_pos[j].y() * pow_temp[j];
             pow_temp[j] *= in_pos[j].x();
         }
@@ -44,6 +47,7 @@ Eigen::MatrixXf LeastSquares(const std::vector<Eigen::Vector2f>&in_pos,\
     Eigen::MatrixXf B = A.inverse() * Y;
     return B;
 }
+
 
 Eigen::VectorXf LeastSquares(const std::vector<float>& pos_x,\
     const std::vector<float>& pos_y, int m) 
@@ -113,22 +117,35 @@ std::vector<Eigen::Vector2f> MathUtil::InterpolationPolygon(\
     return result;
 }
 
-std::vector<float> MathUtil::InterpolationPolygon(const std::vector<float>& pos_x, const std::vector<float>& pos_y,
-    float lb, float rb, float step) {
-    const int n = pos_x.size();
-    std::vector<float> result;
-    for (float x = lb; x <= rb; x += step) {
-        float y = 0;
-        for (int i = 0; i < n; i++) {
-            float temp = pos_y[i];
-            for (int j = 0; j < n; j++) {
-                if (i != j) {
-                    temp = temp * (x - pos_x[j]) / (pos_x[i] - pos_x[j]);
-                }
-            }
-            y += temp;
+
+// 多项式插值
+/*
+    std::vector<float> MathUtil::InterpolationPolygon(                返回参数曲线的采样函数值
+        const std::vector<float>& pos_t,            样本点对应的参数空间t坐标序列；
+        const std::vector<float>& pos_u,           样本点的x坐标或y坐标序列；
+        float lb,                   t区间左边界
+        float rb,                   t区间右边界
+        float step                采样步长；
+        ) 
+*/
+std::vector<float> MathUtil::InterpolationPolygon(\
+    const std::vector<float>& pos_t, const std::vector<float>& pos_u,
+    float lb, float rb, float step) 
+{
+    const int n = pos_t.size();                    //  样本容量；
+    std::vector<float> result;                      
+    for (float t = lb; t <= rb; t += step) 
+    {
+        float u = 0;
+        for (int i = 0; i < n; i++)
+        {
+            float temp = pos_u[i];
+            for (int j = 0; j < n; j++) 
+                if (i != j)                 
+                    temp = temp * (t - pos_t[j]) / (pos_t[i] - pos_t[j]);                           
+            u += temp;
         }
-        result.push_back(y);
+        result.push_back(u);
     }
     return result;
 }
@@ -136,7 +153,8 @@ std::vector<float> MathUtil::InterpolationPolygon(const std::vector<float>& pos_
 
 // 高斯插值
 std::vector<Eigen::Vector2f> MathUtil::InterpolationGauss(\
-    const std::vector<Eigen::Vector2f> &in_pos, float sigma2, int m, float lb, float rb, float step) {
+    const std::vector<Eigen::Vector2f> &in_pos, float sigma2, \
+    int m, float lb, float rb, float step) {
     const int n = in_pos.size();
     m = std::min(m, std::max(n - 1, 0));
 
@@ -221,7 +239,8 @@ std::vector<float> MathUtil::ApproximationPolygon(\
 
 // 幂基函数岭回归逼近
 std::vector<Eigen::Vector2f> MathUtil::ApproximationNormalized(\
-    const std::vector<Eigen::Vector2f> &in_pos, int m, float lambda, float lb, float rb, float step) {
+    const std::vector<Eigen::Vector2f> &in_pos, int m, float lambda, \
+    float lb, float rb, float step) {
     const int n = in_pos.size();
     m = std::min(m, std::max(n - 1, 0));
     Eigen::MatrixXf B = LeastSquares(in_pos, m, lambda);
@@ -309,17 +328,19 @@ std::vector<float> MathUtil::CubicSpline(\
 }
 
 
+// 输入样本点，输出Uniform参数空间的坐标序列；
 std::vector<float> MathUtil::ParameterizationUniform(\
-    const std::vector<float>& pos_x, const std::vector<float>& pos_y) {
+    const std::vector<float>& pos_x, const std::vector<float>& pos_y) 
+{
     const size_t n = pos_x.size();
-    if (n == 1) {
+    if (n == 1) 
         return { 0.0f };
-    }
+    
     float inv = 1.0f / (n - 1);
     std::vector<float> result(n);
-    for (size_t i = 0; i < n; i++) {
+    for (size_t i = 0; i < n; i++) 
         result[i] = i * inv;
-    }
+    
     return result;
 }
 

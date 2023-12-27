@@ -12,9 +12,10 @@
 #include "imgui_internal.h"
 #include "GLFW/glfw3.h"
 
+#include "triMesh.h"
+#include "representations.h"
 #include "TEST_IMGUI/fitcurve.h"
-#include "TEST_IMGUI/myapp.h"
- 
+#include "TEST_IMGUI/myapp.h" 
 
 #include "myEigenIO/myEigenIO.h"
 #pragma comment(lib,"myEigenIO.lib")	
@@ -109,6 +110,565 @@ namespace MY_DEBUG
 using namespace MY_DEBUG;
 
 
+// 三次B样条插值
+namespace BSPLINE_INTERP
+{
+    using namespace TRIANGLE_MESH;
+
+
+    std::vector<verF> SmoothLoop(const std::vector<verF>& vertices, float weight)
+    {
+        auto versCount = vertices.size();
+        std::vector<verF> result(versCount, verF{ 0, 0, 0 });
+        Eigen::MatrixXf circuit(versCount, 3);
+        for (size_t i = 0; i < versCount; i++)
+            circuit.row(i) << vertices[i].x, vertices[i].y, vertices[i].z;
+        Eigen::SparseMatrix<float> W(versCount, versCount);
+        std::vector<Eigen::Triplet<float>> data;
+        data.reserve(2 * versCount);
+        for (int i = 0; i < versCount; ++i)
+        {
+            if (i == 0)
+            {
+                data.push_back(Eigen::Triplet<float>(i, versCount - 1, 1));
+                data.push_back(Eigen::Triplet<float>(i, i + 1, 1));
+            }
+            else if (i == versCount - 1)
+            {
+                data.push_back(Eigen::Triplet<float>(i, i - 1, 1));
+                data.push_back(Eigen::Triplet<float>(i, 0, 1));
+            }
+            else
+            {
+                data.push_back(Eigen::Triplet<float>(i, i - 1, 1));
+                data.push_back(Eigen::Triplet<float>(i, i + 1, 1));
+            }
+        }
+        W.setFromTriplets(data.begin(), data.end());
+        Eigen::SparseMatrix<float> A1(versCount, versCount);
+        A1.setIdentity();
+        A1 -= 0.5 * W;
+        Eigen::SparseMatrix<float> B1(versCount, 3);
+        B1.setZero();
+        Eigen::SparseMatrix<float> A2(versCount, versCount);
+        A2.setIdentity();
+        Eigen::SparseMatrix<float> B2 = circuit.sparseView();
+        Eigen::SparseMatrix<float> tempMat(versCount, 2 * versCount);
+        tempMat.leftCols(versCount) = A1.transpose();
+        tempMat.rightCols(versCount) = weight * A2.transpose();
+        Eigen::SparseMatrix<float> A = tempMat.transpose();
+        tempMat.resize(3, 2 * versCount);
+        tempMat.leftCols(versCount) = B1.transpose();
+        tempMat.rightCols(versCount) = weight * B2.transpose();
+        Eigen::SparseMatrix<float> B = tempMat.transpose();
+        A.makeCompressed();
+        B.makeCompressed();
+
+        // 最小二乘法解超定线性方程组A*X = B;
+        Eigen::MatrixXf ATA = (A.transpose() * A).toDense();
+        Eigen::MatrixXf ATB = (A.transpose() * B).toDense();
+        circuit = ATA.inverse() * ATB;
+
+        for (size_t i = 0; i < versCount; i++)
+        {
+            result[i].x = circuit(i, 0);
+            result[i].y = circuit(i, 1);
+            result[i].z = circuit(i, 2);
+        }
+        return result;
+    }
+
+
+    void PointTriangleDistance(const std::vector<verF>& triangle, const verF& point, float& distance, verF& PP0)
+    {
+        constexpr float zero = 0;
+        constexpr float one = 1;
+        constexpr float two = 2;
+        auto diff = triangle[0] - point;
+        auto edge0 = triangle[1] - triangle[0];
+        auto edge1 = triangle[2] - triangle[0];
+        auto a00 = edge0.dot(edge0);
+        auto a01 = edge0.dot(edge1);
+        auto a11 = edge1.dot(edge1);
+        auto b0 = diff.dot(edge0);
+        auto b1 = diff.dot(edge1);
+        auto det = (a00 * a11 - a01 * a01) > zero ? (a00 * a11 - a01 * a01) : zero;
+        auto s = a01 * b1 - a11 * b0;
+        auto t = a01 * b0 - a00 * b1;
+
+        if (s + t <= det)
+        {
+            if (s < zero)
+            {
+                if (t < zero)  // region 4
+                {
+                    if (b0 < zero)
+                    {
+                        t = zero;
+                        s = -b0 >= a00 ? one : -b0 / a00;
+                    }
+                    else
+                    {
+                        s = zero;
+                        if (b1 >= zero)
+                            t = zero;
+                        else if (-b1 >= a11)
+                            t = one;
+                        else
+                            t = -b1 / a11;
+                    }
+                }
+                else  // region 3
+                {
+                    s = zero;
+                    if (b1 >= zero)
+                        t = zero;
+                    else if (-b1 >= a11)
+                        t = one;
+                    else
+                        t = -b1 / a11;
+                }
+            }
+            else if (t < zero)  // region 5
+            {
+                t = zero;
+                if (b0 >= zero)
+                    s = zero;
+                else if (-b0 >= a00)
+                    s = one;
+                else
+                    s = -b0 / a00;
+            }
+            else  // region 0
+            {
+                // minimum at interior point
+                s /= det;
+                t /= det;
+            }
+        }
+        else
+        {
+            float tmp0{}, tmp1{}, numer{}, denom{};
+
+            if (s < zero)  // region 2
+            {
+                tmp0 = a01 + b0;
+                tmp1 = a11 + b1;
+                if (tmp1 > tmp0)
+                {
+                    numer = tmp1 - tmp0;
+                    denom = a00 - two * a01 + a11;
+                    if (numer >= denom)
+                    {
+                        s = one;
+                        t = zero;
+                    }
+                    else
+                    {
+                        s = numer / denom;
+                        t = one - s;
+                    }
+                }
+                else
+                {
+                    s = zero;
+                    if (tmp1 <= zero)
+                        t = one;
+                    else if (b1 >= zero)
+                        t = zero;
+                    else
+                        t = -b1 / a11;
+                }
+            }
+            else if (t < zero)  // region 6
+            {
+                tmp0 = a01 + b1;
+                tmp1 = a00 + b0;
+                if (tmp1 > tmp0)
+                {
+                    numer = tmp1 - tmp0;
+                    denom = a00 - two * a01 + a11;
+                    if (numer >= denom)
+                    {
+                        t = one;
+                        s = zero;
+                    }
+                    else
+                    {
+                        t = numer / denom;
+                        s = one - t;
+                    }
+                }
+                else
+                {
+                    t = zero;
+                    if (tmp1 <= zero)
+                        s = one;
+                    else if (b0 >= zero)
+                        s = zero;
+                    else
+                        s = -b0 / a00;
+                }
+            }
+            else  // region 1
+            {
+                numer = a11 + b1 - a01 - b0;
+                if (numer <= zero)
+                {
+                    s = zero;
+                    t = one;
+                }
+                else
+                {
+                    denom = a00 - two * a01 + a11;
+                    if (numer >= denom)
+                    {
+                        s = one;
+                        t = zero;
+                    }
+                    else
+                    {
+                        s = numer / denom;
+                        t = one - s;
+                    }
+                }
+            }
+        }
+
+        PP0 = triangle.at(0) + s * edge0 + t * edge1;
+        distance = PP0.distance(point);
+    }
+
+
+    void SmoothFeaturePoints(std::vector<std::vector<std::vector<verF>>>& featurePoints)
+    {
+        int meshCnt = featurePoints[0].size();
+        int totalStep = featurePoints.size();
+        for (int i = 0; i < meshCnt; ++i)
+        {
+            for (int j = 0; j < 8; ++j)
+            {
+                std::vector<verF> V;
+                for (int k = 0; k < totalStep; ++k)
+                {
+                    auto Fp = featurePoints.at(k).at(i);
+                    V.push_back(Fp.at(j));
+                }
+                auto smoothV = SmoothLoop(V, 0.1);
+                for (int i = 0; i < 3; ++i)
+                {
+                    smoothV.at(i) = V.at(i);
+                    smoothV.at(totalStep - i - 1) = V.at(totalStep - i - 1);
+                }
+                for (int k = 0; k < totalStep; ++k)
+                {
+                    V = featurePoints.at(k).at(i);
+                    V.at(j) = smoothV.at(k);
+                    featurePoints.at(k).at(i) = V;
+                }
+            }
+        }
+    }
+
+
+    // to be optimized...搜索点云中距离目标顶点targetVer最近的那个顶点；当前使用暴力算法，可以进一步提升性能；
+    template <typename T1, typename T2>
+    size_t nearestVerIdx(const std::vector<triplet<T1>>& vers, const triplet<T2>& targetVer)
+    {
+        Eigen::MatrixXf versMat;
+        Eigen::RowVector3f tarVerVec;
+        vers2mat(versMat, vers);
+        ver2vec(tarVerVec, targetVer);
+        Eigen::VectorXf dises = (versMat.rowwise() - tarVerVec).rowwise().norm();
+        Eigen::VectorXf::Index minIdx;
+        dises.minCoeff(&minIdx);
+        return static_cast<size_t>(minIdx);
+    }
+
+
+    void ClosestPoint2Mesh(const triMeshF mesh, const std::vector<verF>& qPoint, std::vector<verF>& P)
+    {
+        std::pair<unsigned, float> pair_;
+        std::vector<size_t> indices;
+        std::vector<verF> CandidateP;
+        for (int j = 0; j < qPoint.size(); ++j)
+        {
+            size_t idx = nearestVerIdx(mesh.vertices, qPoint.at(j));			// mesh.vertice[idx]是网格点云中距离qPoint.at(j)最近的点；
+            indices.push_back(idx);
+            CandidateP.push_back(mesh.vertices.at(idx));
+        }
+
+        for (int i = 0; i < indices.size(); ++i)
+        {
+            std::vector<unsigned> connectedFaces;
+            for (int j = 0; j < mesh.triangles.size(); ++j)
+                if (mesh.triangles.at(j).x == indices.at(i) ||
+                    mesh.triangles.at(j).y == indices.at(i) ||
+                    mesh.triangles.at(j).z == indices.at(i))
+                    connectedFaces.push_back(j);
+            float minDist = 0xFFFF;
+            for (const auto& f : connectedFaces)
+            {
+                std::vector<verF> TRI(3);
+                TRI = { mesh.vertices.at(mesh.triangles.at(f).x),
+                    mesh.vertices.at(mesh.triangles.at(f).y),
+                    mesh.vertices.at(mesh.triangles.at(f).z) };
+                float dist;
+                verF PP0;
+                PointTriangleDistance(TRI, qPoint.at(i), dist, PP0);
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    CandidateP.at(i) = PP0;
+                }
+            }
+            if (i == 0)
+                P.push_back(CandidateP.at(i));
+            else
+                if (CandidateP.at(i).distance(CandidateP.back()) > 0.1)
+                    P.push_back(CandidateP.at(i));
+        }
+
+    }
+
+
+    std::vector<verF> TanVecDir(const std::vector<verF>& sampleVers)
+    {
+        auto sampleVersCount = sampleVers.size();
+        auto qVecNum = sampleVersCount + 3;
+        std::vector<verF> qVec(qVecNum, verF{ 0, 0, 0 }), tanVec(sampleVersCount, verF{ 0, 0, 0 });
+
+        for (int i = 2; i < qVecNum - 2; ++i)
+            qVec.at(i) = sampleVers.at(i - 1) - sampleVers.at(i - 2);
+
+        if (sampleVers[0].distance(sampleVers[sampleVersCount - 1]) <= FLT_MIN)
+        {
+            qVec.at(1) = sampleVers.at(sampleVersCount - 1) - sampleVers.at(sampleVersCount - 2);
+            qVec.at(0) = sampleVers.at(sampleVersCount - 2) - sampleVers.at(sampleVersCount - 3);
+            qVec.at(qVecNum - 2) = sampleVers.at(1) - sampleVers.at(0);
+            qVec.at(qVecNum - 1) = sampleVers.at(2) - sampleVers.at(1);
+        }
+        else
+        {
+            qVec.at(1) = 2 * qVec.at(2) - qVec.at(3);
+            qVec.at(0) = 2 * qVec.at(1) - qVec.at(2);
+            qVec.at(qVecNum - 2) = 2 * qVec.at(qVecNum - 3) - qVec.at(qVecNum - 4);
+            qVec.at(qVecNum - 1) = 2 * qVec.at(qVecNum - 2) - qVec.at(qVecNum - 3);
+        }
+        for (int i = 0; i < sampleVersCount; ++i)
+        {
+            float interppar = 0.5;
+            auto numerL = qVec.at(i).cross(qVec.at(i + 1)).length();
+            auto numerR = qVec.at(i + 2).cross(qVec.at(i + 3)).length();
+            if (auto numer = numerL + numerR; numer != 0)
+                interppar = numerL / numer;
+            tanVec.at(i) = (1 - interppar) * qVec.at(i + 1) + interppar * qVec.at(i + 2);
+            if (auto normTanVec = tanVec.at(i).length(); normTanVec == 0)
+                if (i == 0)
+                    tanVec.at(i) = qVec.at(i + 2) / (qVec.at(i + 2).length());
+                else
+                    tanVec.at(i) = qVec.at(i + 1) / (qVec.at(i + 1).length());
+            else
+                tanVec.at(i) /= normTanVec;
+        }
+
+        return tanVec;
+    }
+
+
+    std::vector<verF> ContlPoint(const std::vector<verF>& sampleVers, const std::vector<verF>& tanVecDir)
+    {
+        auto sampleVersCount = sampleVers.size();
+        auto curNum = sampleVersCount - 1;
+        std::vector<verF> contlPt(2 * curNum + 2, verF{ 0, 0, 0 });
+
+        contlPt.at(0) = sampleVers.at(0);
+        contlPt.at(contlPt.size() - 1) = sampleVers.at(curNum);
+
+        std::vector<verF> preTanVD(tanVecDir.begin(), tanVecDir.begin() + curNum);
+        std::vector<verF> postTanVD(tanVecDir.begin() + 1, tanVecDir.end());
+        std::vector<verF> TanVD(curNum), DataPt(curNum);
+        for (int i = 0; i < curNum; ++i)
+            TanVD.at(i) = preTanVD.at(i) + postTanVD.at(i);
+        std::vector<verF> preDataPt(sampleVers.begin(), sampleVers.begin() + curNum);
+        std::vector<verF> postDataPt(sampleVers.begin() + 1, sampleVers.end());
+        for (int i = 0; i < curNum; ++i)
+            DataPt.at(i) = postDataPt.at(i) - preDataPt.at(i);
+
+        for (int i = 0; i < curNum; ++i)
+        {
+            auto a = 16 - pow(TanVD.at(i).length(), 2);
+            auto b = 12 * DataPt.at(i).dot(TanVD.at(i));
+            auto c = -36 * pow(DataPt.at(i).length(), 2);
+            auto normTanV = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+            contlPt.at(2 * i + 1) = sampleVers.at(i) + normTanV * tanVecDir.at(i) / 3;
+            contlPt.at(2 * i + 2) = sampleVers.at(i + 1) - normTanV * tanVecDir.at(i + 1) / 3;
+        }
+
+        return contlPt;
+    }
+
+
+    std::vector<float> NodeVec(const std::vector<verF>& sampleVers, const std::vector<verF>& contlPoint)
+    {
+        int sampleVersCount = sampleVers.size();
+        std::vector parDataPt(sampleVersCount, 0.f), nodeV(2 * sampleVersCount, 0.f);
+
+        for (int _ = 0; _ < 4; ++_)
+            nodeV.push_back(1.f);
+        for (int i = 0; i < sampleVersCount - 1; ++i)
+            parDataPt.at(i + 1) = parDataPt.at(i) + 3 * contlPoint.at(2 * i + 1).distance(sampleVers.at(i));
+        auto endParDP = parDataPt.at(sampleVersCount - 1);
+        for (int i = 1; i < sampleVersCount - 1; ++i)
+        {
+            nodeV.at(2 * i + 2) = parDataPt.at(i) / endParDP;
+            nodeV.at(2 * i + 3) = parDataPt.at(i) / endParDP;
+        }
+
+        return nodeV;
+    }
+
+
+    std::vector<float> BasisFuns(int span, float u, int p, const std::vector<float>& nodeVec)
+    {
+        std::vector N(p + 2, 0.f);
+        N[1] = 1;
+        for (int count = 1; count <= p; ++count)
+        {
+            std::vector preN = N;
+            N.assign(p + 2, 0.f);
+            for (int reg = 1; reg <= count + 1; ++reg)
+            {
+                auto denLeft = nodeVec.at(span + reg - 1) - nodeVec.at(span + reg - 1 - count);
+                auto denRight = nodeVec.at(span + reg) - nodeVec.at(span + reg - count);
+                auto numerL = u - nodeVec.at(span + reg - 1 - count);
+                auto numerR = nodeVec.at(span + reg) - u;
+                float itemL = 0, itemR = 0;
+                if (denLeft != 0 && reg != 1)
+                    itemL = numerL / denLeft * preN.at(reg - 1);
+                if (denRight != 0 && reg != count + 1)
+                    itemR = numerR / denRight * preN.at(reg);
+                N.at(reg) = itemL + itemR;
+            }
+        }
+        return N;
+    }
+
+
+    int FindSpan(int p, float u, const std::vector<float>& nodeVec)
+    {
+        auto nodeNum = nodeVec.size();
+        if (u == nodeVec.at(nodeNum - p))
+            return nodeNum - p - 1;
+        else
+        {
+            auto low = p + 1;
+            auto high = nodeNum - p;
+            auto mid = floor((low + high) / 2);
+            while (u < nodeVec.at(mid) || u >= nodeVec.at(mid + 1))
+            {
+                if (u < nodeVec.at(mid))
+                    high = mid;
+                else
+                    low = mid;
+                mid = floor((low + high) / 2);
+            }
+            return mid;
+        }
+    }
+
+
+    verF SinCurPoint(int p, float u, const std::vector<float>& nodeVec, const std::vector<verF>& contlPoint)
+    {
+        std::vector nodeVec_ = { 0.f };
+        nodeVec_.insert(nodeVec_.end(), nodeVec.begin(), nodeVec.end());
+        std::vector<verF> contlPoint_ = { verF{0, 0, 0} };
+        contlPoint_.insert(contlPoint_.end(), contlPoint.begin(), contlPoint.end());
+        int span = FindSpan(p, u, nodeVec_);
+        std::vector<float> func = BasisFuns(span, u, p, nodeVec_);
+        verF result = verF{ 0, 0, 0 };
+        for (int i = 1; i <= p + 1; ++i)
+            result += func[i] * contlPoint_[span + i - 1 - p];
+        return result;
+    }
+}
+
+
+// 三次B样条插值拟合回路曲线	
+template<typename DerivedVo, typename DerivedVi>
+bool cubicBSplineInterpLoop3D(Eigen::PlainObjectBase<DerivedVo>& versOut, \
+    const Eigen::PlainObjectBase<DerivedVi>& versIn, const unsigned versOutCount)
+{
+    using namespace BSPLINE_INTERP;
+    using ScalarO = typename DerivedVo::Scalar;
+    versOut.resize(0, 0);
+    if (0 == versIn.rows())
+        return true;
+    if (versIn.rows() < 3)
+    {
+        versOut = versIn.cast<ScalarO>();
+        return true;
+    }
+
+    std::vector<verF> versLoop = mat2versF(versIn);
+    versLoop.push_back(versLoop[0]);
+
+    std::vector<verF> tanVecDir = TanVecDir(versLoop);
+    std::vector<verF> cntrlPts = ContlPoint(versLoop, tanVecDir);
+    std::vector<float> nodeVector = NodeVec(versLoop, cntrlPts);
+
+    int n = versOutCount + 1;
+    std::vector<float> u;
+    for (int i = 0; i < n; ++i)
+        u.push_back(static_cast<float>(i) / (n - 1));
+
+    std::vector<verF> curveFitted(versOutCount, verF{ 0, 0, 0 });
+    for (int count = 0; count < versOutCount; ++count)
+        curveFitted[count] = SinCurPoint(3, u.at(count), nodeVector, cntrlPts);
+
+    vers2mat(versOut, curveFitted);
+
+    return true;
+}
+
+
+// 三次B样条插值拟合非回路曲线	
+template<typename DerivedVo, typename DerivedVi>
+bool cubicBSplineInterpCurve3D(Eigen::PlainObjectBase<DerivedVo>& versOut, \
+    const Eigen::PlainObjectBase<DerivedVi>& versIn, const unsigned versOutCount)
+{
+    using namespace BSPLINE_INTERP;
+    using ScalarO = typename DerivedVo::Scalar;
+    versOut.resize(0, 0);
+
+    if (0 == versIn.rows())
+        return true;
+    if (1 == versIn.rows())
+    {
+        versOut = versIn.cast<ScalarO>();
+        return true;
+    }
+
+    std::vector<verF> versSample = mat2versF(versIn); 
+    std::vector<verF> tanVecDir = TanVecDir(versSample);
+    std::vector<verF> cntrlPts = ContlPoint(versSample, tanVecDir);
+    std::vector<float> nodeVector = NodeVec(versSample, cntrlPts);
+
+    int n = versOutCount + 1;
+    std::vector<float> u;
+    for (int i = 0; i < n; ++i)
+        u.push_back(static_cast<float>(i) / (n - 1));
+
+    std::vector<verF> curveFitted(versOutCount, verF{ 0, 0, 0 });
+    for (int count = 0; count < versOutCount; ++count)
+        curveFitted[count] = SinCurPoint(3, u.at(count), nodeVector, cntrlPts);
+
+    vers2mat(versOut, curveFitted);
+
+    return true;
+}
+
+
 namespace MY_IMGUI 
 {
     GLFWwindow* g_window = nullptr;                         // 全局的窗口对象
@@ -118,6 +678,8 @@ namespace MY_IMGUI
     ImVec2 g_canvas_pos_ul = { 0.0f, 0.0f };
     ImVec2 g_canvas_pos_br = { 0.0f, 0.0f };
 
+
+    // 输入2D曲线点集，在画布上画出曲线
     void PlotLineSegments(const std::vector<Eigen::Vector2f>& poss, ImDrawList* draw_list, \
         ImU32 line_col, ImU32 point_col)
     {
@@ -134,6 +696,7 @@ namespace MY_IMGUI
     }
 
 
+    // 输入2D曲线点集，在画布上画出曲线
     void PlotLineSegments(const std::vector<float>& pos_x, const std::vector<float>& pos_y, \
         ImDrawList* draw_list, ImU32 line_col, ImU32 point_col, ImVec2 ul = g_canvas_pos_ul,\
         ImVec2 br = g_canvas_pos_br) 
@@ -279,7 +842,7 @@ struct CurveData
 {
     ImU32 line_color = 0;
     ImU32 point_color = 0;
-    std::vector<float> pos_x;
+    std::vector<float> pos_x;                   // 
     std::vector<float> pos_y;
     std::vector<float> in_pos_t;
     bool visible = false;
@@ -291,11 +854,14 @@ struct CurveData
         in_pos_t.clear();
     }
 
+
+    // 在画布上画曲线：
     void Plot(ImDrawList* draw_list) const 
     {
         if (visible && !pos_x.empty())  
             PlotLineSegments(pos_x, pos_y, draw_list, line_color, point_color); 
     }
+
 
     void PlotXT(const std::vector<float>& pos_t, ImDrawList* draw_list, ImVec2 canvas_ul, ImVec2 canvas_br) const 
     {
@@ -312,6 +878,7 @@ struct CurveData
         }
         PlotLineSegments(pos_t_t, pos_x_t, draw_list, line_color, point_color, canvas_ul, canvas_br);
     }
+
 
     void PlotYT(const std::vector<float>& pos_t, ImDrawList* draw_list, ImVec2 canvas_ul, ImVec2 canvas_br) const
     {
@@ -591,8 +1158,8 @@ namespace TEST_IMGUI
         CurveData mySpline{ IM_COL32(100, 50, 255, 255), IM_COL32(130, 80, 255, 255) };
         CurveData mySpline_loop{ IM_COL32(170, 255, 170, 255), IM_COL32(200, 255, 200, 255) };
 
-        //      
-        float lb = 0.0f;
+        // 设定采样空间（画布空间）   
+        float lb = 0.0f;                    
         float rb = 1.0f;
         float step = (rb - lb) / 60.0f;
         std::vector<float> out_pos_t;
@@ -841,15 +1408,23 @@ namespace TEST_IMGUI
                 // w4.7 更新自己写的三次B样条插值曲线：
                 if (my_CBS_update)
                 {
-                    // ！！！to be continued:      暂时使用作业中原来的三次B样条
-                    mySpline.in_pos_t = inter_uniform.in_pos_t;
-                    mySpline.pos_x = MathUtil::CubicSpline(spline_uniform.in_pos_t, in_pos_x, lb, rb, step);
-                    mySpline.pos_y = MathUtil::CubicSpline(spline_uniform.in_pos_t, in_pos_y, lb, rb, step); 
+                    Eigen::VectorXf tmpVec;
+                    Eigen::MatrixXf versFitted;
+                    Eigen::MatrixXf versSample(in_pos_x.size(), 3);  
+                    vec2EigenVec(tmpVec, in_pos_x);
+                    versSample.col(0) = tmpVec;
+                    vec2EigenVec(tmpVec, in_pos_y);
+                    versSample.col(1) = tmpVec;
+                    versSample.col(2).setZero();
 
-                    mySpline_loop.in_pos_t = inter_uniform.in_pos_t;
-                    mySpline_loop.pos_x = MathUtil::CubicSpline(spline_uniform.in_pos_t, in_pos_x, lb, rb, step);
-                    mySpline_loop.pos_y = MathUtil::CubicSpline(spline_uniform.in_pos_t, in_pos_y, lb, rb, step);
-
+                    cubicBSplineInterpCurve3D(versFitted, versSample, 100); 
+                    eigenVec2Vec(mySpline.pos_x, versFitted.col(0));
+                    eigenVec2Vec(mySpline.pos_y, versFitted.col(1));
+                     
+                    cubicBSplineInterpLoop3D(versFitted, versSample, 100);
+                    eigenVec2Vec(mySpline_loop.pos_x, versFitted.col(0));
+                    eigenVec2Vec(mySpline_loop.pos_y, versFitted.col(1));
+ 
                     my_CBS_update = false;
                 }
 
@@ -946,13 +1521,27 @@ namespace TEST_IMGUI
                 ImGui::End();
             }
 
-
             EndFrame();
         }
 
         Finalize(); 
     }
 
+
+    void test11() 
+    {
+        Eigen::MatrixXf versSample(3, 3);
+        Eigen::MatrixXf versFitted;
+        versSample << 1, 2, 0, 2, 3, 0, 4, 5, 0;
+
+        cubicBSplineInterpCurve3D(versFitted, versSample, 100);
+
+        debugWriteVers("versIn", versSample);
+        debugWriteVers("versOut", versFitted);
+ 
+
+        debugDisp("test11 finished.");
+    }
 
     void test2()
     {

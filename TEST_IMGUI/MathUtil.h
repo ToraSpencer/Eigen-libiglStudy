@@ -40,6 +40,7 @@ public:
         const std::vector<float>& pos_x, const std::vector<float>& pos_y,
         float lb, float rb, float step);
 
+
     static std::vector<float> ParameterizationUniform(\
         const std::vector<float>& pos_x, const std::vector<float>& pos_y);
 
