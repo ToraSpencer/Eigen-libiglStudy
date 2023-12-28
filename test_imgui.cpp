@@ -1,5 +1,4 @@
 #include "test_imgui.h"
-#include "TEST_IMGUI/MathUtil.h"
 
 #include <iostream>
 #include <vector>
@@ -14,6 +13,7 @@
 
 #include "triMesh.h"
 #include "representations.h"
+#include "TEST_IMGUI/MathUtil.h"
 #include "TEST_IMGUI/fitcurve.h"
 #include "TEST_IMGUI/myapp.h" 
 

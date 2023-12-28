@@ -328,7 +328,7 @@ std::vector<float> MathUtil::CubicSpline(\
 }
 
 
-// 输入样本点，输出Uniform参数空间的坐标序列；
+// 点列均匀(Uniform)参数化：
 std::vector<float> MathUtil::ParameterizationUniform(\
     const std::vector<float>& pos_x, const std::vector<float>& pos_y) 
 {
