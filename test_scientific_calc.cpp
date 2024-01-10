@@ -318,10 +318,13 @@ namespace TEST_PMP
 		Eigen::MatrixXi tris;
 		objReadMeshMat(vers, tris, "E:/²ÄÁÏ/jawMesh.obj");
 
+		tiktok& tt = tiktok::getInstance();
+		tt.start();
 		double volume = meshVolume(vers, tris);
-		std::cout << "volume == " << volume << std::endl;
+		tt.endCout("meshVolume()ºÄÊ±£º");
 
-		std::cout << "finished." << std::endl;
+		debugDisp("volume == ", volume); 
+		debugDisp("test2() finished."); 
 	}
 
 

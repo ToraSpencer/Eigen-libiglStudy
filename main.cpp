@@ -1313,8 +1313,8 @@ double calcSolidAngle(const Eigen::MatrixBase<DerivedVp>& pos,\
 
 int main(int argc, char** argv)
 {  
-	TEST_IMGUI::test1();
-
+	// TEST_IMGUI::test1();
+	TEST_PMP::test2();
 
 	debugDisp("main() finished."); 
 }

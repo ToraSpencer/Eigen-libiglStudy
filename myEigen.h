@@ -17,8 +17,8 @@
 #include <memory>
 #include <thread>
 #include <limits>
+#include <chrono>
 #include <windows.h>
-  
 
 #include "Eigen/Dense"
 #include "Eigen/Sparse"
@@ -61,19 +61,20 @@ void revTraverseSTL(T& con, F f)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 未分类自定义类型：
 	
-// 自定义计时器，使用WINDOWS计时API
+// 自定义计时器
+using namespace std::chrono;
 class tiktok
-{
+{ 
 private:
 	tiktok() = default;
 	tiktok(const tiktok&) {}
 	~tiktok() = default;
 
 public:
-	DWORD startTik;
-	DWORD endTik;
+	time_point<steady_clock> startTik;
+	time_point<steady_clock> endTik;
 	unsigned recordCount;
-	std::vector<DWORD> records;
+	std::vector<time_point<steady_clock>> records;
 
 	static tiktok& getInstance()
 	{
@@ -83,40 +84,44 @@ public:
 
 	void start()
 	{
-		this->startTik = GetTickCount();
+		this->startTik = steady_clock::now();
 		this->recordCount = 0;
 		this->records.clear();
 	}
 
 	void endCout(const char* str)
 	{
-		this->endTik = GetTickCount();
-		std::cout << str << endTik - startTik << std::endl;
+		this->endTik = steady_clock::now();
+		microseconds duration = duration_cast<microseconds>(this->endTik - this->startTik);
+		std::cout << str << static_cast<double>(duration.count()) * \
+			microseconds::period::num / microseconds::period::den << std::endl;
 	}
 
-	DWORD endGetCount()
+	microseconds endGetCount()
 	{
-		this->endTik = GetTickCount();
-		return endTik - startTik;
+		this->endTik = steady_clock::now();
+		microseconds duration = duration_cast<microseconds>(this->endTik - this->startTik);
+		return duration;
 	}
 
 	bool endWrite(const char* fileName, const char* str)
 	{
-		this->endTik = GetTickCount();
+		this->endTik = steady_clock::now();
 		std::ofstream file(fileName, std::ios_base::out | std::ios_base::app);
 		if (!file)
 			return false;
-
-		file << str << endTik - startTik << std::endl;
+		microseconds duration = duration_cast<microseconds>(this->endTik - this->startTik);
+		file << str << static_cast<double>(duration.count()) * \
+			microseconds::period::num / microseconds::period::den << std::endl;
 		file.close();
 		return true;
 	}
 
 	void takeArecord()
 	{
-		this->records.push_back(GetTickCount());
+		this->records.push_back(steady_clock::now());
 		recordCount++;
-	}
+	} 
 };
   
   
