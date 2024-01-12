@@ -10,6 +10,7 @@ constexpr float Sqr(float x)
     return x * x;
 }
 
+
 Eigen::MatrixXf LeastSquares(const std::vector<Eigen::Vector2f>&in_pos,\
     int m, float lambda = 0.0f) 
 {
@@ -217,6 +218,7 @@ std::vector<Eigen::Vector2f> MathUtil::ApproximationPolygon(\
 }
 
 
+// 多项式逼近：
 std::vector<float> MathUtil::ApproximationPolygon(\
     const std::vector<float>& pos_x, const std::vector<float>& pos_y,
     int m, float lb, float rb, float step) 
@@ -328,11 +330,22 @@ std::vector<float> MathUtil::CubicSpline(\
 }
 
 
-// 点列均匀(Uniform)参数化：
+// 均匀(Uniform)点列参数化：
+/*
+    std::vector<float> ParameterizationUniform(\        返回向量为参数t的采样点列
+        const std::vector<float>& pos_x, 
+        const std::vector<float>& pos_y
+        ) 
+
+    输入曲线点云，输出参数t的参数化点列；
+    t取值在[0, 1]之间；
+    参数点列点数和输入曲线点云的点数相同；
+    等距点列参数化中，参数点列中的点间隔相等；
+*/
 std::vector<float> MathUtil::ParameterizationUniform(\
     const std::vector<float>& pos_x, const std::vector<float>& pos_y) 
 {
-    const size_t n = pos_x.size();
+    const size_t n = pos_x.size();          
     if (n == 1) 
         return { 0.0f };
     
@@ -345,21 +358,28 @@ std::vector<float> MathUtil::ParameterizationUniform(\
 }
 
 
+// 等弦长点列参数化：
+/*
+
+*/
 std::vector<float> MathUtil::ParameterizationChoral(\
-    const std::vector<float>& pos_x, const std::vector<float>& pos_y) {
+    const std::vector<float>& pos_x, const std::vector<float>& pos_y) 
+{
     const size_t n = pos_x.size();
-    if (n == 1) {
+    if (n == 1) 
         return { 0.0f };
-    }
+    
     float sum = 0.0f;
     std::vector<float> result(n);
     std::vector<float> dist(n - 1);
-    for (size_t i = 1; i < n; i++) {
+    for (size_t i = 1; i < n; i++) 
+    {
         dist[i - 1] = (Eigen::Vector2f(pos_x[i - 1], pos_y[i - 1]) - Eigen::Vector2f(pos_x[i], pos_y[i])).norm();
         sum += dist[i - 1];
     }
     result[0] = 0.0f;
-    for (size_t i = 1; i < n - 1; i++) {
+    for (size_t i = 1; i < n - 1; i++) 
+    {
         result[i] = dist[i - 1] / sum;
         result[i] += result[i - 1];
     }

@@ -10,6 +10,8 @@ class MathUtil
 public:
     constexpr static const float Pi = 3.141592653589793f;
 
+    /////////////////////////////////////////////////////////////////////////////////////// 插值拟合方法：
+
     // 多项式插值，重载1
     static std::vector<Eigen::Vector2f> InterpolationPolygon(\
         const std::vector<Eigen::Vector2f> &in_pos, float lb, float rb, float step);
@@ -29,6 +31,8 @@ public:
         const std::vector<float>& pos_x, const std::vector<float>& pos_y,
         float lb, float rb, float step);
 
+    /////////////////////////////////////////////////////////////////////////////////////// 逼近拟合方法：
+    
     // 多项式逼近
     static std::vector<float> ApproximationPolygon(\
         const std::vector<float>& pos_x, const std::vector<float>& pos_y,
@@ -42,6 +46,9 @@ public:
     static std::vector<Eigen::Vector2f> ApproximationNormalized(\
         const std::vector<Eigen::Vector2f> &in_pos, int m, float lambda, \
         float lb, float rb, float step);
+
+
+    /////////////////////////////////////////////////////////////////////////////////////// 点列参数化方法：
 
     // 点列均匀(Uniform)参数化——参数值均匀分配给控制点
     static std::vector<float> ParameterizationUniform(\
