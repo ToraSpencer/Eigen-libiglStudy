@@ -61,7 +61,7 @@ void revTraverseSTL(T& con, F f)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 未分类自定义类型：
 	
-// 自定义计时器
+// 基于std::chrono的自定义计时器
 using namespace std::chrono;
 class tiktok
 { 
@@ -82,6 +82,7 @@ public:
 		return tt_instance;
 	}
 
+	// 开始计时
 	void start()
 	{
 		this->startTik = steady_clock::now();
@@ -89,6 +90,7 @@ public:
 		this->records.clear();
 	}
 
+	// 结束计时，控制台上打印时间间隔，单位为秒
 	void endCout(const char* str)
 	{
 		this->endTik = steady_clock::now();
@@ -97,6 +99,7 @@ public:
 			microseconds::period::num / microseconds::period::den << std::endl;
 	}
 
+	// 结束计时，返回std::chrono::microseconds类型的时间间隔；
 	microseconds endGetCount()
 	{
 		this->endTik = steady_clock::now();
@@ -104,6 +107,7 @@ public:
 		return duration;
 	}
 
+	// 结束计时，时间间隔写入到fileName的文本文件中，单位为秒；
 	bool endWrite(const char* fileName, const char* str)
 	{
 		this->endTik = steady_clock::now();
@@ -117,6 +121,7 @@ public:
 		return true;
 	}
 
+	// 按下秒表，记录此刻的时刻，保存在this->records向量中；
 	void takeArecord()
 	{
 		this->records.push_back(steady_clock::now());

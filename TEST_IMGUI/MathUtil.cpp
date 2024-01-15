@@ -360,12 +360,20 @@ std::vector<float> MathUtil::ParameterizationUniform(\
 
 // 等弦长点列参数化：
 /*
+    std::vector<float> ParameterizationChoral(\        返回向量为参数t的采样点列
+        const std::vector<float>& pos_x,
+        const std::vector<float>& pos_y
+        )
 
+    输入曲线点云，输出参数t的参数化点列；
+    t取值在[0, 1]之间；
+    参数点列点数和输入曲线点云的点数相同；
+    
 */
 std::vector<float> MathUtil::ParameterizationChoral(\
     const std::vector<float>& pos_x, const std::vector<float>& pos_y) 
 {
-    const size_t n = pos_x.size();
+    const size_t n = pos_x.size();              // 采样点数
     if (n == 1) 
         return { 0.0f };
     
@@ -374,8 +382,9 @@ std::vector<float> MathUtil::ParameterizationChoral(\
     std::vector<float> dist(n - 1);
     for (size_t i = 1; i < n; i++) 
     {
-        dist[i - 1] = (Eigen::Vector2f(pos_x[i - 1], pos_y[i - 1]) - Eigen::Vector2f(pos_x[i], pos_y[i])).norm();
-        sum += dist[i - 1];
+        dist[i - 1] = (Eigen::Vector2f(pos_x[i - 1], pos_y[i - 1]) \
+            - Eigen::Vector2f(pos_x[i], pos_y[i])).norm();                      // 相邻采样点的欧氏距离；
+        sum += dist[i - 1];                                 
     }
     result[0] = 0.0f;
     for (size_t i = 1; i < n - 1; i++) 

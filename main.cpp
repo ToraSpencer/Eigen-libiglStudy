@@ -136,8 +136,6 @@ namespace MY_WIN_API
 		return 0;
 #endif
 	}
-
-
 }
 using namespace MY_WIN_API;
 
