@@ -133,8 +133,9 @@ std::vector<float> MathUtil::InterpolationPolygon(\
     const std::vector<float>& pos_t, const std::vector<float>& pos_u,
     float lb, float rb, float step) 
 {
-    const int n = pos_t.size();                    //  样本容量；
-    std::vector<float> result;                      
+    const int n = pos_t.size();                     //  样本容量；
+    std::vector<float> result;      
+#if 1
     for (float t = lb; t <= rb; t += step) 
     {
         float u = 0;
@@ -148,6 +149,27 @@ std::vector<float> MathUtil::InterpolationPolygon(\
         }
         result.push_back(u);
     }
+#else
+    float u = 0;
+    float t = 0;
+    float temp = 0;
+    int versCount = std::floor((rb - lb) / step);
+    for (int i = 0; i <= versCount; ++i)
+    {
+        t = lb + step * i;
+        u = 0;
+        for (int k = 0; k < n; ++k)
+        {
+            temp = pos_u[k];
+            for (int m = 0; m < n; ++m)
+                if (m != k)
+                    temp = temp * (t - pos_t[m]) / (pos_t[k] - pos_t[m]);
+            u += temp;
+        }
+        result.push_back(u);  
+    }
+#endif
+
     return result;
 }
 
