@@ -30,70 +30,6 @@
 unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize);
 
 
-// 3D顶点或三角片矩阵转换为TRIPLET向量的形式；
-template <typename Derived>
-std::vector<TRIPLET<typename Derived::Scalar>> mat2triplets(const Eigen::PlainObjectBase<Derived>& mat)
-{
-	using Scalar = typename Derived::Scalar;
-	using ts = TRIPLET<Scalar>;
-
-	std::vector<ts> vec;
-	if (0 == mat.rows() || 3 != mat.cols())
-		return vec;
-
-	vec.resize(mat.rows());
-	for (unsigned i = 0; i < mat.rows(); ++i)
-	{
-		vec[i].x = mat(i, 0);
-		vec[i].y = mat(i, 1);
-		vec[i].z = mat(i, 2);
-	}
-
-	return vec;
-}
-
-
-template <typename Derived>
-TRIPLET<typename Derived::Scalar> vec2triplet(const Eigen::PlainObjectBase<Derived>& vec)
-{
-	assert((3 == vec.rows() * vec.cols()) && "assert!!! input vec should be in 3D space.");
-	using Scalar = typename Derived::Scalar;
-	using ts = TRIPLET<Scalar>;
-	return ts{ vec(0), vec(1), vec(2) };
-}
-
-
-template <typename Derived>
-std::vector<DOUBLET<typename Derived::Scalar>> mat2doublets(const Eigen::PlainObjectBase<Derived>& mat)
-{
-	using Scalar = typename Derived::Scalar;
-	using ds = DOUBLET<Scalar>;
-
-	std::vector<ds> vec;
-	if (0 == mat.rows() || 2 != mat.cols())
-		return vec;
-
-	vec.resize(mat.rows());
-	for (unsigned i = 0; i < mat.rows(); ++i)
-	{
-		vec[i].x = mat(i, 0);
-		vec[i].y = mat(i, 1);
-	}
-
-	return vec;
-}
-
-
-template <typename Derived>
-DOUBLET<typename Derived::Scalar> vec2doublet(const Eigen::PlainObjectBase<Derived>& vec)
-{
-	assert((2 == vec.rows() * vec.cols()) && "assert!!! input vec should be in 2D space.");
-	using Scalar = typename Derived::Scalar;
-	using ds = DOUBLET<Scalar>;
-	return DOUBLET{ vec(0), vec(1) };
-}
-
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////// disp interface
 template <typename Derived>
@@ -324,6 +260,49 @@ bool stlReadMeshMat(Eigen::PlainObjectBase<DerivedV>& meshVers, Eigen::MatrixXi&
 	}
 
 	return true;
+}
+
+
+template <typename DerivedV, typename DerivedF>
+bool stlWriteMeshMat(const char* fileName,
+	const Eigen::MatrixBase<DerivedV>& vers,
+	const Eigen::MatrixBase<DerivedF>& tris)
+{
+	using namespace std; 
+	FILE* stl_file = fopen(fileName, "wb");
+
+	if (stl_file == NULL)
+	{
+		cerr << "IOError: " << fileName << " could not be opened for writing." << endl;
+		return false;
+	}
+
+	// Write unused 80-char header
+	for (char h = 0; h < 80; h++) 
+		fwrite(&h, sizeof(char), 1, stl_file); 
+
+	// Write number of triangles
+	unsigned int num_tri = tris.rows();
+	fwrite(&num_tri, sizeof(unsigned int), 1, stl_file);
+	assert(tris.cols() == 3);
+
+	// Write each triangle
+	for (int f = 0; f < tris.rows(); f++)
+	{
+		for (int c = 0; c < 3; c++)
+		{
+			vector<float> v(3);
+			v[0] = vers(tris(f, c), 0);
+			v[1] = vers(tris(f, c), 1);
+			v[2] = vers(tris(f, c), 2);
+			fwrite(&v[0], sizeof(float), 3, stl_file);
+		}
+		unsigned short att_count = 0;
+		fwrite(&att_count, sizeof(unsigned short), 1, stl_file);
+	}
+
+	fclose(stl_file);
+	return true; 
 }
 
 

@@ -35,11 +35,12 @@
 // 目录：
 /*
 	1. 表象转换
-	2. 图形属性
-	3. 点云编辑
-	4. 三角网格编辑
-	5. 区域生长算法
-	6. 网格缺陷检查和修复
+	2. 生成基础图元
+	3. 图形属性
+	4. 点云编辑
+	5. 三角网格编辑
+	6. 区域生长算法
+	7. 网格缺陷检查和修复
 
 */
  
@@ -210,7 +211,8 @@ void trisCotValues(Eigen::PlainObjectBase<DerivedC>& cotValues, \
 
 
 template<typename T, typename DerivedV, typename DerivedI>
-bool trianglesBarycenter(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& barys, \
+bool trianglesBarycenter(\
+	Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& barys, \
 	const Eigen::PlainObjectBase<DerivedV>& vers, \
 	const Eigen::PlainObjectBase<DerivedI>& tris);
 

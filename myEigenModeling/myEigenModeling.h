@@ -50,9 +50,39 @@
 #include "triangle/triangle.h"
 #pragma comment(lib, "triangle.lib")
 #endif
+
+// 目录：
+/*
+	1. modeling接口
+	2. SDF相关
+
+*/
+
   
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////// modeling接口：
+
+// 生成方向指示线点集：
+template <typename DerivedVO, typename DerivedVI1, typename DerivedVI2>
+void genDirsIndiLine(Eigen::PlainObjectBase<DerivedVO>& indiLines, \
+	const Eigen::MatrixBase<DerivedVI1>& srcs, const Eigen::MatrixBase<DerivedVI2>& dirs, \
+	const float length = 3)
+{
+	using ScalarO = typename DerivedVO::Scalar;
+	using MatrixXO = Eigen::Matrix<ScalarO, Eigen::Dynamic, Eigen::Dynamic>;
+	const int srcsCount = srcs.rows();	
+	const float stepLen = length / 10;
+	MatrixXO line;
+	indiLines.resize(0, 0);	
+	for (int i = 0; i < srcsCount; ++i)
+	{
+		line.resize(0, 0);
+		interpolateToLine(line, srcs.row(i), srcs.row(i).cast<ScalarO>() \
+			+ length * dirs.row(i).cast<ScalarO>(), stepLen, true);
+		matInsertRows(indiLines, line);
+	}
+}
+
 
 // 生成中心在原点，边长为1，三角片数为12的正方体网格；
 template	<typename T>

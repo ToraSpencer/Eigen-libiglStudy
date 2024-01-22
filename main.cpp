@@ -230,7 +230,7 @@ namespace MY_DEBUG
 using namespace MY_DEBUG;
 
 
-////////////////////////////////////////////////////////////////////////////// TEST: 不同的几何表象：
+////////////////////////////////////////////////////////////////////////////// TEST: 不同的几何表象 
 namespace TEST_REPRESENTATIONS
 {
 	void test1() 
@@ -1309,12 +1309,67 @@ double calcSolidAngle(const Eigen::MatrixBase<DerivedVp>& pos,\
 
 
 
+template <typename DerivedV, typename DerivedF>
+bool writeSTL1(const char* fileName,
+	const Eigen::MatrixBase<DerivedV>& vers,
+	const Eigen::MatrixBase<DerivedF>& tris)
+{ 
+	using Index = typename DerivedF::Scalar;
+	std::ofstream fout(fileName, std::ios::binary); 
+	char title[80] = { 0 };
+	std::int32_t triCount = static_cast<std::int32_t>(tris.rows());
+	Eigen::MatrixXf triNorms, versF;
+	fout.write(title, 80);
+	fout.write((char*)&triCount, sizeof(std::int32_t));
+	getTriNorms(triNorms, vers, tris);
+	versF.resize(vers.rows(), 3); 
+	for (int i = 0; i < vers.rows(); ++i)
+	{
+		versF(i, 0) = static_cast<float>(vers(i, 0));
+		versF(i, 1) = static_cast<float>(vers(i, 1));
+		versF(i, 2) = static_cast<float>(vers(i, 2));
+	}
+	for (int i = 0; i < triCount; i++)
+	{  
+		Index vaIdx = tris(i, 0);
+		Index vbIdx = tris(i, 1);
+		Index vcIdx = tris(i, 2);
+		fout.write((char*)&triNorms(i, 0), 4);
+		fout.write((char*)&(triNorms(i, 0)), 4);
+		fout.write((char*)&(triNorms(i, 0)), 4);
+		fout.write((char*)&(versF(vaIdx, 0)), 4);
+		fout.write((char*)&(versF(vaIdx, 1)), 4);
+		fout.write((char*)&(versF(vaIdx, 2)), 4);
+		fout.write((char*)&(versF(vbIdx, 0)), 4);
+		fout.write((char*)&(versF(vbIdx, 1)), 4);
+		fout.write((char*)&(versF(vbIdx, 2)), 4);
+		fout.write((char*)&(versF(vcIdx, 0)), 4);
+		fout.write((char*)&(versF(vcIdx, 1)), 4);
+		fout.write((char*)&(versF(vcIdx, 2)), 4);
+
+		char triAttr[2] = { 0 };
+		fout.write(triAttr, 2);
+	}
+
+	return true; 
+}
+
+
 int main(int argc, char** argv)
 {  
-	TEST_IMGUI::test1();
+	// TEST_IMGUI::test1();
 	
 	//TEST_PMP::test2(); 
 
+	// TEST_MYEIGEN_MODELING::test4();
+
+	// TEST_MYEIGEN_IO::test0();
+
+	Eigen::MatrixXd vers;
+	Eigen::MatrixXi tris;
+	objReadMeshMat(vers, tris, "E:/材料/tooth.obj");
+	writeSTL1("E:/tooth.stl", vers, tris);
+	
 	debugDisp("main() finished."); 
 }
 

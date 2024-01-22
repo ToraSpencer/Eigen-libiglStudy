@@ -237,8 +237,38 @@ namespace TEST_MYEIGEN_MODELING
 		debugDisp("finished.");
 	}
 
-#endif
 
+	// 测试生成方向指示线：
+	void test4() 
+	{
+		Eigen::MatrixXf vers;
+		Eigen::MatrixXi tris;
+		objReadMeshMat(vers, tris, "E:/材料/tooth.obj");
+		debugWriteMesh("meshInput", vers, tris);
+
+		// 求每个三角片的重心和法向：
+		Eigen::MatrixXf vas, vbs, vcs, barys, norms, indiLines;
+		subFromIdxVec(vas, vers, tris.col(0));
+		subFromIdxVec(vbs, vers, tris.col(1));
+		subFromIdxVec(vcs, vers, tris.col(2));
+		barys = (vas + vbs + vcs) / 3.0;
+		norms.resize(tris.rows(), 3);
+		for (int i = 0; i < tris.rows(); ++i)
+		{
+			Eigen::RowVector3f arrow1, arrow2;
+			arrow1 = vbs.row(i) - vcs.row(i);
+			arrow2 = vbs.row(i) - vas.row(i);
+			norms.row(i) = arrow1.cross(arrow2);
+			norms.row(i).normalize();
+		}
+		genDirsIndiLine(indiLines, barys, norms, 1);
+
+		debugWriteVers("indiLines", indiLines);
+
+		debugDisp("test4 finished.");
+	}
+
+#endif
 }
 
 
