@@ -261,48 +261,81 @@ bool stlReadMeshMat(Eigen::PlainObjectBase<DerivedV>& meshVers, Eigen::MatrixXi&
 
 	return true;
 }
+ 
 
-
+// 网格写入到二进制STL文件中：
 template <typename DerivedV, typename DerivedF>
 bool stlWriteMeshMat(const char* fileName,
 	const Eigen::MatrixBase<DerivedV>& vers,
-	const Eigen::MatrixBase<DerivedF>& tris)
+	const Eigen::MatrixBase<DerivedF>& tris,
+	const bool blCalcNorms = false)
 {
-	using namespace std; 
-	FILE* stl_file = fopen(fileName, "wb");
-
-	if (stl_file == NULL)
+	// lambda——计算网格所有三角片的法向：
+	auto getTriNorms = [&vers, &tris](Eigen::MatrixXf& triNorms)->bool
 	{
-		cerr << "IOError: " << fileName << " could not be opened for writing." << endl;
-		return false;
-	}
-
-	// Write unused 80-char header
-	for (char h = 0; h < 80; h++) 
-		fwrite(&h, sizeof(char), 1, stl_file); 
-
-	// Write number of triangles
-	unsigned int num_tri = tris.rows();
-	fwrite(&num_tri, sizeof(unsigned int), 1, stl_file);
-	assert(tris.cols() == 3);
-
-	// Write each triangle
-	for (int f = 0; f < tris.rows(); f++)
-	{
-		for (int c = 0; c < 3; c++)
+		triNorms.resize(0, 0);
+		triNorms.resize(tris.rows(), 3);
+		const int Frows = tris.rows();
+		for (int i = 0; i < Frows; i++)
 		{
-			vector<float> v(3);
-			v[0] = vers(tris(f, c), 0);
-			v[1] = vers(tris(f, c), 1);
-			v[2] = vers(tris(f, c), 2);
-			fwrite(&v[0], sizeof(float), 3, stl_file);
+			const Eigen::Matrix<float, 1, 3> v1 = (vers.row(tris(i, 1)) - vers.row(tris(i, 0))).array().cast<float>();
+			const Eigen::Matrix<float, 1, 3> v2 = (vers.row(tris(i, 2)) - vers.row(tris(i, 0))).array().cast<float>();
+			triNorms.row(i) = v1.cross(v2);
+			float r = triNorms.row(i).norm();
+			if (r == 0)
+			{
+				std::cout << "Error!!! degenerate triangle detected, unable to calculate its normal dir." << std::endl;
+				return false;
+			}
+			else
+				triNorms.row(i) /= r;
 		}
-		unsigned short att_count = 0;
-		fwrite(&att_count, sizeof(unsigned short), 1, stl_file);
+		return true;
+	};
+
+	using Index = typename DerivedF::Scalar;
+	std::ofstream fout(fileName, std::ios::binary);
+	char title[80] = { 0 };
+	std::int32_t trisCount = static_cast<std::int32_t>(tris.rows());
+	Eigen::MatrixXf triNorms, versF;
+	versF.resize(vers.rows(), 3);
+	for (int i = 0; i < vers.rows(); ++i)
+	{
+		versF(i, 0) = static_cast<float>(vers(i, 0));
+		versF(i, 1) = static_cast<float>(vers(i, 1));
+		versF(i, 2) = static_cast<float>(vers(i, 2));
+	}
+	if (blCalcNorms)
+		getTriNorms(triNorms);
+	else
+		triNorms = Eigen::MatrixXf::Zero(trisCount, 3);		
+
+	// 写数据到二进制stl文件：
+	fout.write(title, 80);
+	fout.write((char*)&trisCount, sizeof(std::int32_t));
+	for (int i = 0; i < trisCount; i++)
+	{
+		Index vaIdx = tris(i, 0);
+		Index vbIdx = tris(i, 1);
+		Index vcIdx = tris(i, 2);
+		fout.write((char*)&(triNorms(i, 0)), 4);
+		fout.write((char*)&(triNorms(i, 1)), 4);
+		fout.write((char*)&(triNorms(i, 2)), 4);
+		fout.write((char*)&(versF(vaIdx, 0)), 4);
+		fout.write((char*)&(versF(vaIdx, 1)), 4);
+		fout.write((char*)&(versF(vaIdx, 2)), 4);
+		fout.write((char*)&(versF(vbIdx, 0)), 4);
+		fout.write((char*)&(versF(vbIdx, 1)), 4);
+		fout.write((char*)&(versF(vbIdx, 2)), 4);
+		fout.write((char*)&(versF(vcIdx, 0)), 4);
+		fout.write((char*)&(versF(vcIdx, 1)), 4);
+		fout.write((char*)&(versF(vcIdx, 2)), 4);
+
+		char triAttr[2] = { 0 };
+		fout.write(triAttr, 2);
 	}
 
-	fclose(stl_file);
-	return true; 
+	return true;
 }
 
 
@@ -326,7 +359,8 @@ void objWriteVerticesMat(const char* fileName, \
 // 网格写入到OBJ文件
 template <typename DerivedV>
 void objWriteMeshMat(const char* fileName, \
-		const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+		const Eigen::MatrixBase<DerivedV>& vers,\
+		const Eigen::MatrixXi& tris)
 {
 	if (vers.cols() != 3 || tris.cols() != 3)
 		return;

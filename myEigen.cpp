@@ -411,14 +411,15 @@ namespace TEST_MYEIGEN_IO
 		objReadMeshMat(versF1, tris1, "E:/²ÄÁÏ/tooth.obj");
 		debugWriteMesh("meshInput", versF1, tris1);
 		debugWriteMesh("meshInput2", 2.0f * versF1, tris1); 
-		stlWriteMeshMat("E:/tooth.stl", versF1, tris1);
+		stlWriteMeshMat("E:/tooth.stl", versF1, tris1); 
 
 		stlReadMeshMat(versD2, tris2, "E:/²ÄÁÏ/jawMeshSimplified.stl");
 		debugWriteMesh("meshInput22", versD2, tris2);
 
-		debugDisp("finished.");
+		debugDisp("test0() finished.");
 	}
 }
+
 
 
 namespace TEST_MYEIGEN_BASIC_MATH

@@ -128,9 +128,14 @@ namespace TRIANGLE_MESH
 			return *this;
 		}
 
+		double sqrLengh() const
+		{
+			return static_cast<double>(x * x + y * y + z * z);
+		}
+
 		double length() const 
 		{
-			return static_cast<double>(std::sqrt(x*x + y*y + z*z));
+			return std::sqrt(this->sqrLengh());
 		}
 
 		template <typename Ti>
@@ -288,4 +293,6 @@ bool readSTL(triMeshD& mesh, const char* fileName, const bool blIsAscii = false)
 bool writeOBJ(const char* fileName, const std::vector<verF>& vers);
 bool writeOBJ(const char* fileName, const std::vector<verD>& vers);
 bool writeOBJ(const char* fileName, const triMeshF& mesh);
-bool writeOBJ(const char* fileName, const triMeshD& mesh);
+bool writeOBJ(const char* fileName, const triMeshD& mesh); 
+bool writeSTL(const char* fileName, const triMeshF& mesh, const bool blCalcNorms = false);
+bool writeSTL(const char* fileName, const triMeshD& mesh, const bool blCalcNorms = false);

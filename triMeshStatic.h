@@ -44,12 +44,12 @@ namespace TRIANGLE_MESH
 
 	////////////////////////////////////////////////////////////////////////////////////////////// triMeshStatic静态三角网格类：
 	template <typename TV, typename TI>
-	struct triMeshStatic 
+	struct triMeshStatic							// 构造时即分配内存，此后其数据所占用的内存空间只会减少不会增加；
 	{
 		triMesh<TV, TI>& tMesh;
-		size_t versCountValid;
+		size_t versCountValid;					// 当前实际的顶点数；
 		size_t trisCountValid;
-		size_t versSize;
+		size_t versSize;								// 顶点数据分配的内存空间可存储的顶点数；
 		size_t trisSize;
 
 		triMeshStatic() = delete;

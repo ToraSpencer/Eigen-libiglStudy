@@ -393,6 +393,74 @@ namespace TRIANGLE_MESH
 
 		return true;
 	}
+
+
+	// 网格写入到二进制STL文件中：
+	template <typename TV, typename TI>
+	bool stlWriteMesh(const char* fileName,\
+		const triMesh<TV, TI>& mesh, const bool blCalcNorms = false)
+	{
+		// lambda——计算网格所有三角片的法向：
+		auto getTriNorms = [&mesh](std::vector<verF>& triNorms)->bool
+		{
+			triNorms.clear();
+			triNorms.resize(mesh.triangles.size()); 
+			for (int i = 0; i < mesh.triangles.size(); i++)
+			{
+				verF v1 = mesh.vertices[mesh.triangles[i].y] - mesh.vertices[mesh.triangles[i].x];
+				verF v2 = mesh.vertices[mesh.triangles[i].z] - mesh.vertices[mesh.triangles[i].x];
+				triNorms[i] = v1.cross(v2);
+				float r = triNorms[i].length();
+				if (r == 0)
+				{
+					std::cout << "Error!!! degenerate triangle detected, unable to calculate its normal dir." << std::endl;
+					return false;
+				}
+				else
+					triNorms[i] /= r;
+			}
+			return true;
+		};
+ 
+		std::ofstream fout(fileName, std::ios::binary);
+		char title[80] = { 0 };
+		std::int32_t trisCount = static_cast<std::int32_t>(mesh.triangles.size());
+		std::vector<verF> triNorms, versF;
+		versF.resize(mesh.vertices.size());
+		for (int i = 0; i < mesh.vertices.size(); ++i)
+			versF[i] = mesh.vertices[i].cast<float>();
+		if (blCalcNorms)
+			getTriNorms(triNorms);			
+		else
+			triNorms.resize(trisCount, verF{ 0, 0, 0 });
+
+		// 写数据到二进制stl文件：
+		fout.write(title, 80);
+		fout.write((char*)&trisCount, sizeof(std::int32_t));
+		for (int i = 0; i < trisCount; i++)
+		{
+			TI vaIdx = mesh.triangles[i].x;
+			TI vbIdx = mesh.triangles[i].y;
+			TI vcIdx = mesh.triangles[i].z;
+			fout.write((char*)&(triNorms[i].x), 4);
+			fout.write((char*)&(triNorms[i].y), 4);
+			fout.write((char*)&(triNorms[i].z), 4);
+			fout.write((char*)&(versF[vaIdx].x), 4);
+			fout.write((char*)&(versF[vaIdx].y), 4);
+			fout.write((char*)&(versF[vaIdx].z), 4);
+			fout.write((char*)&(versF[vbIdx].x), 4);
+			fout.write((char*)&(versF[vbIdx].y), 4);
+			fout.write((char*)&(versF[vbIdx].z), 4);
+			fout.write((char*)&(versF[vcIdx].x), 4);
+			fout.write((char*)&(versF[vcIdx].y), 4);
+			fout.write((char*)&(versF[vcIdx].z), 4);
+
+			char triAttr[2] = { 0 };
+			fout.write(triAttr, 2);
+		}
+
+		return true;
+	}
 }
 using namespace TRIANGLE_MESH;
 
@@ -457,3 +525,14 @@ bool readSTL(triMeshD& mesh, const char* fileName, const bool blIsAscii)
 	return stlReadMesh(mesh, fileName, blIsAscii);
 }
 
+
+bool writeSTL(const char* fileName, const triMeshF& mesh, const bool blCalcNorms)
+{
+	return stlWriteMesh(fileName, mesh, blCalcNorms);
+}
+
+
+bool writeSTL(const char* fileName, const triMeshD& mesh, const bool blCalcNorms)
+{
+	return stlWriteMesh(fileName, mesh, blCalcNorms);
+}
