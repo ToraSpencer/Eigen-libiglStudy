@@ -322,9 +322,9 @@ int main(int argc, char** argv)
 
 	// IGL_MODELLING::test1();
 
-	// IGL_BASIC::test1();
+	IGL_GRAPH::test1();
 
-	testCmd_showMESHfile(argc, argv);
+	// testCmd_showMESHfile(argc, argv);
 
 	std::cout << "main() finished." << std::endl;
 }
