@@ -230,6 +230,8 @@ namespace MY_DEBUG
 using namespace MY_DEBUG;
 
 
+
+
 ////////////////////////////////////////////////////////////////////////////// TEST: 不同的几何表象 
 namespace TEST_REPRESENTATIONS
 {
@@ -297,6 +299,8 @@ namespace TEST_REPRESENTATIONS
 		debugDisp("test2() finished.");
 	}
 }
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////// TEST: 网格缺陷的检测和修复：
@@ -1170,6 +1174,7 @@ namespace MESH_REPAIR
 
 
 
+
 ////////////////////////////////////////////////////////////////////////////// TEST: 暂时无法分类的测试：
 namespace TEMP_TEST
 {
@@ -1204,123 +1209,137 @@ namespace TEMP_TEST
 }
 
 
+
 ////////////////////////////////////////////////////////////////////////////// 生成控制台程序工具：
-
-// 批量读取本地网格执行laplace光顺：
-int testCmd_laplaceFaring(int argc, char** argv)
+namespace TEST_CMD 
 {
-	tiktok& tt = tiktok::getInstance();
-	float deciRatio = 0.5;							// 精简率
-
-	// 生成路径：
-	int   nPos;
-	CString   cPath;
-	GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
-	nPos = cPath.ReverseFind('\\');
-	cPath = cPath.Left(nPos);
-	std::string path{ CT2CA{cPath} };
-	std::string pathOBJ = path + "\\inputOBJ";
-	std::string pathOutput = path + "\\outputData";
-	CString fileConfig = cPath + "\\config.ini";
-
-	// 1. 读取部件网格 
-	tt.start();
-	std::cout << "读取输入网格..." << std::endl;
-	std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;
-	std::vector<Eigen::MatrixXd> meshesVers, outVers;
-	std::vector<Eigen::MatrixXi> meshesTris, outTris;
-
-	getFileNames(pathOBJ.c_str(), tmpStrVec, false);
-	const unsigned meshesCount = tmpStrVec.size();
-	OBJfileNames.reserve(meshesCount);
-	for (const auto& str : tmpStrVec)
+	// 批量读取本地网格执行laplace光顺：
+	int testCmd_laplaceFaring(int argc, char** argv)
 	{
-		std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
-		if (".obj" == tailStr)
+		tiktok& tt = tiktok::getInstance();
+		float deciRatio = 0.5;							// 精简率
+
+		// 生成路径：
+		int   nPos;
+		CString   cPath;
+		GetModuleFileName(NULL, cPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);		// 获取当前进程加载的模块的路径。
+		nPos = cPath.ReverseFind('\\');
+		cPath = cPath.Left(nPos);
+		std::string path{ CT2CA{cPath} };
+		std::string pathOBJ = path + "\\inputOBJ";
+		std::string pathOutput = path + "\\outputData";
+		CString fileConfig = cPath + "\\config.ini";
+
+		// 1. 读取部件网格 
+		tt.start();
+		std::cout << "读取输入网格..." << std::endl;
+		std::vector<std::string> fileNames, tmpStrVec, OBJfileNames;
+		std::vector<Eigen::MatrixXd> meshesVers, outVers;
+		std::vector<Eigen::MatrixXi> meshesTris, outTris;
+
+		getFileNames(pathOBJ.c_str(), tmpStrVec, false);
+		const unsigned meshesCount = tmpStrVec.size();
+		OBJfileNames.reserve(meshesCount);
+		for (const auto& str : tmpStrVec)
 		{
-			fileNames.push_back(str);
-			unsigned index = str.find_last_of("/");
-			std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
-			OBJfileNames.push_back(OBJfileName);
+			std::string tailStr = str.substr(str.size() - 4, 4);				//	".obj"
+			if (".obj" == tailStr)
+			{
+				fileNames.push_back(str);
+				unsigned index = str.find_last_of("/");
+				std::string OBJfileName = str.substr(index, str.size() - index - 4);			// "/" + obj文件名，不含路径和.obj后缀；
+				OBJfileNames.push_back(OBJfileName);
+			}
 		}
+		meshesVers.resize(meshesCount);
+		meshesTris.resize(meshesCount);
+		outVers.resize(meshesCount);
+		outTris.resize(meshesCount);
+		for (unsigned i = 0; i < meshesCount; ++i)
+			objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str());
+		tt.endCout("读取输入网格耗时：");
+
+		// 2. 网格逐个执行laplace光顺：
+		tt.start();
+		debugDisp("执行laplace光顺：");
+		float deltaLB = INIGetFloat(TEXT("deltaLB"), fileConfig);
+		unsigned loopCount = INIGetInt(TEXT("laplaceFaringLoopCount"), fileConfig);
+		for (int i = 0; i < meshesCount; ++i)
+			laplaceFaring(outVers[i], meshesVers[i], meshesTris[i], deltaLB, loopCount);
+		outTris = std::move(meshesTris);
+		tt.endCout("laplace光顺：");
+
+		// 3. 输出：
+		for (unsigned i = 0; i < meshesCount; ++i)
+		{
+			std::string str = pathOutput + OBJfileNames[i] + std::string{ ".obj" };
+			objWriteMeshMat(str.c_str(), outVers[i], outTris[i]);
+		}
+
+		debugDisp("finished.");
+
+		return 0;
 	}
-	meshesVers.resize(meshesCount);
-	meshesTris.resize(meshesCount);
-	outVers.resize(meshesCount);
-	outTris.resize(meshesCount);
-	for (unsigned i = 0; i < meshesCount; ++i)
-		objReadMeshMat(meshesVers[i], meshesTris[i], fileNames[i].c_str());
-	tt.endCout("读取输入网格耗时：");
 
-	// 2. 网格逐个执行laplace光顺：
-	tt.start();
-	debugDisp("执行laplace光顺：");
-	float deltaLB = INIGetFloat(TEXT("deltaLB"), fileConfig);
-	unsigned loopCount = INIGetInt(TEXT("laplaceFaringLoopCount"), fileConfig);
-	for (int i = 0; i < meshesCount; ++i)
-		laplaceFaring(outVers[i], meshesVers[i], meshesTris[i], deltaLB, loopCount);
-	outTris = std::move(meshesTris);
-	tt.endCout("laplace光顺：");
 
-	// 3. 输出：
-	for (unsigned i = 0; i < meshesCount; ++i)
+	//
+	template<typename DerivedVp, typename DerivedV>
+	double calcSolidAngle(const Eigen::MatrixBase<DerivedVp>& pos, \
+		const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
 	{
-		std::string str = pathOutput + OBJfileNames[i] + std::string{ ".obj" };
-		objWriteMeshMat(str.c_str(), outVers[i], outTris[i]);
+		const int versCount = vers.rows();
+		const int trisCount = tris.rows();
+
+		// 1. 计算每个三角片的重心： 
+		Eigen::MatrixXd barys(trisCount, 3), normals(trisCount, 3);
+		Eigen::Matrix3d triVers;
+		Eigen::RowVector3d va, vb, vc, normDir;
+		Eigen::VectorXd areas(trisCount);
+		for (int i = 0; i < trisCount; ++i)
+		{
+			va = vers.row(tris(i, 0)).array().cast<double>();
+			vb = vers.row(tris(i, 1)).array().cast<double>();
+			vc = vers.row(tris(i, 2)).array().cast<double>();
+			triVers.row(0) = va;
+			triVers.row(1) = vb;
+			triVers.row(2) = vc;
+			barys.row(i) = triVers.colwise().mean();
+			normDir = (vc - vb).cross(va - vb);
+			double crossNorm = normDir.norm();
+			areas(i) = 0.5 * crossNorm;
+			normals.row(i) = normDir.normalized();
+		}
+
+		// 2. 
+		Eigen::RowVector3d posD = pos.array().cast<double>();
+		Eigen::MatrixXd arrows = barys.rowwise() - posD;
+		Eigen::VectorXd weights(trisCount), arrowLenDb(trisCount);
+		Eigen::VectorXd resultVec(trisCount);
+		for (int i = 0; i < trisCount; ++i)
+		{
+			Eigen::RowVector3d arr = arrows.row(i);
+			arrowLenDb(i) = arr.dot(arr);
+			arr.normalize();
+			Eigen::RowVector3d norm = normals.row(i);
+			weights(i) = arr.dot(norm);
+			// resultVec(i) = weights(i) * areas(i) / arrowLenDb(i);
+		}
+
+		resultVec = weights.array() * areas.array() / arrowLenDb.array();
+
+		return resultVec.sum();
 	}
 
-	debugDisp("finished.");
 
-	return 0;
 }
-  
 
-//
-template<typename DerivedVp, typename DerivedV>
-double calcSolidAngle(const Eigen::MatrixBase<DerivedVp>& pos,\
-	const Eigen::MatrixBase<DerivedV>& vers, const Eigen::MatrixXi& tris)
+
+// 生成满秩的随机矩阵
+void test1() 
 {
-	const int versCount = vers.rows();
-	const int trisCount = tris.rows();
 
-	// 1. 计算每个三角片的重心： 
-	Eigen::MatrixXd barys(trisCount, 3), normals(trisCount, 3); 
-	Eigen::Matrix3d triVers;
-	Eigen::RowVector3d va, vb, vc, normDir;
-	Eigen::VectorXd areas(trisCount);
-	for (int i = 0; i < trisCount; ++i)
-	{
-		va = vers.row(tris(i, 0)).array().cast<double>();
-		vb = vers.row(tris(i, 1)).array().cast<double>();
-		vc = vers.row(tris(i, 2)).array().cast<double>();
-		triVers.row(0) = va;
-		triVers.row(1) = vb;
-		triVers.row(2) = vc;
-		barys.row(i) = triVers.colwise().mean();
-		normDir = (vc - vb).cross(va - vb);
-		double crossNorm = normDir.norm();
-		areas(i) = 0.5 * crossNorm;  
-		normals.row(i) = normDir.normalized();
-	}
 
-	// 2. 
-	Eigen::RowVector3d posD = pos.array().cast<double>();
-	Eigen::MatrixXd arrows = barys.rowwise() - posD;
-	Eigen::VectorXd weights(trisCount), arrowLenDb(trisCount);
-	Eigen::VectorXd resultVec(trisCount);
-	for (int i = 0; i < trisCount; ++i)
-	{
-		Eigen::RowVector3d arr = arrows.row(i);
-		arrowLenDb(i) = arr.dot(arr);
-		arr.normalize(); 
-		Eigen::RowVector3d norm = normals.row(i);
-		weights(i) = arr.dot(norm);
-		// resultVec(i) = weights(i) * areas(i) / arrowLenDb(i);
-	} 
-	
-	resultVec = weights.array() * areas.array()/arrowLenDb.array(); 
 
-	return resultVec.sum();
 }
 
 
@@ -1332,10 +1351,14 @@ int main(int argc, char** argv)
 
 	// TEST_MYEIGEN_MODELING::test4();
 
-	TEST_MYEIGEN_IO::test0();
+	// TEST_MYEIGEN_IO::test0();
 
 	// TEST_REPRESENTATIONS::test2();
 	
+	TEST_SPARSE_MAT::test4();
+	
+	// TEST_DENSE_MAT::test4();
+
 	debugDisp("main() finished."); 
 }
 

@@ -2,7 +2,7 @@
 
 #include "myEigen.h"
 #include <Eigen/Dense>
-#include <Eigen/Sparse>
+#include <Eigen/Sparse> 
 #include <iostream>
 
 namespace TEST_SPARSE_MAT

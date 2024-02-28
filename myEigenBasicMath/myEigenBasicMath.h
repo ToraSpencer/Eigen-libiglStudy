@@ -30,6 +30,7 @@ const double pi = 3.14159265359;
 	auxiliary interfaces
 	basic math tools
 	矩阵的增删查改和运算
+	线性方程组
 	拟合、插值
 	欧氏几何
 	滤波
@@ -238,6 +239,7 @@ void PARALLEL_FOR(unsigned int  beg, unsigned int  end, const Func& func, \
 		}
 	}
 }
+
 
 
 
@@ -646,6 +648,8 @@ bool PCA3d(std::vector<Eigen::RowVector3d>& resultVecs,\
 }
 
 
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 矩阵的增删查改和运算
 
 // 列向量尾后插入元素
@@ -844,9 +848,8 @@ Eigen::MatrixXd kron(const Eigen::MatrixBase<Derived1>& m11, \
 
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////// 线性方程组：
 
-// 解线性方程组
+///////////////////////////////////////////////////////////////////////////////////////////////////////// 线性方程组：
 
 // 解恰定的稠密线性方程组Ax == b;
 template<typename DerivedX, typename DerivedA, typename DerivedB>
@@ -859,11 +862,12 @@ bool solveLinearEquation(Eigen::PlainObjectBase<DerivedX>& x, const Eigen::Matri
 
 	// 解线性方程组Ax == b;
 	VectorXx b0 = b.array().cast<ScalarX>();
-	Eigen::JacobiSVD<MatrixXx> svdSolver(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	x = svdSolver.solve(b0);
+	Eigen::JacobiSVD<MatrixXx> solverSVD(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	x = solverSVD.solve(b0);
 
 	return true;
 }
+
 
 // 解一系列恰定的稠密线性方程组AX == B;
 template <typename T>
@@ -874,11 +878,11 @@ bool solveLinearEquations(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, \
 	if (A.rows() != B.rows())
 		return false;
 
-	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> solverSVD(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	X.resize(A.cols(), B.cols());
 	for (int i = 0; i < B.cols(); ++i)
 	{
-		Eigen::Matrix < T, Eigen::Dynamic, 1> x = svdSolver.solve(B.col(i));
+		Eigen::Matrix < T, Eigen::Dynamic, 1> x = solverSVD.solve(B.col(i));
 		X.col(i) = x;
 	}
 
@@ -889,6 +893,7 @@ bool solveLinearEquations(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& X, \
 // 通过SVD求稠密矩阵的条件数：
 template<typename T>
 double calcCondNum(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& m);
+
 
 
 
@@ -918,6 +923,7 @@ bool versFitPlane(std::vector<T>& coeffs, const Eigen::MatrixBase<DerivedV>& ver
 	return true;
 }
 
+
 //
 void polyInterpolation();
 
@@ -930,7 +936,8 @@ void leastSquarePolyFitting();
 
 // 岭回归多项式拟合曲线
 template <typename T>
-void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, \
+void ridgeRegressionPolyFitting(Eigen::VectorXd& theta, \
+	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, \
 	unsigned m = 4);
 
 
@@ -997,6 +1004,7 @@ Eigen::VectorXd fittingStandardEllipse(const Eigen::MatrixBase<DerivedV>& sample
  
 
 
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 欧氏几何
 
 // 输入平面上一点和平面法向，得到平面方程系数；
@@ -1027,6 +1035,7 @@ double disPlane2Vert(const std::vector<T>& coeffs, const Eigen::MatrixBase<Deriv
 }
 
  
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////// 滤波：
 

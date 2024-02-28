@@ -216,7 +216,7 @@ namespace TEST_DENSE_MAT
 		Eigen::MatrixXd m1(3, 4);
 		Eigen::VectorXd v1(5);
 
-		// 输出流运算符赋值——行优先顺序填充
+		//1.  输出流运算符赋值——行优先顺序填充
 		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12;
 		v1 << 1, 2;
 		std::cout << "m1 = \n" << m1 << std::endl << std::endl;
@@ -225,15 +225,17 @@ namespace TEST_DENSE_MAT
 		v1 << 3, 4, 5;			// 不会接着上面的赋值，而是从第一个元素开始赋值
 		std::cout << "v1 = \n" << v1 << std::endl << std::endl;
 
+		// 2. 矩阵元素的索引：
 
-		// 下标运算符[]只能获取向量元素，矩阵对象无法使用，因为[]只支持一个参数。
+		//		下标运算符[]只能获取向量元素，矩阵对象无法使用，因为[]只支持一个参数。
 		std::cout << "v1[0] == " << v1[0] << std::endl << std::endl;
 
-		// 括号运算符访问元素，注意索引从0开始
+		//		括号运算符访问元素，注意索引从0开始
 		std::cout << "m1(0, 1) ==" << m1(0, 1) << std::endl;
 		std::cout << "v1(3) == " << v1(3) << std::endl;
 
-		// 求矩阵的性质的类内接口
+
+		// 3. 求矩阵的性质的类内接口
 		m1 = Eigen::MatrixXd::Random(3, 4);
 		Eigen::Matrix<double, Dynamic, Dynamic, Eigen::RowMajor> m1_rm(5, 6);		// 行优先存储；
 		std::cout << "m1 == \n" << m1 << std::endl;
@@ -248,21 +250,20 @@ namespace TEST_DENSE_MAT
 		std::cout << "矩阵的迹：trace():     " << m1.trace() << std::endl << std::endl;
 		std::cout << "行列式：m1.determinant() == " << m1.determinant() << std::endl;
 
-		// outerSize(), innerSize()——默认的列优先存储的矩阵，outerSize为列数，行优先存储的outerSize为行数；
+		//			outerSize(), innerSize()——默认的列优先存储的矩阵，outerSize为列数，行优先存储的outerSize为行数；
 		std::cout << "m1.outerSize() == " << m1.outerSize() << std::endl;			
 		std::cout << "m1.innerSize() == " << m1.innerSize() << std::endl;
 		std::cout << "m1_rm.outerSize() == " << m1_rm.outerSize() << std::endl;
 		std::cout << "m1_rm.innerSize() == " << m1_rm.innerSize() << std::endl;
  
-		// 逆矩阵——使用lu分解得到
+		//			逆矩阵——使用lu分解得到
 		std::cout << "逆矩阵：m1.inverse() ==  \n" << m1.inverse() << std::endl;
 
-		// 基本的矩阵变换
+		//			转置
 		std::cout << "矩阵的转置：transpose() \n" << m1.transpose() << std::endl << std::endl;		// 返回转置的矩阵，矩阵自身不转置
 		std::cout << m1 << std::endl;
 
-
-		// bug——transpose()在对自身赋值的时候有时会有bug，要想要矩阵自身改变，使用~InPlace()
+		//			bug——transpose()在对自身赋值的时候有时会有bug，要想要矩阵自身改变，使用~InPlace()
 		Eigen::Matrix3f mm;
 		mm << 1, 2, 3, 4, 5, 6, 0, 8, 9;
 		std::cout << mm << std::endl << std::endl;
@@ -273,6 +274,22 @@ namespace TEST_DENSE_MAT
 		Eigen::Matrix3f mm1 = mm.inverse();			// inverse()也一样，但是只能创建其他变量来赋值。
 		std::cout << mm1 << std::endl << std::endl;
 		std::cout << mm1 * mmCopy << std::endl << std::endl;
+
+		//			norm()——欧几里得范数，也是p==2时的lp范数。既所有元素平方和的开方。
+		debugDisp("v1 == \n", v1, "\n");
+		debugDisp("v1.norm() == ", v1.norm()); 		// 向量的范数等于向量的模长。
+		m1.resize(3, 4);
+		m1 << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12;
+		std::cout << "m1 == \n" << m1 << std::endl;
+		std::cout << "m1.norm() == " << m1.norm() << std::endl;
+		std::cout << "m1.rowwise().norm() == \n" << m1.rowwise().norm() << std::endl;		// 所有行向量求norm，返回一个列向量；
+		std::cout << "m1.colwise().norm() == \n" << m1.colwise().norm() << std::endl;
+
+		//		通过范数求行向量的模长：
+		Eigen::Matrix3f arrows;
+		arrows << 0, 1, 0, 0, 3, 4, 0, 5, 12;
+		Eigen::Vector3f arrowsLen = arrows.rowwise().norm();
+		dispVec<float>(arrowsLen);
 
 		// data()——获得矩阵数据数组的首指针
 
@@ -286,12 +303,10 @@ namespace TEST_DENSE_MAT
 		}
 		std::cout << "m2 == \n" << m2 << std::endl << std::endl;;
 
-
 		//				拷贝堆矩阵中的数据：
 		Eigen::MatrixXf m22(5, 10);
 		std::memcpy(m22.data(), m2.data(), m2.size() * sizeof(float));
 		std::cout << m22 << std::endl;
-
 
 		//	 minCoeff() —— 搜索矩阵元素中的最值
 		std::cout << "m1 == \n" << m1 << std::endl;
@@ -418,33 +433,30 @@ namespace TEST_DENSE_MAT
 	}
 
 
-	// test3——矩阵相关科学计算的接口
+	// test3——稠密矩阵的分解、求稠密线性方程组：
 	void test3()
 	{
 		Eigen::MatrixXd A(3, 3);
 		A << 1, 2, 3, 4, 5, 6, 7, 8, 9;
+		debugDisp("A == \n", A, "\n");
 
-		// 1. 求矩阵的特征值、特征向量。
+		// 1. 特征分解：
 		EigenSolver<Matrix3d> es(A);
 		Matrix3d D = es.pseudoEigenvalueMatrix();			// 对角线元素是特征值
 		Matrix3d V = es.pseudoEigenvectors();					// 每一个列向量都是特征向量。
-		std::cout << "特征值矩阵D：" << std::endl << D << std::endl;
-		std::cout << "特征向量矩阵V: " << std::endl << V << std::endl;
-		std::cout << "Finally, V * D * V^(-1) = " << std::endl << V * D * V.inverse() << std::endl;
-
-		std::cout << A * V.block<3, 1>(0, 0) << std::endl << std::endl;
-		std::cout << D(0, 0) * V.block<3, 1>(0, 0) << std::endl << std::endl;
+		debugDisp("特征值矩阵D == \n", D, "\n");
+		debugDisp("特征值矩阵V == \n", V, "\n");
+		debugDisp("V * D * V.inverse() == \n", V * D * V.inverse(), "\n");
+		debugDisp("A * V.block<3, 1>(0, 0) == \n", A * V.block<3, 1>(0, 0), "\n");
+		debugDisp("D(0, 0) * V.block<3, 1>(0, 0) == \n", D(0, 0) * V.block<3, 1>(0, 0), "\n");
 		debugDisp("\n\n");
 
-
 		// 2. 矩阵的LU分解——Eigen::FullPivLU
+		Eigen::MatrixXf L, U, P_inv, Q_inv;
 		Eigen::MatrixXf m = Eigen::MatrixXf::Random(5, 5);
 		std::cout << "Here is the matrix m:" << std::endl << m << std::endl;
 		Eigen::FullPivLU<Eigen::MatrixXf> lu(m);
-		std::cout << "执行LU分解：lu.matrixLU() == :"
-			<< std::endl << lu.matrixLU() << std::endl;
-
-		Eigen::MatrixXf L, U, P_inv, Q_inv;
+		debugDisp("执行LU分解：lu.matrixLU() == ", lu.matrixLU()); 
 		L = Eigen::MatrixXf::Identity(5, 5);
 		L.triangularView<StrictlyLower>() = lu.matrixLU();
 		U = lu.matrixLU().triangularView<Upper>();
@@ -455,24 +467,22 @@ namespace TEST_DENSE_MAT
 		std::cout << "L == \n" << L << std::endl << std::endl;
 		std::cout << "U == \n" << U << std::endl << std::endl;
 		std::cout << "Q_inv  == \n" << Q_inv << std::endl << std::endl;
-
 		std::cout << "Let us now reconstruct the original matrix m:" << std::endl;
 		std::cout << P_inv * L * U * Q_inv << std::endl;
 		debugDisp("\n\n");
 
-
 		// 3. 矩阵的奇异值分解（SVD）——
 		m = Eigen::MatrixXf::Random(3, 3);
 		std::cout << "m == \n" << m << std::endl;
-		JacobiSVD<Eigen::MatrixXf> svdSolver(m, ComputeThinU | ComputeThinV);
-		std::cout << "奇异值 == " << std::endl << svdSolver.singularValues() << std::endl;
-		std::cout << "U == " << std::endl << svdSolver.matrixU() << std::endl;
-		std::cout << "V == " << std::endl << svdSolver.matrixV() << std::endl;
+		JacobiSVD<Eigen::MatrixXf> solverSVD(m, ComputeThinU | ComputeThinV);
+		std::cout << "奇异值 == " << std::endl << solverSVD.singularValues() << std::endl;
+		std::cout << "U == " << std::endl << solverSVD.matrixU() << std::endl;
+		std::cout << "V == " << std::endl << solverSVD.matrixV() << std::endl;
 		debugDisp("\n");
 
 		//		3.1 通过SVD求解线性方程组：
 		Eigen::Vector3f rhs(1, 0, 0);
-		std::cout << "使用奇异值分解解线性方程组：" << std::endl << svdSolver.solve(rhs) << std::endl << std::endl;
+		std::cout << "使用奇异值分解解线性方程组：" << std::endl << solverSVD.solve(rhs) << std::endl << std::endl;
 		debugDisp("\n");
 
 		//		3.2 通过SVD求矩阵的条件数：
@@ -480,10 +490,10 @@ namespace TEST_DENSE_MAT
 		debugDisp("矩阵条件数：condNum == ", condNum);
 		debugDisp("\n\n");
 
-		// 4. 求秩：
-		std::cout << "svdSolver.rank == " << svdSolver.rank() << std::endl << std::endl;
+		//		3.3 求秩——矩阵类中没有求秩的方法，只能通过SVD分解来求秩。
+		std::cout << "solverSVD.rank == " << solverSVD.rank() << std::endl << std::endl;
 
-		// 5. 测试自己封装的使用QR分解的求解恰定稠密线性方程组的轮子：
+		//		3.4 测试自己封装的使用QR分解的求解恰定稠密线性方程组的轮子：
 		A = Eigen::MatrixXd::Random(3, 3);
 		Eigen::MatrixXd B = Eigen::MatrixXd::Random(3, 3);
 		Vector3d b = Vector3d::Random();
@@ -497,23 +507,30 @@ namespace TEST_DENSE_MAT
 		std::cout << "B == \n" << B << std::endl;
 		std::cout << "线性方程组Ax == b的解：" << std::endl << x << std::endl << std::endl;
 		std::cout << "线性方程组AX == B的解：" << std::endl << X << std::endl << std::endl;
+
+		// 4. LLT分解、LDLT分解：
+		Eigen::LLT<Eigen::MatrixXd> solverLLT;
+		Eigen::LDLT<Eigen::MatrixXd> solverLDLT;
+		A.resize(2, 2);
+		A << 2, -1, -1, 3;							// ？？？不知道为什么非正定的矩阵也可以做LLT分解；
+		debugDisp("A == \n", A, "\n"); 
+		solverLLT.compute(A);
+		solverLDLT.compute(A);
+		if (solverLLT.info() != Eigen::Success)
+		{
+			debugDisp("LLT decomposition failed");
+			return;
+		}
+		if (solverLDLT.info() != Eigen::Success)
+		{
+			debugDisp("LDLT decomposition failed");
+			return;
+		}
+		Eigen::MatrixXd L_llt = solverLLT.matrixL();
+		debugDisp("LLT分解：L_llt == \n", L_llt, "\n");
+
+
 		debugDisp("\n\n");
-
-		// 6. norm()——欧几里得范数，也是p==2时的lp范数。既所有元素平方和的开方。
-		Eigen::Vector3f v1(1, 2, 3);
-		std::cout << "v1.norm() == " << v1.norm() << std::endl;	// 向量的范数等于向量的模长。
-		m.resize(3, 4);
-		m << 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 , 11, 12;
-		std::cout << "m == \n" << m << std::endl;
-		std::cout << "m.norm() == " << m.norm() << std::endl;
-		std::cout << "m.rowwise().norm() == \n" << m.rowwise().norm() << std::endl;		// 所有行向量求norm，返回一个列向量；
-		std::cout << "m.colwise().norm() == \n" << m.colwise().norm() << std::endl;
-
-		//	6.1. 通过范数求行向量的模长：
-		Eigen::Matrix3f arrows;
-		arrows << 0, 1, 0, 0, 3, 4, 0, 5, 12;
-		Eigen::Vector3f arrowsLen = arrows.rowwise().norm();
-		dispVec<float>(arrowsLen);
 	}
 
 
@@ -1049,7 +1066,5 @@ namespace TEST_DENSE_MAT
 		std::cout << "finished." << std::endl;
 	}
 
-
-
-
+	 
 }

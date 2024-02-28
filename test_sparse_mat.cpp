@@ -185,8 +185,8 @@ namespace TEST_SPARSE_MAT
 		std::cout << "sm1内维度：" << sm1.innerSize() << std::endl;			// 列优先的稀疏矩阵的列数，行优先的稀疏矩阵的行数
 		
 		//			outerSize()
-		std::cout << "sm1外维度：" << sm1.outerSize() << std::endl;			// 列优先的稀疏矩阵的行数，行优先的稀疏矩阵的列数
- 
+		std::cout << "sm1外维度：" << sm1.outerSize() << std::endl;			// 列优先的稀疏矩阵的行数，行优先的稀疏矩阵的列数 
+
 
 		//		valuePtr()方法——返回稀疏矩阵元素数组的首地址；
 		auto dataPtr = sm1.valuePtr();
@@ -334,26 +334,81 @@ namespace TEST_SPARSE_MAT
 	}
 
 
-	// 求解稀疏线性方程组
-	void test3()
+	// 稀疏矩阵的分解
+	void test3() 
+	{
+		using spMatD = Eigen::SparseMatrix<double>;
+		Eigen::MatrixXd m1(4, 4);
+		spMatD sm1;
+		m1 << 1, 2, -3, 4, 5, 6, 7, 8, 9, 10, -11, 12, 13, 14, 15, 0;
+		sm1 = m1.sparseView();
+		debugDisp("m1.determinant() == ", m1.determinant());
+
+		// 1. 稀疏矩阵的LU分解器：
+		Eigen::SparseLU<spMatD> solverLU;
+		solverLU.compute(sm1);
+		if (solverLU.info() != Eigen::Success)
+		{
+			debugDisp("LU decomposition failed");
+			return;
+		}
+		debugDisp("solverLU.determinant() == ", solverLU.determinant());		// 稀疏矩阵类不包含求行列式的方法，需要通过LU分解器求得。 
+ 
+		// 2. 稀疏矩阵的QR分解器：
+		Eigen::SparseQR<spMatD, Eigen::COLAMDOrdering<int>> solverQR;
+		solverQR.compute(sm1);
+		if (solverQR.info() != Eigen::Success)
+		{
+			debugDisp("QR decomposition failed");
+			return;
+		}
+		debugDisp("solverQR.rank() == ", solverQR.rank());		// 稀疏矩阵类不包含求秩的方法，需要通过LU或SVD分解器求得。 
+
+		// 3. 稀疏矩阵的LLT分解器和LDLT分解器：
+		Eigen::SimplicialLLT<spMatD> solverLLT;
+		Eigen::SimplicialLDLT<spMatD> solverLDLT;
+		solverLLT.compute(sm1);
+		solverLDLT.compute(sm1);
+		if (solverLLT.info() != Eigen::Success)
+		{
+			debugDisp("LLT decomposition failed");
+			return;
+		}
+		if (solverLDLT.info() != Eigen::Success)
+		{
+			debugDisp("LDLT decomposition failed");
+			return;
+		}
+		
+
+
+		debugDisp("test3 finished.");
+	}
+
+
+	// 求解稀疏线性方程组——直接法
+	void test4()
 	{
 		// 1. 直接法求解稀疏线性方程组
 
 		//				稀疏矩阵表示的线性方程组：Ax = b
 		Eigen::SparseMatrix<float> A;
-		Eigen::VectorXf b(2), x;
-		///Eigen::SimplicialLLT<Eigen::SparseMatrix<float>> solver;									//基于LLT分解的求解器，一般推荐使用此求解器。
-		//Eigen::SparseLU<Eigen::SparseMatrix<float> > solver;											// 基于LU分解的求解器。
-		Eigen::SparseQR<Eigen::SparseMatrix<float>, Eigen::COLAMDOrdering<int> > solver;		// 基于QR分解的求解器，推荐最小方差问题使用。
+		Eigen::VectorXf b, x;
+		// Eigen::SimplicialLLT<Eigen::SparseMatrix<float>> solver;					// 基于LLT分解的求解器，一般不如LDLT分解
+		Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> solver;					// 基于LDLT分解的求解器，使用于稠密度很低且规模不是很大的矩阵；
+		// Eigen::SparseLU<Eigen::SparseMatrix<float> > solver;						/ 基于LU分解的求解器。
+		// Eigen::SparseQR<Eigen::SparseMatrix<float>, Eigen::COLAMDOrdering<int> > solver;		// 基于QR分解的求解器，推荐最小二乘问题使用。
 
 		//				写入方程组数据：
 		Eigen::MatrixXf Adense(2, 2);
+		b.resize(2);
 		Adense << 1, 2, 1, -1;
 		b << 0, 3;
 		A = Adense.sparseView();
-		std::cout << "A == \n" << A << std::endl;
-		std::cout << "b == \n" << b << std::endl;
-		std::cout << "det(A) == " << Adense.determinant() << std::endl;
+		debugDisp("A == ");
+		dispSpMat(A);
+		debugDisp("b == \n", b, "\n");
+		debugDisp("det(A) == ", Adense.determinant()); 
 
 		solver.compute(A);
 		if (solver.info() != Eigen::Success)
@@ -367,12 +422,28 @@ namespace TEST_SPARSE_MAT
 			std::cout << "solving failed" << std::endl;
 			return;
 		}
+		debugDisp("x == \n",  x, "\n");
 
-		std::cout << "x == \n" << x << std::endl;
+		debugDisp("test3() finished.");
+	}
 
+
+	// 求解稀疏线性方程组——迭代法
+	void test5()
+	{
+		//				稀疏矩阵表示的线性方程组：Ax = b
+		Eigen::SparseMatrix<float> A;
+		Eigen::VectorXf b(2), x;
+		//				写入方程组数据：
+		Eigen::MatrixXf Adense(2, 2);
+		Adense << 1, 2, 1, -1;
+		b << 0, 3;
+		A = Adense.sparseView();
+		std::cout << "A == \n" << A << std::endl;
+		std::cout << "b == \n" << b << std::endl;
+		std::cout << "det(A) == " << Adense.determinant() << std::endl; 
 
 		// 2. 迭代法求解稀疏线性方程组：
-
 		/*
 			迭代器求解器：
 				ConjugateGradient				经典迭代共轭梯度求解器。 要求矩阵为SPD矩阵（Symmetric positive definite matrices 对称、正定）
@@ -390,9 +461,20 @@ namespace TEST_SPARSE_MAT
 		x = IterSolver.solve(b);
 		if (IterSolver.info() != Eigen::Success)
 			return;
-		std::cout << "x == \n" << x << std::endl;
+		debugDisp("x == \n", x);
+
+		debugDisp("test4() finished.");
 	}
 
 
+	// 比较不同求解系数线性方程组方法的速度：
+	void test6() 
+	{
+		// 构造一个3n x 3n的A矩阵，其中
+		const int n = 100;
+
+
+
+	}
 }
 

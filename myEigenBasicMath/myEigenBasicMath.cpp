@@ -216,8 +216,8 @@ bool spMatTranspose(Eigen::SparseMatrix<T>& smOut, const Eigen::SparseMatrix<T>&
 template<typename T>
 double calcCondNum(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& m)
 {
-	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svdSolver(m, Eigen::ComputeThinU | Eigen::ComputeThinV);
-	Eigen::Matrix<T, Eigen::Dynamic, 1> sValues = svdSolver.singularValues();
+	Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> solverSVD(m, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	Eigen::Matrix<T, Eigen::Dynamic, 1> sValues = solverSVD.singularValues();
 	T sMax = sValues.maxCoeff();
 	T sMin = sValues.minCoeff();
 	return static_cast<double>(sMax / sMin);
