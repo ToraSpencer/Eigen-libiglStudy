@@ -134,19 +134,19 @@ namespace TEST_SPARSE_MAT
 	// 稀疏矩阵的构造、基本属性
 	void test0()
 	{
-		std::vector<Eigen::Triplet<float>> tripList;
-		tripList.push_back(Eigen::Triplet<float>(0, 0, 1));
-		tripList.push_back(Eigen::Triplet<float>(1, 1, 1.1));
-		tripList.push_back(Eigen::Triplet<float>(2, 2, 1.2));
-		tripList.push_back(Eigen::Triplet<float>(3, 3, 1.3));
-		tripList.push_back(Eigen::Triplet<float>(4, 4, 1.4));
-		tripList.push_back(Eigen::Triplet<float>(1, 1, 9.0));
+		std::vector<Eigen::Triplet<float>> tripVec;
+		tripVec.push_back(Eigen::Triplet<float>(0, 0, 1));
+		tripVec.push_back(Eigen::Triplet<float>(1, 1, 1.1));
+		tripVec.push_back(Eigen::Triplet<float>(2, 2, 1.2));
+		tripVec.push_back(Eigen::Triplet<float>(3, 3, 1.3));
+		tripVec.push_back(Eigen::Triplet<float>(4, 4, 1.4));
+		tripVec.push_back(Eigen::Triplet<float>(1, 1, 9.0));
 
 		//   1. 生成稀疏矩阵：
 
 		//					使用三元数数组生成稀疏矩阵——setFromTriplets()
 		Eigen::SparseMatrix<float> sm1(6, 7);
-		sm1.setFromTriplets(tripList.begin(), tripList.end());
+		sm1.setFromTriplets(tripVec.begin(), tripVec.end());
 		dispMat(sm1.toDense());
 
 		//					插入元素的方式生成稀疏矩阵——insert()
@@ -340,7 +340,11 @@ namespace TEST_SPARSE_MAT
 		using spMatD = Eigen::SparseMatrix<double>;
 		Eigen::MatrixXd m1(4, 4);
 		spMatD sm1;
-		m1 << 1, 2, -3, 4, 5, 6, 7, 8, 9, 10, -11, 12, 13, 14, 15, 0;
+		// m1 << 1, 2, -3, 4, 5, 6, 7, 8, 9, 10, -11, 12, 13, 14, 15, 0;		// 非正定非对称
+		m1 << 1, 2, 99, 4, 5, 6, 7, 8, 9, 10, 88, 77, 13, 14, 15, 66; 
+		m1 = (m1 * m1.transpose()/1000).eval();					// 对称正定
+		debugDisp("m1 == \n", m1, "\n");
+
 		sm1 = m1.sparseView();
 		debugDisp("m1.determinant() == ", m1.determinant());
 
@@ -352,9 +356,28 @@ namespace TEST_SPARSE_MAT
 			debugDisp("LU decomposition failed");
 			return;
 		}
-		debugDisp("solverLU.determinant() == ", solverLU.determinant());		// 稀疏矩阵类不包含求行列式的方法，需要通过LU分解器求得。 
+		debugDisp("solverLU.determinant() == ", solverLU.determinant());		// 稀疏矩阵类不包含求行列式的方法，需要通过LU或LDLT分解器求得。 
  
-		// 2. 稀疏矩阵的QR分解器：
+		// 2. Eigen::SparseQR< MatrixType_, OrderingType_ >类——稀疏矩阵的QR分解器
+		/*
+			OrderingType_是稀疏矩阵的列排序算法对象
+					对稀疏矩阵的列重新排序可以优化矩阵分解、迭代法求线性方程组的性能。
+					重新排序可以使得矩阵在因子分解过程中生成的填充量最小化，从而减少计算量和内存占用。
+					一些求解算法对列向量的排序非常敏感。通过选择合适的排序策略，我们可以减少求解步骤的数量
+					某些列排序算法可以提高求解算法的数值稳定性，减少数值误差的影响。
+
+			OrderingType_有三种可用的排序算法：
+					1. Eigen::NaturalOrdering< StorageIndex >
+								自然排序，不重新排序，使用原矩阵；
+					2. Eigen::AMDOrdering< StorageIndex >
+								应用于对称矩阵。
+								近似最小度排序（Approximate Minimum Degree Ordering），通过考虑每次选取最小度的列进行排序，以减少填充。
+								列的度——该列的非零元素的数量。
+					3. Eigen::COLAMDOrdering< StorageIndex >
+								可应用于非对称矩阵的近似最小度排序。
+								可能比AMDOrdering计算成本更高。
+				
+		*/
 		Eigen::SparseQR<spMatD, Eigen::COLAMDOrdering<int>> solverQR;
 		solverQR.compute(sm1);
 		if (solverQR.info() != Eigen::Success)
@@ -362,25 +385,18 @@ namespace TEST_SPARSE_MAT
 			debugDisp("QR decomposition failed");
 			return;
 		}
-		debugDisp("solverQR.rank() == ", solverQR.rank());		// 稀疏矩阵类不包含求秩的方法，需要通过LU或SVD分解器求得。 
+		debugDisp("solverQR.rank() == ", solverQR.rank());			// 稀疏矩阵类不包含求秩的方法，需要通过QR求得。 
 
-		// 3. 稀疏矩阵的LLT分解器和LDLT分解器：
-		Eigen::SimplicialLLT<spMatD> solverLLT;
+		// 3. 稀疏矩阵的LDLT分解器（LLT分解器很挫的样子，所以不测了）
 		Eigen::SimplicialLDLT<spMatD> solverLDLT;
-		solverLLT.compute(sm1);
 		solverLDLT.compute(sm1);
-		if (solverLLT.info() != Eigen::Success)
+		if (solverLDLT.info() != Eigen::Success)		
 		{
-			debugDisp("LLT decomposition failed");
-			return;
-		}
-		if (solverLDLT.info() != Eigen::Success)
-		{
+			// ！！！理论上只有正定对称矩阵才可以做LDLT分解，但如果矩阵不满足要求时这里也不会分解失败，但计算出的行列式是错误的。
 			debugDisp("LDLT decomposition failed");
 			return;
 		}
-		
-
+		debugDisp("solverLDLT.determinant() == ", solverLDLT.determinant());	// 稀疏矩阵类不包含求行列式的方法，需要通过LU或LDLT分解器求得。 
 
 		debugDisp("test3 finished.");
 	}
@@ -395,8 +411,8 @@ namespace TEST_SPARSE_MAT
 		Eigen::SparseMatrix<float> A;
 		Eigen::VectorXf b, x;
 		// Eigen::SimplicialLLT<Eigen::SparseMatrix<float>> solver;					// 基于LLT分解的求解器，一般不如LDLT分解
-		Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> solver;					// 基于LDLT分解的求解器，使用于稠密度很低且规模不是很大的矩阵；
-		// Eigen::SparseLU<Eigen::SparseMatrix<float> > solver;						/ 基于LU分解的求解器。
+		Eigen::SimplicialLDLT<Eigen::SparseMatrix<float>> solver;					// 基于LDLT分解的求解器，使用于稠密度很低且规模不是很大的矩阵；？？？貌似需要对称矩阵？
+		// Eigen::SparseLU<Eigen::SparseMatrix<float> > solver;						// 基于LU分解的求解器。
 		// Eigen::SparseQR<Eigen::SparseMatrix<float>, Eigen::COLAMDOrdering<int> > solver;		// 基于QR分解的求解器，推荐最小二乘问题使用。
 
 		//				写入方程组数据：
@@ -431,39 +447,61 @@ namespace TEST_SPARSE_MAT
 	// 求解稀疏线性方程组——迭代法
 	void test5()
 	{
-		//				稀疏矩阵表示的线性方程组：Ax = b
+		//	1. 生成稀疏线性方程组：Ax = b
 		Eigen::SparseMatrix<float> A;
-		Eigen::VectorXf b(2), x;
-		//				写入方程组数据：
+		Eigen::VectorXf b(2), x; 
 		Eigen::MatrixXf Adense(2, 2);
 		Adense << 1, 2, 1, -1;
 		b << 0, 3;
 		A = Adense.sparseView();
-		std::cout << "A == \n" << A << std::endl;
-		std::cout << "b == \n" << b << std::endl;
-		std::cout << "det(A) == " << Adense.determinant() << std::endl; 
+		debugDisp("A == \n", A, "\n");
+		debugDisp("b == \n", b, "\n"); 
+		debugDisp("det(A) == ", Adense.determinant());
 
 		// 2. 迭代法求解稀疏线性方程组：
 		/*
 			迭代器求解器：
-				ConjugateGradient				经典迭代共轭梯度求解器。 要求矩阵为SPD矩阵（Symmetric positive definite matrices 对称、正定）
-				LeastSquaresConjugateGradient
-				BiCGSTAB						迭代双共轭梯度求解器。			要求矩阵为方阵。
+					ConjugateGradient				
+							经典迭代共轭梯度求解器。 
+							要求矩阵为SPD矩阵（Symmetric positive definite matrices 对称、正定）
+
+					LeastSquaresConjugateGradient
+							最小二乘共轭梯度求解器
+							适用于长方形矩阵（非方阵）
+
+					BiCGSTAB						
+							迭代双共轭梯度求解器（Iterative stabilized bi-conjugate gradient）			
+							要求矩阵为方阵。
 		*/
-		Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<float> > IterSolver;
+		Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<float>> solverLSCG;		
+		Eigen::BiCGSTAB<Eigen::SparseMatrix<float>> solverBCG;
 
-		// 设置迭代精度
-		IterSolver.setTolerance(0.00001);
-		IterSolver.compute(A);
-		if (IterSolver.info() != Eigen::Success)
+		//			2.1 最小二乘共轭梯度求解器
+		solverLSCG.setTolerance(0.00001);				//	设置迭代精度
+		solverLSCG.compute(A);
+		if (solverLSCG.info() != Eigen::Success)
+		{
+			debugDisp("!!! Eigen::LeastSquaresConjugateGradient<> computing failed.");
 			return;
+		}
+		x = solverLSCG.solve(b); 
+		debugDisp("Eigen::LeastSquaresConjugateGradient<> result： x == \n", x, "\n\n");
+		debugDisp("solverLSCG.iterations() == ", solverLSCG.iterations());					// 迭代次数
+		debugDisp("solverLSCG.error() == ", solverLSCG.error());
 
-		x = IterSolver.solve(b);
-		if (IterSolver.info() != Eigen::Success)
+		//			2.2 迭代双共轭梯度求解器
+		solverBCG.compute(A);
+		if(solverBCG.info() != Eigen::Success)
+		{
+			debugDisp("!!! Eigen::BiCGSTAB<> computing failed.");
 			return;
-		debugDisp("x == \n", x);
+		}
+		x = solverBCG.solve(b);
+		debugDisp("Eigen::BiCGSTAB<> result： x == \n", x, "\n");
+		debugDisp("solverBCG.iterations() == ", solverBCG.iterations());
+		debugDisp("solverBCG.error() == ", solverBCG.error());
 
-		debugDisp("test4() finished.");
+		debugDisp("\n\ntest4() finished.");
 	}
 
 
@@ -471,10 +509,186 @@ namespace TEST_SPARSE_MAT
 	void test6() 
 	{
 		// 构造一个3n x 3n的A矩阵，其中
-		const int n = 100;
+		tiktok& tt = tiktok::getInstance();
+		const double tolerance = 1e-3;			// 设定迭代法的精度；
+		double interval = 0;								// 记录时间间隔；
+
+		// 1. 构造系数线性方程组的A矩阵和b向量；
+		const int n = 10000;
+		const int rows = n * 3;
+		const int cols = n * 3;
+		int offset = 0;
+		std::default_random_engine e;											// 随机数生成器的引擎对象
+		std::uniform_real_distribution<double> URD_d(-100, 100);
+		std::vector<Eigen::Triplet<double>> tripVec;
+		Eigen::SparseMatrix<double> A(rows, cols);
+		Eigen::VectorXd b(rows);
+		b.setRandom();
+
+		tt.start();
+		tripVec.reserve(n * 9);
+		for (int i = 0; i < n; ++i) 
+		{
+			offset = 3 * i;
+			tripVec.push_back(Eigen::Triplet<double>(offset, offset, URD_d(e)));
+			tripVec.push_back(Eigen::Triplet<double>(offset, offset + 1, URD_d(e)));
+			tripVec.push_back(Eigen::Triplet<double>(offset, offset + 2, URD_d(e)));
+			tripVec.push_back(Eigen::Triplet<double>(offset + 1, offset + 1, URD_d(e)));
+			tripVec.push_back(Eigen::Triplet<double>(offset + 1, offset + 2, URD_d(e)));
+			tripVec.push_back(Eigen::Triplet<double>(offset + 1, offset + 1, URD_d(e)));
+			tripVec.push_back(Eigen::Triplet<double>(offset + 2, offset + 2, URD_d(e)));
+			tripVec.push_back(Eigen::Triplet<double>(offset + 2, offset + 1, URD_d(e)));
+			tripVec.push_back(Eigen::Triplet<double>(offset + 2, offset + 2, URD_d(e)));
+		}
+		A.setFromTriplets(tripVec.begin(), tripVec.end());
+		tt.endCout("1. 生成稀疏矩阵A耗时：");
+		debugDisp("\n");
+
+		// 2. QR分解法
+		debugDisp("QR分解法：");
+		{
+			Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solverQR;
+			interval = 0;
+
+			//			2.1 QR分解：
+			tt.start();
+			solverQR.compute(A);
+			if (solverQR.info() != Eigen::Success)
+			{
+				std::cout << "QR decomposition failed" << std::endl;
+				return;
+			}
+			tt.endCout("A矩阵QR分解耗时：");
+			interval += tt.lastDur;
+
+			debugDisp("solverQR.rank() == ", solverQR.rank());
+			if (solverQR.rank() < 3 * n)
+			{
+				debugDisp("！！！A矩阵不满秩。");
+				return;
+			}
+
+			//			2.2 解线性方程组：
+			tt.start();
+			Eigen::VectorXd x = solverQR.solve(b);
+			tt.endCout("解稀疏线性方程组耗时：");
+			interval += tt.lastDur;
+
+			//			2.3 验证结果准确性：
+			Eigen::VectorXd b_prime = A * x;
+			Eigen::VectorXd residual = b - b_prime;
+			double sqrErr = residual.squaredNorm();				// 平方误差；
+			debugDisp("平方误差sqrErr == ", sqrErr);
+
+			debugDisp("QR分解法总耗时：", interval, "s\n\n");
+		}
+
+		// 3. LU分解法：
+		debugDisp("LU分解法：");
+		{
+			Eigen::SparseLU<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solverLU;
+			interval = 0;
+
+			//			3.1 LU分解：
+			tt.start();
+			solverLU.compute(A);
+			if (solverLU.info() != Eigen::Success)
+			{
+				std::cout << "LU decomposition failed" << std::endl;
+				return;
+			}
+			tt.endCout("A矩阵LU分解耗时：");
+			interval += tt.lastDur; 
+
+			//			3.2 解线性方程组：
+			tt.start();
+			Eigen::VectorXd x = solverLU.solve(b);
+			tt.endCout("解稀疏线性方程组耗时：");
+			interval += tt.lastDur;
+
+			//			3.3 验证结果准确性：
+			Eigen::VectorXd b_prime = A * x;
+			Eigen::VectorXd residual = b - b_prime;
+			double sqrErr = residual.squaredNorm();				// 平方误差；
+			debugDisp("平方误差sqrErr == ", sqrErr);
+
+			debugDisp("LU分解法总耗时：", interval, "s\n\n");
+		}
+
+		// 4. 最小二乘共轭梯度迭代法：
+		debugDisp("最小二乘共轭梯度迭代法：");
+		{
+			Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double>> solverLSCG;
+			Eigen::VectorXd x;
+			interval = 0;
+			solverLSCG.setTolerance(tolerance);
+
+			// 4.1 compute
+			tt.start();
+			solverLSCG.compute(A);
+			tt.end();
+			interval += tt.lastDur;
+			if (solverLSCG.info() != Eigen::Success)
+			{
+				debugDisp("!!! Eigen::LeastSquaresConjugateGradient<> computing failed.");
+				return;
+			}
+			
+			// 4.2 solve
+			tt.start();
+			x = solverLSCG.solve(b);
+			tt.end();
+			interval += tt.lastDur;
+			debugDisp("solverLSCG.iterations() == ", solverLSCG.iterations());							// 迭代次数
+			debugDisp("solverLSCG.error() == ", solverLSCG.error());			
+
+			// 4.3 验证结果准确性：
+			Eigen::VectorXd b_prime = A * x;
+			Eigen::VectorXd residual = b - b_prime;
+			double sqrErr = residual.squaredNorm();				// 平方误差；
+			debugDisp("平方误差sqrErr == ", sqrErr);
+
+			debugDisp("最小二乘共轭梯度迭代法总耗时：", interval, "s\n\n");
+		}
+
+		// 5. 双共轭梯度迭代法：
+		debugDisp("双共轭梯度迭代法：");
+		{
+			Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solverBCG;
+			Eigen::VectorXd x;
+			interval = 0;
+			solverBCG.setTolerance(tolerance);
+
+			// 5.1 compute
+			tt.start();
+			solverBCG.compute(A);
+			tt.end();
+			interval += tt.lastDur;
+			if (solverBCG.info() != Eigen::Success)
+			{
+				debugDisp("!!! Eigen::BiCGSTAB<Eigen::SparseMatrix<> computing failed.");
+				return;
+			}
+
+			// 5.2 solve
+			tt.start();
+			x = solverBCG.solve(b);
+			tt.end();
+			interval += tt.lastDur;
+			debugDisp("solverBCG.iterations() == ", solverBCG.iterations());							// 迭代次数
+			debugDisp("solverBCG.error() == ", solverBCG.error());
+
+			// 5.3 验证结果准确性：
+			Eigen::VectorXd b_prime = A * x;
+			Eigen::VectorXd residual = b - b_prime;
+			double sqrErr = residual.squaredNorm();				// 平方误差；
+			debugDisp("平方误差sqrErr == ", sqrErr);
+
+			debugDisp("双共轭梯度迭代法总耗时：", interval, "s\n\n");
+		}
 
 
-
+		debugDisp("\n\ntest6() finished.");
 	}
 }
 

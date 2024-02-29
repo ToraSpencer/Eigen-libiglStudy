@@ -1355,9 +1355,9 @@ int main(int argc, char** argv)
 
 	// TEST_REPRESENTATIONS::test2();
 	
-	TEST_SPARSE_MAT::test4();
+	TEST_SPARSE_MAT::test6();
 	
-	// TEST_DENSE_MAT::test4();
+	// TEST_DENSE_MAT::test3();
 
 	debugDisp("main() finished."); 
 }

@@ -65,17 +65,22 @@ void revTraverseSTL(T& con, F f)
 using namespace std::chrono;
 class tiktok
 { 
+// 禁用constructor和destructor
 private:
 	tiktok() = default;
 	tiktok(const tiktok&) {}
 	~tiktok() = default;
 
+// 成员数据：
 public:
 	time_point<steady_clock> startTik;
 	time_point<steady_clock> endTik;
 	unsigned recordCount;
 	std::vector<time_point<steady_clock>> records;
+	double lastDur = 0;									// 上一次结束计时记录下的时间间隔，单位为秒；
 
+// 方法：
+public:
 	static tiktok& getInstance()
 	{
 		static tiktok tt_instance;
@@ -90,36 +95,48 @@ public:
 		this->records.clear();
 	}
 
-	// 结束计时，控制台上打印时间间隔，单位为秒
-	void endCout(const char* str)
+
+	// 结束计时
+	void end()
 	{
 		this->endTik = steady_clock::now();
 		microseconds duration = duration_cast<microseconds>(this->endTik - this->startTik);
-		std::cout << str << static_cast<double>(duration.count()) * \
-			microseconds::period::num / microseconds::period::den << std::endl;
+		this->lastDur = static_cast<double>(duration.count()) * \
+			microseconds::period::num / microseconds::period::den;
 	}
+
+
+	// 结束计时，控制台上打印时间间隔，单位为秒
+	void endCout(const char* str)
+	{
+		end();
+		std::cout << str << this->lastDur << " s." << std::endl;
+	}
+
+
+	// 结束计时，时间间隔写入到fileName的文本文件中，单位为秒；
+	bool endWrite(const char* fileName, const char* str)
+	{
+		end();
+		std::ofstream file(fileName, std::ios_base::out | std::ios_base::app);
+		if (!file)
+			return false; 
+		file << str << this->lastDur << std::endl;
+		file.close();
+		return true;
+	}
+
 
 	// 结束计时，返回std::chrono::microseconds类型的时间间隔；
 	microseconds endGetCount()
 	{
 		this->endTik = steady_clock::now();
 		microseconds duration = duration_cast<microseconds>(this->endTik - this->startTik);
+		this->lastDur = static_cast<double>(duration.count()) * \
+			microseconds::period::num / microseconds::period::den;
 		return duration;
 	}
 
-	// 结束计时，时间间隔写入到fileName的文本文件中，单位为秒；
-	bool endWrite(const char* fileName, const char* str)
-	{
-		this->endTik = steady_clock::now();
-		std::ofstream file(fileName, std::ios_base::out | std::ios_base::app);
-		if (!file)
-			return false;
-		microseconds duration = duration_cast<microseconds>(this->endTik - this->startTik);
-		file << str << static_cast<double>(duration.count()) * \
-			microseconds::period::num / microseconds::period::den << std::endl;
-		file.close();
-		return true;
-	}
 
 	// 按下秒表，记录此刻的时刻，保存在this->records向量中；
 	void takeArecord()

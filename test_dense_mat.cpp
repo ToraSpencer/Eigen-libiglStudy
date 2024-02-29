@@ -462,7 +462,6 @@ namespace TEST_DENSE_MAT
 		U = lu.matrixLU().triangularView<Upper>();
 		P_inv = lu.permutationP().inverse();
 		Q_inv = lu.permutationQ().inverse();
-
 		std::cout << "P_inv  == \n" << P_inv << std::endl << std::endl;
 		std::cout << "L == \n" << L << std::endl << std::endl;
 		std::cout << "U == \n" << U << std::endl << std::endl;
@@ -529,8 +528,44 @@ namespace TEST_DENSE_MAT
 		Eigen::MatrixXd L_llt = solverLLT.matrixL();
 		debugDisp("LLT分解：L_llt == \n", L_llt, "\n");
 
+		// 5. QR分解——基于householder变换： 
+		Eigen::HouseholderQR<Eigen::MatrixXd> solverQR1;				// 没有rank()方法；稳定性依赖于矩阵条件数；
+		Eigen::ColPivHouseholderQR<Eigen::MatrixXd> solverQR2;		// 有rank()方法；稳定性不错；
+		A.resize(2, 3);
+		A << 1, 2, 3, 4, 5, 6;
+		solverQR1.compute(A);			// A = Q* R;
+		solverQR2.compute(A);			// A * P = Q * R;	其中P是置换矩阵；
+		if (solverQR2.info() != Eigen::Success)
+		{
+			debugDisp("ColPivHouseholderQR decomposition failed");
+			return;
+		}
+		Eigen::MatrixXd Q = solverQR1.householderQ();
+		Eigen::MatrixXd R = solverQR1.matrixQR().triangularView<Eigen::Upper>();
+		debugDisp("\n\nQR分解：Eigen::HouseholderQR<>");
+		debugDisp("A == \n", A, "\n");
+		debugDisp("Q == \n", Q, "\n");
+		debugDisp("R == \n", R, "\n");
+		debugDisp("Q * R == \n", Q * R, "\n");
 
-		debugDisp("\n\n");
+		Q = solverQR2.householderQ();
+		R = solverQR2.matrixQR().triangularView<Eigen::Upper>(); 
+		Eigen::PermutationMatrix<Eigen::Dynamic, Eigen::Dynamic> P = solverQR2.colsPermutation();			// 置换矩阵
+		Eigen::MatrixXd Pd = P;								// Eigen::PermutationMatrix通过赋值运算符来转换为普通矩阵类型，没有cast方法；
+		Eigen::MatrixXd PdT = Pd.transpose();		// 置换矩阵是正交阵，其逆等于其转置；
+		debugDisp("\n\nQR分解：Eigen::ColPivHouseholderQR<>"); 
+		debugDisp("Q == \n", Q, "\n");
+		debugDisp("R == \n", R, "\n");
+		debugDisp("P.rows() == ", P.rows());
+		debugDisp("P.cols() == ", P.cols());
+		// debugDisp("A * P == \n", A * P, "\n");
+		debugDisp("A * Pd == \n", A * Pd, "\n");
+		debugDisp("Q * R == \n", Q * R, "\n");
+		debugDisp("Q * R * PdT == \n", Q * R * PdT, "\n");
+
+		debugDisp("solverQR2.rank() == ", solverQR2.rank());
+		 
+		debugDisp("test3() finished.");
 	}
 
 
