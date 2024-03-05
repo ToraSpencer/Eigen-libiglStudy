@@ -97,20 +97,22 @@ public:
 
 
 	// 结束计时
-	void end()
+	double end()
 	{
 		this->endTik = steady_clock::now();
 		microseconds duration = duration_cast<microseconds>(this->endTik - this->startTik);
 		this->lastDur = static_cast<double>(duration.count()) * \
 			microseconds::period::num / microseconds::period::den;
+		return this->lastDur;
 	}
 
 
 	// 结束计时，控制台上打印时间间隔，单位为秒
-	void endCout(const char* str)
+	double endCout(const char* str)
 	{
 		end();
 		std::cout << str << this->lastDur << " s." << std::endl;
+		return this->lastDur;
 	}
 
 
