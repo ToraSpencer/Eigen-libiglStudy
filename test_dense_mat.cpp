@@ -436,134 +436,167 @@ namespace TEST_DENSE_MAT
 	// test3——稠密矩阵的分解、求稠密线性方程组：
 	void test3()
 	{
+		// 几种分解方法求线性方程组的性能比较：
+		/*
+			LU分解：		
+					效率高；
+					适用于稠密度高的矩阵；
+
+			LDLT分解：	
+					适用于堆成正定矩阵；
+
+			QR分解：		
+					在处理奇异矩阵时数值稳定性好；
+					在求逆的时效率更高；
+		
+			奇异值分解（SVD）
+					若矩阵是稀疏的、奇异值分解的低秩近似能够提供足够的精度，
+							并且矩阵的特征不适合其他分解方法，那么奇异值分解可能是一个合适的选择
+		*/
 		Eigen::MatrixXd A(3, 3);
-		A << 1, 2, 3, 4, 5, 6, 7, 8, 9;
-		debugDisp("A == \n", A, "\n");
+		Vector3d b{1, 2, 3};
+		Vector3d x;
+		A << 1, 22, 3, 4, 55, 6, 77, 8, 9;
+		debugDisp("A == \n", A, "\n"); 
 
 		// 1. 特征分解：
-		EigenSolver<Matrix3d> es(A);
-		Matrix3d D = es.pseudoEigenvalueMatrix();			// 对角线元素是特征值
-		Matrix3d V = es.pseudoEigenvectors();					// 每一个列向量都是特征向量。
-		debugDisp("特征值矩阵D == \n", D, "\n");
-		debugDisp("特征值矩阵V == \n", V, "\n");
-		debugDisp("V * D * V.inverse() == \n", V * D * V.inverse(), "\n");
-		debugDisp("A * V.block<3, 1>(0, 0) == \n", A * V.block<3, 1>(0, 0), "\n");
-		debugDisp("D(0, 0) * V.block<3, 1>(0, 0) == \n", D(0, 0) * V.block<3, 1>(0, 0), "\n");
-		debugDisp("\n\n");
+		EigenSolver<Matrix3d> solverEigen(A);
+		{
+			Matrix3d D = solverEigen.pseudoEigenvalueMatrix();			// 对角线元素是特征值
+			Matrix3d V = solverEigen.pseudoEigenvectors();					// 每一个列向量都是特征向量。
+			debugDisp("特征值矩阵D == \n", D, "\n");
+			debugDisp("特征值矩阵V == \n", V, "\n");
+			debugDisp("V * D * V.inverse() == \n", V * D * V.inverse(), "\n");
+			debugDisp("A * V.block<3, 1>(0, 0) == \n", A * V.block<3, 1>(0, 0), "\n");
+			debugDisp("D(0, 0) * V.block<3, 1>(0, 0) == \n", D(0, 0) * V.block<3, 1>(0, 0), "\n");
+			debugDisp("\n\n");
+		}
 
 		// 2. 矩阵的LU分解——Eigen::FullPivLU
-		Eigen::MatrixXf L, U, P_inv, Q_inv;
-		Eigen::MatrixXf m = Eigen::MatrixXf::Random(5, 5);
-		std::cout << "Here is the matrix m:" << std::endl << m << std::endl;
-		Eigen::FullPivLU<Eigen::MatrixXf> lu(m);
-		debugDisp("执行LU分解：lu.matrixLU() == ", lu.matrixLU()); 
-		L = Eigen::MatrixXf::Identity(5, 5);
-		L.triangularView<StrictlyLower>() = lu.matrixLU();
-		U = lu.matrixLU().triangularView<Upper>();
-		P_inv = lu.permutationP().inverse();
-		Q_inv = lu.permutationQ().inverse();
-		std::cout << "P_inv  == \n" << P_inv << std::endl << std::endl;
-		std::cout << "L == \n" << L << std::endl << std::endl;
-		std::cout << "U == \n" << U << std::endl << std::endl;
-		std::cout << "Q_inv  == \n" << Q_inv << std::endl << std::endl;
-		std::cout << "Let us now reconstruct the original matrix m:" << std::endl;
-		std::cout << P_inv * L * U * Q_inv << std::endl;
-		debugDisp("\n\n");
+		Eigen::FullPivLU<Eigen::MatrixXd> solverLU;
+		{
+			Eigen::MatrixXd L, U, P_inv, Q_inv;
+			solverLU.compute(A);
+			debugDisp("执行LU分解：solverLU.matrixLU() == \n", solverLU.matrixLU());
+			L = Eigen::MatrixXd::Identity(3, 3);
+			L.triangularView<StrictlyLower>() = solverLU.matrixLU();
+			U = solverLU.matrixLU().triangularView<Upper>();
+			P_inv = solverLU.permutationP().inverse();
+			Q_inv = solverLU.permutationQ().inverse();
+			debugDisp("P_inv == \n", P_inv, "\n");
+			debugDisp("L == \n", L, "\n");
+			debugDisp("U == \n", U, "\n");
+			debugDisp("Q_inv == \n", Q_inv, "\n");
+			debugDisp("P_inv * L * U * Q_inv == \n", P_inv * L * U * Q_inv, "\n");
 
-		// 3. 矩阵的奇异值分解（SVD）——
-		m = Eigen::MatrixXf::Random(3, 3);
-		std::cout << "m == \n" << m << std::endl;
-		JacobiSVD<Eigen::MatrixXf> solverSVD(m, ComputeThinU | ComputeThinV);
-		std::cout << "奇异值 == " << std::endl << solverSVD.singularValues() << std::endl;
-		std::cout << "U == " << std::endl << solverSVD.matrixU() << std::endl;
-		std::cout << "V == " << std::endl << solverSVD.matrixV() << std::endl;
-		debugDisp("\n");
+			// LU分解解线性方程组；
+			x = solverLU.solve(b);
+			debugDisp("线性方程组Ax == b的解：x == \n", x, "\n");
+			debugDisp("x == \n", x, "\n");
+			debugDisp("A * x == \n", A * x, "\n");
 
-		//		3.1 通过SVD求解线性方程组：
-		Eigen::Vector3f rhs(1, 0, 0);
-		std::cout << "使用奇异值分解解线性方程组：" << std::endl << solverSVD.solve(rhs) << std::endl << std::endl;
-		debugDisp("\n");
+			debugDisp("\n\n");
+		}
 
-		//		3.2 通过SVD求矩阵的条件数：
-		double condNum = calcCondNum(m);
-		debugDisp("矩阵条件数：condNum == ", condNum);
-		debugDisp("\n\n");
+		// 3. 矩阵的奇异值分解（SVD）——  
+		JacobiSVD<Eigen::MatrixXd> solverSVD(A, ComputeThinU | ComputeThinV);
+		{
+			debugDisp("奇异值：solverSVD.singularValues() == \n ", solverSVD.singularValues(), "\n");
+			debugDisp("solverSVD.matrixU() == \n ", solverSVD.matrixU(), "\n");
+			debugDisp("solverSVD.matrixV() == \n ", solverSVD.matrixV(), "\n");
+			debugDisp("\n");
 
-		//		3.3 求秩——矩阵类中没有求秩的方法，只能通过SVD分解来求秩。
-		std::cout << "solverSVD.rank == " << solverSVD.rank() << std::endl << std::endl;
+			//		3.1 通过SVD求解线性方程组： 
+			x = solverSVD.solve(b);
+			debugDisp("使用奇异值分解解线性方程组：b == \n", b, "\n");
+			debugDisp("A * x == \n", A * x, "\n");
+			debugDisp("\n");
 
-		//		3.4 测试自己封装的使用QR分解的求解恰定稠密线性方程组的轮子：
-		A = Eigen::MatrixXd::Random(3, 3);
-		Eigen::MatrixXd B = Eigen::MatrixXd::Random(3, 3);
-		Vector3d b = Vector3d::Random();
-		Vector3d x;
-		Eigen::MatrixXd X;
-		solveLinearEquation(x, A, b);
-		solveLinearEquations<double>(X, A, B);
+			//		3.2 通过SVD求矩阵的条件数：
+			double condNum = calcCondNum(A);
+			debugDisp("矩阵条件数：condNum == ", condNum);
+			debugDisp("\n\n");
 
-		std::cout << "A == \n" << A << std::endl;
-		std::cout << "b == \n" << b << std::endl;
-		std::cout << "B == \n" << B << std::endl;
-		std::cout << "线性方程组Ax == b的解：" << std::endl << x << std::endl << std::endl;
-		std::cout << "线性方程组AX == B的解：" << std::endl << X << std::endl << std::endl;
+			//		3.3 求秩——矩阵类中没有求秩的方法，只能通过SVD分解来求秩。
+			debugDisp("solverSVD.rank() == ", solverSVD.rank());  
+		}
 
 		// 4. LLT分解、LDLT分解：
 		Eigen::LLT<Eigen::MatrixXd> solverLLT;
 		Eigen::LDLT<Eigen::MatrixXd> solverLDLT;
-		A.resize(2, 2);
-		A << 2, -1, -1, 3;							// ？？？不知道为什么非正定的矩阵也可以做LLT分解；
-		debugDisp("A == \n", A, "\n"); 
-		solverLLT.compute(A);
-		solverLDLT.compute(A);
-		if (solverLLT.info() != Eigen::Success)
 		{
-			debugDisp("LLT decomposition failed");
-			return;
+			Eigen::MatrixXd A1(2, 2); 
+			A1 << 2, -1, -1, 3;							// ？？？不知道为什么非正定的矩阵也可以做LLT分解；
+			debugDisp("A1 == \n", A1, "\n");
+
+			solverLLT.compute(A1);
+			solverLDLT.compute(A1);
+			if (solverLLT.info() != Eigen::Success)
+			{
+				debugDisp("LLT decomposition failed");
+				return;
+			}
+			if (solverLDLT.info() != Eigen::Success)
+			{
+				debugDisp("LDLT decomposition failed");
+				return;
+			}
+			Eigen::MatrixXd L_llt = solverLLT.matrixL();
+			debugDisp("LLT分解：L_llt == \n", L_llt, "\n");
 		}
-		if (solverLDLT.info() != Eigen::Success)
-		{
-			debugDisp("LDLT decomposition failed");
-			return;
-		}
-		Eigen::MatrixXd L_llt = solverLLT.matrixL();
-		debugDisp("LLT分解：L_llt == \n", L_llt, "\n");
 
 		// 5. QR分解——基于householder变换： 
 		Eigen::HouseholderQR<Eigen::MatrixXd> solverQR1;				// 没有rank()方法；稳定性依赖于矩阵条件数；
 		Eigen::ColPivHouseholderQR<Eigen::MatrixXd> solverQR2;		// 有rank()方法；稳定性不错；
-		A.resize(2, 3);
-		A << 1, 2, 3, 4, 5, 6;
-		solverQR1.compute(A);			// A = Q* R;
-		solverQR2.compute(A);			// A * P = Q * R;	其中P是置换矩阵；
-		if (solverQR2.info() != Eigen::Success)
 		{
-			debugDisp("ColPivHouseholderQR decomposition failed");
-			return;
+			//	5.1 测试自己封装的使用QR分解的求解恰定稠密线性方程组的轮子： 
+			Eigen::MatrixXd B = Eigen::MatrixXd::Random(3, 3);
+			Eigen::MatrixXd X;
+			solveLinearEquation(x, A, b);
+			solveLinearEquations<double>(X, A, B);
+			debugDisp("线性方程组Ax == b的解：x == \n", x, "\n");
+			debugDisp("x == \n", x, "\n");
+			debugDisp("A * x == \n", A * x, "\n");
+			debugDisp("B == \n", B, "\n");
+			debugDisp("线性方程组AX == B的解：X == \n", X, "\n");
+			debugDisp("A * X == \n", A * X, "\n");
+
+			// 5. 2 Eigen::HouseholderQR<>
+			A.resize(2, 3);
+			A << 1, 2, 3, 4, 5, 6;
+			solverQR1.compute(A);			// A = Q* R;
+			solverQR2.compute(A);			// A * P = Q * R;	其中P是置换矩阵；
+			if (solverQR2.info() != Eigen::Success)
+			{
+				debugDisp("ColPivHouseholderQR decomposition failed");
+				return;
+			}
+			Eigen::MatrixXd Q = solverQR1.householderQ();
+			Eigen::MatrixXd R = solverQR1.matrixQR().triangularView<Eigen::Upper>();
+			debugDisp("\n\nQR分解：Eigen::HouseholderQR<>");
+			debugDisp("A == \n", A, "\n");
+			debugDisp("Q == \n", Q, "\n");
+			debugDisp("R == \n", R, "\n");
+			debugDisp("Q * R == \n", Q * R, "\n");
+
+			// 5.3 Eigen::ColPivHouseholderQR<>
+			Q = solverQR2.householderQ();
+			R = solverQR2.matrixQR().triangularView<Eigen::Upper>();
+			Eigen::PermutationMatrix<Eigen::Dynamic, Eigen::Dynamic> P = solverQR2.colsPermutation();			// 置换矩阵
+			Eigen::MatrixXd Pd = P;								// Eigen::PermutationMatrix通过赋值运算符来转换为普通矩阵类型，没有cast方法；
+			Eigen::MatrixXd PdT = Pd.transpose();		// 置换矩阵是正交阵，其逆等于其转置；
+			debugDisp("\n\nQR分解：Eigen::ColPivHouseholderQR<>");
+			debugDisp("Q == \n", Q, "\n");
+			debugDisp("R == \n", R, "\n");
+			debugDisp("P.rows() == ", P.rows());
+			debugDisp("P.cols() == ", P.cols());
+			// debugDisp("A * P == \n", A * P, "\n");
+			debugDisp("A * Pd == \n", A * Pd, "\n");
+			debugDisp("Q * R == \n", Q * R, "\n");
+			debugDisp("Q * R * PdT == \n", Q * R * PdT, "\n");
+			debugDisp("solverQR2.rank() == ", solverQR2.rank()); 
 		}
-		Eigen::MatrixXd Q = solverQR1.householderQ();
-		Eigen::MatrixXd R = solverQR1.matrixQR().triangularView<Eigen::Upper>();
-		debugDisp("\n\nQR分解：Eigen::HouseholderQR<>");
-		debugDisp("A == \n", A, "\n");
-		debugDisp("Q == \n", Q, "\n");
-		debugDisp("R == \n", R, "\n");
-		debugDisp("Q * R == \n", Q * R, "\n");
 
-		Q = solverQR2.householderQ();
-		R = solverQR2.matrixQR().triangularView<Eigen::Upper>(); 
-		Eigen::PermutationMatrix<Eigen::Dynamic, Eigen::Dynamic> P = solverQR2.colsPermutation();			// 置换矩阵
-		Eigen::MatrixXd Pd = P;								// Eigen::PermutationMatrix通过赋值运算符来转换为普通矩阵类型，没有cast方法；
-		Eigen::MatrixXd PdT = Pd.transpose();		// 置换矩阵是正交阵，其逆等于其转置；
-		debugDisp("\n\nQR分解：Eigen::ColPivHouseholderQR<>"); 
-		debugDisp("Q == \n", Q, "\n");
-		debugDisp("R == \n", R, "\n");
-		debugDisp("P.rows() == ", P.rows());
-		debugDisp("P.cols() == ", P.cols());
-		// debugDisp("A * P == \n", A * P, "\n");
-		debugDisp("A * Pd == \n", A * Pd, "\n");
-		debugDisp("Q * R == \n", Q * R, "\n");
-		debugDisp("Q * R * PdT == \n", Q * R * PdT, "\n");
-
-		debugDisp("solverQR2.rank() == ", solverQR2.rank());
 		 
 		debugDisp("test3() finished.");
 	}
