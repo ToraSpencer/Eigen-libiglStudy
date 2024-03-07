@@ -221,7 +221,7 @@ std::vector<Eigen::Vector2f> MathUtil::InterpolationGauss(\
 }
 
 
-// 幂基函数最小二乘逼近
+ 
 std::vector<Eigen::Vector2f> MathUtil::ApproximationPolygon(\
     const std::vector<Eigen::Vector2f> &in_pos, int m, float lb, float rb, float step) {
     const int n = in_pos.size();
@@ -323,7 +323,8 @@ std::vector<float> MathUtil::CubicSpline(\
             A(i, i) = 2 * (diff_x[i] + diff_x[i - 1]);
             A(i, i + 1) = diff_x[i];
             A(i, i - 1) = diff_x[i - 1];
-            B(i, 0) = 3.0 / diff_x[i] * (coe0[i + 1] - coe0[i]) - 3.0 / diff_x[i - 1] * (coe0[i] - coe0[i - 1]);
+            B(i, 0) = 3.0 / diff_x[i] * \
+                (coe0[i + 1] - coe0[i]) - 3.0 / diff_x[i - 1] * (coe0[i] - coe0[i - 1]);
         }
     }
 

@@ -1345,7 +1345,7 @@ void test1()
 
 int main(int argc, char** argv)
 {  
-	// TEST_IMGUI::test1();
+	TEST_IMGUI::test2();
 	
 	//TEST_PMP::test2(); 
 
@@ -1357,7 +1357,7 @@ int main(int argc, char** argv)
 	
 	// TEST_SPARSE_MAT::test6();
 	
-	TEST_DENSE_MAT::test3();
+	// TEST_DENSE_MAT::test3();
 
 	debugDisp("main() finished."); 
 }

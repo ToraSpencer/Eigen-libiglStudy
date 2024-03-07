@@ -679,6 +679,8 @@ bool cubicBSplineInterpCurve3D(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 }
 
 
+
+
 namespace MY_IMGUI 
 {
     GLFWwindow* g_window = nullptr;                         // 全局的窗口对象
@@ -847,6 +849,8 @@ namespace MY_IMGUI
 using namespace MY_IMGUI;
 
 
+
+
 // 曲线类；
 struct CurveData 
 {
@@ -908,8 +912,11 @@ struct CurveData
 };
 
 
+
+
 namespace TEST_IMGUI
 {
+    // GUI:曲线拟合——多项式基、高斯基
 	void test0()
     {
         // 0. initialize and prepare data:
@@ -1130,24 +1137,24 @@ namespace TEST_IMGUI
     }
 
 
+    // GUI:曲线拟合——几种点列参数化方法（uniform, chordal, ...）、几种曲线拟合方法（多项式、三次样条、三次B样条）
     void test1()
     {
-        // 0. initialize & prepare data:
+        // 0. initialize 
         if (!InitializeHW3())
-            return; 
+            return;         
 
-        //      样本点数据；
-        std::vector<float> in_pos_x;        
-        std::vector<float> in_pos_y;
+        // 1.  prepare data:
+        std::vector<float> in_pos_x,  in_pos_y;     //      样本点数据；
 
-        //      插值拟合曲线数据：
+        //      1.1 插值拟合曲线数据：
         bool inter_update = false;              // 更新标识符，插入/删除顶点时会变为true;
         CurveData inter_uniform{ IM_COL32(255, 50, 50, 255), IM_COL32(255, 80, 80, 255) };
         CurveData inter_chordal{ IM_COL32(50, 255, 50, 255), IM_COL32(80, 255, 80, 255) };
         CurveData inter_centripetal{ IM_COL32(50, 50, 255, 255), IM_COL32(80, 80, 255, 255) };
         CurveData inter_foley{ IM_COL32(150, 150, 255, 255), IM_COL32(180, 180, 255, 255) };
 
-        //      逼近拟合曲线数据：
+        //      1.2 逼近拟合曲线数据：
         bool approx_update = false;
         int approx_m = 0;
         int approx_m_temp = 0;
@@ -1156,32 +1163,33 @@ namespace TEST_IMGUI
         CurveData approx_centripetal{ IM_COL32(255, 255, 50, 255), IM_COL32(255, 255, 80, 255) };
         CurveData approx_foley{ IM_COL32(255, 150, 150, 255), IM_COL32(255, 180, 180, 255) };
 
-        //      样条插值拟合曲线数据：
+        //      1.3 三次样条插值拟合曲线数据：
         bool spline_update = false;
         CurveData spline_uniform{ IM_COL32(255, 100, 50, 255), IM_COL32(255, 130, 80, 255) };
         CurveData spline_chordal{ IM_COL32(50, 255, 100, 255), IM_COL32(80, 255, 130, 255) };
         CurveData spline_centripetal{ IM_COL32(100, 50, 255, 255), IM_COL32(130, 80, 255, 255) };
         CurveData spline_foley{ IM_COL32(170, 255, 170, 255), IM_COL32(200, 255, 200, 255) };
 
-        //      自己写的三次B样条插值：
+        //      1.4 自己写的三次B样条插值：
         bool my_CBS_update = false;
         CurveData mySpline{ IM_COL32(100, 50, 255, 255), IM_COL32(130, 80, 255, 255) };
         CurveData mySpline_loop{ IM_COL32(170, 255, 170, 255), IM_COL32(200, 255, 200, 255) };
 
-        // 设定采样空间（画布空间）   
+        //      1.5 设定采样空间（画布空间）   
         float lb = 0.0f;                    
         float rb = 1.0f;
         float step = (rb - lb) / 60.0f;
         std::vector<float> out_pos_t;
-        for (float x = lb; x <= rb; x += step) 
-            out_pos_t.push_back(x);       
-        
         ImGuiIO& io = ImGui::GetIO();
         ImFontConfig font_config;
-        font_config.SizePixels = 24.0f;
-        io.Fonts->AddFontDefault(&font_config);
+        {
+            for (float x = lb; x <= rb; x += step)
+                out_pos_t.push_back(x); 
+            font_config.SizePixels = 24.0f;
+            io.Fonts->AddFontDefault(&font_config);
+        } 
 
-        // 1. 主循环：
+        // 2. 主循环：
         bool blIsLoop = true;
         bool blShowMCS = false;
         while (!glfwWindowShouldClose(g_window)) 
@@ -1197,92 +1205,103 @@ namespace TEST_IMGUI
             if (ImGui::Begin("Config"))
             {
                 // w3.1. 插值拟合控件栏
-                ImGui::Text("Interpolation");
-                ImGui::ColorButton("##1", ImColor(inter_uniform.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("Uniform##1", &inter_uniform.visible);
-                ImGui::ColorButton("##2", ImColor(inter_chordal.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("Chordal##1", &inter_chordal.visible);
-                ImGui::ColorButton("##3", ImColor(inter_centripetal.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("Centripetal##1", &inter_centripetal.visible);
-                ImGui::ColorButton("##4", ImColor(inter_foley.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("Foley##1", &inter_foley.visible);
+                {
+                    ImGui::Text("Interpolation");
+                    ImGui::ColorButton("##1", ImColor(inter_uniform.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Uniform##1", &inter_uniform.visible);
+                    ImGui::ColorButton("##2", ImColor(inter_chordal.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Chordal##1", &inter_chordal.visible);
+                    ImGui::ColorButton("##3", ImColor(inter_centripetal.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Centripetal##1", &inter_centripetal.visible);
+                    ImGui::ColorButton("##4", ImColor(inter_foley.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Foley##1", &inter_foley.visible);
+                } 
 
                 // w3.2. 逼近拟合控件栏
-                ImGui::Separator();
-                ImGui::Text("Approx");
-                ImGui::ColorButton("##5", ImColor(approx_uniform.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("Uniform##2", &approx_uniform.visible);
-                ImGui::ColorButton("##6", ImColor(approx_chordal.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("Chordal##2", &approx_chordal.visible);
-                ImGui::ColorButton("##7", ImColor(approx_centripetal.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("Centripetal##2", &approx_centripetal.visible);
-                ImGui::ColorButton("##8", ImColor(approx_foley.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("Foley##2", &approx_foley.visible);
-                ImGui::InputInt("m", &approx_m_temp);
-                approx_m_temp = std::clamp(approx_m_temp, 0, std::max<int>(0, in_pos_x.size() - 1));
-                if (approx_m_temp != approx_m) 
                 {
-                    approx_m = approx_m_temp;
-                    approx_update = true;
+                    ImGui::Separator();
+                    ImGui::Text("Approx");
+                    ImGui::ColorButton("##5", ImColor(approx_uniform.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Uniform##2", &approx_uniform.visible);
+                    ImGui::ColorButton("##6", ImColor(approx_chordal.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Chordal##2", &approx_chordal.visible);
+                    ImGui::ColorButton("##7", ImColor(approx_centripetal.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Centripetal##2", &approx_centripetal.visible);
+                    ImGui::ColorButton("##8", ImColor(approx_foley.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Foley##2", &approx_foley.visible);
+                    ImGui::InputInt("m", &approx_m_temp);
+                    approx_m_temp = std::clamp(approx_m_temp, 0, std::max<int>(0, in_pos_x.size() - 1));
+                    if (approx_m_temp != approx_m)
+                    {
+                        approx_m = approx_m_temp;
+                        approx_update = true;
+                    }
                 }
-
+                 
                 // w3.3. 样条插值控件栏
-                ImGui::Separator();
-                ImGui::Text("Cubic Spline");
-                ImGui::ColorButton("##9", ImColor(spline_uniform.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("Uniform##3", &spline_uniform.visible);
-                ImGui::ColorButton("##10", ImColor(spline_chordal.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("Chordal##3", &spline_chordal.visible);
-                ImGui::ColorButton("##11", ImColor(spline_centripetal.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("Centripetal##3", &spline_centripetal.visible);
-                ImGui::ColorButton("##12", ImColor(spline_foley.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("Foley##3", &spline_foley.visible);
-
-                // w3.4. 自己写的三次B样条插值控件栏
-                ImGui::Separator();
-                ImGui::Text("my Cubic Spline");
-                ImGui::ColorButton("##13", ImColor(mySpline.line_color).Value);
-                ImGui::SameLine();
-                ImGui::Checkbox("MyCBS##3", &blShowMCS);
-                ImGui::SameLine();
-                ImGui::Checkbox("isLoop##4", &blIsLoop);
-                mySpline.visible = blShowMCS && (!blIsLoop);
-                mySpline_loop.visible = blShowMCS && blIsLoop;
-
-                // 重置按钮
-                ImGui::Separator();
-                bool reset = ImGui::Button("Reset");
-                if (reset)
                 {
-                    in_pos_x.clear();
-                    in_pos_y.clear();
-                    inter_uniform.Clear();
-                    inter_chordal.Clear();
-                    inter_centripetal.Clear();
-                    inter_foley.Clear();
-                    approx_uniform.Clear();
-                    approx_chordal.Clear();
-                    approx_centripetal.Clear();
-                    approx_foley.Clear();
-                    spline_uniform.Clear();
-                    spline_chordal.Clear();
-                    spline_centripetal.Clear();
-                    spline_foley.Clear();
-                    mySpline.Clear();
-                    mySpline_loop.Clear();
+                    ImGui::Separator();
+                    ImGui::Text("Cubic Spline");
+                    ImGui::ColorButton("##9", ImColor(spline_uniform.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Uniform##3", &spline_uniform.visible);
+                    ImGui::ColorButton("##10", ImColor(spline_chordal.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Chordal##3", &spline_chordal.visible);
+                    ImGui::ColorButton("##11", ImColor(spline_centripetal.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Centripetal##3", &spline_centripetal.visible);
+                    ImGui::ColorButton("##12", ImColor(spline_foley.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("Foley##3", &spline_foley.visible);
                 }
+                 
+                // w3.4. 自己写的三次B样条插值控件栏
+                {
+                    ImGui::Separator();
+                    ImGui::Text("my Cubic Spline");
+                    ImGui::ColorButton("##13", ImColor(mySpline.line_color).Value);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("MyCBS##3", &blShowMCS);
+                    ImGui::SameLine();
+                    ImGui::Checkbox("isLoop##4", &blIsLoop);
+                    mySpline.visible = blShowMCS && (!blIsLoop);
+                    mySpline_loop.visible = blShowMCS && blIsLoop;
+                }
+
+                // 3.5 重置按钮
+                {
+                    ImGui::Separator();
+                    bool reset = ImGui::Button("Reset");
+                    if (reset)
+                    {
+                        in_pos_x.clear();
+                        in_pos_y.clear();
+                        inter_uniform.Clear();
+                        inter_chordal.Clear();
+                        inter_centripetal.Clear();
+                        inter_foley.Clear();
+                        approx_uniform.Clear();
+                        approx_chordal.Clear();
+                        approx_centripetal.Clear();
+                        approx_foley.Clear();
+                        spline_uniform.Clear();
+                        spline_chordal.Clear();
+                        spline_centripetal.Clear();
+                        spline_foley.Clear();
+                        mySpline.Clear();
+                        mySpline_loop.Clear();
+                    }
+                }
+
                 ImGui::End();
             }
 
@@ -1538,6 +1557,7 @@ namespace TEST_IMGUI
     }
 
 
+    // 测试自己写的三次B样条拟合曲线
     void test11() 
     {
         Eigen::MatrixXf versSample(3, 3);
@@ -1554,6 +1574,7 @@ namespace TEST_IMGUI
     }
 
 
+    // GUI:生成细分曲线：
     void test2()
     {
         MyApp app;

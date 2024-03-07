@@ -10,6 +10,7 @@ class MathUtil
 public:
     constexpr static const float Pi = 3.141592653589793f;
 
+
     /////////////////////////////////////////////////////////////////////////////////////// 插值拟合方法：
 
     // 多项式插值，重载1
@@ -31,6 +32,9 @@ public:
         const std::vector<float>& pos_x, const std::vector<float>& pos_y,
         float lb, float rb, float step);
 
+
+
+
     /////////////////////////////////////////////////////////////////////////////////////// 逼近拟合方法：
     
     // 多项式逼近
@@ -38,9 +42,11 @@ public:
         const std::vector<float>& pos_x, const std::vector<float>& pos_y,
         int m, float lb, float rb, float step);
 
+
     // 幂基函数最小二乘逼近
     static std::vector<Eigen::Vector2f> ApproximationPolygon(\
         const std::vector<Eigen::Vector2f>& in_pos, int m, float lb, float rb, float step);
+
 
     // 幂基函数岭回归逼近
     static std::vector<Eigen::Vector2f> ApproximationNormalized(\
