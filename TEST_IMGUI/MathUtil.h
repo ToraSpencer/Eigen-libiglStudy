@@ -27,7 +27,7 @@ public:
         const std::vector<Eigen::Vector2f> &in_pos, float sigma2, \
         int m, float lb, float rb, float step);
 
-    // 三次B样条插值：
+    // 三次样条插值：
     static std::vector<float> CubicSpline(\
         const std::vector<float>& pos_x, const std::vector<float>& pos_y,
         float lb, float rb, float step);
@@ -37,7 +37,7 @@ public:
 
     /////////////////////////////////////////////////////////////////////////////////////// 逼近拟合方法：
     
-    // 多项式逼近
+// 最小二乘多项式逼近：
     static std::vector<float> ApproximationPolygon(\
         const std::vector<float>& pos_x, const std::vector<float>& pos_y,
         int m, float lb, float rb, float step);

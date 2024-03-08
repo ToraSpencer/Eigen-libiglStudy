@@ -133,42 +133,23 @@ std::vector<float> MathUtil::InterpolationPolygon(\
     const std::vector<float>& pos_t, const std::vector<float>& pos_u,
     float lb, float rb, float step) 
 {
-    const int n = pos_t.size();                     //  样本容量；
-    std::vector<float> result;      
-#if 1
+    const int m = pos_t.size();                           //  样本容量；
+    const size_t n = std::ceil((rb - lb) / step) + 1;
+    std::vector<float> result(n);       
+
     for (float t = lb; t <= rb; t += step) 
     {
         float u = 0;
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < m; i++)
         {
             float temp = pos_u[i];
-            for (int j = 0; j < n; j++) 
+            for (int j = 0; j < m; j++) 
                 if (i != j)                 
                     temp = temp * (t - pos_t[j]) / (pos_t[i] - pos_t[j]);                           
             u += temp;
         }
         result.push_back(u);
-    }
-#else
-    float u = 0;
-    float t = 0;
-    float temp = 0;
-    int versCount = std::floor((rb - lb) / step);
-    for (int i = 0; i <= versCount; ++i)
-    {
-        t = lb + step * i;
-        u = 0;
-        for (int k = 0; k < n; ++k)
-        {
-            temp = pos_u[k];
-            for (int m = 0; m < n; ++m)
-                if (m != k)
-                    temp = temp * (t - pos_t[m]) / (pos_t[k] - pos_t[m]);
-            u += temp;
-        }
-        result.push_back(u);  
-    }
-#endif
+    } 
 
     return result;
 }
@@ -221,16 +202,97 @@ std::vector<Eigen::Vector2f> MathUtil::InterpolationGauss(\
 }
 
 
- 
+// 三次样条插值拟合：
+std::vector<float> MathUtil::CubicSpline(\
+    const std::vector<float>& pos_x, const std::vector<float>& pos_y,
+    float lb, float rb, float step)
+{
+    // 详情见GAMES102的数学资料2：三次样条插值函数
+    const size_t m = pos_x.size();
+    const size_t n = std::ceil((rb - lb) / step) + 1;
+
+    // 0. simple case:
+    if (m == 1)
+        return { 0.0f };
+
+    // 1. 
+    std::vector<float> diff_x(m - 1);
+    std::vector<float> coe0(m);
+    std::vector<float> coe1(m);
+    std::vector<float> coe2(m);
+    std::vector<float> coe3(m);
+    for (int i = 0; i < m - 1; i++)
+        diff_x[i] = pos_x[i + 1] - pos_x[i];
+    for (int i = 0; i < m; i++)
+        coe0[i] = pos_y[i];
+
+    Eigen::MatrixXf A(m, m);
+    Eigen::VectorXf B(m);
+    for (size_t i = 0; i < m; i++)
+    {
+        for (size_t j = 0; j < m; j++)
+            A(i, j) = 0.0f;
+
+        if (i == 0)
+        {
+            A(i, i) = 1.0f;
+            B(i, 0) = 0.0f;
+        }
+        else if (i == m - 1)
+        {
+            A(i, i) = 1.0f;
+            B(i, 0) = 0.0f;
+        }
+        else
+        {
+            A(i, i) = 2 * (diff_x[i] + diff_x[i - 1]);
+            A(i, i + 1) = diff_x[i];
+            A(i, i - 1) = diff_x[i - 1];
+            B(i, 0) = 3.0 / diff_x[i] * \
+                (coe0[i + 1] - coe0[i]) - 3.0 / diff_x[i - 1] * (coe0[i] - coe0[i - 1]);
+        }
+    }
+
+    Eigen::VectorXf C = A.colPivHouseholderQr().solve(B);
+    for (int i = 0; i < m; i++)
+        coe2[i] = C(i, 0);
+
+    for (int i = 0; i < m - 1; i++)
+    {
+        coe3[i] = (coe2[i + 1] - coe2[i]) / 3.0 / diff_x[i];
+        coe1[i] = (coe0[i + 1] - coe0[i]) / diff_x[i] - coe2[i] * diff_x[i] - coe3[i] * diff_x[i] * diff_x[i];
+    }
+
+    size_t curr = 0;
+    std::vector<float> result(n);
+    for (size_t i = 0; i < n; ++i)
+    {
+        float x = lb + i * step;
+        if (x > pos_x[curr + 1])
+            ++curr;
+        float X = x - pos_x[curr];
+        float y = coe0[curr] + coe1[curr] * X + coe2[curr] * X * X + coe3[curr] * X * X * X;
+        result[i] = y;
+    }
+
+
+    return result;
+}
+
+
+// 最小二乘多项式逼近：
 std::vector<Eigen::Vector2f> MathUtil::ApproximationPolygon(\
-    const std::vector<Eigen::Vector2f> &in_pos, int m, float lb, float rb, float step) {
+    const std::vector<Eigen::Vector2f> &in_pos, int m, float lb, float rb, float step) 
+{
     const int n = in_pos.size();
     m = std::min(m, std::max(n - 1, 0));
     Eigen::MatrixXf B = LeastSquares(in_pos, m);
     std::vector<Eigen::Vector2f> result;
-    for (float x = lb; x <= rb; x += step) {
+    for (float x = lb; x <= rb; x += step) 
+    {
         float y = 0, x_temp = 1.0f;
-        for (int i = 0; i <= m; i++) {
+        for (int i = 0; i <= m; i++) 
+        {
             y += B(i, 0) * x_temp;
             x_temp *= x;
         }
@@ -240,7 +302,7 @@ std::vector<Eigen::Vector2f> MathUtil::ApproximationPolygon(\
 }
 
 
-// 多项式逼近：
+// 最小二乘多项式逼近：
 std::vector<float> MathUtil::ApproximationPolygon(\
     const std::vector<float>& pos_x, const std::vector<float>& pos_y,
     int m, float lb, float rb, float step) 
@@ -249,9 +311,11 @@ std::vector<float> MathUtil::ApproximationPolygon(\
     m = std::min(m, std::max(n - 1, 0));
     Eigen::VectorXf B = LeastSquares(pos_x, pos_y, m);
     std::vector<float> result;
-    for (float x = lb; x <= rb; x += step) {
+    for (float x = lb; x <= rb; x += step) 
+    {
         float y = 0, x_temp = 1.0f;
-        for (int i = 0; i <= m; i++) {
+        for (int i = 0; i <= m; i++) 
+        {
             y += B(i, 0) * x_temp;
             x_temp *= x;
         }
@@ -281,76 +345,6 @@ std::vector<Eigen::Vector2f> MathUtil::ApproximationNormalized(\
 }
 
 
-// 三次B样条插值拟合：
-std::vector<float> MathUtil::CubicSpline(\
-    const std::vector<float>& pos_x, const std::vector<float>& pos_y,
-    float lb, float rb, float step)
-{
-    const size_t n = pos_x.size();
-    if (n == 1) 
-        return { 0.0f };
-
-    std::vector<float> diff_x(n - 1);
-    for (int i = 0; i < n - 1; i++) 
-        diff_x[i] = pos_x[i + 1] - pos_x[i];
-    
-    std::vector<float> coe0(n);
-    std::vector<float> coe1(n);
-    std::vector<float> coe2(n);
-    std::vector<float> coe3(n);
-    for (int i = 0; i < n; i++) 
-        coe0[i] = pos_y[i];
-
-    Eigen::MatrixXf A(n, n);
-    Eigen::VectorXf B(n);
-    for (size_t i = 0; i < n; i++)
-    {
-        for (size_t j = 0; j < n; j++) 
-            A(i, j) = 0.0f;
-        
-        if (i == 0) 
-        {
-            A(i, i) = 1.0f;
-            B(i, 0) = 0.0f;
-        }
-        else if (i == n - 1) 
-        {
-            A(i, i) = 1.0f;
-            B(i, 0) = 0.0f;
-        }
-        else
-        {
-            A(i, i) = 2 * (diff_x[i] + diff_x[i - 1]);
-            A(i, i + 1) = diff_x[i];
-            A(i, i - 1) = diff_x[i - 1];
-            B(i, 0) = 3.0 / diff_x[i] * \
-                (coe0[i + 1] - coe0[i]) - 3.0 / diff_x[i - 1] * (coe0[i] - coe0[i - 1]);
-        }
-    }
-
-    Eigen::VectorXf C = A.colPivHouseholderQr().solve(B);
-    for (int i = 0; i < n; i++) 
-        coe2[i] = C(i, 0);
-    
-    for (int i = 0; i < n - 1; i++)
-    {
-        coe3[i] = (coe2[i + 1] - coe2[i]) / 3.0 / diff_x[i];
-        coe1[i] = (coe0[i + 1] - coe0[i]) / diff_x[i] - coe2[i] * diff_x[i] - coe3[i] * diff_x[i] * diff_x[i];
-    }
-
-    size_t curr = 0;
-    std::vector<float> result;
-    for (float x = lb; x <= rb; x += step)
-    {
-        if (x > pos_x[curr + 1]) 
-            ++curr;
-        
-        float X = x - pos_x[curr];
-        float y = coe0[curr] + coe1[curr] * X + coe2[curr] * X * X + coe3[curr] * X * X * X;
-        result.push_back(y);
-    }
-    return result;
-}
 
 
 // 均匀(Uniform)点列参数化：

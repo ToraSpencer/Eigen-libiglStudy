@@ -1343,9 +1343,10 @@ void test1()
 }
 
 
+
 int main(int argc, char** argv)
 {  
-	TEST_IMGUI::test2();
+	TEST_IMGUI::test1();
 	
 	//TEST_PMP::test2(); 
 
