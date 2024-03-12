@@ -180,13 +180,13 @@ namespace TEST_MYEIGEN_MODELING
 		cylinderVers.resize(0, 0);
 		cylinderTris.resize(0, 0);
 		axis.resize(0, 0);
-		objReadVerticesMat(topLoop, "E:/颌板/bdryUpper_final.obj");
-		objReadVerticesMat(btmLoop, "E:/颌板/bdryLower_final.obj");
+		objReadVerticesMat(topLoop, "E:/颌板/curveFitUpper.obj");
+		objReadVerticesMat(btmLoop, "E:/颌板/curveFitLower.obj");
 		interpolateToLine(axis, Eigen::RowVector3f{ 0, 0, 0 }, Eigen::RowVector3f{ 0, 0, 5 }, 1.0);
 		genCylinder(cylinderVers, cylinderTris, axis, topLoop, btmLoop, true);
 		debugWriteMesh("pillar2", cylinderVers, cylinderTris);
 
-		// 5. 读取上下底面3D边界环路，生成柱体：
+		// 6. 读取上下底面3D边界环路，生成柱体：
 		topLoop.resize(0, 0);
 		btmLoop.resize(0, 0);
 		cylinderVers.resize(0, 0);

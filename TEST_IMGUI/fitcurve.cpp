@@ -28,7 +28,8 @@ void ControlPointArray2D::calculateParam_extend(int range_num)
 }
 
 
-void ControlPointArray2D::calculateRange(int p) {
+void ControlPointArray2D::calculateRange(int p) 
+{
     double st = p;
     std::vector<double> _xs(nodePerRange), _ys(nodePerRange);
     for (int i = 0; i < nodePerRange; ++i) {
@@ -46,7 +47,8 @@ void ControlPointArray2D::calculateRange(int p) {
 }
 
 
-void ControlPointArray2D::push_back(double x, double y) {
+void ControlPointArray2D::push_back(double x, double y) 
+{
     xs.push_back({ x, 0, 0, false });
     ys.push_back({ y, 0, 0, false });
     fixed.push_back(false);

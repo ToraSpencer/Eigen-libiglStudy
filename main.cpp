@@ -1332,33 +1332,169 @@ namespace TEST_CMD
 
 
 }
+ 
 
 
-// 生成满秩的随机矩阵
-void test1() 
+// 托槽环：
+namespace BRACKET_RING
 {
 
+	// 生成棱柱——截面是正方形，正方形的边长从唇侧到舌侧逐渐缩小；
+	void test1()
+	{
+		// 参数：
+		const float cubeLen = 7;
+		const float cubeWidth = 5;
+
+		Eigen::MatrixXd vers, axisVers;
+		Eigen::MatrixXi tris;
+		Eigen::RowVector3d va{ -3.818220, -1.751209, 26.734533 }, \
+			vb{ -3.788185, -1.632604, 28.746483 }, center, dir; 
+
+		// 1. 修正端点
+		{
+			vb(1) += 1;				// 
+			center = (va + vb) / 2.0;
+			dir = vb - va; 
+			dir.normalize();
+			vb = center + 0.5 * cubeLen * dir;
+			va = center - 0.5 * cubeLen * dir;
+		}
+
+		// 2. 生成轴线
+		interpolateToLine(axisVers, va, vb, cubeLen/5);
+		debugWriteVers("axisVers", axisVers);
+
+		// 3. 生成立方体网格：
+		genAlignedCylinder(vers, tris, axisVers, {cubeWidth, cubeWidth}, 0.1, true);
+		debugWriteMesh("cublid", vers, tris);
+
+		debugDisp("test1 finished.");
+	}
 
 
+	// 测试生成上下底面不相同的棱柱：
+	void test2() 
+	{  
+		// 参数：
+		const double width1 = 5;
+		const double width2 = 3;
+		const double height = 8;
+		const double SSbtmLoop = width1 / 5;			// 上下底面边界的步长
+		const double SSaxis = height / 10;					// 棱柱轴线的步长；
+
+		// 1. 生成上下底面的边界线：
+		Eigen::MatrixXd btmLoop1, btmLoop2;
+		{
+			Eigen::MatrixXd corners, tmpVers1, tmpVers2, tmpVers3, tmpVers4;
+
+			// 1.1. 下底面：
+			corners.resize(4, 3);
+			corners.setZero();
+			corners.col(0).array() = width1 / 2.0;
+			corners.col(1).array() = width1 / 2.0;
+			corners(1, 0) = -corners(1, 0);
+			corners(2, 0) = -corners(2, 0);
+			corners(2, 1) = -corners(2, 1);
+			corners(3, 1) = -corners(3, 1);
+			interpolateToLine(tmpVers1, corners.row(0), corners.row(1), SSbtmLoop, true);
+			interpolateToLine(tmpVers2, corners.row(1), corners.row(2), SSbtmLoop, false);
+			interpolateToLine(tmpVers3, corners.row(2), corners.row(3), SSbtmLoop, true);
+			interpolateToLine(tmpVers4, corners.row(3), corners.row(0), SSbtmLoop, false);
+			matInsertRows(btmLoop1, tmpVers1);
+			matInsertRows(btmLoop1, tmpVers2);
+			matInsertRows(btmLoop1, tmpVers3);
+			matInsertRows(btmLoop1, tmpVers4);
+
+			// 1.2. 下底面边界线等比例缩放，然后平移，得到上底面边界线：
+			const double ratio = width2 / width1;
+			btmLoop2 = ratio * btmLoop1;
+			btmLoop2.col(2).array() = height;
+		}
+		debugWriteVers("btmLoop1", btmLoop1);
+		debugWriteVers("btmLoop2", btmLoop2);
+
+		// 2. 生成轴线：
+		Eigen::MatrixXd versAxis;
+		interpolateToLine(versAxis, Eigen::RowVector3d::Zero(), Eigen::RowVector3d{0, 0, height}, SSaxis, true);
+		debugWriteVers("versAxis", versAxis);
+
+		// 3. 生成棱柱：
+		Eigen::MatrixXd versCylinder;
+		Eigen::MatrixXi trisCylinder;
+		{
+			genCylinder(versCylinder, trisCylinder, versAxis, btmLoop2, btmLoop1, true);				// 重载4；
+		}
+		debugWriteMesh("cylinder", versCylinder, trisCylinder);
+
+
+		debugDisp("test2 finished.");
+	}
+
+
+	// 使用cube生成棱柱：
+	void test3()
+	{
+		/*
+			例： 目标棱柱：
+					下（唇侧）底面尺寸：6 * 4;
+					棱柱高：7
+					上下底面缩放比： 1.3
+		*/
+		const double btmLen = 6;
+		const double btmWidth = 4;
+		const double height = 7;
+		const double topBtmRatio = 0.6;
+		const double zoomRatio = btmLen;					// 总体缩放比zoomRatio = btmLen/1.0;
+		const double zRatio = height / btmLen;
+		const double yRatio = btmWidth / btmLen;
+
+		// 1. 生成底面在XOY平面上的单位立方体
+		Eigen::MatrixXd vers;
+		Eigen::MatrixXi tris;
+		{
+			genCubeMesh(vers, tris);				// 底面四个顶点索引从Z轴正方向看，从第一象限开始按逆时针顺序是3, 1, 0, 2，上底面是5, 7, 6, 4
+		}
+		debugWriteMesh("cube", vers, tris);
+
+		// 2. 轴向的渐进缩放——通过缩放上底面的尺寸来实现：
+		{
+			vers.block(4, 0, 4, 2).array() *= topBtmRatio;
+		}
+		debugWriteMesh("prism_pre", vers, tris);
+
+		// 3.变换到齐次坐标系：
+		Eigen::MatrixXd versHomo = vers2HomoVersD(vers);
+
+		// 4. 求缩放矩阵：
+		Eigen::Matrix4d scaling;
+		{
+			scaling.setIdentity();
+			scaling *= zoomRatio;
+			scaling(1, 1) *= yRatio;
+			scaling(2, 2) *= zRatio;
+			scaling(3, 3) = 1;
+			debugDisp("scaling == \n", scaling, "\n");
+		}
+		debugWriteMesh("prismHomo", homoVers2VersD(scaling * versHomo), tris);
+
+		// 5. 求仿射变换矩阵：
+
+
+		debugDisp("test3 finished.");
+	}
 }
+
 
 
 
 int main(int argc, char** argv)
 {  
-	TEST_IMGUI::test1();
+	// TEST_IMGUI::test2();
+	 
+	BRACKET_RING::test3();
 	
-	//TEST_PMP::test2(); 
 
-	// TEST_MYEIGEN_MODELING::test4();
-
-	// TEST_MYEIGEN_IO::test0();
-
-	// TEST_REPRESENTATIONS::test2();
-	
-	// TEST_SPARSE_MAT::test6();
-	
-	// TEST_DENSE_MAT::test3();
 
 	debugDisp("main() finished."); 
 }

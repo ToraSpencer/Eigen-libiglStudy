@@ -396,7 +396,8 @@ namespace BSPLINE_INTERP
     }
 
 
-    void ClosestPoint2Mesh(const triMeshF mesh, const std::vector<verF>& qPoint, std::vector<verF>& P)
+    void ClosestPoint2Mesh(const triMeshF mesh, \
+        const std::vector<verF>& qPoint, std::vector<verF>& P)
     {
         std::pair<unsigned, float> pair_;
         std::vector<size_t> indices;
@@ -848,8 +849,7 @@ namespace MY_IMGUI
 }
 using namespace MY_IMGUI;
 
-
-
+ 
 
 // 曲线类；
 struct CurveData 
@@ -858,7 +858,7 @@ struct CurveData
     ImU32 point_color = 0;
     std::vector<float> pos_x;                   // 
     std::vector<float> pos_y;
-    std::vector<float> in_pos_t;
+    std::vector<float> in_pos_t;                // 参数值
     bool visible = false;
 
     void Clear() 
