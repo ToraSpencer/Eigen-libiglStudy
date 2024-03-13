@@ -26,6 +26,15 @@
 #pragma comment(lib, "myEigenBasicMath.lib")
 
 
+// 目录：
+/*
+	1. 控制台打印接口
+	2. 文件IO接口
+
+*/
+
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////// auxiliary interface:
 unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize);
 
@@ -63,7 +72,45 @@ template<typename T, int N>
 void dispVecSeg(const Eigen::Matrix<T, 1, N>& vec, const int start, const int end);
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////// IO interface
+///////////////////////////////////////////////////////////////////////////////////////////////////// file IO interface
+	
+// 矩阵写入到TXT文件中；
+template <typename Derived>
+bool writeMat(const char* fileName, const Eigen::PlainObjectBase<Derived>& mat)
+{
+	std::ofstream fileOut(fileName);
+	if (!fileOut.is_open())
+		return false;
+	fileOut << mat << std::endl;
+
+	// 文件末尾写矩阵信息：
+	fileOut << "rows == " << mat.rows() << std::endl;
+	fileOut << "cols == " << mat.cols() << std::endl;
+	fileOut << "element type: " << typeid(mat(0, 0)).name() << std::endl;
+	fileOut.close();
+}
+
+
+// 从TXT文件中读取Eigen矩阵；mat的尺寸、类型必须和txt文件最后三行标注的信息一致；
+template <typename Derived>
+bool readMat(Eigen::PlainObjectBase<Derived>& mat, const char* fileName)
+{
+	std::ifstream fileIn;
+	fileIn.open(fileName);
+	if (!fileIn.is_open())
+		return false;
+
+	const size_t rows = mat.rows();
+	const size_t cols = mat.cols();
+	for (int i = 0; i < rows; ++i)
+		for (int k = 0; k < cols; ++k)
+			fileIn >> mat(i, k);
+	fileIn.close();
+
+	return true;
+}
+
+
 template <typename T>
 void vecWriteToFile(const char* fileName, const std::vector<T>& vec);
 
