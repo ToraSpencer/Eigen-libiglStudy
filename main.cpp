@@ -1462,7 +1462,7 @@ namespace BRACKET_RING
 	// 输入自身坐标系的托槽网格，得到变换后的cuboid网格
 	void test3() 
 	{
-		const double heightP = 5;
+		const double heightP = 6;
 		const double scalingCX = 0.7;					// 局部坐标系下的cuboid在x方向（厚薄方向）上的缩放因子；
 		const double scalingCZ = 0.8;
 		const double offsetCZ = 0.3;						// 局部坐标系下的cuboid在z方向上上移的距离；
@@ -1526,7 +1526,6 @@ namespace BRACKET_RING
 		}
 		debugWriteMesh("cuboid_local", versCuboid, trisCuboid);
 
-
 		// 3. 计算cuboid的偏移矩阵（局部坐标系Z轴上移一小段距离）：
 		Eigen::Matrix4d offsetCuboidHomo{ Eigen::Matrix4d::Identity() };
 		{
@@ -1534,7 +1533,6 @@ namespace BRACKET_RING
 			offsetVec = (rotationHomo * offsetVec).eval();
 			offsetCuboidHomo.col(3) = offsetVec;
 		}
-
 
 		// 4. 计算棱柱的偏移矩阵
 		Eigen::Matrix4d offsetPrismHomo{ Eigen::Matrix4d::Identity()};
@@ -1556,7 +1554,34 @@ namespace BRACKET_RING
 
 		debugDisp("test3 finished.");
 	}
+
+
+	// 通过切底的托槽网格得到cross网格：
+	void test4() 
+	{
+		Eigen::MatrixXd vers, versCross;
+		Eigen::MatrixXi tris, trisCross;
+		Eigen::Matrix4d affineHomo;
+		readMat(affineHomo, "E:/托槽环/upper_comps_fixed/affineHomo21.txt");
+		objReadMeshMat(vers, tris, "E:/托槽环/upper_comps_fixed/托槽21_切底.obj");
+		vers = homoVers2VersD(affineHomo.inverse() * vers2HomoVersD(vers));
+		debugWriteMesh("托槽21_切底_local", vers, tris);
+
+		Eigen::AlignedBox3d aabb;
+		aabb.setEmpty();
+		for (int i = 0; i < vers.rows(); ++i)
+		{
+			Eigen::Vector3d v = vers.row(i).transpose();
+			aabb.extend(v);
+		}
+		genAABBmesh(versCross, trisCross, aabb);
+		versCross = homoVers2VersD(affineHomo * vers2HomoVersD(versCross));
+		debugWriteMesh("crossMesh", versCross, trisCross);
+
+		debugDisp("test4() finished.");
+	}
 }
+
 
 
 int main(int argc, char** argv)
@@ -1564,16 +1589,9 @@ int main(int argc, char** argv)
 	// TEST_IMGUI::test2();
 	 
 	// BRACKET_RING::test3();
-	 
-	Eigen::MatrixXd vers;
-	Eigen::MatrixXi tris;
-	Eigen::Matrix4d affineHomo;
-	readMat(affineHomo, "E:/托槽环/upper_comps_fixed/affineHomo21.txt");
-	objReadMeshMat(vers, tris, "E:/托槽环/upper_comps_fixed/托槽21_切底.obj");
-	vers = homoVers2VersD(affineHomo.inverse() * vers2HomoVersD(vers));
-
-	debugWriteMesh("托槽21_切底_local", vers, tris);
-
+	  
+	TEST_DENSE_MAT::test3();
+  
 
 	debugDisp("main() finished."); 
 }

@@ -454,21 +454,24 @@ namespace TEST_DENSE_MAT
 							并且矩阵的特征不适合其他分解方法，那么奇异值分解可能是一个合适的选择
 		*/
 		Eigen::MatrixXd A(3, 3);
-		Vector3d b{1, 2, 3};
+		Vector3d b{0, 1, 0};
 		Vector3d x;
-		A << 1, 22, 3, 4, 55, 6, 77, 8, 9;
+		const double cosTheta = cos(pi / 6);
+		const double sinTheta = sin(pi / 6);
+		A << cosTheta, -sinTheta, 0, sinTheta, cosTheta, 0, 0, 0, 1;			// 绕Z轴逆时针旋转pi/6的三维旋转矩阵；
 		debugDisp("A == \n", A, "\n"); 
 
 		// 1. 特征分解：
-		EigenSolver<Matrix3d> solverEigen(A);
-		{
-			Matrix3d D = solverEigen.pseudoEigenvalueMatrix();			// 对角线元素是特征值
-			Matrix3d V = solverEigen.pseudoEigenvectors();					// 每一个列向量都是特征向量。
+		EigenSolver<Eigen::Matrix3d> solverEigen(A);
+		{ 
+			// ！！！注：特征分解结果应该是在复数域上：
+			Eigen::Matrix3cd D = solverEigen.eigenvalues().asDiagonal();				// 对角线元素是特征值
+			Eigen::Matrix3cd V = solverEigen.eigenvectors();									// 每一个列向量都是特征向量。
+
 			debugDisp("特征值矩阵D == \n", D, "\n");
-			debugDisp("特征值矩阵V == \n", V, "\n");
+			debugDisp("特征向量矩阵V == \n", V, "\n");
 			debugDisp("V * D * V.inverse() == \n", V * D * V.inverse(), "\n");
-			debugDisp("A * V.block<3, 1>(0, 0) == \n", A * V.block<3, 1>(0, 0), "\n");
-			debugDisp("D(0, 0) * V.block<3, 1>(0, 0) == \n", D(0, 0) * V.block<3, 1>(0, 0), "\n");
+			debugDisp("A * V.block<3, 1>(0, 0) == \n", A * V.block<3, 1>(0, 0), "\n"); 
 			debugDisp("\n\n");
 		}
 
