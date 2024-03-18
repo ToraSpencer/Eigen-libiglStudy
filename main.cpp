@@ -1586,11 +1586,11 @@ namespace BRACKET_RING
 
 int main(int argc, char** argv)
 {  
-	// TEST_IMGUI::test2();
+	TEST_IMGUI::test11();
 	 
 	// BRACKET_RING::test3();
 	  
-	TEST_DENSE_MAT::test3();
+	// TEST_DENSE_MAT::test3();
   
 
 	debugDisp("main() finished."); 

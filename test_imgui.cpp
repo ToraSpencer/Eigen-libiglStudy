@@ -520,17 +520,21 @@ namespace BSPLINE_INTERP
     }
 
 
+    // 生成节点向量：
     std::vector<float> NodeVec(const std::vector<verF>& sampleVers, const std::vector<verF>& contlPoint)
-    {
-        int sampleVersCount = sampleVers.size();
-        std::vector parDataPt(sampleVersCount, 0.f), nodeV(2 * sampleVersCount, 0.f);
+    { 
+        const int n = sampleVers.size() - 1;
+        std::vector parDataPt(n + 1, 0.f), nodeV(2 * (n + 1), 0.f);
 
-        for (int _ = 0; _ < 4; ++_)
+        for (int i = 0; i < 4; ++i)
             nodeV.push_back(1.f);
-        for (int i = 0; i < sampleVersCount - 1; ++i)
-            parDataPt.at(i + 1) = parDataPt.at(i) + 3 * contlPoint.at(2 * i + 1).distance(sampleVers.at(i));
-        auto endParDP = parDataPt.at(sampleVersCount - 1);
-        for (int i = 1; i < sampleVersCount - 1; ++i)
+
+        for (int i = 0; i < n; ++i)
+            parDataPt.at(i + 1) = parDataPt.at(i) + \
+            3 * contlPoint.at(2 * i + 1).distance(sampleVers.at(i));
+
+        auto endParDP = parDataPt.at(n);
+        for (int i = 1; i < n; ++i)
         {
             nodeV.at(2 * i + 2) = parDataPt.at(i) / endParDP;
             nodeV.at(2 * i + 3) = parDataPt.at(i) / endParDP;
@@ -539,15 +543,15 @@ namespace BSPLINE_INTERP
         return nodeV;
     }
 
-
-    std::vector<float> BasisFuns(int span, float u, int p, const std::vector<float>& nodeVec)
+    // B样条基函数
+    std::vector<float> BasisFuns(int span, float u, int k0, const std::vector<float>& nodeVec)
     {
-        std::vector N(p + 2, 0.f);
+        std::vector N(k0 + 2, 0.f);
         N[1] = 1;
-        for (int count = 1; count <= p; ++count)
+        for (int count = 1; count <= k0; ++count)
         {
             std::vector preN = N;
-            N.assign(p + 2, 0.f);
+            N.assign(k0 + 2, 0.f);
             for (int reg = 1; reg <= count + 1; ++reg)
             {
                 auto denLeft = nodeVec.at(span + reg - 1) - nodeVec.at(span + reg - 1 - count);
@@ -566,15 +570,15 @@ namespace BSPLINE_INTERP
     }
 
 
-    int FindSpan(int p, float u, const std::vector<float>& nodeVec)
+    int FindSpan(int k0, float u, const std::vector<float>& nodeVec)
     {
         auto nodeNum = nodeVec.size();
-        if (u == nodeVec.at(nodeNum - p))
-            return nodeNum - p - 1;
+        if (u == nodeVec.at(nodeNum - k0))
+            return nodeNum - k0 - 1;
         else
         {
-            auto low = p + 1;
-            auto high = nodeNum - p;
+            auto low = k0 + 1;
+            auto high = nodeNum - k0;
             auto mid = floor((low + high) / 2);
             while (u < nodeVec.at(mid) || u >= nodeVec.at(mid + 1))
             {
@@ -589,17 +593,17 @@ namespace BSPLINE_INTERP
     }
 
 
-    verF SinCurPoint(int p, float u, const std::vector<float>& nodeVec, const std::vector<verF>& contlPoint)
+    verF SinCurPoint(const int k0, const float u, const std::vector<float>& nodeVec, const std::vector<verF>& contlPoint)
     {
         std::vector nodeVec_ = { 0.f };
         nodeVec_.insert(nodeVec_.end(), nodeVec.begin(), nodeVec.end());
         std::vector<verF> contlPoint_ = { verF{0, 0, 0} };
         contlPoint_.insert(contlPoint_.end(), contlPoint.begin(), contlPoint.end());
-        int span = FindSpan(p, u, nodeVec_);
-        std::vector<float> func = BasisFuns(span, u, p, nodeVec_);
+        int span = FindSpan(k0, u, nodeVec_);
+        std::vector<float> func = BasisFuns(span, u, k0, nodeVec_);
         verF result = verF{ 0, 0, 0 };
-        for (int i = 1; i <= p + 1; ++i)
-            result += func[i] * contlPoint_[span + i - 1 - p];
+        for (int i = 1; i <= k0 + 1; ++i)
+            result += func[i] * contlPoint_[span + i - 1 - k0];
         return result;
     }
 }
@@ -648,6 +652,14 @@ template<typename DerivedVo, typename DerivedVi>
 bool cubicBSplineInterpCurve3D(Eigen::PlainObjectBase<DerivedVo>& versOut, \
     const Eigen::PlainObjectBase<DerivedVi>& versIn, const unsigned versOutCount)
 {
+    /*
+        bool cubicBSplineInterpCurve3D(
+            Eigen::PlainObjectBase<DerivedVo>& versOut,                         拟合曲线点集
+            const Eigen::PlainObjectBase<DerivedVi>& versIn,                    输入数据点
+            const unsigned versOutCount                                                     用户设定的拟合曲线的点数；
+            )
+        拟合曲线点集以输入数据点的首尾顶点为首尾顶点；
+    */
     using namespace BSPLINE_INTERP;
     using ScalarO = typename DerivedVo::Scalar;
     versOut.resize(0, 0);
@@ -670,9 +682,10 @@ bool cubicBSplineInterpCurve3D(Eigen::PlainObjectBase<DerivedVo>& versOut, \
     for (int i = 0; i < n; ++i)
         u.push_back(static_cast<float>(i) / (n - 1));
 
+    // 计算输出的拟合曲线在每一点上的函数值：
     std::vector<verF> curveFitted(versOutCount, verF{ 0, 0, 0 });
-    for (int count = 0; count < versOutCount; ++count)
-        curveFitted[count] = SinCurPoint(3, u.at(count), nodeVector, cntrlPts);
+    for (int i = 0; i < versOutCount; ++i)
+        curveFitted[i] = SinCurPoint(3, u.at(i), nodeVector, cntrlPts);
 
     vers2mat(versOut, curveFitted);
 
@@ -1560,15 +1573,20 @@ namespace TEST_IMGUI
     // 测试自己写的三次B样条拟合曲线
     void test11() 
     {
-        Eigen::MatrixXf versSample(3, 3);
-        Eigen::MatrixXf versFitted;
-        versSample << 1, 2, 0, 2, 3, 0, 4, 5, 0;
+        Eigen::MatrixXf versSample(10, 3), versSample2, versFitted, versFitted2;
+        versSample << 0, -3, 0,  1, 2, 0,  3, -4, 0,  8, 9, 0,  \
+                                20, 2, 0,  23, 5, 0,  27, -1, 0,  30, 9, 0,  \
+                                35, 16, 0,  38, 10, 0;
 
         cubicBSplineInterpCurve3D(versFitted, versSample, 100);
+        versSample2 = versSample;
+        versSample2(4, 1) -= 25;                     // 对中间的一个数据点施加扰动，可以观察到受影响的曲线段；
+        cubicBSplineInterpCurve3D(versFitted2, versSample2, 100);
 
         debugWriteVers("versIn", versSample);
         debugWriteVers("versOut", versFitted);
- 
+        debugWriteVers("versIn2", versSample2);
+        debugWriteVers("versOut2", versFitted2);
 
         debugDisp("test11 finished.");
     }
