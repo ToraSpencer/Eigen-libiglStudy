@@ -1586,7 +1586,7 @@ namespace BRACKET_RING
 
 int main(int argc, char** argv)
 {  
-	TEST_IMGUI::test11();
+	TEST_IMGUI::test2();
 	 
 	// BRACKET_RING::test3();
 	  

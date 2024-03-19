@@ -17,7 +17,8 @@ void ControlPointArray2D::calculateParam_extend(int range_num)
     auto xparm = ThreeOrderSample(xs, stpoint, edpoint + 1);
     auto yparm = ThreeOrderSample(ys, stpoint, edpoint + 1);
 
-    for (int i = stpoint; i <= edpoint - 1; ++i) {
+    for (int i = stpoint; i <= edpoint - 1; ++i) 
+    {
         int b = (i - stpoint) * 4;
         param[i] = { xparm[b], xparm[b + 1], xparm[b + 2], xparm[b + 3],
                     yparm[b], yparm[b + 1], yparm[b + 2], yparm[b + 3] };
@@ -86,26 +87,34 @@ void ControlPointArray2D::delete_at(int pos) {
 }
 
 
-int ControlPointArray2D::findSuitableCtrlPoint(double x, double y) {
+int ControlPointArray2D::findSuitableCtrlPoint(double x, double y) 
+{
     int res = -1;
     double minv = 1e10;
-    for (int i = 0; i < xs.size(); ++i) {
+    for (int i = 0; i < xs.size(); ++i) 
+    {
         double dist = sqrt(pow(x - xs[i].val, 2) + pow(y - ys[i].val, 2));
-        if (dist < minv && dist < maxChoosedist) {
+        if (dist < minv && dist < maxChoosedist)
+        {
             minv = dist;
             res = i;
         }
     }
-    for (int i = 1; i < xs.size(); ++i) {
+
+    for (int i = 1; i < xs.size(); ++i)
+    {
         double dist = sqrt(pow(x - ctrl_l_xs[i], 2) + pow(y - ctrl_l_ys[i], 2));
-        if (dist < minv && dist < maxChoosedist) {
+        if (dist < minv && dist < maxChoosedist)
+        {
             minv = dist;
             res = i+nodenum();
         }
     }
-    for (int i = 0; i < xs.size()-1; ++i) {
+    for (int i = 0; i < xs.size()-1; ++i) 
+    {
         double dist = sqrt(pow(x - ctrl_r_xs[i], 2) + pow(y - ctrl_r_ys[i], 2));
-        if (dist < minv && dist < maxChoosedist) {
+        if (dist < minv && dist < maxChoosedist)
+        {
             minv = dist;
             res = i + 2 * nodenum();
         }
@@ -114,7 +123,8 @@ int ControlPointArray2D::findSuitableCtrlPoint(double x, double y) {
 }
 
 
-std::vector<double> ThreeOrderSample(const std::vector<controlPoint> &ctrlarr, int begin, int end) {
+std::vector<double> ThreeOrderSample(const std::vector<controlPoint>& ctrlarr, int begin, int end) 
+{
     using namespace Eigen;
 
     int pointnum = end - begin;

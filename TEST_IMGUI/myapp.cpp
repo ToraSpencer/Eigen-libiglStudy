@@ -70,7 +70,7 @@ void MyApp::mainLoop()
             ImGui::SetNextWindowSize(ImVec2(1000,1000), ImGuiCond_Appearing);
             ImGui::Begin("main");
             bool cal = false;
-            if (ImPlot::BeginPlot("", ImVec2(900, 900))) 
+            if (ImPlot::BeginPlot("tmpID", ImVec2(900, 900)))
             {
                 if (changeTan) 
                 {
