@@ -524,6 +524,30 @@ namespace TEST_MYEIGEN_BASIC_MATH
 
 		debugDisp("finished.");
 	}
+
+
+	// ≤‚ ‘œﬂ–‘±‰ªª£∫
+	void test2() 
+	{
+		Eigen::MatrixXd versGlobal, versLocal, versResult;
+		Eigen::MatrixXi trisGlobal, trisLocal;
+		Eigen::Matrix4d affine;
+		objReadMeshMat(versGlobal, trisGlobal, "E:/Õ–≤€ª∑/upper_comps_fixed/Õ–≤€21.obj");
+		objReadMeshMat(versLocal, trisLocal, "E:/Õ–≤€ª∑/upper_comps_fixed/localÕ–≤€21.obj");
+
+		if (!getAffineL2G(affine, versLocal, versGlobal))
+		{
+			debugDisp("error!!! getAffineL2G() failed.");
+			return;
+		}
+		versResult = homoVers2VersD(affine * vers2HomoVersD(versLocal));
+		debugWriteMesh("global", versGlobal, trisGlobal);
+		debugWriteMesh("local", versLocal, trisLocal);
+		debugWriteMesh("result", versResult, trisGlobal);
+
+		debugDisp("test2 finished.");
+
+	}
 }
 
 

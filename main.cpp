@@ -1338,6 +1338,128 @@ namespace TEST_CMD
 // 托槽环：
 namespace BRACKET_RING
 { 
+	const double heightP = 6;						// ！！！当前棱柱Y方向上的尺寸为6，这里写的不对
+	const double scalingCX = 0.7;					// 局部坐标系下的cuboid在x方向（厚薄方向）上的缩放因子；
+	const double scalingCZ = 0.8;
+	const double offsetCZ = 0.3;					// 局部坐标系下的cuboid在z方向上上移的距离；
+	const double offsetPX = -2;
+
+	Eigen::Matrix4d g2lRotation21{};
+
+	// whole procedure:
+	void test0()
+	{
+		Eigen::MatrixXd versBracket, versBracketGlobal, versPrism, versNB, versCross, versTooth;
+		Eigen::MatrixXi trisBracket, trisPrism, trisNB, trisCross, trisTooth;
+		Eigen::Matrix4d affine{ Eigen::Matrix4d::Identity() };
+		Eigen::Matrix4d rotationHomo{ Eigen::Matrix4d::Identity() };
+		Eigen::Matrix4d transHomo{ Eigen::Matrix4d::Identity() };
+		Eigen::Matrix4d scalingHomo{ Eigen::Matrix4d::Identity() };
+		char fileName[512];
+		const int FDI = 21;
+
+		// 0. prepare data:
+		{
+			objReadMeshMat(versPrism, trisPrism, "E:/托槽环/upper_comps_fixed/prism_local.obj");
+			sprintf_s(fileName, "E:/托槽环/upper_comps_fixed/%d.obj", FDI);
+			objReadMeshMat(versTooth, trisTooth, fileName);
+			sprintf_s(fileName, "E:/托槽环/upper_comps_fixed/local托槽%d.obj", FDI);
+			objReadMeshMat(versBracket, trisBracket, fileName);
+			sprintf_s(fileName, "E:/托槽环/upper_comps_fixed/local切底托槽%d.obj", FDI);
+			objReadMeshMat(versNB, trisNB, fileName);
+			sprintf_s(fileName, "E:/托槽环/upper_comps_fixed/托槽%d.obj", FDI);
+			objReadMeshMat(versBracketGlobal, trisBracket, fileName);
+		}
+		debugWriteMesh("inputBracket", versBracket, trisBracket);
+		debugWriteMesh("inputBracketGlobal", versBracketGlobal, trisBracket);
+		debugWriteMesh("inputPrism", versPrism, trisPrism);
+		debugWriteMesh("inputTooth", versTooth, trisTooth);
+
+		// 1. 计算仿射变换：
+		{
+			if (!getAffineL2G(affine, versBracket, versBracketGlobal))
+			{
+				debugDisp("error!!! getAffineL2G() failed");
+				return;
+			}
+			rotationHomo.block(0, 0, 3, 3) = affine.block(0, 0, 3, 3);
+			transHomo(0, 3) = affine(0, 3);
+			transHomo(1, 3) = affine(1, 3);
+			transHomo(2, 3) = affine(2, 3);
+		}
+
+		// 2. 生成局部坐标系下，导板块下半部分cuboid:
+		double heightC = 0;
+		Eigen::MatrixXd versCuboid;
+		Eigen::MatrixXi trisCuboid;
+		{
+			Eigen::AlignedBox3d aabb;
+			aabb.setEmpty();
+			for (int i = 0; i < versBracket.rows(); ++i)
+			{
+				Eigen::Vector3d v = versBracket.row(i).transpose();
+				aabb.extend(v);
+			}
+			Eigen::Vector3d max = aabb.max();
+			Eigen::Vector3d min = aabb.min();
+			heightC = scalingCZ * (max(2) - min(2));
+
+			// 生成原始的包围盒网格：
+			genAABBmesh(versCuboid, trisCuboid, aabb);
+
+			// 缩放矩阵：
+			scalingHomo(0, 0) = scalingCX;
+			scalingHomo(2, 2) = scalingCZ;
+			versCuboid = homoVers2VersD(scalingHomo * vers2HomoVersD(versCuboid)); 
+		}
+		debugWriteMesh("cuboid_local", versCuboid, trisCuboid);
+		debugWriteMesh("prism_local", versPrism, trisPrism);
+
+		// 3. 计算棱柱的偏移矩阵
+		Eigen::Matrix4d offsetPrismHomo{ Eigen::Matrix4d::Identity() };
+		{
+			const double offsetPZ = offsetCZ + (heightC + heightP) / 2.0 - 1.5;
+			Eigen::Vector4d offsetVec{ offsetPX, 0, offsetPZ, 1 };
+			offsetVec = (rotationHomo * offsetVec).eval();
+			offsetPrismHomo.col(3) = offsetVec;
+		}
+
+		// 4. 计算cuboid的偏移矩阵（局部坐标系Z轴上移一小段距离）：
+		Eigen::Matrix4d offsetCuboidHomo{ Eigen::Matrix4d::Identity() };
+		{
+			Eigen::Vector4d offsetVec{ 0, 0, offsetCZ, 1 };
+			offsetVec = (rotationHomo * offsetVec).eval();
+			offsetCuboidHomo.col(3) = offsetVec;
+		}
+
+		// 5. 导板块上下部分变换到世界坐标系：
+		versCuboid = homoVers2VersD(transHomo * offsetCuboidHomo * \
+			rotationHomo * vers2HomoVersD(versCuboid));
+		versPrism = homoVers2VersD(transHomo * offsetPrismHomo * \
+			rotationHomo * vers2HomoVersD(versPrism));
+		debugWriteMesh("cuboid", versCuboid, trisCuboid);
+		debugWriteMesh("prism", versPrism, trisPrism);		   
+
+
+		// 6. 生成cross网格：
+		{
+			Eigen::AlignedBox3d aabb;
+			aabb.setEmpty();
+			for (int i = 0; i < versNB.rows(); ++i)
+			{
+				Eigen::Vector3d v = versNB.row(i).transpose();
+				aabb.extend(v);
+			}
+			genAABBmesh(versCross, trisCross, aabb);
+			versCross = homoVers2VersD(affine * vers2HomoVersD(versCross));
+		}
+		debugWriteMesh("crossMesh", versCross, trisCross);
+
+
+		debugDisp("test0 finished.");
+	}
+
+
 	// 使用cube生成棱柱：
 	void test1() 
 	{
@@ -1347,13 +1469,13 @@ namespace BRACKET_RING
 					棱柱长（唇舌侧方向）：8
 					后表面相对于前表面的尺寸缩放比： 0.8
 		*/
-		const double width = 6;				// y方向
-		const double height = 5;
-		const double length = 8;				// x方向
+		const double widthPrism = 6;				// y方向
+		const double heightPrism = 5;
+		const double lengthPrism = 8;				// x方向
 		const double backFrontRatio = 0.8;
-		const double zoomRatio = width;					// 总体缩放比zoomRatio = width/1.0;
-		const double zRatio = height / width;
-		const double xRatio = length / width;
+		const double zoomRatio = widthPrism;					// 总体缩放比zoomRatio = widthPrism/1.0;
+		const double zPrismRatio = heightPrism / widthPrism;
+		const double xPrismRatio = lengthPrism / widthPrism;
 
 		// 1. 生成底面在XOY平面上的单位立方体
 		Eigen::MatrixXd vers;
@@ -1376,8 +1498,8 @@ namespace BRACKET_RING
 		Eigen::Matrix4d scaling{Eigen::Matrix4d::Identity()};
 		{ 
 			scaling *= zoomRatio;
-			scaling(0, 0) *= xRatio;
-			scaling(2, 2) *= zRatio;
+			scaling(0, 0) *= xPrismRatio;
+			scaling(2, 2) *= zPrismRatio;
 			scaling(3, 3) = 1;
 			debugDisp("scaling == \n", scaling, "\n");
 		}
@@ -1390,11 +1512,12 @@ namespace BRACKET_RING
 	// 求托槽网格从局部坐标系到世界坐标系的仿射变换矩阵：
 	void test2() 
 	{
+		// 0. 重心移动到原点：
 		Eigen::MatrixXd vers, vers1;
 		Eigen::MatrixXi tris;
 		Eigen::RowVector3d center;
 		{
-			objReadMeshMat(vers, tris, "E:/托槽环/upper_comps_fixed/upper_comp_11.obj");
+			objReadMeshMat(vers, tris, "E:/托槽环/upper_comps_fixed/托槽21.obj");
 			center = vers.colwise().mean();
 			vers1 = vers;
 			vers1.rowwise() -= center;
@@ -1402,7 +1525,8 @@ namespace BRACKET_RING
 		debugWriteMesh("meshInput", vers, tris);
 		debugWriteMesh("mesh1", vers1, tris);
 
-		// 计算旋转矩阵：
+
+		// 1. 计算旋转矩阵：
 		Eigen::MatrixXd vers2;
 		Eigen::Matrix3d rotationX2, rotationX, rotationZ;
 		{
@@ -1421,7 +1545,7 @@ namespace BRACKET_RING
 			rotationX2 << 1, 0, 0, 0, cosThetaX2, -sinThetaX2, 0, sinThetaX2, cosThetaX2;
 
 			vers2 = vers1 * rotationX.transpose();
-			debugWriteMesh("tmp1", vers2, tris);			// 绕X轴旋转
+			debugWriteMesh("tmp1", vers2, tris);					// 绕X轴旋转
 
 			vers2 = (vers2 * rotationZ.transpose()).eval();		// Z
 			debugWriteMesh("tmp2", vers2, tris);
@@ -1429,7 +1553,7 @@ namespace BRACKET_RING
 			vers2 = (vers2 * rotationX2.transpose()).eval();		// X
 			debugWriteMesh("tmp3", vers2, tris);
 		}
-		debugWriteMesh("托槽11", vers2, tris);
+		debugWriteMesh("lcaol托槽21", vers2, tris);
 
 
 		//
@@ -1461,13 +1585,7 @@ namespace BRACKET_RING
 
 	// 输入自身坐标系的托槽网格，得到变换后的cuboid网格
 	void test3() 
-	{
-		const double heightP = 6;
-		const double scalingCX = 0.7;					// 局部坐标系下的cuboid在x方向（厚薄方向）上的缩放因子；
-		const double scalingCZ = 0.8;
-		const double offsetCZ = 0.3;						// 局部坐标系下的cuboid在z方向上上移的距离；
-		const double offsetPX = -2;
-
+	{ 
 		// 0. TXT读取局部坐标系到世界坐标系仿射变换的矩阵：
 		Eigen::Matrix4d affineHomo{ Eigen::Matrix4d::Identity() }, \
 			rotationHomo{ Eigen::Matrix4d::Identity() }, transHomo{ Eigen::Matrix4d::Identity() };
@@ -1492,7 +1610,7 @@ namespace BRACKET_RING
 		Eigen::MatrixXi trisBracket, trisPrism;
 		double heightC = 0;
 		{
-			objReadMeshMat(versBracket, trisBracket, "E:/托槽环/upper_comps_fixed/托槽21_local.obj");
+			objReadMeshMat(versBracket, trisBracket, "E:/托槽环/upper_comps_fixed/local托槽21.obj");
 			objReadMeshMat(versPrism, trisPrism, "E:/托槽环/upper_comps_fixed/prism_local.obj");
 			aabb.setEmpty();
 			for (int i = 0; i < versBracket.rows(); ++i)
@@ -1543,7 +1661,7 @@ namespace BRACKET_RING
 			offsetPrismHomo.col(3) = offsetVec;
 		}
 
-		// 5. 施加仿射变换：
+		// 5. 导板块上下部分变换到世界坐标系：
 		versCuboidOut = homoVers2VersD(transHomo * offsetCuboidHomo * \
 			rotationHomo  * vers2HomoVersD(versCuboid));
 		versPrismOut = homoVers2VersD(transHomo * offsetPrismHomo * \
@@ -1580,18 +1698,67 @@ namespace BRACKET_RING
 
 		debugDisp("test4() finished.");
 	}
+
+
+	void test5() 
+	{
+		char fileName[512];
+		Eigen::MatrixXd vers, versOut;
+		Eigen::RowVector3d center;
+		Eigen::MatrixXi tris;
+		for (int i = 1; i <=2; ++i) 
+		{
+			for (int k = 1; k <= 7; ++k)
+			{
+				sprintf_s(fileName, "E:/托槽环/upper_comps_fixed/托槽%d%d.obj", i, k);
+				vers.resize(0, 0);
+				versOut.resize(0, 0);
+				tris.resize(0, 0);
+				objReadMeshMat(vers, tris, fileName);
+				center = vers.colwise().mean();
+				versOut = vers.rowwise() - center;
+				sprintf_s(fileName, "localRot托槽%d%d", i, k);
+				debugWriteMesh(fileName, versOut, tris);
+			}
+		}
+
+		debugDisp("test5 finished.");
+	}
+
+
+	void test6() 
+	{
+		char fileName[512];
+		Eigen::MatrixXd vers, versOut;
+		Eigen::Matrix4d rotationHomo;
+		Eigen::RowVector3d center;
+		Eigen::MatrixXi tris;
+		for (int k = 2; k <= 7; ++k)
+		{
+			sprintf_s(fileName, "E:/tmp托槽2%d.obj", k);
+			vers.resize(0, 0);
+			versOut.resize(0, 0);
+			tris.resize(0, 0);
+
+			objReadMeshMat(vers, tris, fileName);
+			rotationHomo = getRotationX(pi / 2);
+			versOut = homoVers2VersD(rotationHomo * vers2HomoVersD(vers));
+			sprintf_s(fileName, "local托槽2%d", k);
+			debugWriteMesh(fileName, versOut, tris);
+		}
+		 
+		debugDisp("test6 finished.");
+	}
+
 }
 
 
 
 int main(int argc, char** argv)
 {  
-	TEST_IMGUI::test2();
-	 
-	// BRACKET_RING::test3();
-	  
-	// TEST_DENSE_MAT::test3();
+	// TEST_MYEIGEN_BASIC_MATH::test2();
   
+	BRACKET_RING::test0();
 
 	debugDisp("main() finished."); 
 }

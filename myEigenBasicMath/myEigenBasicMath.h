@@ -441,6 +441,113 @@ void getRotationMat(Eigen::Matrix<ScalarVO, 3, 3>& rotation, \
 }
 
 
+// 得到齐次坐标系下绕坐标轴逆时针旋转theta弧度后的旋转矩阵；
+template <typename T>
+Eigen::Matrix<T, 4, 4> getRotationX(const T theta) 
+{
+	const T cosTheta = cos(theta);
+	const T sinTheta = sin(theta);
+	Eigen::Matrix<T, 4, 4> rotationX;
+	rotationX << 1, 0, 0, 0,  \
+						  0, cosTheta, -sinTheta, 0,  \
+						  0, sinTheta, cosTheta, 0, \
+						  0, 0, 0, 1;
+	return rotationX;
+}
+
+template <typename T>
+Eigen::Matrix<T, 4, 4> getRotationY(const T theta)
+{
+	const T cosTheta = cos(theta);
+	const T sinTheta = sin(theta);
+	Eigen::Matrix<T, 4, 4> rotationY;
+	rotationY << cosTheta, 0, sinTheta, 0, \
+		0, 1, 0, 0, \
+		-sinTheta, 0, cosTheta, 0, \
+		0, 0, 0, 1;
+	return rotationY;
+}
+
+template <typename T>
+Eigen::Matrix<T, 4, 4> getRotationZ(const T theta)
+{
+	const T cosTheta = cos(theta);
+	const T sinTheta = sin(theta);
+	Eigen::Matrix<T, 4, 4> rotationZ;
+	rotationZ << cosTheta, -sinTheta, 0, 0, \
+		sinTheta, cosTheta, 0, 0, \
+		0, 0, 1, 0, \
+		0, 0, 0, 1;
+	return rotationZ;
+}
+
+
+// 计算局部坐标系下的点云变换到世界坐标系的仿射变换矩阵；
+template <typename T, typename DerivedV>
+bool getAffineL2G(Eigen::Matrix<T, 4, 4>& affine, \
+	const Eigen::MatrixBase<DerivedV>& versLocal, \
+	const Eigen::MatrixBase<DerivedV>& versGlobal, \
+	const int sampleCount = 10)
+{
+	/*
+	bool getAffineL2G(
+		Eigen::Matrix<T, 4, 4>& affine,										输出的齐次坐标系下仿射变换矩阵						
+		const Eigen::MatrixBase<DerivedV>& versLocal,			局部坐标系中的点云
+		const Eigen::MatrixBase<DerivedV>& versGlobal,			世界坐标系中的点云
+		const int sampleCount = 10											计算使用的样本点数目
+		)
+		样本点数目不可以太多也不可以太少；
+				太少的话可能会导致线性方程组的A矩阵不满秩；
+				太多的话可能导致A矩阵元素的值上溢出；
+	*/
+	using Scalar = DerivedV::Scalar;
+	using Matrix3S = Eigen::Matrix<Scalar, 3, 3>;
+	using Matrix4S = Eigen::Matrix<Scalar, 4, 4>;
+	using MatrixXS = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
+	using RowVector3S = Eigen::Matrix<Scalar, 1, 3>;
+	using Vector3S = Eigen::Matrix<Scalar, 3, 1>;	
+	using VectorXS = Eigen::Matrix<Scalar, Eigen::Dynamic, 1>;
+	const double eps = 1e-6;
+	affine.setIdentity();
+
+	// 1. 问题建模：
+	MatrixXS V, VT, VTV, U, A, versRotated;
+	Matrix3S RT;
+	RowVector3S center;
+	VectorXS u0, u1, u2;
+	Vector3S	rt0, rt1, rt2;
+	center = versGlobal.colwise().mean();
+	versRotated = versGlobal.rowwise() - center;
+	V = versLocal.topRows(sampleCount);
+	U = versRotated.topRows(sampleCount);
+	VT = V.transpose();
+	VTV = VT * V;
+	u0 = U.col(0);
+	u1 = U.col(1);
+	u2 = U.col(2);
+
+	// 2. 解线性方程组：(VT * V) * RT = (VT * U);
+	Eigen::FullPivLU<MatrixXS> solverLU;			
+	if (std::abs(VTV.determinant()) < eps)				// 样本点不够或仿射变换不唯一；
+		return false;
+	solverLU.compute(VTV);
+	rt0 = solverLU.solve(VT * u0);
+	rt1 = solverLU.solve(VT * u1);
+	rt2 = solverLU.solve(VT * u2);
+
+	// 3. 输出：
+	RT.col(0) = rt0;
+	RT.col(1) = rt1;
+	RT.col(2) = rt2; 
+	affine.block(0, 0, 3, 3) = RT.transpose();
+	affine(0, 3) = center(0);
+	affine(1, 3) = center(1);
+	affine(2, 3) = center(2); 
+
+	return true;
+}
+
+
 // 按照索引向量从输入矩阵中提取元素，重载1——索引向量为Eigen向量
 template <typename DerivedO, typename DerivedI, typename DerivedVI>
 bool subFromIdxVec(Eigen::PlainObjectBase<DerivedO>& matOut, \
