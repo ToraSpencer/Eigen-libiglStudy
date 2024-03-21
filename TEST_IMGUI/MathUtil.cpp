@@ -3,7 +3,7 @@
 #include "Eigen/Dense"
 
 
-namespace
+namespace LEAST_SQUARE
 {
     constexpr float Sqr(float x)
     {
@@ -86,6 +86,7 @@ namespace
     }
 
 }
+using namespace LEAST_SQUARE;
 
 
 // 多项式插值
@@ -359,16 +360,16 @@ std::vector<float> MathUtil::ParameterizationUniform(\
     if (n == 1)
         return { 0.0f };
 
-    float inv = 1.0f / (n - 1);
+    float deltaT = 1.0f / (n - 1);
     std::vector<float> result(n);
     for (size_t i = 0; i < n; i++)
-        result[i] = i * inv;
+        result[i] = i * deltaT;
 
     return result;
 }
 
 
-// 等弦长点列参数化：
+// 点列等弦长(Choral)参数化：
 /*
     std::vector<float> ParameterizationChoral(\        返回向量为参数t的采样点列
         const std::vector<float>& pos_x,
@@ -387,15 +388,16 @@ std::vector<float> MathUtil::ParameterizationChoral(\
     if (n == 1)
         return { 0.0f };
 
-    float sum = 0.0f;
     std::vector<float> result(n);
-    std::vector<float> dist(n - 1);
+    std::vector<float> dist(n - 1);        // 存储每对相邻数据点的欧氏距离；
+    float sum = 0.0f;                           // 所有欧氏距离加和；
     for (size_t i = 1; i < n; i++)
     {
         dist[i - 1] = (Eigen::Vector2f(pos_x[i - 1], pos_y[i - 1]) \
-            - Eigen::Vector2f(pos_x[i], pos_y[i])).norm();                      // 相邻采样点的欧氏距离；
+            - Eigen::Vector2f(pos_x[i], pos_y[i])).norm();                      // 相邻数据点的欧氏距离；
         sum += dist[i - 1];
     }
+
     result[0] = 0.0f;
     for (size_t i = 1; i < n - 1; i++)
     {
@@ -408,21 +410,25 @@ std::vector<float> MathUtil::ParameterizationChoral(\
 
 
 std::vector<float> MathUtil::ParameterizationCentripetal(\
-    const std::vector<float>& pos_x, const std::vector<float>& pos_y) {
+    const std::vector<float>& pos_x, const std::vector<float>& pos_y) 
+{
     const size_t n = pos_x.size();
-    if (n == 1) {
+    if (n == 1) 
         return { 0.0f };
-    }
+    
     float sum = 0.0f;
     std::vector<float> result(n);
     std::vector<float> dist_sqrt(n - 1);
-    for (size_t i = 1; i < n; i++) {
-        float dist = (Eigen::Vector2f(pos_x[i - 1], pos_y[i - 1]) - Eigen::Vector2f(pos_x[i], pos_y[i])).norm();
+    for (size_t i = 1; i < n; i++) 
+    {
+        float dist = (Eigen::Vector2f(pos_x[i - 1], pos_y[i - 1]) -\
+            Eigen::Vector2f(pos_x[i], pos_y[i])).norm();
         dist_sqrt[i - 1] = std::sqrt(dist);
         sum += dist_sqrt[i - 1];
     }
     result[0] = 0.0f;
-    for (size_t i = 1; i < n - 1; i++) {
+    for (size_t i = 1; i < n - 1; i++) 
+    {
         result[i] = dist_sqrt[i - 1] / sum;
         result[i] += result[i - 1];
     }
@@ -435,16 +441,17 @@ std::vector<float> MathUtil::ParameterizationFoley(\
     const std::vector<float>& pos_x, const std::vector<float>& pos_y)
 {
     const size_t n = pos_x.size();
-    if (n == 1) {
+    if (n == 1) 
         return { 0.0f };
-    }
+    
     std::vector<float> dist(n + 1);
-    for (size_t i = 1; i < n; i++) {
+    for (size_t i = 1; i < n; i++) 
         dist[i] = (Eigen::Vector2f(pos_x[i - 1], pos_y[i - 1]) - Eigen::Vector2f(pos_x[i], pos_y[i])).norm();
-    }
+    
     dist[0] = dist[n] = 0.0f;
     std::vector<float> angle(n);
-    for (size_t i = 1; i < n - 1; i++) {
+    for (size_t i = 1; i < n - 1; i++) 
+    {
         Eigen::Vector2f a = Eigen::Vector2f(pos_x[i - 1], pos_y[i - 1]) - Eigen::Vector2f(pos_x[i], pos_y[i]);
         Eigen::Vector2f b = Eigen::Vector2f(pos_x[i + 1], pos_y[i + 1]) - Eigen::Vector2f(pos_x[i], pos_y[i]);
         angle[i] = a.dot(b) / dist[i] / dist[i + 1];
@@ -453,14 +460,16 @@ std::vector<float> MathUtil::ParameterizationFoley(\
     angle[0] = angle[n - 1] = 0.0f;
     float sum = 0.0f;
     std::vector<float> diff(n - 1);
-    for (size_t i = 1; i < n; i++) {
+    for (size_t i = 1; i < n; i++) 
+    {
         diff[i - 1] = dist[i] * (1.0f + 1.5f * (angle[i - 1] * dist[i - 1]) / (dist[i - 1] + dist[i]) +
             1.5f * (angle[i] * dist[i + 1]) / (dist[i] + dist[i + 1]));
         sum += diff[i - 1];
     }
     std::vector<float> result(n);
     result[0] = 0.0f;
-    for (size_t i = 1; i < n - 1; i++) {
+    for (size_t i = 1; i < n - 1; i++) 
+    {
         result[i] = diff[i - 1] / sum;
         result[i] += result[i - 1];
     }

@@ -56,15 +56,15 @@ public:
 
     /////////////////////////////////////////////////////////////////////////////////////// 点列参数化方法：
 
-    // 点列均匀(Uniform)参数化——参数值均匀分配给控制点
+    // 点列均匀(Uniform)参数化——相邻数据点参数间隔一致取某个常数值；
     static std::vector<float> ParameterizationUniform(\
         const std::vector<float>& pos_x, const std::vector<float>& pos_y);
 
-    // 点列Choral参数化：
+    // 点列等弦长(Choral)参数化——相邻数据点参数间隔正比于其欧氏距离；
     static std::vector<float> ParameterizationChoral(\
         const std::vector<float>& pos_x, const std::vector<float>& pos_y);
 
-    // 点列Centripetal参数化：
+    // 点列中心(Centripetal)参数化：
     static std::vector<float> ParameterizationCentripetal(\
         const std::vector<float>& pos_x, const std::vector<float>& pos_y);
 

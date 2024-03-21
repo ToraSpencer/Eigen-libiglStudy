@@ -2,7 +2,8 @@
 #include <math.h>
 #include <vector>
 #include <Eigen/Dense>
-
+#include <Eigen/Sparse>
+ 
 
 struct NodeArr 
 {
@@ -208,4 +209,4 @@ public:
     }
  
 };
- 
+

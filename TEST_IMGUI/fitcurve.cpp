@@ -194,3 +194,6 @@ std::vector<double> ThreeOrderSample(const std::vector<controlPoint>& ctrlarr, i
         res.push_back(x(i));
     return res;
 }
+
+
+

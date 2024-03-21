@@ -20,6 +20,9 @@
 #include "myEigenIO/myEigenIO.h"
 #pragma comment(lib,"myEigenIO.lib")	
 
+#include "myEigenModeling/myEigenModeling.h"
+#pragma comment(lib, "myEigenModeling.lib")
+
 
 // hw3&4
 /*
@@ -120,11 +123,11 @@ namespace MY_DEBUG
 using namespace MY_DEBUG;
 
 
+
 // 三次B样条插值
 namespace BSPLINE_INTERP
 {
     using namespace TRIANGLE_MESH;
-
 
     std::vector<verF> SmoothLoop(const std::vector<verF>& vertices, float weight)
     {
@@ -522,7 +525,7 @@ namespace BSPLINE_INTERP
 
     // 生成节点向量：
     std::vector<float> NodeVec(const std::vector<verF>& sampleVers, const std::vector<verF>& contlPoint)
-    { 
+    {
         const int n = sampleVers.size() - 1;
         std::vector parDataPt(n + 1, 0.f), nodeV(2 * (n + 1), 0.f);
 
@@ -672,7 +675,7 @@ bool cubicBSplineInterpCurve3D(Eigen::PlainObjectBase<DerivedVo>& versOut, \
         return true;
     }
 
-    std::vector<verF> versSample = mat2versF(versIn); 
+    std::vector<verF> versSample = mat2versF(versIn);
     std::vector<verF> tanVecDir = TanVecDir(versSample);
     std::vector<verF> cntrlPts = ContlPoint(versSample, tanVecDir);
     std::vector<float> nodeVector = NodeVec(versSample, cntrlPts);
@@ -691,6 +694,7 @@ bool cubicBSplineInterpCurve3D(Eigen::PlainObjectBase<DerivedVo>& versOut, \
 
     return true;
 }
+
 
 
 
@@ -1591,6 +1595,29 @@ namespace TEST_IMGUI
         debugDisp("test11 finished.");
     }
 
+
+    // 三次B样条拟合托槽环曲线：
+    void test111() 
+    {
+        Eigen::MatrixXd slotPosesFront, slotPosesBack, curveFront, curveBack, vers;
+        Eigen::MatrixXi tris;
+        objReadVerticesMat(slotPosesFront, "E:/slotPosesFront.obj");
+        objReadVerticesMat(slotPosesBack, "E:/slotPosesBack.obj");
+
+        // 1. 
+        cubicBSplineInterpCurve3D(curveFront, slotPosesFront, 50);
+        cubicBSplineInterpCurve3D(curveBack, slotPosesBack, 50);
+        debugWriteVers("slotPosesCurveFront", curveFront);
+        debugWriteVers("slotPosesCurveBack", curveBack); 
+
+        // 2. 
+        genCylinder(vers, tris, curveFront, 0.5);
+        debugWriteMesh("cylinder1", vers, tris);
+        genCylinder(vers, tris, curveBack, 0.5);
+        debugWriteMesh("cylinder2", vers, tris);
+        
+        debugDisp("test111 finished.");
+    }
 
     // GUI:生成细分曲线：
     void test2()
