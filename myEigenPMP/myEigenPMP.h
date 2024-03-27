@@ -851,6 +851,43 @@ bool get1ring(std::vector<std::unordered_set<int>>& vIdx1ring, std::vector<std::
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 点云编辑：
 
+
+// 光顺非回路曲线：
+template <typename DerivedV>
+bool smoothCurve(Eigen::PlainObjectBase<DerivedV>& versOut, \
+	const Eigen::MatrixBase<DerivedV>& versIn, const int times, \
+	const double dbWeight = 0.5)
+{
+	/*
+		除首尾两个顶点外，对于点集中的每一个点p，设前一个点为q1，后一个点为q2。
+		q1q2连线的加权中点为q——q = q1+dbWeight*(q2-q1);
+		平滑操作生成的新顶点p_new为p和q的中点。
+
+ 
+		const VFVECTOR3& p = versOut[k];
+		const VFVECTOR3& q1 = versOut[k - 1];
+		const VFVECTOR3& q2 = versOut[k + 1];
+		VFVECTOR3 q = q1 + dbWeight * (q2 - q1);
+		versOut[k] = 0.5 * (p + q);
+ 
+	*/ 
+
+	using Scalar = typename DerivedV::Scalar;
+
+	versOut.resize(0, 0);
+	const int versCount = versIn.rows();
+	if (versCount < 3)
+		return false;
+
+	versOut = versIn;
+	for (unsigned i = 0; i < times; ++i) 
+		for (unsigned k = 1; k < versCount - 1; ++k) 
+			versOut.row(k) = 0.5 * (versOut.row(k) +\
+				(1 - dbWeight) * versOut.row(k - 1) + dbWeight * versOut.row(k +1)); 
+	return true;
+} 
+
+
 // 基于laplacian的回路光顺
 template<typename T>
 bool smoothCircuit2(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& circuit, \
