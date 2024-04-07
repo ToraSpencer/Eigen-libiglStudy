@@ -178,7 +178,7 @@ namespace TRIANGLE_MESH
 			double x0 = static_cast<double>(ver.x);
 			double y0 = static_cast<double>(ver.y);
 			double z0 = static_cast<double>(ver.z);
-			sprintf_s(szBuf, 1024, "v %.17g %.17g %.17g", x0, y0, z0);
+			snprintf(szBuf, 1024, "v %.17g %.17g %.17g", x0, y0, z0);
 			dstFile << szBuf << "\n";
 		}
 		dstFile.close();
@@ -276,14 +276,14 @@ namespace TRIANGLE_MESH
 		for (const auto& ver : mesh.vertices)
 		{
 			char szBuf[1024] = { 0 };
-			sprintf_s(szBuf, 1024, "v %.17g %.17g %.17g", ver.x, ver.y, ver.z);
+			snprintf(szBuf, 1024, "v %.17g %.17g %.17g", ver.x, ver.y, ver.z);
 			dstFile << szBuf << "\n";
 		}
 
 		for (const auto& tri : mesh.triangles)
 		{
 			char szBuf[256] = { 0 };
-			sprintf_s(szBuf, 256, "f %d %d %d", tri.x + 1, tri.y + 1, tri.z + 1);
+			snprintf(szBuf, 256, "f %d %d %d", tri.x + 1, tri.y + 1, tri.z + 1);
 			dstFile << szBuf << "\n";
 		}
 
