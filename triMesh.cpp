@@ -2,12 +2,13 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <unordered_set>
 #include <unordered_map>
 #include <windows.h>
 
 
 namespace TRIANGLE_MESH
-{ 
+{
 	unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize)
 	{
 		unsigned nIndx = 0;
@@ -105,6 +106,45 @@ namespace TRIANGLE_MESH
 	}
 
 
+	// 三角片数据转换为有向边数据（无重复边）
+	template <typename TI>
+	void tris2edges(std::vector<doublet<TI>>& edges, const std::vector<triplet<TI>>& tris)
+	{
+		auto encodeEdge = [](const TI vaIdx, const TI vbIdx)->std::int64_t
+		{
+			std::int64_t a = static_cast<std::int64_t>(vaIdx);
+			std::int64_t b = static_cast<std::int64_t>(vbIdx);
+			std::int64_t code = 0;
+			code |= (a << 32);
+			code |= b;
+			return code;
+		};
+
+		auto decodeEdge = [](const std::int64_t code) ->doublet<TI>
+		{
+			TI a = static_cast<TI>(code >> 32);
+			TI b = static_cast<TI>(code - (static_cast<std::int64_t>(a) << 32));
+			return doublet<TI>(a, b);
+		};
+
+		if (tris.empty())
+			return;
+
+		std::unordered_set<std::int64_t> set;
+		for (const auto& t : tris)
+		{
+			set.insert(encodeEdge(t.x, t.y));
+			set.insert(encodeEdge(t.y, t.z));
+			set.insert(encodeEdge(t.z, t.x));
+		}
+
+		edges.clear();
+		edges.reserve(set.size());
+		for (const auto& code : set)
+			edges.push_back(decodeEdge(code));
+	}
+
+
 	template	<typename TV>
 	bool objReadVertices(std::vector<TRIANGLE_MESH::triplet<TV>>& vers, const char* fileName)
 	{
@@ -181,6 +221,27 @@ namespace TRIANGLE_MESH
 			snprintf(szBuf, 1024, "v %.17g %.17g %.17g", x0, y0, z0);
 			dstFile << szBuf << "\n";
 		}
+		dstFile.close();
+
+		return true;
+	}
+
+
+	template <typename TV, typename TI>
+	bool objWriteEdges(const char* fileName, const std::vector<TRIANGLE_MESH::triplet<TV>>& vers, \
+		const std::vector<TRIANGLE_MESH::doublet<TI>>& edges)
+	{
+		if (edges.empty() || vers.empty())
+			return false;
+
+		std::ofstream dstFile(fileName);
+		for (size_t i = 0; i < vers.size(); ++i)
+			dstFile << "v " << vers[i].x << " " << vers[i].y << " " << vers[i].z << std::endl;
+
+		for (size_t i = 0; i < edges.size(); ++i)
+			dstFile << "l " << static_cast<int>(edges[i].x) + 1 << " "\
+			<< static_cast<int>(edges[i].y) + 1 << std::endl;
+
 		dstFile.close();
 
 		return true;
@@ -294,7 +355,7 @@ namespace TRIANGLE_MESH
 	template	<typename TV, typename TI>
 	bool stlReadMesh(triMesh<TV, TI>& mesh, const char* fileName, const bool blIsAscii = false)
 	{
-		using verV = triplet<TV>; 
+		using verV = triplet<TV>;
 		std::vector<verV> tmpVers;
 
 		if (blIsAscii)
@@ -397,14 +458,14 @@ namespace TRIANGLE_MESH
 
 	// 网格写入到二进制STL文件中：
 	template <typename TV, typename TI>
-	bool stlWriteMesh(const char* fileName,\
+	bool stlWriteMesh(const char* fileName, \
 		const triMesh<TV, TI>& mesh, const bool blCalcNorms = false)
 	{
 		// lambda——计算网格所有三角片的法向：
 		auto getTriNorms = [&mesh](std::vector<verF>& triNorms)->bool
 		{
 			triNorms.clear();
-			triNorms.resize(mesh.triangles.size()); 
+			triNorms.resize(mesh.triangles.size());
 			for (int i = 0; i < mesh.triangles.size(); i++)
 			{
 				verF v1 = mesh.vertices[mesh.triangles[i].y] - mesh.vertices[mesh.triangles[i].x];
@@ -421,7 +482,7 @@ namespace TRIANGLE_MESH
 			}
 			return true;
 		};
- 
+
 		std::ofstream fout(fileName, std::ios::binary);
 		char title[80] = { 0 };
 		std::int32_t trisCount = static_cast<std::int32_t>(mesh.triangles.size());
@@ -430,7 +491,7 @@ namespace TRIANGLE_MESH
 		for (int i = 0; i < mesh.vertices.size(); ++i)
 			versF[i] = mesh.vertices[i].cast<float>();
 		if (blCalcNorms)
-			getTriNorms(triNorms);			
+			getTriNorms(triNorms);
 		else
 			triNorms.resize(trisCount, verF{ 0, 0, 0 });
 
@@ -465,7 +526,7 @@ namespace TRIANGLE_MESH
 using namespace TRIANGLE_MESH;
 
 
-
+////////////////////////////////////////////////////////////////////////////////////////////// IO methods:
 bool readOBJ(std::vector<verF>& vers, const char* fileName)
 {
 	return TRIANGLE_MESH::objReadVertices(vers, fileName);
@@ -514,6 +575,20 @@ bool writeOBJ(const char* fileName, const triMeshD& mesh)
 }
 
 
+bool writeOBJ(const char* fileName, const std::vector<verF>& vers, \
+	const std::vector<edgeI>& edges)
+{
+	return TRIANGLE_MESH::objWriteEdges(fileName, vers, edges);
+}
+
+
+bool writeOBJ(const char* fileName, const std::vector<verD>& vers, \
+	const std::vector<edgeI>& edges)
+{
+	return TRIANGLE_MESH::objWriteEdges(fileName, vers, edges);
+}
+
+
 bool readSTL(triMeshF& mesh, const char* fileName, const bool blIsAscii)
 {
 	return stlReadMesh(mesh, fileName, blIsAscii);
@@ -535,4 +610,13 @@ bool writeSTL(const char* fileName, const triMeshF& mesh, const bool blCalcNorms
 bool writeSTL(const char* fileName, const triMeshD& mesh, const bool blCalcNorms)
 {
 	return stlWriteMesh(fileName, mesh, blCalcNorms);
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////// other methods:
+void tris2edges(std::vector<edgeI>& edges, const std::vector<triangleI>& tris)
+{
+	TRIANGLE_MESH::tris2edges(edges, tris);
 }

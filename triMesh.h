@@ -23,7 +23,7 @@ namespace TRIANGLE_MESH
 		{}
 
 		template <typename Ti>
-		triplet<T>(const triplet<Ti>& t): x(static_cast<T>(t.x)), y(static_cast<T>(t.y)), z(static_cast<T>(t.z))
+		triplet<T>(const triplet<Ti>& t) : x(static_cast<T>(t.x)), y(static_cast<T>(t.y)), z(static_cast<T>(t.z))
 		{}
 
 		T& at(const size_t idx)
@@ -133,15 +133,15 @@ namespace TRIANGLE_MESH
 			return static_cast<double>(x * x + y * y + z * z);
 		}
 
-		double length() const 
+		double length() const
 		{
 			return std::sqrt(this->sqrLengh());
 		}
 
 		template <typename Ti>
-		double distance(const triplet<Ti>& t) const 
+		double distance(const triplet<Ti>& t) const
 		{
-			triplet<double> arrow{static_cast<double>(x - t.x), \
+			triplet<double> arrow{ static_cast<double>(x - t.x), \
 				static_cast<double>(y - t.y), static_cast<double>(z - t.z), };
 
 			return arrow.length();
@@ -156,7 +156,7 @@ namespace TRIANGLE_MESH
 		}
 
 		template <typename Ti>
-		double dot(const triplet<Ti>& t) const 
+		double dot(const triplet<Ti>& t) const
 		{
 			return static_cast<double>(x * t.x + y * t.y + z * t.z);
 		}
@@ -164,16 +164,33 @@ namespace TRIANGLE_MESH
 		template <typename Ti>
 		triplet<T> cross(const triplet<Ti>& t) const
 		{
-			return triplet<T>{static_cast<T>(y* t.z - z * t.y),\
-				static_cast<T>(z * t.x - x*t.z), \
-				static_cast<T>(x* t.y - y * t.x)}; 
+			return triplet<T>{static_cast<T>(y* t.z - z * t.y), \
+				static_cast<T>(z* t.x - x * t.z), \
+				static_cast<T>(x* t.y - y * t.x)};
 		}
 
 		template <typename Ti>
-		triplet<Ti> cast() const 
+		triplet<Ti> cast() const
 		{
 			return triplet<Ti>{static_cast<Ti>(x), static_cast<Ti>(y), static_cast<Ti>(z)};
 		}
+	};
+
+	template <typename T>
+	struct doublet
+	{
+		T x;
+		T y;
+
+		doublet<T>() : x(0), y(0)
+		{}
+
+		doublet<T>(const T x0, const T y0) : x(x0), y(y0)
+		{}
+
+		template <typename Ti>
+		doublet<T>(const doublet<Ti>& t) : x(static_cast<T>(t.x)), y(static_cast<T>(t.y))
+		{}
 	};
 
 
@@ -187,7 +204,7 @@ namespace TRIANGLE_MESH
 		triMesh() {}
 		triMesh(const triMesh& mesh) = default;
 		triMesh(const std::vector<triplet<TV>>& vers, \
-			const std::vector<triplet<TI>>& tris): vertices(vers), triangles(tris)
+			const std::vector<triplet<TI>>& tris) : vertices(vers), triangles(tris)
 		{}
 
 		triMesh(triMesh&& mesh)
@@ -198,14 +215,14 @@ namespace TRIANGLE_MESH
 
 		triMesh& operator=(const triMesh& mesh) = default;
 
-		triMesh& operator=(triMesh&& mesh) 
+		triMesh& operator=(triMesh&& mesh)
 		{
 			this->vertices = std::move(mesh.vertices);
 			this->triangles = std::move(mesh.triangles);
 			return *this;
 		}
 
-		void clear() 
+		void clear()
 		{
 			this->vertices.clear();
 			this->triangles.clear();
@@ -218,9 +235,9 @@ namespace TRIANGLE_MESH
 			this->vertices.insert(this->vertices.end(), mesh.vertices.begin(), mesh.vertices.end());
 			this->triangles.reserve(this->triangles.size() + mesh.triangles.size());
 			for (const auto& tri : mesh.triangles)
-				this->triangles.push_back(triplet<TI>{static_cast<TI>(tri.x + versCount0),\
+				this->triangles.push_back(triplet<TI>{static_cast<TI>(tri.x + versCount0), \
 					static_cast<TI>(tri.y + versCount0), static_cast<TI>(tri.z + versCount0)});
-		} 
+		}
 	};
 
 
@@ -235,7 +252,7 @@ namespace TRIANGLE_MESH
 
 
 	template <typename T1, typename T2>
-	triplet<T1> operator+(const triplet<T1>& t1, const triplet<T2>& t2) 
+	triplet<T1> operator+(const triplet<T1>& t1, const triplet<T2>& t2)
 	{
 		return triplet<T1>{t1.x + t2.x, t1.y + t2.y, t1.z + t2.z};
 	}
@@ -249,7 +266,7 @@ namespace TRIANGLE_MESH
 
 	// 负号；
 	template <typename T>
-	triplet<T> operator-(const triplet<T>& t)				
+	triplet<T> operator-(const triplet<T>& t)
 	{
 		return triplet<T>{-t.x, -t.y, -t.z};
 	}
@@ -265,7 +282,7 @@ namespace TRIANGLE_MESH
 	triplet<T> operator*(const Scalar num, const triplet<T>& t)
 	{
 		return t * num;
-	} 
+	}
 
 	template <typename T, typename Scalar>
 	triplet<T> operator/(const triplet<T>& t, const Scalar num)
@@ -278,6 +295,10 @@ namespace TRIANGLE_MESH
 // 顶点类
 using verF = TRIANGLE_MESH::triplet<float>;									// 单精度顶点；
 using verD = TRIANGLE_MESH::triplet<double>;								// 双精度顶点；
+
+// 面片、边
+using triangleI = TRIANGLE_MESH::triplet<int>;
+using edgeI = TRIANGLE_MESH::doublet<int>;
 
 // 三角网格类
 using triMeshF = TRIANGLE_MESH::triMesh<float, int>;					// 单精度顶点网格；
@@ -293,6 +314,11 @@ bool readSTL(triMeshD& mesh, const char* fileName, const bool blIsAscii = false)
 bool writeOBJ(const char* fileName, const std::vector<verF>& vers);
 bool writeOBJ(const char* fileName, const std::vector<verD>& vers);
 bool writeOBJ(const char* fileName, const triMeshF& mesh);
-bool writeOBJ(const char* fileName, const triMeshD& mesh); 
+bool writeOBJ(const char* fileName, const triMeshD& mesh);
+bool writeOBJ(const char* fileName, const std::vector<verF>& vers, const std::vector<edgeI>& edges);
+bool writeOBJ(const char* fileName, const std::vector<verD>& vers, const std::vector<edgeI>& edges);
 bool writeSTL(const char* fileName, const triMeshF& mesh, const bool blCalcNorms = false);
 bool writeSTL(const char* fileName, const triMeshD& mesh, const bool blCalcNorms = false);
+
+// other methods:
+void tris2edges(std::vector<edgeI>& edges, const std::vector<triangleI>& tris);
