@@ -1338,13 +1338,11 @@ namespace TEST_CMD
 
 int main(int argc, char** argv)
 {   
-	TEST_IMGUI::test1();
+	// TEST_MYEIGEN_PMP::test2();
 
-	//Eigen::MatrixXd curve, vers;
-	//Eigen::MatrixXi tris;
-	//objReadVerticesMat(curve, "E:/CurveSmoothed10.obj");
-	//genCylinder(vers, tris, curve, 0.5);
-	//debugWriteMesh("cylinder", vers, tris);
+	triMeshD mesh;
+	readOBJ(mesh, "E:/meshBracket.obj");
+	writeSTL("E:/1.stl", mesh);
 
 	debugDisp("main() finished."); 
 }

@@ -599,6 +599,7 @@ namespace TEST_MYEIGEN_PMP
 	// 测试对回路点云的处理：
 	void test2() 
 	{
+#if 0
 		Eigen::MatrixXf versLoop;
 		objReadVerticesMat(versLoop, "E:/材料/LoopBdryUnsorted.obj");
 		debugWriteVers("versInput", versLoop);
@@ -611,6 +612,16 @@ namespace TEST_MYEIGEN_PMP
 		Eigen::MatrixXd versLoopArr;
 		arrangeLoop(versLoopArr, versLoop, 500);
 		debugWriteVers("loopArr", versLoopArr);
+#else
+		Eigen::MatrixXf versInput, versOut;
+		objReadVerticesMat(versInput, "G:/合板测试结果/失败/1/bdrySortedAS.obj");
+		debugWriteVers("versInput", versInput);
+
+		arrangeLoop(versOut, versInput, 500);
+		debugWriteVers("versOut", versOut);
+
+#endif
+
 
 		debugDisp("finished.");
 	}

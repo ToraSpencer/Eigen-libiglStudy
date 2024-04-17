@@ -946,9 +946,9 @@ bool arrangeLoop(Eigen::PlainObjectBase<DerivedVO>& loopOut, \
 	float step = 0;
 	MatrixXO loopNew;											// 插值均匀化以后的回路点云；
 	RowVectorXO newVer;
-	loopNew.resize(3 * std::max(versCount, tarVersCount), dim);
+	loopNew.resize(10 * std::max(versCount, tarVersCount), dim);
 	loopNew.row(index++) = loopIn.row(0).cast<ScalarO>(); 
-	for (int i = 0; i < versCount - 1; ++i)
+	for (int i = 0; i < versCount - 1; ++i)				// 输出回路生长的循环：
 	{
 		eLen = edgeLens[i];
 		if (eLen > threshold)				// 若原边长大于阈值，则插点：

@@ -161,8 +161,7 @@ namespace IGL_DIF_GEO
 
 
 namespace IGL_GRAPH 
-{
-	
+{	
 	void test0();
 	void test1();
 	void test2();
