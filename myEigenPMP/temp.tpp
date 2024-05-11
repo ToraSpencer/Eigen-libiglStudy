@@ -742,24 +742,7 @@ bool sortLoop2D(Eigen::PlainObjectBase<DerivedV>& loop, \
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 三角网格编辑：
-
-// 网格串联——合并两个孤立的网格到一个网格里
-template <typename T>
-void concatMeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers, Eigen::MatrixXi& tris, \
-	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers1, const Eigen::MatrixXi& tris1)
-{
-	int versCount = vers.rows();
-	matInsertRows(vers, vers1);
-
-	Eigen::MatrixXi trisCopy1 = tris1;
-	int* intPtr = trisCopy1.data();
-	for (int i = 0; i < trisCopy1.size(); ++i)
-		*(intPtr++) = versCount + *intPtr;
-
-	matInsertRows(tris, trisCopy1);
-};
-
-
+ 
 // 去除三角片：
 template <typename IndexT>
 bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, const std::vector<IndexT>& sickTriIdxes)

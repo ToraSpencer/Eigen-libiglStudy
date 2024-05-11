@@ -1006,11 +1006,24 @@ bool arrangeLoop(Eigen::PlainObjectBase<DerivedVO>& loopOut, \
 
 /////////////////////////////////////////////////////////////////////////////////////////////////// 三角网格编辑：
 
-template <typename T>
-void concatMeshMat(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers,\
-	Eigen::MatrixXi& tris, 	const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& vers1, \
-	const Eigen::MatrixXi& tris1);
+// 网格串联——合并两个孤立的网格到一个网格里 
+template <typename DerivedV1, typename DerivedV2>
+void concatMeshMat(Eigen::PlainObjectBase<DerivedV1>& vers, \
+	Eigen::MatrixXi& tris, const Eigen::MatrixBase<DerivedV2>& vers2, \
+	const Eigen::MatrixXi& tris2)
+{
+	using TV = typename DerivedV1::Scalar;
+	const int versCount = vers.rows();
+	matInsertRows(vers, vers2);
 
+	Eigen::MatrixXi trisCopy2 = tris2;
+	int* intPtr = trisCopy2.data();
+	for (int i = 0; i < trisCopy2.size(); ++i)
+		*(intPtr++) = versCount + *intPtr;
+
+	matInsertRows(tris, trisCopy2);
+}
+ 
 
 template <typename IndexT>
 bool removeTris(Eigen::MatrixXi& trisOut, const Eigen::MatrixXi& tris, \

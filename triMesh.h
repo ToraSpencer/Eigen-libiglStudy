@@ -1,10 +1,11 @@
 #pragma once
 #include <iostream>
 #include <cmath>
+#include <cstdio>
 #include <cstdint>
 #include <vector>
 #include <stdexcept>
-
+ 
 
 namespace TRIANGLE_MESH
 {

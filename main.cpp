@@ -1339,10 +1339,11 @@ namespace TEST_CMD
 int main(int argc, char** argv)
 {   
 	// TEST_MYEIGEN_PMP::test2();
+	
 
-	triMeshD mesh;
-	readOBJ(mesh, "E:/meshBracket.obj");
-	writeSTL("E:/1.stl", mesh);
+
+	
+
 
 	debugDisp("main() finished."); 
 }

@@ -6,6 +6,9 @@
 #include <unordered_map>
 #include <windows.h>
 
+#if _MSC_VER
+#define snprintf _snprintf
+#endif
 
 namespace TRIANGLE_MESH
 {
