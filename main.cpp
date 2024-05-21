@@ -146,6 +146,14 @@ namespace MY_DEBUG
 {
 	static std::string g_debugPath = "E:/";
 
+
+	std::ostream& operator<<(std::ostream& os, const microseconds& dur)
+	{
+		os << dur.count();
+		return os;
+	}
+
+
 	// lambda——打印std::cout支持的类型变量。
 	template <typename T>
 	static auto disp = [](const T& arg)
