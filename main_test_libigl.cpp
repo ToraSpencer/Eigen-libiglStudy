@@ -322,7 +322,7 @@ int main(int argc, char** argv)
 
 	// IGL_MODELLING::test1();
 
-	IGL_GRAPH::test1();
+	// IGL_GRAPH::test1();
 
 	// testCmd_showMESHfile(argc, argv);
 

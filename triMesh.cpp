@@ -10,6 +10,8 @@
 #define snprintf _snprintf
 #endif
 
+
+
 namespace TRIANGLE_MESH
 {
 	unsigned readNextData(char*& pszBuf, unsigned& nCount, char* validData, const unsigned nMaxSize)
